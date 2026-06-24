@@ -1,4 +1,8 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🪷 Sincere Bhakti
+
+A spiritual social platform for devotees of Gaudiya Vaishnavism. Share realizations, kirtans, scriptural insights, and devotional media with the saṅga. Create an account, post text/images/video, set content as public or private, and browse the public timeline.
+
+Built with [Next.js](https://nextjs.org).
 
 ## Getting Started
 
