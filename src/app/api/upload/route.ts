@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
     if (file.type.startsWith("video/")) mediaType = "video";
 
     return NextResponse.json({ url: blob.url, mediaType }, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error("POST /api/upload failed:", error);
     return NextResponse.json(
       { error: "Upload failed" },
       { status: 500 }

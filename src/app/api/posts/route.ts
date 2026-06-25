@@ -3,43 +3,48 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const scope = searchParams.get("scope");
-  const cursor = searchParams.get("cursor");
-  const limit = Math.min(Number(searchParams.get("limit")) || 10, 50);
+  try {
+    const { searchParams } = new URL(request.url);
+    const scope = searchParams.get("scope");
+    const cursor = searchParams.get("cursor");
+    const limit = Math.min(Number(searchParams.get("limit")) || 10, 50);
 
-  if (scope === "public") {
-    const authorId = searchParams.get("authorId");
+    if (scope === "public") {
+      const authorId = searchParams.get("authorId");
+
+      const posts = await prisma.post.findMany({
+        take: limit + 1,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        where: { isPublic: true, ...(authorId ? { authorId } : {}) },
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: { select: { id: true, name: true, image: true } },
+        },
+      });
+
+      const hasMore = posts.length > limit;
+      if (hasMore) posts.pop();
+
+      return NextResponse.json({ posts, hasMore });
+    }
+
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const posts = await prisma.post.findMany({
-      take: limit + 1,
-      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-      where: { isPublic: true, ...(authorId ? { authorId } : {}) },
+      where: { authorId: session.user.id },
       orderBy: { createdAt: "desc" },
       include: {
         author: { select: { id: true, name: true, image: true } },
       },
     });
-
-    const hasMore = posts.length > limit;
-    if (hasMore) posts.pop();
-
-    return NextResponse.json({ posts, hasMore });
+    return NextResponse.json({ posts, hasMore: false });
+  } catch (error) {
+    console.error("GET /api/posts failed:", error);
+    return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 });
   }
-
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const posts = await prisma.post.findMany({
-    where: { authorId: session.user.id },
-    orderBy: { createdAt: "desc" },
-    include: {
-      author: { select: { id: true, name: true, image: true } },
-    },
-  });
-  return NextResponse.json({ posts, hasMore: false });
 }
 
 export async function POST(request: NextRequest) {
@@ -72,7 +77,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(post, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error("POST /api/posts failed:", error);
     return NextResponse.json(
       { error: "Failed to create post" },
       { status: 500 }
