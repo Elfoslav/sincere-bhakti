@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -16,6 +17,7 @@
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^16.4.7",
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
     "next-auth": "^5.0.0-beta.31",
@@ -37,5 +39,27 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   },
-  "packageManager": "pnpm@10.17.1+sha512.17c560fca4867ae9473a3899ad84a88334914f379be46d455cbf92e5cf4b39d34985d452d2583baf19967fa76cb5c17bc9e245529d0b98745721aa7200ecaf7a"
+  "packageManager": "pnpm@10.17.1+sha512.17c560fca4867ae9473a3899ad84a88334914f379be46d455cbf92e5cf4b39d34985d452d2583baf19967fa76cb5c17bc9e245529d0b98745721aa7200ecaf7a",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "/",
+      "@",
+      "@prisma/engines",
+      "a",
+      "e",
+      "g",
+      "i",
+      "m",
+      "n",
+      "p",
+      "prisma",
+      "r",
+      "s",
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
 }
