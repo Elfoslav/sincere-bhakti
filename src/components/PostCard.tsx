@@ -2,9 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-
-const YT_REGEX =
-  /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/;
+import { extractYouTubeContent } from "@/lib/video";
 
 interface PostAuthor {
   id: string;
@@ -25,9 +23,11 @@ interface Post {
 export default function PostCard({
   post,
   onDelete,
+  currentUserId,
 }: {
   post: Post;
   onDelete?: (id: string) => void;
+  currentUserId?: string;
 }) {
   const date = new Date(post.createdAt).toLocaleDateString("en-US", {
     year: "numeric",
@@ -37,17 +37,10 @@ export default function PostCard({
     minute: "2-digit",
   });
 
-  const { cleanContent, embedUrl } = useMemo(() => {
-    if (!post.content) return { cleanContent: null, embedUrl: null };
-    const match = post.content.match(YT_REGEX);
-    if (!match) return { cleanContent: post.content, embedUrl: null };
-    return {
-      cleanContent: post.content
-        .replace(/https?:\/\/\S*(?:youtube\.com|youtu\.be)\S*/gi, "")
-        .trim() || null,
-      embedUrl: `https://www.youtube.com/embed/${match[1]}`,
-    };
-  }, [post.content]);
+  const { cleanContent, embedUrl } = useMemo(
+    () => extractYouTubeContent(post.content),
+    [post.content],
+  );
 
   const videoEmbed = post.mediaType === "youtube"
     ? post.mediaUrl
@@ -68,15 +61,27 @@ export default function PostCard({
           </Link>
           <p className="text-xs text-deep/60">{date}</p>
         </div>
-        {onDelete && (
-          <button
-            onClick={() => onDelete(post.id)}
-            className="text-red-500 hover:text-red-700 text-sm"
-            title="Delete post"
+        <div className="flex items-center gap-1 shrink-0">
+          <Link
+            href={`/post/${post.id}`}
+            className="text-deep/40 hover:text-gold transition-colors p-1"
+            title="Open post"
           >
-            ✕
-          </button>
-        )}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5z" clipRule="evenodd" />
+              <path fillRule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 8.194a.75.75 0 00-.053 1.06z" clipRule="evenodd" />
+            </svg>
+          </Link>
+          {onDelete && (
+            <button
+              onClick={() => onDelete(post.id)}
+              className="text-red-500 hover:text-red-700 text-sm p-1"
+              title="Delete post"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {cleanContent && (
@@ -117,17 +122,19 @@ export default function PostCard({
         </div>
       )}
 
-      <div className="flex items-center gap-2 text-xs text-deep/50">
-        {post.isPublic ? (
-          <span className="bg-tulsi/20 text-tulsi px-2 py-0.5 rounded-full">
-            Public
-          </span>
-        ) : (
-          <span className="bg-saffron/20 text-saffron-dark px-2 py-0.5 rounded-full">
-            Private
-          </span>
-        )}
-      </div>
+      {currentUserId === post.author.id && (
+        <div className="flex items-center gap-2 text-xs text-deep/50">
+          {post.isPublic ? (
+            <span className="bg-tulsi/20 text-tulsi px-2 py-0.5 rounded-full">
+              Public
+            </span>
+          ) : (
+            <span className="bg-saffron/20 text-saffron-dark px-2 py-0.5 rounded-full">
+              Private
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

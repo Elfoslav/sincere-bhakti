@@ -36,7 +36,7 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
           <footer className="bg-deep text-white/50 text-center text-sm py-4 border-t border-gold/20">
             <p>
-              🪷 Sincere Bhakti — Dedicated to the teachings of
+              © 2026 🪷 Sincere Bhakti — Dedicated to the teachings of
               Śrīla Prabhupāda
             </p>
           </footer>

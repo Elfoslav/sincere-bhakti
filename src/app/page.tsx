@@ -25,10 +25,10 @@ export default function Home() {
             Join the Saṅga
           </Link>
           <Link
-            href="/timeline"
+            href="/posts"
             className="border-2 border-deep text-deep hover:bg-deep hover:text-warm px-8 py-3 rounded-lg text-lg font-semibold transition-colors"
           >
-            View Timeline
+            Posts
           </Link>
         </div>
 

@@ -53,19 +53,13 @@ export default function Navbar() {
 
           <div className="hidden md:flex items-center gap-4">
             <Link
-              href="/timeline"
+              href="/posts"
               className="hover:text-gold-light transition-colors"
             >
-              Timeline
+              Posts
             </Link>
             {session ? (
               <>
-                <Link
-                  href="/dashboard"
-                  className="hover:text-gold-light transition-colors"
-                >
-                  Dashboard
-                </Link>
                 <Link
                   href={`/profile/${session.user.id}`}
                   className="hover:text-gold-light transition-colors"
@@ -105,14 +99,11 @@ export default function Navbar() {
         }`}
       >
         <div className="flex flex-col gap-1 px-4 pb-4 pt-1 border-t border-white/10">
-          <MobileLink href="/timeline" onClick={close}>
-            Timeline
-          </MobileLink>
+              <MobileLink href="/posts" onClick={close}>
+                Posts
+              </MobileLink>
           {session ? (
             <>
-              <MobileLink href="/dashboard" onClick={close}>
-                Dashboard
-              </MobileLink>
               <MobileLink href={`/profile/${session.user.id}`} onClick={close}>
                 Profile
               </MobileLink>

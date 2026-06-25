@@ -9,10 +9,12 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(Number(searchParams.get("limit")) || 10, 50);
 
   if (scope === "public") {
+    const authorId = searchParams.get("authorId");
+
     const posts = await prisma.post.findMany({
       take: limit + 1,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-      where: { isPublic: true },
+      where: { isPublic: true, ...(authorId ? { authorId } : {}) },
       orderBy: { createdAt: "desc" },
       include: {
         author: { select: { id: true, name: true, image: true } },

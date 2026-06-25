@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
 
 interface UserProfile {
   id: string;
@@ -22,54 +23,41 @@ interface UserProfile {
   createdAt: string;
 }
 
-interface Post {
-  id: string;
-  content: string | null;
-  mediaUrl: string | null;
-  mediaType: string | null;
-  isPublic: boolean;
-  createdAt: string;
-  author: { id: string; name: string | null; image: string | null };
-}
-
 export default function ProfilePage() {
   const params = useParams();
   const { data: session } = useSession();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const isOwnProfile = session?.user?.id === params.id;
+  const authorId = params.id as string;
+  const isOwnProfile = session?.user?.id === authorId;
+
+  const {
+    posts,
+    loading: postsLoading,
+    loadingMore,
+    hasMore,
+    sentinelRef,
+  } = useInfinitePosts({ authorId, disabled: !authorId });
+
+  const loading = profileLoading || postsLoading;
 
   useEffect(() => {
-    if (params.id) fetchProfile();
-  }, [params.id]);
+    if (!authorId) return;
+    let mounted = true;
+    fetch(`/api/users/${authorId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (mounted && data) setProfile(data); })
+      .finally(() => { if (mounted) setProfileLoading(false); });
+    return () => { mounted = false; };
+  }, [authorId]);
 
   useEffect(() => {
     if (profile) setNewName(profile.name);
   }, [profile]);
-
-  async function fetchProfile() {
-    try {
-      const [profileRes, postsRes] = await Promise.all([
-        fetch(`/api/users/${params.id}`),
-        fetch(`/api/posts?scope=public`),
-      ]);
-
-      if (profileRes.ok) setProfile(await profileRes.json());
-      if (postsRes.ok) {
-        const data = await postsRes.json();
-        setPosts(data.posts.filter((p: Post) => p.author.id === params.id));
-      }
-    } catch {
-      /* empty */
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleSave() {
     if (!newName.trim() || !profile) return;
@@ -178,8 +166,18 @@ export default function ProfilePage() {
       ) : (
         <div className="space-y-4">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} currentUserId={session?.user?.id} />
           ))}
+        </div>
+      )}
+
+      {hasMore && posts.length > 0 && (
+        <div ref={sentinelRef} className="flex justify-center py-8">
+          {loadingMore ? (
+            <p className="text-deep/50 text-sm">Loading more...</p>
+          ) : (
+            <div className="w-6 h-6" />
+          )}
         </div>
       )}
     </div>
