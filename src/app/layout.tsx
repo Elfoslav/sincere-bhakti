@@ -14,10 +14,39 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXTAUTH_URL ||
+  (process.env.NEXT_PUBLIC_VERCEL_URL
+    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+    : "http://localhost:3000");
+
 export const metadata: Metadata = {
-  title: "Sincere Bhakti",
+  title: {
+    default: "Sincere Bhakti — Gaudiya Vaishnavism Community",
+    template: "%s | Sincere Bhakti",
+  },
   description:
-    "A spiritual community for devotees of Gaudiya Vaishnavism — share bhakti, inspire devotion.",
+    "A spiritual community for devotees of Gaudiya Vaishnavism — share bhakti, inspire devotion. Post verses, realizations, and connect with the global saṅga.",
+  metadataBase: new URL(siteUrl),
+  openGraph: {
+    type: "website",
+    siteName: "Sincere Bhakti",
+    title: "Sincere Bhakti — Gaudiya Vaishnavism Community",
+    description:
+      "A spiritual community for devotees of Gaudiya Vaishnavism — share bhakti, inspire devotion.",
+    url: siteUrl,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sincere Bhakti — Gaudiya Vaishnavism Community",
+    description:
+      "A spiritual community for devotees of Gaudiya Vaishnavism — share bhakti, inspire devotion.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

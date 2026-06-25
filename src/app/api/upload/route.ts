@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 import { auth } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -17,23 +16,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const blob = await put(file.name, file, { access: "public" });
 
-    const uploadDir = path.join(process.cwd(), "public/uploads");
-    await mkdir(uploadDir, { recursive: true });
-
-    const uniqueName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-    const filePath = path.join(uploadDir, uniqueName);
-    await writeFile(filePath, buffer);
-
-    const url = `/uploads/${uniqueName}`;
-
-    const contentType = file.type;
     let mediaType = "image";
-    if (contentType.startsWith("video/")) mediaType = "video";
+    if (file.type.startsWith("video/")) mediaType = "video";
 
-    return NextResponse.json({ url, mediaType }, { status: 201 });
+    return NextResponse.json({ url: blob.url, mediaType }, { status: 201 });
   } catch {
     return NextResponse.json(
       { error: "Upload failed" },
