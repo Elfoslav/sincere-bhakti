@@ -22,7 +22,10 @@ export async function GET(
     return NextResponse.json(user);
   } catch (error) {
     console.error("GET /api/users/[id] failed:", error);
-    return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
+    const message = error instanceof Error && "code" in error && error.code === "P1001"
+      ? "Database connection failed"
+      : "Failed to fetch user";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
