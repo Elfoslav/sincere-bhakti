@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { updateNameSchema } from "@/lib/validation";
 
 export async function GET(
   _request: NextRequest,
@@ -37,15 +38,19 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { name } = await request.json();
+    const body = await request.json();
+    const parsed = updateNameSchema.safeParse(body);
 
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0].message },
+        { status: 400 }
+      );
     }
 
     const user = await prisma.user.update({
       where: { id },
-      data: { name: name.trim() },
+      data: { name: parsed.data.name },
       select: { id: true, name: true, email: true, image: true, createdAt: true },
     });
 

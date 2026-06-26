@@ -1,16 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { createPostSchema, paginationSchema } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const scope = searchParams.get("scope");
-    const cursor = searchParams.get("cursor");
-    const limit = Math.min(Number(searchParams.get("limit")) || 10, 50);
+    const parsed = paginationSchema.safeParse({
+      scope: searchParams.get("scope"),
+      cursor: searchParams.get("cursor"),
+      limit: searchParams.get("limit"),
+      authorId: searchParams.get("authorId"),
+    });
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0].message },
+        { status: 400 }
+      );
+    }
+
+    const { scope, cursor, limit, authorId } = parsed.data;
 
     if (scope === "public") {
-      const authorId = searchParams.get("authorId");
 
       const posts = await prisma.post.findMany({
         take: limit + 1,
@@ -54,21 +66,24 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { content, mediaUrl, mediaType, isPublic } = await request.json();
+    const body = await request.json();
+    const parsed = createPostSchema.safeParse(body);
 
-    if (!content && !mediaUrl) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Content or media required" },
+        { error: parsed.error.issues[0].message },
         { status: 400 }
       );
     }
 
+    const { content, mediaUrl, mediaType, isPublic } = parsed.data;
+
     const post = await prisma.post.create({
       data: {
-        content,
-        mediaUrl,
-        mediaType,
-        isPublic: isPublic ?? true,
+        content: content || null,
+        mediaUrl: mediaUrl || null,
+        mediaType: mediaType || null,
+        isPublic,
         authorId: session.user.id,
       },
       include: {

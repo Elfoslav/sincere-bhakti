@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { Pencil } from "lucide-react";
 import PostCard from "@/components/PostCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,14 +51,15 @@ export default function ProfilePage() {
     let mounted = true;
     fetch(`/api/users/${authorId}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { if (mounted && data) setProfile(data); })
+      .then((data) => {
+        if (mounted && data) {
+          setProfile(data);
+          setNewName(data.name);
+        }
+      })
       .finally(() => { if (mounted) setProfileLoading(false); });
     return () => { mounted = false; };
   }, [authorId]);
-
-  useEffect(() => {
-    if (profile) setNewName(profile.name);
-  }, [profile]);
 
   async function handleSave() {
     if (!newName.trim() || !profile) return;
@@ -116,9 +118,7 @@ export default function ProfilePage() {
                 className="text-gold hover:text-gold-light transition-colors cursor-pointer"
                 title="Edit name"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                </svg>
+                <Pencil className="w-[18px] h-[18px]" />
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
