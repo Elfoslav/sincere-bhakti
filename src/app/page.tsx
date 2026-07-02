@@ -1,10 +1,11 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
     <div className="min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center px-4 py-8">
       <div className="max-w-2xl text-center">
-        <div className="text-6xl mb-6">🪷</div>
+        <Image src="/images/logo.svg" alt="Sincere Bhakti" width={80} height={80} className="mx-auto mb-6" unoptimized />
         <h1 className="text-5xl font-bold text-deep mb-4">
           Sincere Bhakti
         </h1>

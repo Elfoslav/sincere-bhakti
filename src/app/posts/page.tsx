@@ -1,21 +1,13 @@
 "use client";
 
-import { useState, useEffect, startTransition } from "react";
+import { useState, useEffect, useRef, startTransition } from "react";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
 import { getYouTubeEmbedUrl } from "@/lib/video";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
-
-interface Post {
-	id: string;
-	content: string | null;
-	mediaUrl: string | null;
-	mediaType: string | null;
-	isPublic: boolean;
-	createdAt: string;
-	author: { id: string; name: string | null; image: string | null };
-}
+import type { Post } from "@/types/post";
 
 export default function TimelinePage() {
 	const { data: session } = useSession();
@@ -30,10 +22,11 @@ export default function TimelinePage() {
 
 	const [content, setContent] = useState("");
 	const [isPublic, setIsPublic] = useState(true);
-	const [mediaFile, setMediaFile] = useState<File | null>(null);
-	const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+	const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+	const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
 	const [posting, setPosting] = useState(false);
 	const [myPosts, setMyPosts] = useState<Post[]>([]);
+	const [myPostsError, setMyPostsError] = useState(false);
 
 	useEffect(() => {
 		if (!session) return;
@@ -43,7 +36,8 @@ export default function TimelinePage() {
 			.then((r) => (r.ok ? r.json() : null))
 			.then((data) => {
 				if (mounted && data) startTransition(() => setMyPosts(data.posts));
-			});
+			})
+			.catch(() => { if (mounted) setMyPostsError(true); });
 
 		return () => {
 			mounted = false;
@@ -51,72 +45,127 @@ export default function TimelinePage() {
 	}, [session]);
 
 	function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-		const file = e.target.files?.[0];
-		if (!file) return;
-		setMediaFile(file);
-		setMediaPreview(URL.createObjectURL(file));
+		const files = Array.from(e.target.files ?? []);
+		if (files.length === 0) return;
+		setMediaFiles((prev) => [...prev, ...files]);
+		setMediaPreviews((prev) => [
+			...prev,
+			...files.map((f) => URL.createObjectURL(f)),
+		]);
+	}
+
+	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	function removeFile(index: number) {
+		setMediaFiles((prev) => prev.filter((_, i) => i !== index));
+		setMediaPreviews((prev) => {
+			if (prev[index]) URL.revokeObjectURL(prev[index]);
+			return prev.filter((_, i) => i !== index);
+		});
 	}
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		if (!session) return;
 		const trimmed = content.trim();
-		if (!trimmed && !mediaFile) return;
+		if (!trimmed && mediaFiles.length === 0) return;
 		setPosting(true);
 
-		let postContent = trimmed;
-		let mediaUrl: string | null = null;
-		let mediaType: string | null = null;
+		const media: { url: string; type: string }[] = [];
 
-		const embedUrl = getYouTubeEmbedUrl(trimmed);
-		if (embedUrl) {
-			mediaUrl = embedUrl;
-			mediaType = "youtube";
-			postContent = trimmed.replace(/https?:\/\/\S*(?:youtube\.com|youtu\.be)\S*/gi, "").trim();
+		const youtubeUrl = getYouTubeEmbedUrl(trimmed);
+		if (youtubeUrl) {
+			media.push({ url: youtubeUrl, type: "youtube" });
 		}
 
-		if (!mediaUrl && mediaFile) {
-			const formData = new FormData();
-			formData.append("file", mediaFile);
-			const uploadRes = await fetch("/api/upload", {
-				method: "POST",
-				body: formData,
+		let uploadFailed = false;
+
+		if (mediaFiles.length > 0) {
+			const uploads = mediaFiles.map(async (file) => {
+				let res: Response;
+				try {
+					res = await fetch("/api/upload-url", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							fileName: file.name,
+							contentType: file.type,
+						}),
+					});
+				} catch {
+					return null;
+				}
+				if (!res.ok) return null;
+				const { uploadUrl, publicUrl, mediaType: mt } = await res.json();
+				let putRes: Response;
+				try {
+					putRes = await fetch(uploadUrl, {
+						method: "PUT",
+						body: file,
+						headers: { "Content-Type": file.type || "application/octet-stream" },
+					});
+				} catch {
+					return null;
+				}
+				if (!putRes.ok) return null;
+				return { url: publicUrl, type: mt };
 			});
-			if (uploadRes.ok) {
-				const data = await uploadRes.json();
-				mediaUrl = data.url;
-				mediaType = data.mediaType;
+
+			const results = await Promise.allSettled(uploads);
+			for (const r of results) {
+				if (r.status === "fulfilled" && r.value) media.push(r.value);
+				else uploadFailed = true;
+			}
+
+			if (uploadFailed) {
+				toast.error("Upload failed. Please try again.");
+				setPosting(false);
+				return;
 			}
 		}
 
-		const res = await fetch("/api/posts", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				content: postContent || undefined,
-				mediaUrl,
-				mediaType,
-				isPublic,
-			}),
-		});
+		if (!trimmed && media.length === 0) {
+			toast.error("Nothing to post — add text or media");
+			setPosting(false);
+			return;
+		}
 
-		if (res.ok) {
-			const newPost = await res.json();
-			setContent("");
-			setMediaFile(null);
-			setMediaPreview(null);
-			fetch("/api/posts")
-				.then((r) => (r.ok ? r.json() : null))
-				.then((data) => {
-					if (data) setMyPosts(data.posts);
-				});
-			if (isPublic) setPosts((prev) => [newPost, ...prev]);
+		const postContent = youtubeUrl
+			? trimmed.replace(/https?:\/\/\S*(?:youtube\.com|youtu\.be)\S*/gi, "").trim()
+			: trimmed;
+
+		try {
+			const res = await fetch("/api/posts", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					content: postContent || undefined,
+					media: media.length > 0 ? media : undefined,
+					isPublic,
+				}),
+			});
+
+			if (res.ok) {
+				const newPost = await res.json();
+				setContent("");
+				setMediaFiles([]);
+				setMediaPreviews((prev) => { prev.forEach(URL.revokeObjectURL); return []; });
+				if (fileInputRef.current) fileInputRef.current.value = "";
+				setMyPosts((prev) => [newPost, ...prev]);
+				if (isPublic) setPosts((prev) => [newPost, ...prev]);
+				toast.success("Post published");
+			} else {
+				const err = await res.json().catch(() => ({ error: "Failed to create post" }));
+				toast.error(err.error);
+			}
+		} catch {
+			toast.error("Failed to create post");
 		}
 
 		setPosting(false);
 	}
 
-	const detectedVideo = getYouTubeEmbedUrl(content);
+	const detectedVideo = mediaFiles.length === 0 ? getYouTubeEmbedUrl(content) : null;
 
 	return (
 		<div className="max-w-3xl mx-auto px-4 py-8">
@@ -136,7 +185,7 @@ export default function TimelinePage() {
 							className="w-full px-4 py-3 rounded-md border border-sand bg-warm/50 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent resize-none"
 						/>
 
-						{detectedVideo && !mediaFile && (
+						{detectedVideo && mediaFiles.length === 0 && (
 							<div className="mt-3 aspect-video rounded-md overflow-hidden bg-deep/5">
 								<iframe
 									key={detectedVideo}
@@ -150,27 +199,24 @@ export default function TimelinePage() {
 							</div>
 						)}
 
-						{mediaPreview && (
-							<div className="mt-3 relative">
-								{mediaFile?.type.startsWith("video/") ? (
-									<video src={mediaPreview} controls className="max-h-64 rounded-md" />
-								) : (
-									<img
-										src={mediaPreview}
-										alt="Preview"
-										className="max-h-64 rounded-md object-contain"
-									/>
-								)}
-								<button
-									type="button"
-									onClick={() => {
-										setMediaFile(null);
-										setMediaPreview(null);
-									}}
-									className="absolute top-2 right-2 bg-red-500 text-white w-6 h-6 rounded-full text-sm hover:bg-red-600"
-								>
-									✕
-								</button>
+						{mediaPreviews.length > 0 && (
+							<div className="mt-3 grid grid-cols-2 gap-2">
+								{mediaPreviews.map((preview, i) => (
+									<div key={preview} className="relative group">
+										{mediaFiles[i]?.type.startsWith("video/") ? (
+											<video src={preview} controls className="max-h-64 rounded-md w-full object-contain" />
+										) : (
+											<img src={preview} alt="Preview" className="max-h-64 rounded-md w-full object-contain" />
+										)}
+										<button
+											type="button"
+											onClick={() => removeFile(i)}
+											className="absolute top-1 right-1 bg-red-500 text-white w-5 h-5 rounded-full text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+										>
+											✕
+										</button>
+									</div>
+								))}
 							</div>
 						)}
 
@@ -178,13 +224,15 @@ export default function TimelinePage() {
 							<div className="flex items-center gap-4">
 								<label className="flex items-center gap-2 text-sm text-deep/70 cursor-pointer hover:text-deep">
 									<input
+										ref={fileInputRef}
 										type="file"
+										multiple
 										accept="image/*,video/*"
 										onChange={handleFileSelect}
 										className="hidden"
 									/>
 									<span className="text-xl">📎</span>
-									Attach Media
+									{mediaFiles.length > 0 ? `Media (${mediaFiles.length})` : "Attach Media"}
 								</label>
 
 								<label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -203,7 +251,7 @@ export default function TimelinePage() {
 							<div className="flex items-center gap-2">
 								<button
 									type="submit"
-									disabled={posting || (!content.trim() && !mediaFile)}
+									disabled={posting || (!content.trim() && mediaFiles.length === 0)}
 									className="bg-saffron hover:bg-saffron-dark text-white font-semibold px-6 py-2 rounded-md transition-colors disabled:opacity-50"
 								>
 									{posting ? "Posting..." : "Share 🙏"}
@@ -258,7 +306,11 @@ export default function TimelinePage() {
 
 				{session && (
 					<TabsPanel value="my">
-						{myPosts.length === 0 ? (
+						{myPostsError ? (
+							<p className="text-center text-red-500 py-8 bg-white rounded-lg border border-sand">
+								Failed to load your posts.
+							</p>
+						) : myPosts.length === 0 ? (
 							<p className="text-center text-deep/50 py-8 bg-white rounded-lg border border-sand">
 								No posts yet.
 							</p>

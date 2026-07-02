@@ -1,14 +1,5 @@
 import { useState, useEffect, useRef, useCallback, startTransition } from "react";
-
-interface Post {
-  id: string;
-  content: string | null;
-  mediaUrl: string | null;
-  mediaType: string | null;
-  isPublic: boolean;
-  createdAt: string;
-  author: { id: string; name: string | null; image: string | null };
-}
+import type { Post } from "@/types/post";
 
 const PAGE_SIZE = 10;
 
@@ -28,17 +19,21 @@ export function useInfinitePosts(params?: ApiParams) {
 
   const fetchPosts = useCallback(
     async (cursor?: string) => {
-      const query = new URLSearchParams({
-        scope: "public",
-        limit: String(pageSize),
-      });
-      if (cursor) query.set("cursor", cursor);
-      if (authorId) query.set("authorId", authorId);
+      try {
+        const query = new URLSearchParams({
+          scope: "public",
+          limit: String(pageSize),
+        });
+        if (cursor) query.set("cursor", cursor);
+        if (authorId) query.set("authorId", authorId);
 
-      const res = await fetch(`/api/posts?${query}`);
-      if (!res.ok) return null;
+        const res = await fetch(`/api/posts?${query}`);
+        if (!res.ok) return null;
 
-      return res.json() as Promise<{ posts: Post[]; hasMore: boolean }>;
+        return res.json() as Promise<{ posts: Post[]; hasMore: boolean }>;
+      } catch {
+        return null;
+      }
     },
     [authorId, pageSize],
   );
@@ -88,7 +83,7 @@ export function useInfinitePosts(params?: ApiParams) {
     if (!el || disabled) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) loadMore();
+        if (entries[0].isIntersecting) loadMore().catch(() => {});
       },
       { rootMargin: "200px" },
     );

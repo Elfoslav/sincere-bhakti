@@ -4,22 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { extractYouTubeContent } from "@/lib/video";
-
-interface PostAuthor {
-  id: string;
-  name: string | null;
-  image: string | null;
-}
-
-interface Post {
-  id: string;
-  content: string | null;
-  mediaUrl: string | null;
-  mediaType: string | null;
-  isPublic: boolean;
-  createdAt: string;
-  author: PostAuthor;
-}
+import type { Post } from "@/types/post";
 
 export default function PostCard({
   post,
@@ -38,14 +23,10 @@ export default function PostCard({
     minute: "2-digit",
   });
 
-  const { cleanContent, embedUrl } = useMemo(
+  const { cleanContent } = useMemo(
     () => extractYouTubeContent(post.content),
     [post.content],
   );
-
-  const videoEmbed = post.mediaType === "youtube"
-    ? post.mediaUrl
-    : embedUrl;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-5 border border-sand">
@@ -86,39 +67,44 @@ export default function PostCard({
         <p className="text-deep mb-3 whitespace-pre-wrap">{cleanContent}</p>
       )}
 
-      {videoEmbed && (
-        <div className="rounded-lg overflow-hidden mb-2">
-          <div className="aspect-video">
-            <iframe
-              key={videoEmbed}
-              src={videoEmbed}
-              className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-              title="YouTube video"
-            />
-          </div>
-        </div>
-      )}
-
-      {!videoEmbed && post.mediaUrl && (
-        <div className="rounded-lg overflow-hidden mb-2">
-          {post.mediaType === "video" ? (
+      {post.media.map((m) => (
+        <div key={m.url} className="rounded-lg overflow-hidden mb-2">
+          {m.type === "youtube" ? (
+            <div className="aspect-video">
+              <iframe
+                src={m.url}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                title="YouTube video"
+              />
+            </div>
+          ) : m.type === "video" ? (
             <video
-              src={post.mediaUrl}
+              src={m.url}
               controls
               className="w-full max-h-96 object-contain"
             />
-          ) : (
+          ) : m.type === "image" ? (
             <img
-              src={post.mediaUrl}
+              src={m.url}
               alt="Post media"
               className="w-full max-h-96 object-contain"
             />
+          ) : (
+            <a
+              href={m.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-3 bg-warm/50 rounded-md border border-sand text-deep hover:bg-warm transition-colors"
+            >
+              <span className="text-sm">📎</span>
+              <span className="text-sm font-medium truncate">{m.url.split("/").pop()}</span>
+            </a>
           )}
         </div>
-      )}
+      ))}
 
       {currentUserId === post.author.id && (
         <div className="flex items-center gap-2 text-xs text-deep/50">

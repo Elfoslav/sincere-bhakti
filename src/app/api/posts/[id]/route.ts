@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-
-const postInclude = {
-  author: { select: { id: true, name: true, image: true } },
-};
+import { getPostById, deletePost, NotFoundError, ForbiddenError } from "@/lib/services/post";
 
 export async function GET(
   _request: NextRequest,
@@ -13,12 +9,16 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const post = await prisma.post.findUnique({
-      where: { id },
-      include: postInclude,
-    });
+    const post = await getPostById(id);
     if (!post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    if (!post.isPublic) {
+      const session = await auth();
+      if (!session?.user?.id || session.user.id !== post.author.id) {
+        return NextResponse.json({ error: "Post not found" }, { status: 404 });
+      }
     }
 
     return NextResponse.json(post);
@@ -40,17 +40,15 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const post = await prisma.post.findUnique({ where: { id } });
-    if (!post) {
-      return NextResponse.json({ error: "Post not found" }, { status: 404 });
-    }
-    if (post.authorId !== session.user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    await prisma.post.delete({ where: { id } });
+    await deletePost(id, session.user.id);
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof NotFoundError) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     console.error("DELETE /api/posts/[id] failed:", error);
     return NextResponse.json({ error: "Failed to delete post" }, { status: 500 });
   }

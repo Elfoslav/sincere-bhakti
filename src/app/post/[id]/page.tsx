@@ -3,16 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import PostCard from "@/components/PostCard";
-
-interface Post {
-  id: string;
-  content: string | null;
-  mediaUrl: string | null;
-  mediaType: string | null;
-  isPublic: boolean;
-  createdAt: string;
-  author: { id: string; name: string | null; image: string | null };
-}
+import type { Post } from "@/types/post";
 
 export default function SinglePostPage() {
   const { id } = useParams<{ id: string }>();

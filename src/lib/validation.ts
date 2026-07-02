@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-const cuid = z.string().min(1, "ID is required");
-
 export const registerSchema = z.object({
   name: z
     .string()
@@ -25,21 +23,20 @@ export const createPostSchema = z.object({
     .string()
     .trim()
     .max(5000, "Content must be 5000 characters or less")
+    .optional(),
+  media: z
+    .array(
+      z.object({
+        url: z.string().url("Invalid media URL").max(2000),
+        type: z.enum(["image", "video", "youtube", "file"]),
+      }),
+    )
+    .max(10, "Maximum 10 media items per post")
     .optional()
-    .or(z.literal("")),
-  mediaUrl: z
-    .string()
-    .url("Invalid media URL")
-    .max(2000, "Media URL too long")
-    .optional()
-    .nullable(),
-  mediaType: z
-    .enum(["image", "video", "youtube"])
-    .optional()
-    .nullable(),
+    .default([]),
   isPublic: z.boolean().default(true),
 }).refine(
-  (data) => data.content || data.mediaUrl,
+  (data) => data.content || data.media.length > 0,
   { message: "Content or media is required" },
 );
 
@@ -56,4 +53,9 @@ export const paginationSchema = z.object({
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(10),
   authorId: z.string().min(1).optional(),
+});
+
+export const uploadUrlSchema = z.object({
+  fileName: z.string().min(1, "fileName is required").max(255),
+  contentType: z.string().min(1, "contentType is required").max(255),
 });
