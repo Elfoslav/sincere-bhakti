@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, startTransition } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
+import { Button } from "@/components/ui/button";
 import { getYouTubeEmbedUrl } from "@/lib/video";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
@@ -249,13 +250,14 @@ export default function TimelinePage() {
 							</div>
 
 							<div className="flex items-center gap-2">
-								<button
+								<Button
 									type="submit"
+									variant="saffron"
+									className="px-6 py-2"
 									disabled={posting || (!content.trim() && mediaFiles.length === 0)}
-									className="bg-saffron hover:bg-saffron-dark text-white font-semibold px-6 py-2 rounded-md transition-colors disabled:opacity-50"
 								>
 									{posting ? "Posting..." : "Share 🙏"}
-								</button>
+								</Button>
 							</div>
 						</div>
 					</form>
@@ -269,42 +271,42 @@ export default function TimelinePage() {
 				)}
 			</div>
 
-			<TabsRoot defaultValue="public">
-				<TabsList>
-					<TabsTab value="public">Public posts</TabsTab>
-					{session && <TabsTab value="my">My posts</TabsTab>}
-				</TabsList>
+			{session ? (
+				<TabsRoot defaultValue="public">
+					<TabsList>
+						<TabsTab value="public">Public posts</TabsTab>
+						<TabsTab value="my">My posts</TabsTab>
+					</TabsList>
 
-				<TabsPanel value="public">
-					{loading ? (
-						<div className="text-center py-12">
-							<p className="text-deep/50">Loading posts...</p>
-						</div>
-					) : posts.length === 0 ? (
-						<div className="text-center py-12 bg-white rounded-lg border border-sand">
-							<div className="text-4xl mb-3">📿</div>
-							<p className="text-deep/60">No public posts yet. Be the first to share!</p>
-						</div>
-					) : (
-						<div className="space-y-4">
-							{posts.map((post) => (
-								<PostCard key={post.id} post={post} currentUserId={session?.user?.id} />
-							))}
-						</div>
-					)}
+					<TabsPanel value="public">
+						{loading ? (
+							<div className="text-center py-12">
+								<p className="text-deep/50">Loading posts...</p>
+							</div>
+						) : posts.length === 0 ? (
+							<div className="text-center py-12 bg-white rounded-lg border border-sand">
+								<div className="text-4xl mb-3">📿</div>
+								<p className="text-deep/60">No public posts yet. Be the first to share!</p>
+							</div>
+						) : (
+							<div className="space-y-4">
+								{posts.map((post) => (
+									<PostCard key={post.id} post={post} currentUserId={session?.user?.id} />
+								))}
+							</div>
+						)}
 
-					{hasMore && posts.length > 0 && (
-						<div ref={sentinelRef} className="flex justify-center py-8">
-							{loadingMore ? (
-								<p className="text-deep/50 text-sm">Loading more...</p>
-							) : (
-								<div className="w-6 h-6" />
-							)}
-						</div>
-					)}
-				</TabsPanel>
+						{hasMore && posts.length > 0 && (
+							<div ref={sentinelRef} className="flex justify-center py-8">
+								{loadingMore ? (
+									<p className="text-deep/50 text-sm">Loading more...</p>
+								) : (
+									<div className="w-6 h-6" />
+								)}
+							</div>
+						)}
+					</TabsPanel>
 
-				{session && (
 					<TabsPanel value="my">
 						{myPostsError ? (
 							<p className="text-center text-red-500 py-8 bg-white rounded-lg border border-sand">
@@ -322,8 +324,37 @@ export default function TimelinePage() {
 							</div>
 						)}
 					</TabsPanel>
-				)}
-			</TabsRoot>
+				</TabsRoot>
+			) : (
+				<>
+					{loading ? (
+						<div className="text-center py-12">
+							<p className="text-deep/50">Loading posts...</p>
+						</div>
+					) : posts.length === 0 ? (
+						<div className="text-center py-12 bg-white rounded-lg border border-sand">
+							<div className="text-4xl mb-3">📿</div>
+							<p className="text-deep/60">No public posts yet. Be the first to share!</p>
+						</div>
+					) : (
+						<div className="space-y-4">
+							{posts.map((post) => (
+								<PostCard key={post.id} post={post} />
+							))}
+						</div>
+					)}
+
+					{hasMore && posts.length > 0 && (
+						<div ref={sentinelRef} className="flex justify-center py-8">
+							{loadingMore ? (
+								<p className="text-deep/50 text-sm">Loading more...</p>
+							) : (
+								<div className="w-6 h-6" />
+							)}
+						</div>
+					)}
+				</>
+			)}
 		</div>
 	);
 }
