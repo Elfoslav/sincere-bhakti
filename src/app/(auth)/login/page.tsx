@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
 	const router = useRouter();
@@ -47,28 +48,26 @@ export default function LoginPage() {
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<div>
 						<label className="block text-sm font-medium text-deep mb-1">Email</label>
-						<input
+						<Input
 							name="email"
 							type="email"
 							required
-							className="w-full px-4 py-2 rounded-md border border-sand bg-warm/50 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
 							placeholder="your@email.com"
 						/>
 					</div>
 					<div>
 						<label className="block text-sm font-medium text-deep mb-1">Password</label>
-						<input
+						<Input
 							name="password"
 							type="password"
 							required
-							className="w-full px-4 py-2 rounded-md border border-sand bg-warm/50 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
 							placeholder="••••••••"
 						/>
 					</div>
 
 					{error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}
 
-					<Button type="submit" variant="saffron" className="w-full" disabled={loading}>
+					<Button type="submit" variant="default" className="w-full" disabled={loading}>
 						{loading ? "Signing in..." : "Sign In"}
 					</Button>
 				</form>

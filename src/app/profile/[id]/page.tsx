@@ -7,6 +7,7 @@ import { Pencil } from "lucide-react";
 import PostCard from "@/components/PostCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton, PostCardSkeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -84,8 +85,14 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
-        <p className="text-deep/60">Loading...</p>
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
+        <div className="bg-white rounded-lg shadow-md p-6 border border-sand text-center space-y-4">
+          <Skeleton className="w-20 h-20 rounded-full mx-auto" />
+          <Skeleton className="h-6 w-40 mx-auto" />
+          <Skeleton className="h-4 w-24 mx-auto" />
+        </div>
+        <PostCardSkeleton />
+        <PostCardSkeleton />
       </div>
     );
   }

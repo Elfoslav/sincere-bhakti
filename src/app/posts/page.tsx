@@ -5,6 +5,8 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { getYouTubeEmbedUrl } from "@/lib/video";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
@@ -178,12 +180,11 @@ export default function TimelinePage() {
 			<div className="bg-white rounded-lg shadow-md p-6 border border-sand mb-6">
 				{session ? (
 					<form onSubmit={handleSubmit}>
-						<textarea
+						<Textarea
 							value={content}
 							onChange={(e) => setContent(e.target.value)}
 							placeholder="Share your realization, a verse, a YouTube link, or a thought..."
 							rows={3}
-							className="w-full px-4 py-3 rounded-md border border-sand bg-warm/50 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent resize-none"
 						/>
 
 						{detectedVideo && mediaFiles.length === 0 && (
@@ -252,7 +253,7 @@ export default function TimelinePage() {
 							<div className="flex items-center gap-2">
 								<Button
 									type="submit"
-									variant="saffron"
+									variant="default"
 									className="px-6 py-2"
 									disabled={posting || (!content.trim() && mediaFiles.length === 0)}
 								>
@@ -280,8 +281,10 @@ export default function TimelinePage() {
 
 					<TabsPanel value="public">
 						{loading ? (
-							<div className="text-center py-12">
-								<p className="text-deep/50">Loading posts...</p>
+							<div className="space-y-4">
+								<PostCardSkeleton />
+								<PostCardSkeleton />
+								<PostCardSkeleton />
 							</div>
 						) : posts.length === 0 ? (
 							<div className="text-center py-12 bg-white rounded-lg border border-sand">
@@ -328,8 +331,10 @@ export default function TimelinePage() {
 			) : (
 				<>
 					{loading ? (
-						<div className="text-center py-12">
-							<p className="text-deep/50">Loading posts...</p>
+						<div className="space-y-4">
+							<PostCardSkeleton />
+							<PostCardSkeleton />
+							<PostCardSkeleton />
 						</div>
 					) : posts.length === 0 ? (
 						<div className="text-center py-12 bg-white rounded-lg border border-sand">

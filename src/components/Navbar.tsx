@@ -50,7 +50,7 @@ export default function Navbar() {
 							className="shrink-0"
 							unoptimized
 						/>
-						{/* <span className="text-xl font-bold text-gold">Sincere Bhakti</span> */}
+
 					</Link>
 
 					<button className="md:hidden" onClick={() => setOpen(!open)} aria-label="Toggle menu">
@@ -69,7 +69,7 @@ export default function Navbar() {
 								>
 									Profile
 								</Link>
-								<Button onClick={() => signOut()} variant="saffron" size="sm">
+								<Button onClick={() => signOut()} variant="default" size="sm">
 									Logout
 								</Button>
 							</>
@@ -106,7 +106,7 @@ export default function Navbar() {
 									signOut();
 									close();
 								}}
-								variant="saffron"
+								variant="default"
 								size="sm"
 								className="mt-1 w-full text-left"
 							>

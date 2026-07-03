@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import PostCard from "@/components/PostCard";
+import { PostCardSkeleton } from "@/components/ui/skeleton";
 import type { Post } from "@/types/post";
 
 export default function SinglePostPage() {
@@ -35,8 +36,8 @@ export default function SinglePostPage() {
 
   if (!post) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <p className="text-deep/50">Loading...</p>
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <PostCardSkeleton />
       </div>
     );
   }

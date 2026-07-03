@@ -13,7 +13,7 @@ export default function NotFound() {
           The page you seek does not exist — much like lasting happiness
           outside of bhakti.
         </p>
-        <Button href="/" variant="saffron" size="hero">
+        <Button href="/" variant="default" size="hero">
           Return Home
         </Button>
       </div>

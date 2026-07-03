@@ -25,7 +25,7 @@ export default function Home() {
 				</p>
 
 				<div className="flex flex-wrap justify-center gap-4 mb-12">
-					<Button href="/register" variant="saffron" size="hero">
+					<Button href="/register" variant="default" size="hero">
 						Join the Saṅga
 					</Button>
 					<Button href="/posts" variant="outline-deep" size="hero">

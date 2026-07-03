@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function RegisterPage() {
 	const router = useRouter();
@@ -55,32 +56,29 @@ export default function RegisterPage() {
 					<div>
 						<label className="block text-sm font-medium text-deep mb-1">Name</label>
 						<p className="text-xs text-deep/50 mb-1.5">Your initiated name if you have one</p>
-						<input
+						<Input
 							name="name"
 							type="text"
 							required
-							className="w-full px-4 py-2 rounded-md border border-sand bg-warm/50 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
 							placeholder="Your name"
 						/>
 					</div>
 					<div>
 						<label className="block text-sm font-medium text-deep mb-1">Email</label>
-						<input
+						<Input
 							name="email"
 							type="email"
 							required
-							className="w-full px-4 py-2 rounded-md border border-sand bg-warm/50 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
 							placeholder="your@email.com"
 						/>
 					</div>
 					<div>
 						<label className="block text-sm font-medium text-deep mb-1">Password</label>
-						<input
+						<Input
 							name="password"
 							type="password"
 							required
 							minLength={6}
-							className="w-full px-4 py-2 rounded-md border border-sand bg-warm/50 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
 							placeholder="At least 6 characters"
 						/>
 					</div>
@@ -89,7 +87,7 @@ export default function RegisterPage() {
 
 					<Button
 						type="submit"
-						variant="saffron"
+						variant="default"
 						className="w-full"
 						size="default"
 						disabled={loading}
