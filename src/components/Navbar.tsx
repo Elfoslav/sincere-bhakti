@@ -50,7 +50,6 @@ export default function Navbar() {
 							className="shrink-0"
 							unoptimized
 						/>
-
 					</Link>
 
 					<button className="md:hidden" onClick={() => setOpen(!open)} aria-label="Toggle menu">
@@ -69,7 +68,7 @@ export default function Navbar() {
 								>
 									Profile
 								</Link>
-								<Button onClick={() => signOut()} variant="default" size="sm">
+								<Button onClick={() => signOut()} variant="default">
 									Logout
 								</Button>
 							</>
@@ -78,7 +77,7 @@ export default function Navbar() {
 								<Link href="/login" className="hover:text-gold-light transition-colors">
 									Login
 								</Link>
-								<Button href="/register" variant="gold" size="default">
+								<Button href="/register" variant="default" size="default">
 									Register
 								</Button>
 							</>
@@ -107,7 +106,6 @@ export default function Navbar() {
 									close();
 								}}
 								variant="default"
-								size="sm"
 								className="mt-1 w-full text-left"
 							>
 								Logout
@@ -118,7 +116,12 @@ export default function Navbar() {
 							<MobileLink href="/login" onClick={close}>
 								Login
 							</MobileLink>
-							<Button href="/register" variant="gold" size="sm" className="mt-1 w-full text-center">
+							<Button
+								href="/register"
+								variant="default"
+								size="sm"
+								className="mt-1 w-full text-center"
+							>
 								Register
 							</Button>
 						</>
