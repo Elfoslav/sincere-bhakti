@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { updateNameSchema } from "@/lib/validation";
+import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 
 export async function GET(
   _request: NextRequest,
@@ -39,6 +40,14 @@ export async function PATCH(
 
     if (!session?.user?.id || session.user.id !== id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { allowed, resetIn } = rateLimit(rateLimitKey("update-profile", id), 10, 3_600_000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Too many updates. Try again in ${Math.ceil(resetIn / 60_000)} minutes.` },
+        { status: 429 },
+      );
     }
 
     const body = await request.json();

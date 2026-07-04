@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPostById, deletePost, NotFoundError, ForbiddenError } from "@/lib/services/post";
+import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 
 export async function GET(
   _request: NextRequest,
@@ -36,6 +37,14 @@ export async function DELETE(
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { allowed, resetIn } = rateLimit(rateLimitKey("delete-post", session.user.id), 30, 3_600_000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Too many deletions. Try again in ${Math.ceil(resetIn / 60_000)} minutes.` },
+        { status: 429 },
+      );
     }
 
     const { id } = await params;

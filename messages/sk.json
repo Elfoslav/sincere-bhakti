@@ -111,12 +111,14 @@
   "Common": {
     "footerCopyright": "© {year} 🪷 Sincere Bhakti — Venované učeniu Śrīlu Prabhupādu",
     "loading": "Načítavam...",
-    "error": "Niečo sa pokazilo",
-    "noPostFound": "Príspevok nenájdený"
+    "error": "Niečo sa pokazilo"
   },
   "ErrorPages": {
     "notFound": "Stránka nenájdená",
     "notFoundDescription": "Táto stránka nebola nájdená.",
-    "goHome": "Domov"
+    "goHome": "Domov",
+    "somethingWentWrong": "Niečo sa pokazilo",
+    "errorDescription": "Došlo k neočakávanej chybe. Skúste to prosím znova alebo sa vráťte neskôr.",
+    "tryAgain": "Skúsiť znova"
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPosts, createPost, UnauthorizedError } from "@/lib/services/post";
 import { createPostSchema, paginationSchema } from "@/lib/validation";
+import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,19 +22,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { scope, cursor, limit, authorId, language } = parsed.data;
-
-    if (scope !== "public") {
+    if (parsed.data.scope !== "public") {
       const session = await auth();
       if (!session?.user?.id) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      const result = await getPosts({ scope, cursor, limit, authorId, language }, session.user.id);
+      const result = await getPosts(parsed.data, session.user.id);
       return NextResponse.json(result);
     }
 
-    const result = await getPosts({ scope, cursor, limit, authorId, language });
+    const result = await getPosts(parsed.data);
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof UnauthorizedError) {
@@ -48,6 +47,14 @@ export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed, resetIn } = rateLimit(rateLimitKey("create-post", session.user.id), 20, 3_600_000);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Too many posts. Try again in ${Math.ceil(resetIn / 60_000)} minutes.` },
+      { status: 429 },
+    );
   }
 
   try {

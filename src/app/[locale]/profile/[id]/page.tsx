@@ -127,6 +127,7 @@ export default function ProfilePage() {
               <DialogTrigger
                 className="text-gold hover:text-gold-light transition-colors cursor-pointer"
                 title={t("editName")}
+                aria-label={t("editName")}
               >
                 <Pencil className="w-[18px] h-[18px]" />
               </DialogTrigger>

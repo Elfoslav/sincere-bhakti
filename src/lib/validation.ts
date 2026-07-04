@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { locales } from "@/i18n/routing";
 
 export const PASSWORD_MIN_LENGTH = 8;
 
@@ -37,7 +38,7 @@ export const createPostSchema = z.object({
     .optional()
     .default([]),
   isPublic: z.boolean().default(true),
-  language: z.enum(["en", "cs", "sk"]).default("en"),
+  language: z.enum(locales).default("en"),
 }).refine(
   (data) => data.content || data.media.length > 0,
   { message: "Content or media is required" },
@@ -56,7 +57,7 @@ export const paginationSchema = z.object({
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(10),
   authorId: z.string().min(1).optional(),
-  language: z.enum(["en", "cs", "sk"]).optional(),
+  language: z.enum(locales).optional(),
 });
 
 export const uploadUrlSchema = z.object({

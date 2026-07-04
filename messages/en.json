@@ -111,12 +111,14 @@
   "Common": {
     "footerCopyright": "© {year} 🪷 Sincere Bhakti — Dedicated to the teachings of Śrīla Prabhupāda",
     "loading": "Loading...",
-    "error": "Something went wrong",
-    "noPostFound": "Post not found"
+    "error": "Something went wrong"
   },
   "ErrorPages": {
     "notFound": "Page not found",
     "notFoundDescription": "This page could not be found.",
-    "goHome": "Go Home"
+    "goHome": "Go Home",
+    "somethingWentWrong": "Something went wrong",
+    "errorDescription": "An unexpected error occurred. Please try again or come back later.",
+    "tryAgain": "Try again"
   }
 }

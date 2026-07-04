@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createUploadUrl, contentTypeToMediaType } from "@/lib/services/upload";
 import { uploadUrlSchema } from "@/lib/validation";
+import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed, resetIn } = rateLimit(rateLimitKey("upload-url", session.user.id), 20, 3_600_000);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Too many uploads. Try again in ${Math.ceil(resetIn / 60_000)} minutes.` },
+      { status: 429 },
+    );
   }
 
   try {

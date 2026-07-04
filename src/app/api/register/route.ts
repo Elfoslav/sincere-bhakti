@@ -2,8 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validation";
+import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const { allowed, resetIn } = rateLimit(rateLimitKey("register", ip), 5, 3_600_000);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Too many attempts. Try again in ${Math.ceil(resetIn / 60_000)} minutes.` },
+      { status: 429 },
+    );
+  }
+
   try {
     const body = await request.json();
     const parsed = registerSchema.safeParse(body);

@@ -4,6 +4,7 @@ import {
   createPostSchema,
   updateNameSchema,
   paginationSchema,
+  uploadUrlSchema,
 } from "@/lib/validation";
 
 describe("registerSchema", () => {
@@ -215,6 +216,50 @@ describe("paginationSchema", () => {
 
   it("rejects invalid language filter", () => {
     const result = paginationSchema.safeParse({ language: "fr" });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("uploadUrlSchema", () => {
+  it("accepts valid input", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "photo.jpg",
+      contentType: "image/jpeg",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects missing fileName", () => {
+    const result = uploadUrlSchema.safeParse({ contentType: "image/jpeg" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing contentType", () => {
+    const result = uploadUrlSchema.safeParse({ fileName: "photo.jpg" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects empty fileName", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "",
+      contentType: "image/jpeg",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects fileName over 255 chars", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "a".repeat(256),
+      contentType: "image/jpeg",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects contentType over 255 chars", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "photo.jpg",
+      contentType: "a".repeat(256),
+    });
     expect(result.success).toBe(false);
   });
 });

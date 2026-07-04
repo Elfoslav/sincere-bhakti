@@ -58,7 +58,7 @@ describe("GET /api/posts", () => {
     expect(res.status).toBe(200);
     expect(json.posts).toHaveLength(1);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: undefined, cursor: undefined, limit: 10, authorId: undefined },
+      { scope: undefined, cursor: undefined, limit: 10, authorId: undefined, language: undefined },
       "user-1",
     );
   });
@@ -88,7 +88,7 @@ describe("GET /api/posts", () => {
     expect(res.status).toBe(200);
     expect(json.posts).toHaveLength(1);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: undefined, limit: 10, authorId: undefined },
+      { scope: "public", cursor: undefined, limit: 10, authorId: undefined, language: undefined },
     );
     expect(auth).not.toHaveBeenCalled();
   });
@@ -103,7 +103,7 @@ describe("GET /api/posts", () => {
 
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: "post-2", limit: 2, authorId: undefined },
+      { scope: "public", cursor: "post-2", limit: 2, authorId: undefined, language: undefined },
     );
   });
 
@@ -113,7 +113,7 @@ describe("GET /api/posts", () => {
     const res = await GET(mockGetRequest({ scope: "public", authorId: "user-1" }));
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: undefined, limit: 10, authorId: "user-1" },
+      { scope: "public", cursor: undefined, limit: 10, authorId: "user-1", language: undefined },
     );
   });
 

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 export class UnauthorizedError extends Error {
   name = "UnauthorizedError" as const;
@@ -60,38 +61,31 @@ export async function getPosts(
   params: GetPostsParams,
   currentUserId?: string,
 ): Promise<GetPostsResult> {
-  const { scope, cursor, limit = 10, authorId } = params;
+  const { scope, cursor, limit = 10, authorId, language } = params;
+
+  const where: Prisma.PostWhereInput = {};
+  if (language) where.language = language;
 
   if (scope === "public") {
-    const where: Record<string, unknown> = { isPublic: true };
+    where.isPublic = true;
     if (authorId) where.authorId = authorId;
-    if (params.language) where.language = params.language;
-
-    const posts = await prisma.post.findMany({
-      take: limit + 1,
-      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-      where,
-      orderBy: { createdAt: "desc" },
-      include: postInclude,
-    });
-
-    const hasMore = posts.length > limit;
-    if (hasMore) posts.pop();
-
-    return { posts, hasMore };
-  }
-
-  if (!currentUserId) {
-    throw new UnauthorizedError();
+  } else {
+    if (!currentUserId) throw new UnauthorizedError();
+    where.authorId = authorId || currentUserId;
   }
 
   const posts = await prisma.post.findMany({
-    where: { authorId: currentUserId },
+    take: limit + 1,
+    ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    where,
     orderBy: { createdAt: "desc" },
     include: postInclude,
   });
 
-  return { posts, hasMore: false };
+  const hasMore = posts.length > limit;
+  if (hasMore) posts.pop();
+
+  return { posts, hasMore };
 }
 
 export async function getPostById(id: string): Promise<PostResponse | null> {

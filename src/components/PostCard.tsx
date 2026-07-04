@@ -51,6 +51,7 @@ export default function PostCard({
             href={`/post/${post.id}`}
             className="text-deep/40 hover:text-gold transition-colors p-1"
             title="Open post"
+            aria-label="Open post"
           >
             <ExternalLink className="w-4 h-4" />
           </Link>
@@ -59,6 +60,7 @@ export default function PostCard({
               onClick={() => onDelete(post.id)}
               className="text-red-500 hover:text-red-700 text-sm p-1"
               title="Delete post"
+              aria-label="Delete post"
             >
               ✕
             </button>
