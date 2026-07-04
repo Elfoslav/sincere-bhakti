@@ -18,12 +18,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # Agent Checklist — Always Verify Before Writing Code
 
 ## Rate Limiting
-Every mutation API endpoint MUST have rate limiting. Use the shared utility:
+Every mutation API endpoint MUST have rate limiting. On Vercel (production) rate limiting uses the existing PostgreSQL database via Prisma. Locally/tests use an in-memory Map. Use the shared utility:
 
 ```ts
 import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 
-const { allowed } = rateLimit(rateLimitKey("unique-prefix", userIdOrIp), maxRequests, windowMs);
+const { allowed } = await rateLimit(rateLimitKey("unique-prefix", userIdOrIp), maxRequests, windowMs);
 if (!allowed) {
   return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
 }
@@ -35,7 +35,7 @@ Also add rate limiting to the login flow in `src/lib/auth.ts` — the `authorize
 
 ```ts
 const ip = req?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-const { allowed } = rateLimit(rateLimitKey("login", ip), 10, 900_000);
+const { allowed } = await rateLimit(rateLimitKey("login", ip), 10, 900_000);
 if (!allowed) return null;
 ```
 
@@ -92,6 +92,8 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 - The global `not-found.tsx` (outside `[locale]`) is a fallback; the locale-specific one renders for most 404s.
 
 ## Tests
+- **Always run `pnpm test`** before writing any code to see the current test state.
+- After making changes, run `pnpm test` again and fix any failing tests before considering work complete.
 - Every test file that exercises error paths (e.g. "returns 500 on server error") MUST silence `console.error` to keep stderr clean:
   ```ts
   vi.spyOn(console, "error").mockImplementation(() => {});

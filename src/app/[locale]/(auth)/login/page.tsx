@@ -58,6 +58,7 @@ export default function LoginPage() {
             <Input
               name="email"
               type="email"
+              autoComplete="username"
               required
               placeholder={t("emailPlaceholder")}
             />
@@ -67,6 +68,7 @@ export default function LoginPage() {
             <Input
               name="password"
               type="password"
+              autoComplete="current-password"
               required
               placeholder={t("passwordPlaceholder")}
             />

@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { allowed, resetIn } = rateLimit(rateLimitKey("create-post", session.user.id), 20, 3_600_000);
+  const { allowed } = await rateLimit(rateLimitKey("create-post", session.user.id), 20, 3_600_000);
   if (!allowed) {
     return NextResponse.json(
       { error: "too_many_requests" },

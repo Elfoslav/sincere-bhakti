@@ -52,7 +52,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { allowed } = rateLimit(rateLimitKey("update-profile", id), 10, 3_600_000);
+    const { allowed } = await rateLimit(rateLimitKey("update-profile", id), 10, 3_600_000);
     if (!allowed) {
       return NextResponse.json(
         { error: "too_many_requests" },

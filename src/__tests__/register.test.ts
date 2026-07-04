@@ -57,7 +57,7 @@ describe("POST /api/register", () => {
     expect(res.status).toBe(201);
     expect(json.name).toBe("Krishna Das");
     expect(json.email).toBe("kdas@example.com");
-    expect(bcrypt.hash).toHaveBeenCalledWith("secret123", 12);
+    expect(bcrypt.hash).toHaveBeenCalledWith("secret123", 12); // BCRYPT_SALT_ROUNDS
   });
 
   it("rejects duplicate email", async () => {

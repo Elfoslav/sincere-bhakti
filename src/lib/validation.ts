@@ -2,6 +2,7 @@ import { z } from "zod";
 import { locales } from "@/i18n/routing";
 
 export const PASSWORD_MIN_LENGTH = 8;
+export const BCRYPT_SALT_ROUNDS = 12;
 
 export const registerSchema = z.object({
   name: z

@@ -19,7 +19,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           req?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
           "unknown";
 
-        const { allowed } = rateLimit(rateLimitKey("login", ip), 10, 900_000);
+        const { allowed } = await rateLimit(rateLimitKey("login", ip), 10, 900_000);
         if (!allowed) return null;
 
         const user = await prisma.user.findUnique({

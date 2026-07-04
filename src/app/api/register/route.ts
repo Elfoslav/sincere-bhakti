@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { registerSchema } from "@/lib/validation";
+import { registerSchema, BCRYPT_SALT_ROUNDS } from "@/lib/validation";
 import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   }
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const { allowed, resetIn } = rateLimit(rateLimitKey("register", ip), 5, 3_600_000);
+  const { allowed } = await rateLimit(rateLimitKey("register", ip), 5, 3_600_000);
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many attempts. Try again later." },
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
     const user = await prisma.user.create({
       data: {

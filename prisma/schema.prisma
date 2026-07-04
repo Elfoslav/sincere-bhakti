@@ -32,6 +32,14 @@ model Post {
   @@index([language, isPublic, createdAt])
 }
 
+model RateLimit {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 model Media {
   id        String   @id @default(cuid())
   url       String

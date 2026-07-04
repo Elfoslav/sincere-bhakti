@@ -44,7 +44,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { allowed, resetIn } = rateLimit(rateLimitKey("delete-post", session.user.id), 30, 3_600_000);
+    const { allowed } = await rateLimit(rateLimitKey("delete-post", session.user.id), 30, 3_600_000);
     if (!allowed) {
       return NextResponse.json(
         { error: "too_many_requests" },

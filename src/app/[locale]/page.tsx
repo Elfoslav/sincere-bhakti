@@ -22,8 +22,7 @@ export default async function Home({ params }: Props) {
 						width={250}
 						height={172}
 						className="mx-auto mb-6"
-						unoptimized
-						style={{ width: 250, height: 172 }} // Set width/height to avoid layout shift
+						style={{ width: 250, height: 172 }}
 					/>
 				</h1>
 				<p className="text-xl text-deep/70 mb-2 italic">&ldquo;{t("subtitle")}&rdquo;</p>

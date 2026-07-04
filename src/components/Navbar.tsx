@@ -52,8 +52,7 @@ export default function Navbar() {
 								width={77}
 								height={52}
 								className="shrink-0"
-								unoptimized
-								style={{ width: 77, height: 52 }} // Set width/height to avoid layout shift
+								style={{ width: 77, height: 52 }}
 							/>
 						</Link>
 

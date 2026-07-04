@@ -2,6 +2,16 @@ import { randomUUID } from "crypto";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+const REQUIRED_ENV_VARS = ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_PUBLIC_URL"] as const;
+
+function ensureEnvVars(): void {
+  for (const key of REQUIRED_ENV_VARS) {
+    if (!process.env[key]) {
+      throw new Error(`Missing required env var: ${key}`);
+    }
+  }
+}
+
 export interface UploadUrlResult {
   uploadUrl: string;
   publicUrl: string;
@@ -12,6 +22,7 @@ let s3: S3Client;
 
 function getS3Client(): S3Client {
   if (!s3) {
+    ensureEnvVars();
     s3 = new S3Client({
       region: "auto",
       endpoint: process.env.R2_ENDPOINT,

@@ -9,11 +9,9 @@ import type { Post } from "@/types/post";
 
 export default function PostCard({
   post,
-  onDelete,
   currentUserId,
 }: {
   post: Post;
-  onDelete?: (id: string) => void;
   currentUserId?: string;
 }) {
   const locale = useLocale();
@@ -55,16 +53,7 @@ export default function PostCard({
           >
             <ExternalLink className="w-4 h-4" />
           </Link>
-          {onDelete && (
-            <button
-              onClick={() => onDelete(post.id)}
-              className="text-red-500 hover:text-red-700 text-sm p-1"
-                title={t("delete")}
-              aria-label={t("delete")}
-            >
-              ✕
-            </button>
-          )}
+
         </div>
       </div>
 

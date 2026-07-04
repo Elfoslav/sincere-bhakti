@@ -5,6 +5,12 @@ import type { NextConfig } from "next";
 const withNextIntl = createNextIntlPlugin();
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "*.r2.dev" },
+      { protocol: "https", hostname: "*.cloudflarestorage.com" },
+    ],
+  },
   async headers() {
     return [
       {
@@ -17,7 +23,7 @@ const nextConfig: NextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; media-src 'self' https: blob:; frame-src https://www.youtube.com; connect-src 'self' https://*.r2.dev https://*.cloudflarestorage.com https://o4511292367175680.ingest.de.sentry.io;",
+              "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; media-src 'self' https: blob:; frame-src https://www.youtube.com; connect-src 'self' https://*.r2.dev https://*.cloudflarestorage.com https://o4511292367175680.ingest.de.sentry.io;",
           },
         ],
       },

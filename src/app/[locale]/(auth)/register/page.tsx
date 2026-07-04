@@ -67,6 +67,7 @@ export default function RegisterPage() {
             <Input
               name="name"
               type="text"
+              autoComplete="name"
               required
               placeholder={t("namePlaceholder")}
             />
@@ -76,6 +77,7 @@ export default function RegisterPage() {
             <Input
               name="email"
               type="email"
+              autoComplete="username"
               required
               placeholder={t("emailPlaceholder")}
             />
@@ -85,6 +87,7 @@ export default function RegisterPage() {
             <Input
               name="password"
               type="password"
+              autoComplete="new-password"
               required
               minLength={PASSWORD_MIN_LENGTH}
               placeholder={t("passwordPlaceholder")}
