@@ -77,6 +77,14 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 - Add `error.tsx` (error boundary) files at each route segment level so a crash doesn't white-screen the entire app.
 - The global `not-found.tsx` must NOT import unused components — remove dead imports.
 
+## Tests
+- Every test file that exercises error paths (e.g. "returns 500 on server error") MUST silence `console.error` to keep stderr clean:
+  ```ts
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  ```
+  Place this after all `vi.mock` calls and before `import` statements.
+- Without it, Vitest prints "stderr | …" messages for every caught `console.error` in route handlers, polluting test output.
+
 ## Removing Dead Code
 - If a prop (like PostCard's `onDelete`) is never passed by any parent, either implement it or remove it.
 - If translation keys exist in message files but are never used in any component, they are dead code — remove them.
