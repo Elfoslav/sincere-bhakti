@@ -51,7 +51,9 @@
     "loadingMore": "Loading more...",
     "failedToLoad": "Failed to load your posts.",
     "nothingToPost": "Nothing to post — add text or media",
-    "postPublished": "Post published"
+    "postPublished": "Post published",
+    "uploadFailed": "Upload failed. Please try again.",
+    "createPostFailed": "Failed to create post. Please try again."
   },
   "Auth": {
     "login": {
@@ -65,7 +67,8 @@
       "loading": "Signing in...",
       "error": "Invalid email or password",
       "noAccount": "Don't have an account?",
-      "registerLink": "Register"
+      "registerLink": "Register",
+      "networkError": "Network error. Please check your connection."
     },
     "register": {
       "title": "Join the Saṅga",
@@ -80,7 +83,10 @@
       "button": "Create Account",
       "loading": "Creating Account...",
       "hasAccount": "Already have an account?",
-      "loginLink": "Sign in"
+      "loginLink": "Sign in",
+      "passwordTooShort": "Password must be at least {min} characters",
+      "registrationFailed": "Something went wrong. Please try again.",
+      "networkError": "Network error. Please check your connection."
     }
   },
   "ProfilePage": {
@@ -106,7 +112,8 @@
     "posted": "Posted"
   },
   "SinglePost": {
-    "notFound": "Post not found"
+    "notFound": "Post not found",
+    "loadError": "Something went wrong loading the post. Please try again."
   },
   "Common": {
     "footerCopyright": "© {year} 🪷 Sincere Bhakti — Dedicated to the teachings of Śrīla Prabhupāda",

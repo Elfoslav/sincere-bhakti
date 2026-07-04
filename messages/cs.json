@@ -51,7 +51,9 @@
     "loadingMore": "Načítám další...",
     "failedToLoad": "Nepodařilo se načíst příspěvky.",
     "nothingToPost": "Nic k přidání — přidej text nebo média",
-    "postPublished": "Příspěvek zveřejněn"
+    "postPublished": "Příspěvek zveřejněn",
+    "uploadFailed": "Nahrávání selhalo. Zkuste to prosím znovu.",
+    "createPostFailed": "Nepodařilo se vytvořit příspěvek. Zkuste to prosím znovu."
   },
   "Auth": {
     "login": {
@@ -65,7 +67,8 @@
       "loading": "Přihlašuji...",
       "error": "Neplatný email nebo heslo",
       "noAccount": "Nemáš účet?",
-      "registerLink": "Registrovat"
+      "registerLink": "Registrovat",
+      "networkError": "Chyba sítě. Zkontrolujte připojení."
     },
     "register": {
       "title": "Připoj se k saṅze",
@@ -80,7 +83,10 @@
       "button": "Vytvořit účet",
       "loading": "Vytvářím účet...",
       "hasAccount": "Už máš účet?",
-      "loginLink": "Přihlásit se"
+      "loginLink": "Přihlásit se",
+      "passwordTooShort": "Heslo musí mít alespoň {min} znaků",
+      "registrationFailed": "Došlo k chybě. Zkuste to prosím znovu.",
+      "networkError": "Chyba sítě. Zkontrolujte připojení."
     }
   },
   "ProfilePage": {
@@ -106,7 +112,8 @@
     "posted": "Přidáno"
   },
   "SinglePost": {
-    "notFound": "Příspěvek nenalezen"
+    "notFound": "Příspěvek nenalezen",
+    "loadError": "Při načítání příspěvku došlo k chybě. Zkuste to prosím znovu."
   },
   "Common": {
     "footerCopyright": "© {year} 🪷 Sincere Bhakti — Věnováno učení Śrīly Prabhupādy",

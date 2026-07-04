@@ -25,20 +25,25 @@ export default function RegisterPage() {
     const password = form.get("password") as string;
 
     if (password.length < PASSWORD_MIN_LENGTH) {
-      setError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`);
+      setError(t("passwordTooShort", { min: PASSWORD_MIN_LENGTH }));
       setLoading(false);
       return;
     }
 
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
-    });
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error || "Registration failed");
+      if (!res.ok) {
+        setError(t("registrationFailed"));
+        setLoading(false);
+        return;
+      }
+    } catch {
+      setError(t("networkError"));
       setLoading(false);
       return;
     }

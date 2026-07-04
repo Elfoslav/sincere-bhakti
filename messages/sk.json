@@ -51,7 +51,9 @@
     "loadingMore": "Načítavam ďalšie...",
     "failedToLoad": "Nepodarilo sa načítať príspevky.",
     "nothingToPost": "Nič na pridanie — pridaj text alebo médiá",
-    "postPublished": "Príspevok zverejnený"
+    "postPublished": "Príspevok zverejnený",
+    "uploadFailed": "Nahrávanie zlyhalo. Skúste to prosím znova.",
+    "createPostFailed": "Nepodarilo sa vytvoriť príspevok. Skúste to prosím znova."
   },
   "Auth": {
     "login": {
@@ -65,7 +67,8 @@
       "loading": "Prihlasujem...",
       "error": "Neplatný email alebo heslo",
       "noAccount": "Nemáš účet?",
-      "registerLink": "Registrovať"
+      "registerLink": "Registrovať",
+      "networkError": "Chyba siete. Skontrolujte pripojenie."
     },
     "register": {
       "title": "Pripoj sa k saṅge",
@@ -80,7 +83,10 @@
       "button": "Vytvoriť účet",
       "loading": "Vytváram účet...",
       "hasAccount": "Už máš účet?",
-      "loginLink": "Prihlásiť sa"
+      "loginLink": "Prihlásiť sa",
+      "passwordTooShort": "Heslo musí mať aspoň {min} znakov",
+      "registrationFailed": "Došlo k chybe. Skúste to prosím znova.",
+      "networkError": "Chyba siete. Skontrolujte pripojenie."
     }
   },
   "ProfilePage": {
@@ -106,7 +112,8 @@
     "posted": "Pridané"
   },
   "SinglePost": {
-    "notFound": "Príspevok nenájdený"
+    "notFound": "Príspevok nenájdený",
+    "loadError": "Pri načítavaní príspevku došlo k chybe. Skúste to prosím znova."
   },
   "Common": {
     "footerCopyright": "© {year} 🪷 Sincere Bhakti — Venované učeniu Śrīlu Prabhupādu",

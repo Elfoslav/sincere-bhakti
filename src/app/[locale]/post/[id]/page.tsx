@@ -17,10 +17,8 @@ export default function SinglePostPage() {
     let mounted = true;
     fetch(`/api/posts/${id}`)
       .then(async (r) => {
-        if (!r.ok) {
-          const data = await r.json();
-          throw new Error(data.error || t("notFound"));
-        }
+        if (r.status === 404) throw new Error(t("notFound"));
+        if (!r.ok) throw new Error(t("loadError"));
         return r.json();
       })
       .then((data) => { if (mounted) setPost(data); })

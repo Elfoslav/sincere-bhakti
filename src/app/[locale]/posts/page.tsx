@@ -125,7 +125,7 @@ export default function TimelinePage() {
       }
 
       if (uploadFailed) {
-        toast.error("Upload failed. Please try again.");
+        toast.error(t("uploadFailed"));
         setPosting(false);
         return;
       }
@@ -163,11 +163,10 @@ export default function TimelinePage() {
         if (isPublic) setPosts((prev) => [newPost, ...prev]);
         toast.success(t("postPublished"));
       } else {
-        const err = await res.json().catch(() => ({ error: "Failed to create post" }));
-        toast.error(err.error);
+        toast.error(t("createPostFailed"));
       }
     } catch {
-      toast.error("Failed to create post");
+      toast.error(t("createPostFailed"));
     }
 
     setPosting(false);

@@ -23,18 +23,23 @@ export default function LoginPage() {
     const email = form.get("email") as string;
     const password = form.get("password") as string;
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
 
-    if (result?.error) {
-      setError(t("error"));
+      if (result?.error) {
+        setError(t("error"));
+        setLoading(false);
+      } else {
+        router.push("/posts");
+        router.refresh();
+      }
+    } catch {
+      setError(t("networkError"));
       setLoading(false);
-    } else {
-      router.push("/posts");
-      router.refresh();
     }
   }
 
