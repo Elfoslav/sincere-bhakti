@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const PASSWORD_MIN_LENGTH = 8;
+
 export const registerSchema = z.object({
   name: z
     .string()
@@ -14,7 +16,7 @@ export const registerSchema = z.object({
     .max(255, "Email too long"),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters")
+    .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
     .max(128, "Password too long"),
 });
 

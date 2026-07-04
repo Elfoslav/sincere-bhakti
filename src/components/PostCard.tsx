@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { ExternalLink } from "lucide-react";
 import { extractYouTubeContent } from "@/lib/video";
@@ -17,6 +17,7 @@ export default function PostCard({
   currentUserId?: string;
 }) {
   const locale = useLocale();
+  const t = useTranslations("PostCard");
   const date = new Date(post.createdAt).toLocaleDateString(locale === "en" ? "en-US" : locale, {
     year: "numeric",
     month: "long",
@@ -112,11 +113,11 @@ export default function PostCard({
         <div className="flex items-center gap-2 text-xs text-deep/50">
           {post.isPublic ? (
             <span className="bg-tulsi/20 text-tulsi px-2 py-0.5 rounded-full">
-              Public
+              {t("public")}
             </span>
           ) : (
             <span className="bg-saffron/20 text-saffron-dark px-2 py-0.5 rounded-full">
-              Private
+              {t("private")}
             </span>
           )}
         </div>

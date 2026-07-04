@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, startTransition } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { Link } from "@/i18n/navigation";
 import PostCard from "@/components/PostCard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -268,9 +269,9 @@ export default function TimelinePage() {
           </form>
         ) : (
           <p className="text-center text-deep/50 py-8">
-            <a href="/login" className="text-saffron hover:text-saffron-dark font-medium underline-offset-2 hover:underline">
+            <Link href="/login" className="text-saffron hover:text-saffron-dark font-medium underline-offset-2 hover:underline">
               {t("signIn")}
-            </a>{" "}
+            </Link>{" "}
             {t("signInToPost")}
           </p>
         )}

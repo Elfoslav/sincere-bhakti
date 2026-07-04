@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PASSWORD_MIN_LENGTH } from "@/lib/validation";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,8 +24,8 @@ export default function RegisterPage() {
     const email = form.get("email") as string;
     const password = form.get("password") as string;
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      setError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`);
       setLoading(false);
       return;
     }
@@ -80,7 +81,7 @@ export default function RegisterPage() {
               name="password"
               type="password"
               required
-              minLength={6}
+              minLength={PASSWORD_MIN_LENGTH}
               placeholder={t("passwordPlaceholder")}
             />
           </div>
