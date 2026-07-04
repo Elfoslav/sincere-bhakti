@@ -3,13 +3,6 @@
     "home": {
       "title": "Sincere Bhakti — Komunita Gaudiya vaišnavizmu",
       "description": "Duchovná komunita pre oddaných Gaudiya vaišnavizmu — zdieľaj bhakti, inšpiruj oddanosť. Pridávaj verše, realizácie a spoj sa s globálnou saṅgou."
-    },
-    "posts": {
-      "title": "Príspevky | Sincere Bhakti",
-      "description": "Prezeraj si oddané príspevky z globálnej saṅgy — realizácie, kirtany, písomné zasvätenia a médiá."
-    },
-    "profile": {
-      "title": "{name} | Sincere Bhakti"
     }
   },
   "Navbar": {
@@ -17,9 +10,11 @@
     "profile": "Profil",
     "getIn": "Vstúpiť",
     "logout": "Odhlásiť",
-    "language": "Jazyk"
+    "toggleMenu": "Prepnúť menu",
+    "logoAlt": "Sincere Bhakti"
   },
   "HomePage": {
+    "logoAlt": "Sincere Bhakti",
     "subtitle": "„Jednoduchý život, vznešené myslenie“",
     "description": "Posvätný priestor pre oddaných Gaudiya vaišnavizmu. Zdieľaj svoje realizácie, kirtany, písomné zasvätenia a oddané médiá so saṅgou.",
     "ctaJoin": "Pripoj sa k saṅge",
@@ -46,14 +41,14 @@
     "attachMedia": "Pridať médiá",
     "public": "Verejné",
     "private": "Súkromné",
-    "language": "Jazyk",
-    "allLanguages": "Všetky",
     "loadingMore": "Načítavam ďalšie...",
     "failedToLoad": "Nepodarilo sa načítať príspevky.",
     "nothingToPost": "Nič na pridanie — pridaj text alebo médiá",
     "postPublished": "Príspevok zverejnený",
     "uploadFailed": "Nahrávanie zlyhalo. Skúste to prosím znova.",
-    "createPostFailed": "Nepodarilo sa vytvoriť príspevok. Skúste to prosím znova."
+    "createPostFailed": "Nepodarilo sa vytvoriť príspevok. Skúste to prosím znova.",
+    "youtubePreview": "YouTube náhľad",
+    "preview": "Náhľad"
   },
   "Auth": {
     "login": {
@@ -107,18 +102,17 @@
     "public": "Verejné",
     "private": "Súkromné",
     "delete": "Zmazať príspevok",
-    "deleted": "Príspevok zmazaný",
-    "deleteConfirm": "Zmazať tento príspevok?",
-    "posted": "Pridané"
+    "openPost": "Otvoriť príspevok",
+    "anonymous": "Anonymný",
+    "youtubeVideo": "YouTube video",
+    "postMedia": "Médiá príspevku"
   },
   "SinglePost": {
     "notFound": "Príspevok nenájdený",
     "loadError": "Pri načítavaní príspevku došlo k chybe. Skúste to prosím znova."
   },
   "Common": {
-    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Venované učeniu Śrīlu Prabhupādu",
-    "loading": "Načítavam...",
-    "error": "Niečo sa pokazilo"
+    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Venované učeniu Śrīlu Prabhupādu"
   },
   "ErrorPages": {
     "notFound": "Stránka nenájdená",

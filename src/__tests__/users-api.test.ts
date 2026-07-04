@@ -13,6 +13,9 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn(() => ({ allowed: true, remaining: 9, resetIn: 3_600_000 })),
   rateLimitKey: vi.fn((p: string, id: string) => `${p}:${id}`),
 }));
+vi.mock("@/lib/csrf", () => ({
+  validateOrigin: vi.fn(() => true),
+}));
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { prisma } from "@/lib/prisma";
@@ -20,7 +23,10 @@ import { auth } from "@/lib/auth";
 import { GET, PATCH } from "@/app/api/users/[id]/route";
 
 function mockRequest(body?: unknown): any {
-  return { json: () => Promise.resolve(body) } as any;
+  return {
+    json: () => Promise.resolve(body),
+    headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }),
+  } as any;
 }
 
 const baseUser = {
@@ -36,7 +42,8 @@ describe("GET /api/users/[id]", () => {
     vi.clearAllMocks();
   });
 
-  it("returns user profile", async () => {
+  it("returns user profile with email for authenticated user", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.user.findUnique).mockResolvedValue(baseUser);
 
     const res = await GET(mockRequest(), { params: Promise.resolve({ id: "user-1" }) });
@@ -132,7 +139,7 @@ describe("PATCH /api/users/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(429);
-    expect(json.error).toContain("Too many updates");
+    expect(json.error).toBe("too_many_requests");
   });
 
   it("returns 500 on server error", async () => {

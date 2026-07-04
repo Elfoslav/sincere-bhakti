@@ -13,6 +13,9 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn(() => ({ allowed: true, remaining: 4, resetIn: 3_600_000 })),
   rateLimitKey: vi.fn((p: string, id: string) => `${p}:${id}`),
 }));
+vi.mock("@/lib/csrf", () => ({
+  validateOrigin: vi.fn(() => true),
+}));
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -23,7 +26,7 @@ import { POST } from "@/app/api/register/route";
 function mockRequest(body: unknown) {
   return {
     json: () => Promise.resolve(body),
-    headers: new Headers(),
+    headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }),
   } as any;
 }
 
@@ -74,8 +77,8 @@ describe("POST /api/register", () => {
     }));
     const json = await res.json();
 
-    expect(res.status).toBe(400);
-    expect(json.error).toBe("Email already in use");
+    expect(res.status).toBe(409);
+    expect(json.error).toBe("email_in_use");
   });
 
   it("returns 400 on invalid input", async () => {
@@ -94,7 +97,7 @@ describe("POST /api/register", () => {
     const json = await res.json();
 
     expect(res.status).toBe(429);
-    expect(json.error).toContain("Too many attempts");
+    expect(json.error).toContain("Too many attempts"); // kept readable for rate limit
   });
 
   it("returns 500 on server error", async () => {
@@ -108,6 +111,6 @@ describe("POST /api/register", () => {
     const json = await res.json();
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("Something went wrong");
+    expect(json.error).toBe("server_error");
   });
 });

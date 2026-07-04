@@ -3,13 +3,6 @@
     "home": {
       "title": "Sincere Bhakti — Gaudiya Vaishnavism Community",
       "description": "A spiritual community for devotees of Gaudiya Vaishnavism — share bhakti, inspire devotion. Post verses, realizations, and connect with the global saṅga."
-    },
-    "posts": {
-      "title": "Posts | Sincere Bhakti",
-      "description": "Browse devotional posts from the global saṅga — realizations, kirtans, scriptural insights, and media."
-    },
-    "profile": {
-      "title": "{name} | Sincere Bhakti"
     }
   },
   "Navbar": {
@@ -17,9 +10,11 @@
     "profile": "Profile",
     "getIn": "Get in",
     "logout": "Logout",
-    "language": "Language"
+    "toggleMenu": "Toggle menu",
+    "logoAlt": "Sincere Bhakti"
   },
   "HomePage": {
+    "logoAlt": "Sincere Bhakti",
     "subtitle": "“Simple living, high thinking”",
     "description": "A sacred space for devotees of Gaudiya Vaishnavism. Share your realizations, kirtans, scriptural insights, and devotional media with the saṅga.",
     "ctaJoin": "Join the Saṅga",
@@ -46,14 +41,14 @@
     "attachMedia": "Attach Media",
     "public": "Public",
     "private": "Private",
-    "language": "Language",
-    "allLanguages": "All",
     "loadingMore": "Loading more...",
     "failedToLoad": "Failed to load your posts.",
     "nothingToPost": "Nothing to post — add text or media",
     "postPublished": "Post published",
     "uploadFailed": "Upload failed. Please try again.",
-    "createPostFailed": "Failed to create post. Please try again."
+    "createPostFailed": "Failed to create post. Please try again.",
+    "youtubePreview": "YouTube preview",
+    "preview": "Preview"
   },
   "Auth": {
     "login": {
@@ -107,18 +102,17 @@
     "public": "Public",
     "private": "Private",
     "delete": "Delete post",
-    "deleted": "Post deleted",
-    "deleteConfirm": "Delete this post?",
-    "posted": "Posted"
+    "openPost": "Open post",
+    "anonymous": "Anonymous",
+    "youtubeVideo": "YouTube video",
+    "postMedia": "Post media"
   },
   "SinglePost": {
     "notFound": "Post not found",
     "loadError": "Something went wrong loading the post. Please try again."
   },
   "Common": {
-    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Dedicated to the teachings of Śrīla Prabhupāda",
-    "loading": "Loading...",
-    "error": "Something went wrong"
+    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Dedicated to the teachings of Śrīla Prabhupāda"
   },
   "ErrorPages": {
     "notFound": "Page not found",

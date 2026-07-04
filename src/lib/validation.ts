@@ -7,49 +7,48 @@ export const registerSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "Name is required")
-    .max(50, "Name must be 50 characters or less"),
+    .min(1)
+    .max(50),
   email: z
     .string()
     .trim()
     .toLowerCase()
-    .email("Invalid email address")
-    .max(255, "Email too long"),
+    .email()
+    .max(255),
   password: z
     .string()
-    .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
-    .max(128, "Password too long"),
+    .min(PASSWORD_MIN_LENGTH)
+    .max(128),
 });
 
 export const createPostSchema = z.object({
   content: z
     .string()
     .trim()
-    .max(5000, "Content must be 5000 characters or less")
+    .max(5000)
     .optional(),
   media: z
     .array(
       z.object({
-        url: z.string().url("Invalid media URL").max(2000),
+        url: z.string().url().max(2000),
         type: z.enum(["image", "video", "youtube", "file"]),
       }),
     )
-    .max(10, "Maximum 10 media items per post")
+    .max(10)
     .optional()
     .default([]),
   isPublic: z.boolean().default(true),
   language: z.enum(locales).default("en"),
 }).refine(
   (data) => data.content || data.media.length > 0,
-  { message: "Content or media is required" },
 );
 
 export const updateNameSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "Name is required")
-    .max(50, "Name must be 50 characters or less"),
+    .min(1)
+    .max(50),
 });
 
 export const paginationSchema = z.object({
@@ -61,6 +60,6 @@ export const paginationSchema = z.object({
 });
 
 export const uploadUrlSchema = z.object({
-  fileName: z.string().min(1, "fileName is required").max(255),
-  contentType: z.string().min(1, "contentType is required").max(255),
+  fileName: z.string().min(1).max(255),
+  contentType: z.string().min(1).max(255),
 });

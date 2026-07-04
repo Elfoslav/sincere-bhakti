@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function NotFound() {
   return (
@@ -6,16 +6,15 @@ export default function NotFound() {
       <div className="max-w-md text-center">
         <div className="text-6xl mb-6">😕</div>
         <h1 className="text-6xl font-bold text-deep mb-2">404</h1>
-        <p className="text-xl text-deep/70 mb-2 italic">
-          &ldquo;Not found in this material world&rdquo;
-        </p>
         <p className="text-deep/60 mb-8">
-          The page you seek does not exist — much like lasting happiness
-          outside of bhakti.
+          This page could not be found.
         </p>
-        <Button href="/" variant="default" size="hero">
-          Return Home
-        </Button>
+        <Link
+          href="/"
+          className="inline-block px-8 py-3 bg-gold text-white rounded-lg font-medium hover:bg-gold-dark transition-colors"
+        >
+          Go Home
+        </Link>
       </div>
     </div>
   );

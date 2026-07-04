@@ -3,13 +3,6 @@
     "home": {
       "title": "Sincere Bhakti — Komunita Gaudiya vaišnavismu",
       "description": "Duchovní komunita pro oddané Gaudiya vaišnavismu — sdílej bhakti, inspiruj oddanost. Přispívej verši, realizacemi a spoj se s globální saṅgou."
-    },
-    "posts": {
-      "title": "Příspěvky | Sincere Bhakti",
-      "description": "Prohlížej oddané příspěvky z globální saṅgy — realizace, kirtany, písemná zasvěcení a média."
-    },
-    "profile": {
-      "title": "{name} | Sincere Bhakti"
     }
   },
   "Navbar": {
@@ -17,9 +10,11 @@
     "profile": "Profil",
     "getIn": "Vstoupit",
     "logout": "Odhlásit",
-    "language": "Jazyk"
+    "toggleMenu": "Přepnout menu",
+    "logoAlt": "Sincere Bhakti"
   },
   "HomePage": {
+    "logoAlt": "Sincere Bhakti",
     "subtitle": "„Jednoduchý život, vznešené myšlení“",
     "description": "Posvátný prostor pro oddané Gaudiya vaišnavismu. Sdílej své realizace, kirtany, písemná zasvěcení a oddaná média se saṅgou.",
     "ctaJoin": "Připoj se k saṅze",
@@ -46,14 +41,14 @@
     "attachMedia": "Přidat média",
     "public": "Veřejné",
     "private": "Soukromé",
-    "language": "Jazyk",
-    "allLanguages": "Vše",
     "loadingMore": "Načítám další...",
     "failedToLoad": "Nepodařilo se načíst příspěvky.",
     "nothingToPost": "Nic k přidání — přidej text nebo média",
     "postPublished": "Příspěvek zveřejněn",
     "uploadFailed": "Nahrávání selhalo. Zkuste to prosím znovu.",
-    "createPostFailed": "Nepodařilo se vytvořit příspěvek. Zkuste to prosím znovu."
+    "createPostFailed": "Nepodařilo se vytvořit příspěvek. Zkuste to prosím znovu.",
+    "youtubePreview": "YouTube náhled",
+    "preview": "Náhled"
   },
   "Auth": {
     "login": {
@@ -107,18 +102,17 @@
     "public": "Veřejné",
     "private": "Soukromé",
     "delete": "Smazat příspěvek",
-    "deleted": "Příspěvek smazán",
-    "deleteConfirm": "Smazat tento příspěvek?",
-    "posted": "Přidáno"
+    "openPost": "Otevřít příspěvek",
+    "anonymous": "Anonymní",
+    "youtubeVideo": "YouTube video",
+    "postMedia": "Média příspěvku"
   },
   "SinglePost": {
     "notFound": "Příspěvek nenalezen",
     "loadError": "Při načítání příspěvku došlo k chybě. Zkuste to prosím znovu."
   },
   "Common": {
-    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Věnováno učení Śrīly Prabhupādy",
-    "loading": "Načítám...",
-    "error": "Něco se pokazilo"
+    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Věnováno učení Śrīly Prabhupādy"
   },
   "ErrorPages": {
     "notFound": "Stránka nenalezena",

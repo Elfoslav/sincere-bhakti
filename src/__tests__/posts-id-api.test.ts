@@ -15,6 +15,9 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn(() => ({ allowed: true, remaining: 29, resetIn: 3_600_000 })),
   rateLimitKey: vi.fn((p: string, id: string) => `${p}:${id}`),
 }));
+vi.mock("@/lib/csrf", () => ({
+  validateOrigin: vi.fn(() => true),
+}));
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
@@ -22,7 +25,7 @@ import { getPostById, deletePost } from "@/lib/services/post";
 import { GET, DELETE } from "@/app/api/posts/[id]/route";
 
 function mockRequest(): any {
-  return {} as any;
+  return { headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }) } as any;
 }
 
 const basePost = {
@@ -56,7 +59,7 @@ describe("GET /api/posts/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(404);
-    expect(json.error).toBe("Post not found");
+    expect(json.error).toBe("not_found");
   });
 
   it("allows author to view private post", async () => {
@@ -83,7 +86,7 @@ describe("GET /api/posts/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(404);
-    expect(json.error).toBe("Post not found");
+    expect(json.error).toBe("not_found");
   });
 
   it("returns 500 on service error", async () => {
@@ -93,7 +96,7 @@ describe("GET /api/posts/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("Failed to fetch post");
+    expect(json.error).toBe("failed_to_fetch_post");
   });
 });
 
@@ -133,7 +136,7 @@ describe("DELETE /api/posts/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(404);
-    expect(json.error).toBe("Post not found");
+    expect(json.error).toBe("not_found");
   });
 
   it("returns 403 when not the author", async () => {
@@ -157,7 +160,7 @@ describe("DELETE /api/posts/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(429);
-    expect(json.error).toContain("Too many deletions");
+    expect(json.error).toBe("too_many_requests");
   });
 
   it("returns 500 on service error", async () => {
@@ -168,6 +171,6 @@ describe("DELETE /api/posts/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("Failed to delete post");
+    expect(json.error).toBe("failed_to_delete_post");
   });
 });

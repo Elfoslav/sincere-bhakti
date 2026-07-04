@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getPosts, createPost, UnauthorizedError } from "@/lib/services/post";
 import { createPostSchema, paginationSchema } from "@/lib/validation";
 import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { validateOrigin } from "@/lib/csrf";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,8 +17,10 @@ export async function GET(request: NextRequest) {
     });
 
     if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const field = issue.path[0] || "input";
       return NextResponse.json(
-        { error: parsed.error.issues[0].message },
+        { error: `validation_error:${String(field)}:${issue.code}` },
         { status: 400 }
       );
     }
@@ -39,11 +42,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("GET /api/posts failed:", error);
-    return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 });
+    return NextResponse.json({ error: "failed_to_fetch_posts" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -52,7 +59,7 @@ export async function POST(request: NextRequest) {
   const { allowed, resetIn } = rateLimit(rateLimitKey("create-post", session.user.id), 20, 3_600_000);
   if (!allowed) {
     return NextResponse.json(
-      { error: `Too many posts. Try again in ${Math.ceil(resetIn / 60_000)} minutes.` },
+      { error: "too_many_requests" },
       { status: 429 },
     );
   }
@@ -62,8 +69,10 @@ export async function POST(request: NextRequest) {
     const parsed = createPostSchema.safeParse(body);
 
     if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const field = issue.path[0] || "input";
       return NextResponse.json(
-        { error: parsed.error.issues[0].message },
+        { error: `validation_error:${String(field)}:${issue.code}` },
         { status: 400 }
       );
     }
@@ -73,7 +82,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("POST /api/posts failed:", error);
     return NextResponse.json(
-      { error: "Failed to create post" },
+      { error: "failed_to_create_post" },
       { status: 500 }
     );
   }

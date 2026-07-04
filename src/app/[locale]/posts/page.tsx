@@ -200,7 +200,7 @@ export default function TimelinePage() {
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                   referrerPolicy="strict-origin-when-cross-origin"
-                  title="YouTube preview"
+                  title={t("youtubePreview")}
                 />
               </div>
             )}
@@ -212,7 +212,7 @@ export default function TimelinePage() {
                     {mediaFiles[i]?.type.startsWith("video/") ? (
                       <video src={preview} controls className="max-h-64 rounded-md w-full object-contain" />
                     ) : (
-                      <img src={preview} alt="Preview" className="max-h-64 rounded-md w-full object-contain" />
+                      <img src={preview} alt={t("preview")} className="max-h-64 rounded-md w-full object-contain" />
                     )}
                     <button
                       type="button"

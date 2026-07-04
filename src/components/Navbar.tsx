@@ -47,8 +47,8 @@ export default function Navbar() {
 						<Link href="/" className="flex items-center gap-2" onClick={close}>
 							<Image
 								src="/images/sincere-bhakti-logo-light.png"
-								alt="Sincere Bhakti"
-								title="Sincere Bhakti"
+								alt={t("logoAlt")}
+								title={t("logoAlt")}
 								width={77}
 								height={52}
 								className="shrink-0"
@@ -79,7 +79,7 @@ export default function Navbar() {
 						<button
 							className="md:hidden p-2"
 							onClick={() => setOpen(!open)}
-							aria-label="Toggle menu"
+							aria-label={t("toggleMenu")}
 						>
 							<Hamburger open={open} />
 						</button>

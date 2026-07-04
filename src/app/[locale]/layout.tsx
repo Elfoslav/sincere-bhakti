@@ -27,6 +27,8 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
+export const dynamicParams = false;
+
 export async function generateMetadata({ params }: Omit<Props, "children">) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "Metadata" });
@@ -84,7 +86,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <Toaster position="bottom-right" richColors closeButton />
             <footer className="bg-deep text-white/50 text-center text-sm py-4 border-t border-sand/20">
               <p>
-                {commonT("footerCopyright", { year: "2026" })}
+                {commonT("footerCopyright", { year: String(new Date().getFullYear()) })}
               </p>
             </footer>
           </Providers>

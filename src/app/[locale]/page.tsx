@@ -17,8 +17,8 @@ export default async function Home({ params }: Props) {
 				<h1 className="text-5xl font-bold text-deep mb-4">
 					<Image
 						src="/images/sincere-bhakti-logo.png"
-						alt="Sincere Bhakti"
-						title="Sincere Bhakti"
+						alt={t("logoAlt")}
+						title={t("logoAlt")}
 						width={250}
 						height={172}
 						className="mx-auto mb-6"

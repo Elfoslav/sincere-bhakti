@@ -20,6 +20,9 @@ vi.mock("@/lib/services/post", () => {
     },
   };
 });
+vi.mock("@/lib/csrf", () => ({
+  validateOrigin: vi.fn(() => true),
+}));
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
@@ -35,7 +38,7 @@ function mockGetRequest(params: Record<string, string> = {}): NextRequest {
 }
 
 function mockPostRequest(body: unknown): NextRequest {
-  return { json: () => Promise.resolve(body) } as unknown as NextRequest;
+  return { json: () => Promise.resolve(body), headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }) } as unknown as NextRequest;
 }
 
 describe("GET /api/posts", () => {
@@ -130,7 +133,7 @@ describe("GET /api/posts", () => {
     const json = await res.json();
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("Failed to fetch posts");
+    expect(json.error).toBe("failed_to_fetch_posts");
   });
 });
 
@@ -183,6 +186,6 @@ describe("POST /api/posts", () => {
     const json = await res.json();
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("Failed to create post");
+    expect(json.error).toBe("failed_to_create_post");
   });
 });

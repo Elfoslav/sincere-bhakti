@@ -42,7 +42,7 @@ export default function PostCard({
             href={`/profile/${post.author.id}`}
             className="font-semibold text-deep hover:text-gold"
           >
-            {post.author.name || "Anonymous"}
+            {post.author.name || t("anonymous")}
           </Link>
           <p className="text-xs text-deep/60">{date}</p>
         </div>
@@ -50,8 +50,8 @@ export default function PostCard({
           <Link
             href={`/post/${post.id}`}
             className="text-deep/40 hover:text-gold transition-colors p-1"
-            title="Open post"
-            aria-label="Open post"
+            title={t("openPost")}
+            aria-label={t("openPost")}
           >
             <ExternalLink className="w-4 h-4" />
           </Link>
@@ -59,8 +59,8 @@ export default function PostCard({
             <button
               onClick={() => onDelete(post.id)}
               className="text-red-500 hover:text-red-700 text-sm p-1"
-              title="Delete post"
-              aria-label="Delete post"
+                title={t("delete")}
+              aria-label={t("delete")}
             >
               ✕
             </button>
@@ -82,7 +82,7 @@ export default function PostCard({
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 referrerPolicy="strict-origin-when-cross-origin"
-                title="YouTube video"
+                title={t("youtubeVideo")}
               />
             </div>
           ) : m.type === "video" ? (
@@ -94,7 +94,7 @@ export default function PostCard({
           ) : m.type === "image" ? (
             <img
               src={m.url}
-              alt="Post media"
+              alt={t("postMedia")}
               className="w-full max-h-96 object-contain"
             />
           ) : (

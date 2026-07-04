@@ -3,17 +3,26 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { updateNameSchema } from "@/lib/validation";
 import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { validateOrigin } from "@/lib/csrf";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
 
+    const session = await auth();
+
     const user = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, name: true, email: true, image: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        createdAt: true,
+        ...(session?.user?.id === id ? { email: true } : {}),
+      },
     });
 
     if (!user) {
@@ -23,10 +32,7 @@ export async function GET(
     return NextResponse.json(user);
   } catch (error) {
     console.error("GET /api/users/[id] failed:", error);
-    const message = error instanceof Error && "code" in error && error.code === "P1001"
-      ? "Database connection failed"
-      : "Failed to fetch user";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
   }
 }
 
@@ -35,6 +41,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!validateOrigin(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const session = await auth();
     const { id } = await params;
 
@@ -42,10 +52,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { allowed, resetIn } = rateLimit(rateLimitKey("update-profile", id), 10, 3_600_000);
+    const { allowed } = rateLimit(rateLimitKey("update-profile", id), 10, 3_600_000);
     if (!allowed) {
       return NextResponse.json(
-        { error: `Too many updates. Try again in ${Math.ceil(resetIn / 60_000)} minutes.` },
+        { error: "too_many_requests" },
         { status: 429 },
       );
     }

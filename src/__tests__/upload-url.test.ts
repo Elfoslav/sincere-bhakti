@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/csrf", () => ({
+  validateOrigin: vi.fn(() => true),
+}));
 vi.mock("@/lib/services/upload", () => ({
   createUploadUrl: vi.fn(),
   contentTypeToMediaType: vi.fn(),
@@ -13,6 +16,7 @@ import { POST } from "@/app/api/upload-url/route";
 function mockRequest(body: unknown) {
   return {
     json: () => Promise.resolve(body),
+    headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }),
   } as any;
 }
 
