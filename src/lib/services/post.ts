@@ -36,6 +36,7 @@ export interface GetPostsParams {
   cursor?: string;
   limit?: number;
   authorId?: string;
+  language?: string;
 }
 
 export interface GetPostsResult {
@@ -47,6 +48,7 @@ export interface CreatePostData {
   content?: string;
   media?: { url: string; type: string }[];
   isPublic?: boolean;
+  language?: string;
 }
 
 const postInclude = {
@@ -61,10 +63,14 @@ export async function getPosts(
   const { scope, cursor, limit = 10, authorId } = params;
 
   if (scope === "public") {
+    const where: Record<string, unknown> = { isPublic: true };
+    if (authorId) where.authorId = authorId;
+    if (params.language) where.language = params.language;
+
     const posts = await prisma.post.findMany({
       take: limit + 1,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-      where: { isPublic: true, ...(authorId ? { authorId } : {}) },
+      where,
       orderBy: { createdAt: "desc" },
       include: postInclude,
     });
@@ -101,12 +107,13 @@ export async function createPost(
   data: CreatePostData,
   userId: string,
 ): Promise<PostResponse> {
-  const { content, media = [], isPublic = true } = data;
+  const { content, media = [], isPublic = true, language = "en" } = data;
 
   const post = await prisma.post.create({
     data: {
       content: content || null,
       isPublic,
+      language,
       authorId: userId,
       media: {
         create: media.map((m, i) => ({

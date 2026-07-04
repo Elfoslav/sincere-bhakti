@@ -1,5 +1,5 @@
 import { forwardRef } from "react"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -61,7 +61,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     if (href) {
       return (
-        <Link href={href} className={classes} {...(props as React.ComponentProps<typeof Link>)} />
+        <Link href={href} className={classes} {...(props as Omit<React.ComponentProps<typeof Link>, "href">)} />
       )
     }
 

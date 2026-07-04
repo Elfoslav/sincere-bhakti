@@ -83,6 +83,18 @@ describe("getPosts", () => {
     );
   });
 
+  it("filters by language", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+
+    await getPosts({ scope: "public", language: "cs" });
+
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { isPublic: true, language: "cs" },
+      }),
+    );
+  });
+
   it("returns own posts when no scope", async () => {
     vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
 
@@ -161,6 +173,30 @@ describe("createPost", () => {
     expect(prisma.post.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ isPublic: false }),
+      }),
+    );
+  });
+
+  it("defaults language to en", async () => {
+    vi.mocked(prisma.post.create).mockResolvedValue(basePost);
+
+    await createPost({ content: "Hello" }, "user-1");
+
+    expect(prisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ language: "en" }),
+      }),
+    );
+  });
+
+  it("stores specified language", async () => {
+    vi.mocked(prisma.post.create).mockResolvedValue(basePost);
+
+    await createPost({ content: "Ahoj", language: "cs" }, "user-1");
+
+    expect(prisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ language: "cs" }),
       }),
     );
   });

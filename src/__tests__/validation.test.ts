@@ -132,6 +132,27 @@ describe("createPostSchema", () => {
       expect(result.data.isPublic).toBe(true);
     }
   });
+
+  it("defaults language to en", () => {
+    const result = createPostSchema.safeParse({ content: "Hello" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.language).toBe("en");
+    }
+  });
+
+  it("accepts valid languages", () => {
+    const result = createPostSchema.safeParse({ content: "Hello", language: "cs" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.language).toBe("cs");
+    }
+  });
+
+  it("rejects invalid language", () => {
+    const result = createPostSchema.safeParse({ content: "Hello", language: "fr" });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("updateNameSchema", () => {
@@ -181,6 +202,19 @@ describe("paginationSchema", () => {
 
   it("rejects invalid scope", () => {
     const result = paginationSchema.safeParse({ scope: "private" });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts language filter", () => {
+    const result = paginationSchema.safeParse({ language: "cs" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.language).toBe("cs");
+    }
+  });
+
+  it("rejects invalid language filter", () => {
+    const result = paginationSchema.safeParse({ language: "fr" });
     expect(result.success).toBe(false);
   });
 });

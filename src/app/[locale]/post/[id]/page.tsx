@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import PostCard from "@/components/PostCard";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import type { Post } from "@/types/post";
 
 export default function SinglePostPage() {
   const { id } = useParams<{ id: string }>();
+  const t = useTranslations("SinglePost");
   const [post, setPost] = useState<Post | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,14 +19,14 @@ export default function SinglePostPage() {
       .then(async (r) => {
         if (!r.ok) {
           const data = await r.json();
-          throw new Error(data.error || "Post not found");
+          throw new Error(data.error || t("notFound"));
         }
         return r.json();
       })
       .then((data) => { if (mounted) setPost(data); })
       .catch((e) => { if (mounted) setError(e.message); });
     return () => { mounted = false; };
-  }, [id]);
+  }, [id, t]);
 
   if (error) {
     return (

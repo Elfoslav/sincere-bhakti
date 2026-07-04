@@ -1,0 +1,122 @@
+{
+  "Metadata": {
+    "home": {
+      "title": "Sincere Bhakti — Komunita Gaudiya vaišnavismu",
+      "description": "Duchovní komunita pro oddané Gaudiya vaišnavismu — sdílej bhakti, inspiruj oddanost. Přispívej verši, realizacemi a spoj se s globální saṅgou."
+    },
+    "posts": {
+      "title": "Příspěvky | Sincere Bhakti",
+      "description": "Prohlížej oddané příspěvky z globální saṅgy — realizace, kirtany, písemná zasvěcení a média."
+    },
+    "profile": {
+      "title": "{name} | Sincere Bhakti"
+    }
+  },
+  "Navbar": {
+    "posts": "Příspěvky",
+    "profile": "Profil",
+    "getIn": "Vstoupit",
+    "logout": "Odhlásit",
+    "language": "Jazyk"
+  },
+  "HomePage": {
+    "subtitle": "„Jednoduchý život, vznešené myšlení“",
+    "description": "Posvátný prostor pro oddané Gaudiya vaišnavismu. Sdílej své realizace, kirtany, písemná zasvěcení a oddaná média se saṅgou.",
+    "ctaJoin": "Připoj se k saṅze",
+    "ctaPosts": "Příspěvky",
+    "cardBhaktiTitle": "Sdílej Bhakti",
+    "cardBhaktiDesc": "Přispívej svými realizacemi, odkazy na kirtany a oddanými postřehy.",
+    "cardMediaTitle": "Posvátná Média",
+    "cardMediaDesc": "Sdílej obrázky a videa ze své duchovní cesty.",
+    "cardSangaTitle": "Oddaná Saṅga",
+    "cardSangaDesc": "Spoj se s dalšími oddanými v respektující komunitě."
+  },
+  "PostsPage": {
+    "title": "Příspěvky",
+    "subtitle": "Oddané příspěvky z globální saṅgy",
+    "composePlaceholder": "Sdílej svou realizaci, verš, YouTube odkaz nebo myšlenku...",
+    "publicTab": "Veřejné příspěvky",
+    "myTab": "Moje příspěvky",
+    "emptyPublic": "Zatím žádné veřejné příspěvky. Buď první!",
+    "emptyMy": "Zatím žádné příspěvky.",
+    "signInToPost": "pro sdílení příspěvku se saṅgou",
+    "signIn": "Přihlásit se",
+    "posting": "Odesílám...",
+    "postButton": "Sdílet",
+    "attachMedia": "Přidat média",
+    "public": "Veřejné",
+    "private": "Soukromé",
+    "language": "Jazyk",
+    "allLanguages": "Vše",
+    "loadingMore": "Načítám další...",
+    "failedToLoad": "Nepodařilo se načíst příspěvky.",
+    "nothingToPost": "Nic k přidání — přidej text nebo média",
+    "postPublished": "Příspěvek zveřejněn"
+  },
+  "Auth": {
+    "login": {
+      "title": "Vítej zpět",
+      "subtitle": "Pokračuj ve své bhakti cestě",
+      "emailLabel": "Email",
+      "emailPlaceholder": "tvuj@email.cz",
+      "passwordLabel": "Heslo",
+      "passwordPlaceholder": "••••••••",
+      "button": "Přihlásit se",
+      "loading": "Přihlašuji...",
+      "error": "Neplatný email nebo heslo",
+      "noAccount": "Nemáš účet?",
+      "registerLink": "Registrovat"
+    },
+    "register": {
+      "title": "Připoj se k saṅze",
+      "subtitle": "Začni svou duchovní cestu",
+      "nameLabel": "Jméno",
+      "nameHint": "Tvé zasvěcené jméno, pokud nějaké máš",
+      "namePlaceholder": "Tvé jméno",
+      "emailLabel": "Email",
+      "emailPlaceholder": "tvuj@email.cz",
+      "passwordLabel": "Heslo",
+      "passwordPlaceholder": "Alespoň 6 znaků",
+      "button": "Vytvořit účet",
+      "loading": "Vytvářím účet...",
+      "hasAccount": "Už máš účet?",
+      "loginLink": "Přihlásit se"
+    }
+  },
+  "ProfilePage": {
+    "title": "Profil",
+    "editName": "Upravit jméno",
+    "editNameTitle": "Upravit jméno",
+    "namePlaceholder": "Tvé jméno",
+    "cancel": "Zrušit",
+    "save": "Uložit",
+    "saving": "Ukládám...",
+    "joined": "Připojil se {date}",
+    "publicPosts": "Veřejné příspěvky ({count})",
+    "noPosts": "Zatím žádné veřejné příspěvky.",
+    "noProfile": "Oddaný nenalezen",
+    "loadingMore": "Načítám další..."
+  },
+  "PostCard": {
+    "public": "Veřejné",
+    "private": "Soukromé",
+    "delete": "Smazat příspěvek",
+    "deleted": "Příspěvek smazán",
+    "deleteConfirm": "Smazat tento příspěvek?",
+    "posted": "Přidáno"
+  },
+  "SinglePost": {
+    "notFound": "Příspěvek nenalezen"
+  },
+  "Common": {
+    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Věnováno učení Śrīly Prabhupādy",
+    "loading": "Načítám...",
+    "error": "Něco se pokazilo",
+    "noPostFound": "Příspěvek nenalezen"
+  },
+  "ErrorPages": {
+    "notFound": "Stránka nenalezena",
+    "notFoundDescription": "Tato stránka nebyla nalezena.",
+    "goHome": "Domů"
+  }
+}

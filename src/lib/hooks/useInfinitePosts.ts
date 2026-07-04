@@ -7,10 +7,11 @@ type ApiParams = {
   authorId?: string;
   disabled?: boolean;
   pageSize?: number;
+  language?: string;
 };
 
 export function useInfinitePosts(params?: ApiParams) {
-  const { authorId, disabled, pageSize = PAGE_SIZE } = params ?? {};
+  const { authorId, disabled, pageSize = PAGE_SIZE, language } = params ?? {};
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(!disabled);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -26,6 +27,7 @@ export function useInfinitePosts(params?: ApiParams) {
         });
         if (cursor) query.set("cursor", cursor);
         if (authorId) query.set("authorId", authorId);
+        if (language) query.set("language", language);
 
         const res = await fetch(`/api/posts?${query}`);
         if (!res.ok) return null;
@@ -35,7 +37,7 @@ export function useInfinitePosts(params?: ApiParams) {
         return null;
       }
     },
-    [authorId, pageSize],
+    [authorId, pageSize, language],
   );
 
   useEffect(() => {

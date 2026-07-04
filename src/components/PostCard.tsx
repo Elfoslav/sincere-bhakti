@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
+import { useLocale } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { ExternalLink } from "lucide-react";
 import { extractYouTubeContent } from "@/lib/video";
 import type { Post } from "@/types/post";
@@ -15,7 +16,8 @@ export default function PostCard({
   onDelete?: (id: string) => void;
   currentUserId?: string;
 }) {
-  const date = new Date(post.createdAt).toLocaleDateString("en-US", {
+  const locale = useLocale();
+  const date = new Date(post.createdAt).toLocaleDateString(locale === "en" ? "en-US" : locale, {
     year: "numeric",
     month: "long",
     day: "numeric",

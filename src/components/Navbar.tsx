@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 function Hamburger({ open }: { open: boolean }) {
 	return (
@@ -31,6 +33,7 @@ function Hamburger({ open }: { open: boolean }) {
 export default function Navbar() {
 	const { data: session } = useSession();
 	const [open, setOpen] = useState(false);
+	const t = useTranslations("Navbar");
 
 	function close() {
 		setOpen(false);
@@ -40,48 +43,59 @@ export default function Navbar() {
 		<nav className="bg-deep text-white shadow-lg">
 			<div className="max-w-6xl mx-auto px-4">
 				<div className="flex items-center justify-between h-16">
-					<Link href="/" className="flex items-center gap-2" onClick={close}>
-						<Image
-							src="/images/sincere-bhakti-logo-light.png"
-							alt="Sincere Bhakti"
-							title="Sincere Bhakti"
-							width={77}
-							height={32}
-							className="shrink-0"
-							unoptimized
-						/>
-					</Link>
-
-					<button className="md:hidden" onClick={() => setOpen(!open)} aria-label="Toggle menu">
-						<Hamburger open={open} />
-					</button>
-
-					<div className="hidden md:flex items-center gap-4">
-						<Link href="/posts" className="hover:text-gold-light transition-colors">
-							Posts
+					<div className="flex items-center gap-6">
+						<Link href="/" className="flex items-center gap-2" onClick={close}>
+							<Image
+								src="/images/sincere-bhakti-logo-light.png"
+								alt="Sincere Bhakti"
+								title="Sincere Bhakti"
+								width={77}
+								height={52}
+								className="shrink-0"
+								unoptimized
+								style={{ width: 77, height: 52 }} // Set width/height to avoid layout shift
+							/>
 						</Link>
-						{session ? (
-							<>
+
+						<div className="hidden md:flex items-center gap-4">
+							<Link href="/posts" className="hover:text-gold-light transition-colors">
+								{t("posts")}
+							</Link>
+							{session && (
 								<Link
 									href={`/profile/${session.user.id}`}
 									className="hover:text-gold-light transition-colors"
 								>
-									Profile
+									{t("profile")}
 								</Link>
+							)}
+						</div>
+					</div>
+
+					<div className="flex items-center gap-1">
+						<div className="md:hidden">
+							<LanguageSwitcher />
+						</div>
+						<button
+							className="md:hidden p-2"
+							onClick={() => setOpen(!open)}
+							aria-label="Toggle menu"
+						>
+							<Hamburger open={open} />
+						</button>
+
+						<div className="hidden md:flex items-center gap-4">
+							<LanguageSwitcher />
+							{session ? (
 								<Button onClick={() => signOut()} variant="default">
-									Logout
+									{t("logout")}
 								</Button>
-							</>
-						) : (
-							<>
-								<Link href="/login" className="hover:text-gold-light transition-colors">
-									Login
-								</Link>
-								<Button href="/register" variant="default" size="default">
-									Register
+							) : (
+								<Button href="/login" variant="default" size="default">
+									{t("getIn")}
 								</Button>
-							</>
-						)}
+							)}
+						</div>
 					</div>
 				</div>
 			</div>
@@ -93,39 +107,31 @@ export default function Navbar() {
 			>
 				<div className="flex flex-col gap-1 px-4 pb-4 pt-1 border-t border-white/10">
 					<MobileLink href="/posts" onClick={close}>
-						Posts
+						{t("posts")}
 					</MobileLink>
-					{session ? (
-						<>
-							<MobileLink href={`/profile/${session.user.id}`} onClick={close}>
-								Profile
-							</MobileLink>
+					{session && (
+						<MobileLink href={`/profile/${session.user.id}`} onClick={close}>
+							{t("profile")}
+						</MobileLink>
+					)}
+					<div className="flex items-center gap-2 pt-2">
+						{session ? (
 							<Button
 								onClick={() => {
 									signOut();
 									close();
 								}}
 								variant="default"
-								className="mt-1 w-full text-left"
+								className="flex-1 text-center px-4"
 							>
-								Logout
+								{t("logout")}
 							</Button>
-						</>
-					) : (
-						<>
-							<MobileLink href="/login" onClick={close}>
-								Login
-							</MobileLink>
-							<Button
-								href="/register"
-								variant="default"
-								size="sm"
-								className="mt-1 w-full text-center"
-							>
-								Register
+						) : (
+							<Button href="/login" variant="default" size="sm" className="flex-1 text-center px-4">
+								{t("getIn")}
 							</Button>
-						</>
-					)}
+						)}
+					</div>
 				</div>
 			</div>
 		</nav>

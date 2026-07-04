@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
       cursor: searchParams.get("cursor") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
       authorId: searchParams.get("authorId") ?? undefined,
+      language: searchParams.get("language") ?? undefined,
     });
 
     if (!parsed.success) {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { scope, cursor, limit, authorId } = parsed.data;
+    const { scope, cursor, limit, authorId, language } = parsed.data;
 
     if (scope !== "public") {
       const session = await auth();
@@ -28,11 +29,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      const result = await getPosts({ scope, cursor, limit, authorId }, session.user.id);
+      const result = await getPosts({ scope, cursor, limit, authorId, language }, session.user.id);
       return NextResponse.json(result);
     }
 
-    const result = await getPosts({ scope, cursor, limit, authorId });
+    const result = await getPosts({ scope, cursor, limit, authorId, language });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof UnauthorizedError) {

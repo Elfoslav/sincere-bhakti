@@ -21,6 +21,7 @@ model Post {
   id        String   @id @default(cuid())
   content   String?
   isPublic  Boolean  @default(true)
+  language  String   @default("en")
   createdAt DateTime @default(now())
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
@@ -28,6 +29,7 @@ model Post {
 
   @@index([authorId])
   @@index([isPublic, createdAt])
+  @@index([language, isPublic, createdAt])
 }
 
 model Media {

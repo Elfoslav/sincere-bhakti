@@ -163,7 +163,7 @@ describe("POST /api/posts", () => {
     expect(res.status).toBe(201);
     expect(json.id).toBe("post-1");
     expect(createPost).toHaveBeenCalledWith(
-      { content: "Hare Krishna!", media: [], isPublic: true },
+      { content: "Hare Krishna!", media: [], isPublic: true, language: "en" },
       "user-1",
     );
   });

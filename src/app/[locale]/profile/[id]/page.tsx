@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useLocale, useTranslations } from "next-intl";
 import { Pencil } from "lucide-react";
 import PostCard from "@/components/PostCard";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,8 @@ interface UserProfile {
 export default function ProfilePage() {
   const params = useParams();
   const { data: session } = useSession();
+  const locale = useLocale();
+  const t = useTranslations("ProfilePage");
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -100,12 +103,12 @@ export default function ProfilePage() {
   if (!profile) {
     return (
       <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
-        <p className="text-deep/60">Devotee not found</p>
+        <p className="text-deep/60">{t("noProfile")}</p>
       </div>
     );
   }
 
-  const date = new Date(profile.createdAt).toLocaleDateString("en-US", {
+  const date = new Date(profile.createdAt).toLocaleDateString(locale === "en" ? "en-US" : locale, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -123,13 +126,13 @@ export default function ProfilePage() {
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger
                 className="text-gold hover:text-gold-light transition-colors cursor-pointer"
-                title="Edit name"
+                title={t("editName")}
               >
                 <Pencil className="w-[18px] h-[18px]" />
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Edit Name</DialogTitle>
+                  <DialogTitle>{t("editNameTitle")}</DialogTitle>
                 </DialogHeader>
                 <form
                   onSubmit={(e) => { e.preventDefault(); handleSave(); }}
@@ -138,18 +141,18 @@ export default function ProfilePage() {
                   <Input
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Your name"
+                    placeholder={t("namePlaceholder")}
                     autoFocus
                   />
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                      Cancel
+                      {t("cancel")}
                     </Button>
                     <Button
                       type="submit"
                       disabled={saving || !newName.trim()}
                     >
-                      {saving ? "Saving..." : "Save"}
+                      {saving ? t("saving") : t("save")}
                     </Button>
                   </div>
                 </form>
@@ -158,17 +161,17 @@ export default function ProfilePage() {
           )}
         </div>
         <p className="text-deep/50 text-sm mt-1">
-          Joined {date}
+          {t("joined", { date })}
         </p>
       </div>
 
       <h2 className="text-xl font-semibold text-deep mb-4">
-        Public Posts ({posts.length})
+        {t("publicPosts", { count: posts.length })}
       </h2>
 
       {posts.length === 0 ? (
         <p className="text-center text-deep/50 py-8 bg-white/60 rounded-lg border border-sand">
-          No public posts yet.
+          {t("noPosts")}
         </p>
       ) : (
         <div className="space-y-4">
@@ -181,7 +184,7 @@ export default function ProfilePage() {
       {hasMore && posts.length > 0 && (
         <div ref={sentinelRef} className="flex justify-center py-8">
           {loadingMore ? (
-            <p className="text-deep/50 text-sm">Loading more...</p>
+            <p className="text-deep/50 text-sm">{t("loadingMore")}</p>
           ) : (
             <div className="w-6 h-6" />
           )}
