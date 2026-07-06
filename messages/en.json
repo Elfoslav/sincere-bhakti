@@ -113,7 +113,8 @@
     "loadError": "Something went wrong loading the post. Please try again."
   },
   "Common": {
-    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Dedicated to the teachings of Śrīla Prabhupāda"
+    "footerLine1": "© {year} 🪷 Sincere Bhakti",
+    "footerLine2": "Dedicated to the teachings of Śrīla Prabhupāda"
   },
   "ErrorPages": {
     "notFound": "Page not found",

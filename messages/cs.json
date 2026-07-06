@@ -113,7 +113,8 @@
     "loadError": "Při načítání příspěvku došlo k chybě. Zkuste to prosím znovu."
   },
   "Common": {
-    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Věnováno učení Śrīly Prabhupādy"
+    "footerLine1": "© {year} 🪷 Sincere Bhakti",
+    "footerLine2": "Věnováno učení Śrīly Prabhupādy"
   },
   "ErrorPages": {
     "notFound": "Stránka nenalezena",

@@ -85,9 +85,10 @@ export default async function LocaleLayout({ children, params }: Props) {
             <main className="flex-1">{children}</main>
             <Toaster position="bottom-right" richColors closeButton />
             <footer className="bg-deep text-white/50 text-center text-sm py-4 border-t border-sand/20">
-              <p>
-                {commonT("footerCopyright", { year: String(new Date().getFullYear()) })}
-              </p>
+              <div className="max-w-6xl mx-auto px-4">
+                <p>{commonT("footerLine1", { year: String(new Date().getFullYear()) })}</p>
+                <p>{commonT("footerLine2")}</p>
+              </div>
             </footer>
           </Providers>
         </NextIntlClientProvider>
