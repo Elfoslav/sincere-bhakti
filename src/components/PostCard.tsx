@@ -1,36 +1,22 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { ExternalLink } from "lucide-react";
 import { extractYouTubeContent } from "@/lib/video";
-
-interface PostAuthor {
-  id: string;
-  name: string | null;
-  image: string | null;
-}
-
-interface Post {
-  id: string;
-  content: string | null;
-  mediaUrl: string | null;
-  mediaType: string | null;
-  isPublic: boolean;
-  createdAt: string;
-  author: PostAuthor;
-}
+import type { Post } from "@/types/post";
 
 export default function PostCard({
   post,
-  onDelete,
   currentUserId,
 }: {
   post: Post;
-  onDelete?: (id: string) => void;
   currentUserId?: string;
 }) {
-  const date = new Date(post.createdAt).toLocaleDateString("en-US", {
+  const locale = useLocale();
+  const t = useTranslations("PostCard");
+  const date = new Date(post.createdAt).toLocaleDateString(locale === "en" ? "en-US" : locale, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -38,14 +24,10 @@ export default function PostCard({
     minute: "2-digit",
   });
 
-  const { cleanContent, embedUrl } = useMemo(
+  const { cleanContent } = useMemo(
     () => extractYouTubeContent(post.content),
     [post.content],
   );
-
-  const videoEmbed = post.mediaType === "youtube"
-    ? post.mediaUrl
-    : embedUrl;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-5 border border-sand">
@@ -58,7 +40,7 @@ export default function PostCard({
             href={`/profile/${post.author.id}`}
             className="font-semibold text-deep hover:text-gold"
           >
-            {post.author.name || "Anonymous"}
+            {post.author.name || t("anonymous")}
           </Link>
           <p className="text-xs text-deep/60">{date}</p>
         </div>
@@ -66,19 +48,12 @@ export default function PostCard({
           <Link
             href={`/post/${post.id}`}
             className="text-deep/40 hover:text-gold transition-colors p-1"
-            title="Open post"
+            title={t("openPost")}
+            aria-label={t("openPost")}
           >
             <ExternalLink className="w-4 h-4" />
           </Link>
-          {onDelete && (
-            <button
-              onClick={() => onDelete(post.id)}
-              className="text-red-500 hover:text-red-700 text-sm p-1"
-              title="Delete post"
-            >
-              ✕
-            </button>
-          )}
+
         </div>
       </div>
 
@@ -86,49 +61,54 @@ export default function PostCard({
         <p className="text-deep mb-3 whitespace-pre-wrap">{cleanContent}</p>
       )}
 
-      {videoEmbed && (
-        <div className="rounded-lg overflow-hidden mb-2">
-          <div className="aspect-video">
-            <iframe
-              key={videoEmbed}
-              src={videoEmbed}
-              className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-              title="YouTube video"
-            />
-          </div>
-        </div>
-      )}
-
-      {!videoEmbed && post.mediaUrl && (
-        <div className="rounded-lg overflow-hidden mb-2">
-          {post.mediaType === "video" ? (
+      {post.media.map((m) => (
+        <div key={m.url} className="rounded-lg overflow-hidden mb-2">
+          {m.type === "youtube" ? (
+            <div className="aspect-video">
+              <iframe
+                src={m.url}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                title={t("youtubeVideo")}
+              />
+            </div>
+          ) : m.type === "video" ? (
             <video
-              src={post.mediaUrl}
+              src={m.url}
               controls
               className="w-full max-h-96 object-contain"
             />
-          ) : (
+          ) : m.type === "image" ? (
             <img
-              src={post.mediaUrl}
-              alt="Post media"
+              src={m.url}
+              alt={t("postMedia")}
               className="w-full max-h-96 object-contain"
             />
+          ) : (
+            <a
+              href={m.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-3 bg-warm/50 rounded-md border border-sand text-deep hover:bg-warm transition-colors"
+            >
+              <span className="text-sm">📎</span>
+              <span className="text-sm font-medium truncate">{m.url.split("/").pop()}</span>
+            </a>
           )}
         </div>
-      )}
+      ))}
 
       {currentUserId === post.author.id && (
         <div className="flex items-center gap-2 text-xs text-deep/50">
           {post.isPublic ? (
             <span className="bg-tulsi/20 text-tulsi px-2 py-0.5 rounded-full">
-              Public
+              {t("public")}
             </span>
           ) : (
             <span className="bg-saffron/20 text-saffron-dark px-2 py-0.5 rounded-full">
-              Private
+              {t("private")}
             </span>
           )}
         </div>

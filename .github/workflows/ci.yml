@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Installs the pnpm version pinned in package.json's "packageManager" field.
+      - uses: pnpm/action-setup@v4
+
+      # Node 24 matches Vercel's default runtime (and local dev), so CI catches
+      # build-env parity issues (e.g. Node built-in module resolution) before
+      # they hit a deploy.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # --frozen-lockfile fails if pnpm-lock.yaml is out of sync.
+      # postinstall runs `prisma generate`, so the Prisma client is available to tests.
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test

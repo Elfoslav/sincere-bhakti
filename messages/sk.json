@@ -1,0 +1,126 @@
+{
+  "Metadata": {
+    "home": {
+      "title": "Sincere Bhakti — Komunita Gaudiya vaišnavizmu",
+      "description": "Duchovná komunita pre oddaných Gaudiya vaišnavizmu — zdieľaj bhakti, inšpiruj oddanosť. Pridávaj verše, realizácie a spoj sa s globálnou saṅgou."
+    }
+  },
+  "Navbar": {
+    "posts": "Príspevky",
+    "profile": "Profil",
+    "getIn": "Vstúpiť",
+    "logout": "Odhlásiť",
+    "toggleMenu": "Prepnúť menu",
+    "logoAlt": "Sincere Bhakti"
+  },
+  "HomePage": {
+    "logoAlt": "Sincere Bhakti",
+    "subtitle": "Jednoduchý život, vznešené myslenie",
+    "description": "Posvätný priestor pre oddaných Gaudiya vaišnavizmu. Zdieľaj svoje realizácie, kirtany, písomné zasvätenia a oddané médiá so saṅgou.",
+    "ctaJoin": "Pripoj sa k saṅge",
+    "ctaPosts": "Príspevky",
+    "cardBhaktiTitle": "Zdieľaj Bhakti",
+    "cardBhaktiDesc": "Pridávaj svoje realizácie, odkazy na kirtany a oddané postrehy.",
+    "cardMediaTitle": "Posvätné Médiá",
+    "cardMediaDesc": "Zdieľaj obrázky a videá zo svojej duchovnej cesty.",
+    "cardSangaTitle": "Oddaná Saṅga",
+    "cardSangaDesc": "Spoj sa s ďalšími oddanými v rešpektujúcej komunite."
+  },
+  "PostsPage": {
+    "title": "Príspevky",
+    "subtitle": "Oddané príspevky z globálnej saṅgy",
+    "composePlaceholder": "Zdieľaj svoju realizáciu, verš, YouTube odkaz alebo myšlienku...",
+    "publicTab": "Verejné príspevky",
+    "myTab": "Moje príspevky",
+    "emptyPublic": "Zatiaľ žiadne verejné príspevky. Buď prvý!",
+    "emptyMy": "Zatiaľ žiadne príspevky.",
+    "signInToPost": "pre zdieľanie príspevku so saṅgou",
+    "signIn": "Prihlásiť sa",
+    "posting": "Odosielam...",
+    "postButton": "Zdieľať",
+    "attachMedia": "Pridať médiá",
+    "public": "Verejné",
+    "private": "Súkromné",
+    "loadingMore": "Načítavam ďalšie...",
+    "failedToLoad": "Nepodarilo sa načítať príspevky.",
+    "nothingToPost": "Nič na pridanie — pridaj text alebo médiá",
+    "postPublished": "Príspevok zverejnený",
+    "uploadFailed": "Nahrávanie zlyhalo. Skúste to prosím znova.",
+    "fileTooLarge": "Niektoré súbory sú príliš veľké a boli preskočené (obrázky max. {imageMax} MB, videá max. {videoMax} MB).",
+    "createPostFailed": "Nepodarilo sa vytvoriť príspevok. Skúste to prosím znova.",
+    "youtubePreview": "YouTube náhľad",
+    "preview": "Náhľad"
+  },
+  "Auth": {
+    "login": {
+      "title": "Vitaj späť",
+      "subtitle": "Pokračuj vo svojej bhakti ceste",
+      "emailLabel": "Email",
+      "emailPlaceholder": "tvoj@email.sk",
+      "passwordLabel": "Heslo",
+      "passwordPlaceholder": "••••••••",
+      "button": "Prihlásiť sa",
+      "loading": "Prihlasujem...",
+      "error": "Neplatný email alebo heslo",
+      "noAccount": "Nemáš účet?",
+      "registerLink": "Registrovať",
+      "networkError": "Chyba siete. Skontrolujte pripojenie."
+    },
+    "register": {
+      "title": "Pripoj sa k saṅge",
+      "subtitle": "Začni svoju duchovnú cestu",
+      "nameLabel": "Meno",
+      "nameHint": "Tvoje zasvätené meno, ak nejaké máš",
+      "namePlaceholder": "Tvoje meno",
+      "emailLabel": "Email",
+      "emailPlaceholder": "tvoj@email.sk",
+      "passwordLabel": "Heslo",
+      "passwordPlaceholder": "Aspoň 6 znakov",
+      "button": "Vytvoriť účet",
+      "loading": "Vytváram účet...",
+      "hasAccount": "Už máš účet?",
+      "loginLink": "Prihlásiť sa",
+      "passwordTooShort": "Heslo musí mať aspoň {min} znakov",
+      "registrationFailed": "Došlo k chybe. Skúste to prosím znova.",
+      "networkError": "Chyba siete. Skontrolujte pripojenie."
+    }
+  },
+  "ProfilePage": {
+    "title": "Profil",
+    "editName": "Upraviť meno",
+    "editNameTitle": "Upraviť meno",
+    "namePlaceholder": "Tvoje meno",
+    "cancel": "Zrušiť",
+    "save": "Uložiť",
+    "saving": "Ukladám...",
+    "joined": "Pripojil sa {date}",
+    "publicPosts": "Verejné príspevky ({count})",
+    "noPosts": "Zatiaľ žiadne verejné príspevky.",
+    "noProfile": "Oddaný nenájdený",
+    "loadingMore": "Načítavam ďalšie..."
+  },
+  "PostCard": {
+    "public": "Verejné",
+    "private": "Súkromné",
+    "delete": "Zmazať príspevok",
+    "openPost": "Otvoriť príspevok",
+    "anonymous": "Anonymný",
+    "youtubeVideo": "YouTube video",
+    "postMedia": "Médiá príspevku"
+  },
+  "SinglePost": {
+    "notFound": "Príspevok nenájdený",
+    "loadError": "Pri načítavaní príspevku došlo k chybe. Skúste to prosím znova."
+  },
+  "Common": {
+    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Venované učeniu Śrīlu Prabhupādu"
+  },
+  "ErrorPages": {
+    "notFound": "Stránka nenájdená",
+    "notFoundDescription": "Táto stránka nebola nájdená.",
+    "goHome": "Domov",
+    "somethingWentWrong": "Niečo sa pokazilo",
+    "errorDescription": "Došlo k neočakávanej chybe. Skúste to prosím znova alebo sa vráťte neskôr.",
+    "tryAgain": "Skúsiť znova"
+  }
+}

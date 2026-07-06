@@ -1,68 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { getPosts, createPost, UnauthorizedError } from "@/lib/services/post";
 import { createPostSchema, paginationSchema } from "@/lib/validation";
+import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { validateOrigin } from "@/lib/csrf";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const parsed = paginationSchema.safeParse({
-      scope: searchParams.get("scope"),
-      cursor: searchParams.get("cursor"),
-      limit: searchParams.get("limit"),
-      authorId: searchParams.get("authorId"),
+      scope: searchParams.get("scope") ?? undefined,
+      cursor: searchParams.get("cursor") ?? undefined,
+      limit: searchParams.get("limit") ?? undefined,
+      authorId: searchParams.get("authorId") ?? undefined,
+      language: searchParams.get("language") ?? undefined,
     });
 
     if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const field = issue.path[0] || "input";
       return NextResponse.json(
-        { error: parsed.error.issues[0].message },
+        { error: `validation_error:${String(field)}:${issue.code}` },
         { status: 400 }
       );
     }
 
-    const { scope, cursor, limit, authorId } = parsed.data;
+    if (parsed.data.scope !== "public") {
+      const session = await auth();
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
 
-    if (scope === "public") {
-
-      const posts = await prisma.post.findMany({
-        take: limit + 1,
-        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-        where: { isPublic: true, ...(authorId ? { authorId } : {}) },
-        orderBy: { createdAt: "desc" },
-        include: {
-          author: { select: { id: true, name: true, image: true } },
-        },
-      });
-
-      const hasMore = posts.length > limit;
-      if (hasMore) posts.pop();
-
-      return NextResponse.json({ posts, hasMore });
+      const result = await getPosts(parsed.data, session.user.id);
+      return NextResponse.json(result);
     }
 
-    const session = await auth();
-    if (!session?.user?.id) {
+    const result = await getPosts(parsed.data);
+    return NextResponse.json(result);
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const posts = await prisma.post.findMany({
-      where: { authorId: session.user.id },
-      orderBy: { createdAt: "desc" },
-      include: {
-        author: { select: { id: true, name: true, image: true } },
-      },
-    });
-    return NextResponse.json({ posts, hasMore: false });
-  } catch (error) {
     console.error("GET /api/posts failed:", error);
-    return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 });
+    return NextResponse.json({ error: "failed_to_fetch_posts" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed } = await rateLimit(rateLimitKey("create-post", session.user.id), 20, 3_600_000);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "too_many_requests" },
+      { status: 429 },
+    );
   }
 
   try {
@@ -70,32 +69,20 @@ export async function POST(request: NextRequest) {
     const parsed = createPostSchema.safeParse(body);
 
     if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const field = issue.path[0] || "input";
       return NextResponse.json(
-        { error: parsed.error.issues[0].message },
+        { error: `validation_error:${String(field)}:${issue.code}` },
         { status: 400 }
       );
     }
 
-    const { content, mediaUrl, mediaType, isPublic } = parsed.data;
-
-    const post = await prisma.post.create({
-      data: {
-        content: content || null,
-        mediaUrl: mediaUrl || null,
-        mediaType: mediaType || null,
-        isPublic,
-        authorId: session.user.id,
-      },
-      include: {
-        author: { select: { id: true, name: true, image: true } },
-      },
-    });
-
+    const post = await createPost(parsed.data, session.user.id);
     return NextResponse.json(post, { status: 201 });
   } catch (error) {
     console.error("POST /api/posts failed:", error);
     return NextResponse.json(
-      { error: "Failed to create post" },
+      { error: "failed_to_create_post" },
       { status: 500 }
     );
   }

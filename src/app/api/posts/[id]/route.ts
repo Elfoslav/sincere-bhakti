@@ -1,57 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-
-const postInclude = {
-  author: { select: { id: true, name: true, image: true } },
-};
+import { getPostById, deletePost, NotFoundError, ForbiddenError } from "@/lib/services/post";
+import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { validateOrigin } from "@/lib/csrf";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
 
-    const post = await prisma.post.findUnique({
-      where: { id },
-      include: postInclude,
-    });
+    const post = await getPostById(id);
     if (!post) {
-      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+
+    if (!post.isPublic) {
+      const session = await auth();
+      if (!session?.user?.id || session.user.id !== post.author.id) {
+        return NextResponse.json({ error: "not_found" }, { status: 404 });
+      }
     }
 
     return NextResponse.json(post);
   } catch (error) {
     console.error("GET /api/posts/[id] failed:", error);
-    return NextResponse.json({ error: "Failed to fetch post" }, { status: 500 });
+    return NextResponse.json({ error: "failed_to_fetch_post" }, { status: 500 });
   }
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!validateOrigin(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { allowed } = await rateLimit(rateLimitKey("delete-post", session.user.id), 30, 3_600_000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "too_many_requests" },
+        { status: 429 },
+      );
+    }
+
     const { id } = await params;
 
-    const post = await prisma.post.findUnique({ where: { id } });
-    if (!post) {
-      return NextResponse.json({ error: "Post not found" }, { status: 404 });
-    }
-    if (post.authorId !== session.user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    await prisma.post.delete({ where: { id } });
+    await deletePost(id, session.user.id);
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof NotFoundError) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     console.error("DELETE /api/posts/[id] failed:", error);
-    return NextResponse.json({ error: "Failed to delete post" }, { status: 500 });
+    return NextResponse.json({ error: "failed_to_delete_post" }, { status: 500 });
   }
 }

@@ -1,0 +1,126 @@
+{
+  "Metadata": {
+    "home": {
+      "title": "Sincere Bhakti — Gaudiya Vaishnavism Community",
+      "description": "A spiritual community for devotees of Gaudiya Vaishnavism — share bhakti, inspire devotion. Post verses, realizations, and connect with the global saṅga."
+    }
+  },
+  "Navbar": {
+    "posts": "Posts",
+    "profile": "Profile",
+    "getIn": "Get in",
+    "logout": "Logout",
+    "toggleMenu": "Toggle menu",
+    "logoAlt": "Sincere Bhakti"
+  },
+  "HomePage": {
+    "logoAlt": "Sincere Bhakti",
+    "subtitle": "Simple living, high thinking",
+    "description": "A sacred space for devotees of Gaudiya Vaishnavism. Share your realizations, kirtans, scriptural insights, and devotional media with the saṅga.",
+    "ctaJoin": "Join the Saṅga",
+    "ctaPosts": "Posts",
+    "cardBhaktiTitle": "Share Bhakti",
+    "cardBhaktiDesc": "Post your realizations, kirtan links, and devotional insights.",
+    "cardMediaTitle": "Sacred Media",
+    "cardMediaDesc": "Share images and videos from your spiritual journey.",
+    "cardSangaTitle": "Devotee Saṅga",
+    "cardSangaDesc": "Connect with fellow devotees in a respectful community."
+  },
+  "PostsPage": {
+    "title": "Posts",
+    "subtitle": "Devotional posts from the global saṅga",
+    "composePlaceholder": "Share your realization, a verse, a YouTube link, or a thought...",
+    "publicTab": "Public posts",
+    "myTab": "My posts",
+    "emptyPublic": "No public posts yet. Be the first to share!",
+    "emptyMy": "No posts yet.",
+    "signInToPost": "to share a post with the saṅga",
+    "signIn": "Sign in",
+    "posting": "Posting...",
+    "postButton": "Share",
+    "attachMedia": "Attach Media",
+    "public": "Public",
+    "private": "Private",
+    "loadingMore": "Loading more...",
+    "failedToLoad": "Failed to load your posts.",
+    "nothingToPost": "Nothing to post — add text or media",
+    "postPublished": "Post published",
+    "uploadFailed": "Upload failed. Please try again.",
+    "fileTooLarge": "Some files are too large and were skipped (images max {imageMax} MB, videos max {videoMax} MB).",
+    "createPostFailed": "Failed to create post. Please try again.",
+    "youtubePreview": "YouTube preview",
+    "preview": "Preview"
+  },
+  "Auth": {
+    "login": {
+      "title": "Welcome Back",
+      "subtitle": "Continue your bhakti journey",
+      "emailLabel": "Email",
+      "emailPlaceholder": "your@email.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "••••••••",
+      "button": "Sign In",
+      "loading": "Signing in...",
+      "error": "Invalid email or password",
+      "noAccount": "Don't have an account?",
+      "registerLink": "Register",
+      "networkError": "Network error. Please check your connection."
+    },
+    "register": {
+      "title": "Join the Saṅga",
+      "subtitle": "Begin your devotional journey",
+      "nameLabel": "Name",
+      "nameHint": "Your initiated name if you have one",
+      "namePlaceholder": "Your name",
+      "emailLabel": "Email",
+      "emailPlaceholder": "your@email.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "At least 6 characters",
+      "button": "Create Account",
+      "loading": "Creating Account...",
+      "hasAccount": "Already have an account?",
+      "loginLink": "Sign in",
+      "passwordTooShort": "Password must be at least {min} characters",
+      "registrationFailed": "Something went wrong. Please try again.",
+      "networkError": "Network error. Please check your connection."
+    }
+  },
+  "ProfilePage": {
+    "title": "Profile",
+    "editName": "Edit name",
+    "editNameTitle": "Edit Name",
+    "namePlaceholder": "Your name",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "joined": "Joined {date}",
+    "publicPosts": "Public Posts ({count})",
+    "noPosts": "No public posts yet.",
+    "noProfile": "Devotee not found",
+    "loadingMore": "Loading more..."
+  },
+  "PostCard": {
+    "public": "Public",
+    "private": "Private",
+    "delete": "Delete post",
+    "openPost": "Open post",
+    "anonymous": "Anonymous",
+    "youtubeVideo": "YouTube video",
+    "postMedia": "Post media"
+  },
+  "SinglePost": {
+    "notFound": "Post not found",
+    "loadError": "Something went wrong loading the post. Please try again."
+  },
+  "Common": {
+    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Dedicated to the teachings of Śrīla Prabhupāda"
+  },
+  "ErrorPages": {
+    "notFound": "Page not found",
+    "notFoundDescription": "This page could not be found.",
+    "goHome": "Go Home",
+    "somethingWentWrong": "Something went wrong",
+    "errorDescription": "An unexpected error occurred. Please try again or come back later.",
+    "tryAgain": "Try again"
+  }
+}

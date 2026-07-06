@@ -1,16 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { registerSchema } from "@/lib/validation";
+import { registerSchema, BCRYPT_SALT_ROUNDS } from "@/lib/validation";
+import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { validateOrigin } from "@/lib/csrf";
 
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const { allowed } = await rateLimit(rateLimitKey("register", ip), 5, 3_600_000);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many attempts. Try again later." },
+      { status: 429 },
+    );
+  }
+
   try {
     const body = await request.json();
     const parsed = registerSchema.safeParse(body);
 
     if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const field = issue.path[0] || "input";
       return NextResponse.json(
-        { error: parsed.error.issues[0].message },
+        { error: `validation_error:${String(field)}:${issue.code}` },
         { status: 400 }
       );
     }
@@ -23,12 +40,12 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "Email already in use" },
-        { status: 400 }
+        { error: "email_in_use" },
+        { status: 409 }
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
     const user = await prisma.user.create({
       data: {
@@ -45,7 +62,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Registration failed:", error);
     return NextResponse.json(
-      { error: "Something went wrong" },
+      { error: "server_error" },
       { status: 500 }
     );
   }

@@ -14,18 +14,43 @@ model User {
   image     String?
   createdAt DateTime @default(now())
   posts     Post[]
+  media     Media[]
 }
 
 model Post {
   id        String   @id @default(cuid())
   content   String?
-  mediaUrl  String?
-  mediaType String?
   isPublic  Boolean  @default(true)
+  language  String   @default("en")
   createdAt DateTime @default(now())
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media     Media[]
 
   @@index([authorId])
   @@index([isPublic, createdAt])
+  @@index([language, isPublic, createdAt])
+}
+
+model RateLimit {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  url       String
+  type      String   // "image" | "video" | "youtube" | "file"
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
 }
