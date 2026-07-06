@@ -1,6 +1,6 @@
 {
 	"framework": "nextjs",
-	"buildCommand": "pnpm test && prisma generate && next build",
+	"buildCommand": "prisma generate && prisma migrate deploy && next build",
 	"installCommand": "pnpm install",
 	"git": {
 		"deploymentEnabled": {
