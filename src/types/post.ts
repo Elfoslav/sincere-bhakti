@@ -4,6 +4,8 @@ export interface PostMedia {
   url: string;
   type: MediaType;
   position: number;
+  width: number | null;
+  height: number | null;
 }
 
 export interface PostAuthor {

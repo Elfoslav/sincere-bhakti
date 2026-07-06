@@ -21,6 +21,8 @@ export interface PostMedia {
   url: string;
   type: string;
   position: number;
+  width: number | null;
+  height: number | null;
 }
 
 export interface PostResponse {
@@ -45,9 +47,16 @@ export interface GetPostsResult {
   hasMore: boolean;
 }
 
+export interface MediaInput {
+  url: string;
+  type: string;
+  width?: number;
+  height?: number;
+}
+
 export interface CreatePostData {
   content?: string;
-  media?: { url: string; type: string }[];
+  media?: MediaInput[];
   isPublic?: boolean;
   language?: string;
 }
@@ -55,7 +64,7 @@ export interface CreatePostData {
 export interface UpdatePostData {
   content?: string | null;
   isPublic?: boolean;
-  media?: { url: string; type: string }[];
+  media?: MediaInput[];
 }
 
 const postInclude = {
@@ -128,6 +137,8 @@ export async function createPost(
           url: m.url,
           type: m.type,
           position: i,
+          width: m.width ?? null,
+          height: m.height ?? null,
           userId,
         })),
       },
@@ -173,6 +184,8 @@ export async function updatePost(
             url: m.url,
             type: m.type,
             position: i,
+            width: m.width ?? null,
+            height: m.height ?? null,
             postId: id,
             userId,
           })),

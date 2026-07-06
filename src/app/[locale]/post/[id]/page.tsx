@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPostById } from "@/lib/services/post";
 import { auth } from "@/lib/auth";
+import { selectOgImageUrl } from "@/lib/og";
 import PostDetailClient from "./post-detail-client";
 import type { Post, MediaType } from "@/types/post";
 
@@ -25,12 +26,19 @@ export async function generateMetadata({
 
   const ogTitle = post.content ? post.content.slice(0, 60) : undefined;
   const ogDescription = post.content ? post.content.slice(0, 160) : undefined;
-  const images = post.media.filter((m) => m.type === "image");
-  const postImage = images.find((m) => m.url)?.url;
 
-  const ogImages = postImage
-    ? [{ url: postImage, width: 1200, height: 630 }]
-    : [{ url: "/images/sincere-bhakti-logo.png", width: 603, height: 414 }];
+  const postImage = selectOgImageUrl(post.media);
+  const ogUrl = postImage ?? "/images/sincere-bhakti-logo.png";
+  const selected = postImage
+    ? post.media.find((m) => m.url === postImage)
+    : undefined;
+
+  const ogImages =
+    selected?.width && selected?.height
+      ? [{ url: ogUrl, width: selected.width, height: selected.height }]
+      : postImage
+        ? [{ url: ogUrl }]
+        : [{ url: ogUrl, width: 603, height: 414 }];
 
   return {
     title: ogTitle || "Post",
@@ -47,7 +55,7 @@ export async function generateMetadata({
       card: "summary_large_image",
       title: ogTitle,
       description: ogDescription,
-      images: [postImage || "/images/sincere-bhakti-logo.png"],
+      images: [ogUrl],
     },
   };
 }

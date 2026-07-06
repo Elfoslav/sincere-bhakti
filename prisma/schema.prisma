@@ -45,6 +45,8 @@ model Media {
   url       String
   type      String   // "image" | "video" | "youtube" | "file"
   position  Int      @default(0)
+  width     Int?
+  height    Int?
   createdAt DateTime @default(now())
   postId    String
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)

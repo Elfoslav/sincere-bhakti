@@ -116,6 +116,30 @@ describe("createPostSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts optional media dimensions", () => {
+    const result = createPostSchema.safeParse({
+      media: [{ url: "https://example.com/i.jpg", type: "image", width: 1600, height: 900 }],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.media[0].width).toBe(1600);
+      expect(result.data.media[0].height).toBe(900);
+    }
+  });
+
+  it("rejects non-positive or non-integer dimensions", () => {
+    expect(
+      createPostSchema.safeParse({
+        media: [{ url: "https://example.com/i.jpg", type: "image", width: 0, height: 900 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      createPostSchema.safeParse({
+        media: [{ url: "https://example.com/i.jpg", type: "image", width: 12.5, height: 900 }],
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects javascript: media URL", () => {
     const result = createPostSchema.safeParse({
       media: [{ url: "javascript:alert(1)", type: "file" }],

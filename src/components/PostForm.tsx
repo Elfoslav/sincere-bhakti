@@ -18,23 +18,56 @@ import {
 
 const BYTES_PER_MB = 1024 * 1024;
 
+type MediaInput = {
+  url: string;
+  type: string;
+  width?: number;
+  height?: number;
+};
+
 interface MediaItem {
   id: string;
   url?: string;
   file?: File;
   previewUrl?: string;
   type: string;
+  width?: number;
+  height?: number;
 }
+
+const DIMENSION_TIMEOUT_MS = 10_000;
 
 function genId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+// Reads an image file's intrinsic dimensions locally (no network). Resolves
+// null for non-images, undecodable files, or if it stalls past the timeout —
+// so orientation is simply treated as unknown rather than blocking submit.
+function getImageDimensions(
+  file: File,
+): Promise<{ width: number; height: number } | null> {
+  if (!file.type.startsWith("image/")) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    const timer = setTimeout(() => finish(null), DIMENSION_TIMEOUT_MS);
+    function finish(result: { width: number; height: number } | null) {
+      clearTimeout(timer);
+      URL.revokeObjectURL(url);
+      resolve(result);
+    }
+    img.onload = () => finish({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => finish(null);
+    img.src = url;
+  });
 }
 
 export interface PostFormProps {
   mode: "create" | "edit";
   initialContent?: string;
   initialIsPublic?: boolean;
-  initialMedia?: { url: string; type: string }[];
+  initialMedia?: { url: string; type: string; width?: number | null; height?: number | null }[];
   postId?: string;
   onSuccess: (post: Post) => void;
   onCancel?: () => void;
@@ -54,13 +87,20 @@ export default function PostForm({
   const [content, setContent] = useState(initialContent);
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>(
-    () => initialMedia?.map((m) => ({ id: genId(), url: m.url, type: m.type })) ?? [],
+    () =>
+      initialMedia?.map((m) => ({
+        id: genId(),
+        url: m.url,
+        type: m.type,
+        width: m.width ?? undefined,
+        height: m.height ?? undefined,
+      })) ?? [],
   );
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragItemId = useRef<string | null>(null);
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
     if (selected.length === 0) return;
 
@@ -77,15 +117,21 @@ export default function PostForm({
     }
     if (files.length === 0) return;
 
-    setMediaItems((prev) => [
-      ...prev,
-      ...files.map((f) => ({
-        id: genId(),
-        file: f,
-        previewUrl: URL.createObjectURL(f),
-        type: f.type,
-      })),
-    ]);
+    const newItems: MediaItem[] = await Promise.all(
+      files.map(async (f) => {
+        const dims = await getImageDimensions(f);
+        return {
+          id: genId(),
+          file: f,
+          previewUrl: URL.createObjectURL(f),
+          type: f.type,
+          width: dims?.width,
+          height: dims?.height,
+        };
+      }),
+    );
+
+    setMediaItems((prev) => [...prev, ...newItems]);
   }
 
   function removeMedia(id: string) {
@@ -117,7 +163,7 @@ export default function PostForm({
     dragItemId.current = null;
   }, []);
 
-  async function uploadNewFiles(): Promise<{ url: string; type: string }[]> {
+  async function uploadNewFiles(): Promise<MediaInput[]> {
     const toUpload = mediaItems.filter((m) => m.file);
     if (toUpload.length === 0) return [];
 
@@ -146,11 +192,11 @@ export default function PostForm({
         return null;
       }
       if (!putRes.ok) return null;
-      return { url: publicUrl, type: mt };
+      return { url: publicUrl, type: mt, width: item.width, height: item.height };
     });
 
     const results = await Promise.allSettled(uploads);
-    const uploaded: { url: string; type: string }[] = [];
+    const uploaded: MediaInput[] = [];
     let failed = false;
     for (const r of results) {
       if (r.status === "fulfilled" && r.value) uploaded.push(r.value);
@@ -177,7 +223,7 @@ export default function PostForm({
       : trimmed;
 
     const uploaded = await uploadNewFiles();
-    const media: { url: string; type: string }[] = [];
+    const media: MediaInput[] = [];
 
     let uploadIdx = 0;
     for (const item of mediaItems) {
@@ -185,7 +231,12 @@ export default function PostForm({
         if (uploaded[uploadIdx]) media.push(uploaded[uploadIdx]);
         uploadIdx++;
       } else if (item.url) {
-        media.push({ url: item.url, type: item.type });
+        media.push({
+          url: item.url,
+          type: item.type,
+          width: item.width,
+          height: item.height,
+        });
       }
     }
 

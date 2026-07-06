@@ -93,6 +93,18 @@ export const registerSchema = z.object({
     .max(128),
 });
 
+// Intrinsic pixel dimensions are optional metadata detected client-side. They
+// are used to pick a horizontal image for Open Graph previews and can drive
+// layout sizing. Capped to a sane maximum to reject bogus values.
+const MAX_MEDIA_DIMENSION = 100_000;
+
+export const mediaItemSchema = z.object({
+  url: z.string().url().max(2000).refine(isSafeHttpUrl),
+  type: z.enum(["image", "video", "youtube", "file"]),
+  width: z.number().int().positive().max(MAX_MEDIA_DIMENSION).optional(),
+  height: z.number().int().positive().max(MAX_MEDIA_DIMENSION).optional(),
+});
+
 export const createPostSchema = z.object({
   content: z
     .string()
@@ -100,12 +112,7 @@ export const createPostSchema = z.object({
     .max(5000)
     .optional(),
   media: z
-    .array(
-      z.object({
-        url: z.string().url().max(2000).refine(isSafeHttpUrl),
-        type: z.enum(["image", "video", "youtube", "file"]),
-      }),
-    )
+    .array(mediaItemSchema)
     .max(10)
     .optional()
     .default([]),

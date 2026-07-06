@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth";
 import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError } from "@/lib/services/post";
 import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
-import { isTrustedMediaUrl } from "@/lib/validation";
+import { isTrustedMediaUrl, mediaItemSchema } from "@/lib/validation";
+import type { MediaInput } from "@/lib/services/post";
 
 export async function GET(
   request: NextRequest,
@@ -60,19 +61,23 @@ export async function PATCH(
     if (isPublic !== undefined && typeof isPublic !== "boolean") {
       return NextResponse.json({ error: "validation_error:isPublic:invalid_type" }, { status: 400 });
     }
+    let parsedMedia: MediaInput[] | undefined;
     if (media !== undefined) {
       if (!Array.isArray(media)) {
         return NextResponse.json({ error: "validation_error:media:invalid_type" }, { status: 400 });
       }
+      parsedMedia = [];
       for (const m of media) {
-        if (typeof m.url !== "string" || typeof m.type !== "string") {
+        const result = mediaItemSchema.safeParse(m);
+        if (!result.success) {
           return NextResponse.json({ error: "validation_error:media:invalid_item" }, { status: 400 });
         }
+        parsedMedia.push(result.data);
       }
 
       const storageDomain = process.env.R2_PUBLIC_URL;
       if (storageDomain) {
-        for (const m of media) {
+        for (const m of parsedMedia) {
           if (!isTrustedMediaUrl(m.url, m.type, storageDomain)) {
             return NextResponse.json({ error: "validation_error:media:untrusted_url" }, { status: 400 });
           }
@@ -80,10 +85,10 @@ export async function PATCH(
       }
     }
 
-    const data: { content?: string | null; isPublic?: boolean; media?: { url: string; type: string }[] } = {};
+    const data: { content?: string | null; isPublic?: boolean; media?: MediaInput[] } = {};
     if (content !== undefined) data.content = content || null;
     if (isPublic !== undefined) data.isPublic = isPublic;
-    if (media !== undefined) data.media = media;
+    if (parsedMedia !== undefined) data.media = parsedMedia;
 
     const post = await updatePost(id, session.user.id, data);
     return NextResponse.json(post);

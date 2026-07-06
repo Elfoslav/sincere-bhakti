@@ -161,11 +161,11 @@ describe("getPostById", () => {
 });
 
 describe("createPost", () => {
-  it("creates post with text and media", async () => {
-    const media = [{ url: "https://r2.dev/img.jpg", type: "image" }];
+  it("creates post with text and media, persisting dimensions", async () => {
+    const media = [{ url: "https://r2.dev/img.jpg", type: "image", width: 1600, height: 900 }];
     vi.mocked(prisma.post.create).mockResolvedValue({
       ...basePost,
-      media: [{ url: "https://r2.dev/img.jpg", type: "image", position: 0 }],
+      media: [{ url: "https://r2.dev/img.jpg", type: "image", position: 0, width: 1600, height: 900 }],
     });
 
     const post = await createPost({ content: "Hare Krishna!", media }, "user-1");
@@ -177,7 +177,24 @@ describe("createPost", () => {
           content: "Hare Krishna!",
           authorId: "user-1",
           media: {
-            create: [{ url: "https://r2.dev/img.jpg", type: "image", position: 0, userId: "user-1" }],
+            create: [{ url: "https://r2.dev/img.jpg", type: "image", position: 0, width: 1600, height: 900, userId: "user-1" }],
+          },
+        }),
+      }),
+    );
+  });
+
+  it("defaults missing dimensions to null", async () => {
+    const media = [{ url: "https://r2.dev/img.jpg", type: "image" }];
+    vi.mocked(prisma.post.create).mockResolvedValue(basePost);
+
+    await createPost({ media }, "user-1");
+
+    expect(prisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          media: {
+            create: [{ url: "https://r2.dev/img.jpg", type: "image", position: 0, width: null, height: null, userId: "user-1" }],
           },
         }),
       }),
@@ -314,7 +331,7 @@ describe("updatePost", () => {
 
     expect(prisma.media.deleteMany).toHaveBeenCalledWith({ where: { postId: "post-1" } });
     expect(prisma.media.createMany).toHaveBeenCalledWith({
-      data: [{ url: "https://example.com/new.jpg", type: "image", position: 0, postId: "post-1", userId: "user-1" }],
+      data: [{ url: "https://example.com/new.jpg", type: "image", position: 0, width: null, height: null, postId: "post-1", userId: "user-1" }],
     });
     expect(result.media).toHaveLength(1);
   });
