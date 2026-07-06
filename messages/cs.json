@@ -15,6 +15,8 @@
   },
   "HomePage": {
     "logoAlt": "Sincere Bhakti",
+    "metaTitle": "Sincere Bhakti",
+    "metaDescription": "Posvátný prostor pro oddané Gaudiya vaišnavismu. Sdílej oddané realizace, kirtany a postřehy se saṅgou.",
     "subtitle": "Jednoduchý život, vznešené myšlení",
     "description": "Posvátný prostor pro oddané Gaudiya vaišnavismu. Sdílej své realizace, kirtany, písemná zasvěcení a oddaná média se saṅgou.",
     "ctaJoin": "Připoj se k saṅze",
@@ -29,6 +31,8 @@
   "PostsPage": {
     "title": "Příspěvky",
     "subtitle": "Oddané příspěvky z globální saṅgy",
+    "metaTitle": "Příspěvky — Sincere Bhakti",
+    "metaDescription": "Oddané příspěvky z globální saṅgy — realizace, kirtany a písemná zasvěcení.",
     "composePlaceholder": "Sdílej svou realizaci, verš, YouTube odkaz nebo myšlenku...",
     "publicTab": "Veřejné příspěvky",
     "myPublicTab": "Moje veřejné příspěvky",

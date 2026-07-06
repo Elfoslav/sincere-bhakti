@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,24 @@ import { Button } from "@/components/ui/button";
 type Props = {
 	params: Promise<{ locale: string }>;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+	const { locale } = await params;
+	const t = await getTranslations({ locale, namespace: "HomePage" });
+	return {
+		openGraph: {
+			title: t("metaTitle"),
+			description: t("metaDescription"),
+			images: [{ url: "/images/sincere-bhakti-logo.png", width: 603, height: 414 }],
+		},
+		twitter: {
+			card: "summary_large_image",
+			title: t("metaTitle"),
+			description: t("metaDescription"),
+			images: ["/images/sincere-bhakti-logo.png"],
+		},
+	};
+}
 
 export default async function Home({ params }: Props) {
 	const { locale } = await params;
