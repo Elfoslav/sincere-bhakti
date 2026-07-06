@@ -106,7 +106,8 @@
     "openPost": "Open post",
     "anonymous": "Anonymous",
     "youtubeVideo": "YouTube video",
-    "postMedia": "Post media"
+    "postMedia": "Post media",
+    "openImage": "Open image"
   },
   "SinglePost": {
     "notFound": "Post not found",

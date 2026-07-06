@@ -17,14 +17,20 @@ export function isSafeHttpUrl(value: string): boolean {
   }
 }
 
-// Uploads are restricted to the media types the app actually renders.
-// This prevents users from stashing arbitrary files (e.g. HTML) in the bucket.
-export const ALLOWED_UPLOAD_CONTENT_TYPE_PREFIXES = ["image/", "video/"] as const;
+// Uploads are restricted to common web-safe formats.
+// SVG is excluded because of stored-XSS risk (inline scripts in SVGs).
+export const ALLOWED_UPLOAD_CONTENT_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "video/mp4",
+  "video/webm",
+] as const;
 
 export function isAllowedUploadContentType(contentType: string): boolean {
-  return ALLOWED_UPLOAD_CONTENT_TYPE_PREFIXES.some((prefix) =>
-    contentType.startsWith(prefix),
-  );
+  return (ALLOWED_UPLOAD_CONTENT_TYPES as readonly string[]).includes(contentType);
 }
 
 // Max upload size (bytes), per media type. Enforced client-side before

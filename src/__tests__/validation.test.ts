@@ -295,6 +295,14 @@ describe("uploadUrlSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("rejects SVG uploads (stored XSS risk)", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "image.svg",
+      contentType: "image/svg+xml",
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("maxUploadSizeForContentType", () => {

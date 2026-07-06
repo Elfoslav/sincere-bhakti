@@ -106,7 +106,8 @@
     "openPost": "Otevřít příspěvek",
     "anonymous": "Anonymní",
     "youtubeVideo": "YouTube video",
-    "postMedia": "Média příspěvku"
+    "postMedia": "Média příspěvku",
+    "openImage": "Otevřít obrázek"
   },
   "SinglePost": {
     "notFound": "Příspěvek nenalezen",

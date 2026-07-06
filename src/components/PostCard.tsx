@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { ExternalLink } from "lucide-react";
 import { extractYouTubeContent } from "@/lib/video";
+import MediaLightbox from "@/components/ui/MediaLightbox";
 import type { Post } from "@/types/post";
 
 export default function PostCard({
@@ -28,6 +29,9 @@ export default function PostCard({
     () => extractYouTubeContent(post.content),
     [post.content],
   );
+
+  const images = useMemo(() => post.media.filter((m) => m.type === "image"), [post.media]);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-5 border border-sand">
@@ -81,11 +85,20 @@ export default function PostCard({
               className="w-full max-h-96 object-contain"
             />
           ) : m.type === "image" ? (
-            <img
-              src={m.url}
-              alt={t("postMedia")}
-              className="w-full max-h-96 object-contain"
-            />
+            <button
+              onClick={() => {
+                const idx = images.findIndex((img) => img.url === m.url);
+                setLightboxIndex(idx);
+              }}
+              className="w-full p-0 border-0 cursor-pointer"
+              aria-label={t("openImage")}
+            >
+              <img
+                src={m.url}
+                alt={t("postMedia")}
+                className="w-full max-h-96 object-contain"
+              />
+            </button>
           ) : (
             <a
               href={m.url}
@@ -99,6 +112,15 @@ export default function PostCard({
           )}
         </div>
       ))}
+
+      {lightboxIndex !== null && images.length > 0 && (
+        <MediaLightbox
+          images={images}
+          currentIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={setLightboxIndex}
+        />
+      )}
 
       {currentUserId === post.author.id && (
         <div className="flex items-center gap-2 text-xs text-deep/50">
