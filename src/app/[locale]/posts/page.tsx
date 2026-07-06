@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, startTransition } from "react";
+import { useState, useEffect, useMemo, startTransition } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -24,17 +24,17 @@ export default function TimelinePage() {
     sentinelRef,
   } = useInfinitePosts({ language: locale });
 
-  const [myPosts, setMyPosts] = useState<Post[]>([]);
+  const [allMyPosts, setAllMyPosts] = useState<Post[]>([]);
   const [myPostsError, setMyPostsError] = useState(false);
 
   useEffect(() => {
     if (!session) return;
     let mounted = true;
 
-    fetch("/api/posts")
+    fetch("/api/posts?limit=50")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (mounted && data) startTransition(() => setMyPosts(data.posts));
+        if (mounted && data) startTransition(() => setAllMyPosts(data.posts));
       })
       .catch(() => { if (mounted) setMyPostsError(true); });
 
@@ -43,8 +43,11 @@ export default function TimelinePage() {
     };
   }, [session]);
 
+  const myPublicPosts = useMemo(() => allMyPosts.filter((p) => p.isPublic), [allMyPosts]);
+  const myPrivatePosts = useMemo(() => allMyPosts.filter((p) => !p.isPublic), [allMyPosts]);
+
   function handleCreateSuccess(post: Post) {
-    setMyPosts((prev) => [post, ...prev]);
+    setAllMyPosts((prev) => [post, ...prev]);
     if (post.isPublic) setPosts((prev) => [post, ...prev]);
   }
 
@@ -75,7 +78,12 @@ export default function TimelinePage() {
         <TabsRoot defaultValue="public">
           <TabsList>
             <TabsTab value="public">{t("publicTab")}</TabsTab>
-            <TabsTab value="my">{t("myTab")}</TabsTab>
+            <TabsTab value="my-public">
+              {t("myPublicTab")} ({myPublicPosts.length})
+            </TabsTab>
+            <TabsTab value="my-private">
+              {t("myPrivateTab")} ({myPrivatePosts.length})
+            </TabsTab>
           </TabsList>
 
           <TabsPanel value="public">
@@ -109,18 +117,36 @@ export default function TimelinePage() {
             )}
           </TabsPanel>
 
-          <TabsPanel value="my">
+          <TabsPanel value="my-public">
             {myPostsError ? (
               <p className="text-center text-red-500 py-8 bg-white rounded-lg border border-sand">
                 {t("failedToLoad")}
               </p>
-            ) : myPosts.length === 0 ? (
+            ) : myPublicPosts.length === 0 ? (
               <p className="text-center text-deep/50 py-8 bg-white rounded-lg border border-sand">
-                {t("emptyMy")}
+                {t("emptyMyPublic")}
               </p>
             ) : (
               <div className="space-y-4">
-                {myPosts.map((post) => (
+                {myPublicPosts.map((post) => (
+                  <PostCard key={post.id} post={post} currentUserId={session?.user?.id} />
+                ))}
+              </div>
+            )}
+          </TabsPanel>
+
+          <TabsPanel value="my-private">
+            {myPostsError ? (
+              <p className="text-center text-red-500 py-8 bg-white rounded-lg border border-sand">
+                {t("failedToLoad")}
+              </p>
+            ) : myPrivatePosts.length === 0 ? (
+              <p className="text-center text-deep/50 py-8 bg-white rounded-lg border border-sand">
+                {t("emptyMyPrivate")}
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {myPrivatePosts.map((post) => (
                   <PostCard key={post.id} post={post} currentUserId={session?.user?.id} />
                 ))}
               </div>

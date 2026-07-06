@@ -46,7 +46,11 @@ export default function ImageGallery({
                 src={img.url}
                 alt=""
                 className="w-full h-full object-cover"
-                style={{ minHeight: images.length === 1 ? undefined : 160 }}
+                style={
+                  images.length === 1
+                    ? { maxHeight: 440 }
+                    : { height: 200 }
+                }
               />
               {isLastOverflow && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">

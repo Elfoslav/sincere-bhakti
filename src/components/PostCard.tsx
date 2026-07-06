@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { Copy, ExternalLink, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { extractYouTubeContent } from "@/lib/video";
+import { replaceEmoticons } from "@/lib/emoticons";
 import ImageGallery from "@/components/ImageGallery";
 import type { Post } from "@/types/post";
 
@@ -30,10 +31,10 @@ export default function PostCard({
     minute: "2-digit",
   });
 
-  const { cleanContent } = useMemo(
-    () => extractYouTubeContent(post.content),
-    [post.content],
-  );
+  const { cleanContent, displayContent } = useMemo(() => {
+    const { cleanContent } = extractYouTubeContent(post.content);
+    return { cleanContent, displayContent: replaceEmoticons(cleanContent) };
+  }, [post.content]);
 
   const images = useMemo(() => post.media.filter((m) => m.type === "image"), [post.media]);
   const otherMedia = useMemo(() => post.media.filter((m) => m.type !== "image"), [post.media]);
@@ -97,7 +98,7 @@ export default function PostCard({
       </div>
 
       {cleanContent && (
-        <p className="text-deep mb-3 whitespace-pre-wrap">{cleanContent}</p>
+        <p className="text-deep mb-3 whitespace-pre-wrap">{displayContent}</p>
       )}
 
       <ImageGallery images={images} t={t} />
