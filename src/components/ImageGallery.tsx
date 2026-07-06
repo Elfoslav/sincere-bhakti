@@ -10,7 +10,7 @@ export default function ImageGallery({
   t,
 }: {
   images: { url: string }[];
-  t: (key: string, params?: Record<string, unknown>) => string;
+  t: (key: string, params?: Record<string, string | number | Date>) => string;
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
