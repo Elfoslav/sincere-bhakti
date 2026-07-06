@@ -1,19 +1,24 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { ExternalLink } from "lucide-react";
+import { Copy, ExternalLink, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { extractYouTubeContent } from "@/lib/video";
-import MediaLightbox from "@/components/ui/MediaLightbox";
+import ImageGallery from "@/components/ImageGallery";
 import type { Post } from "@/types/post";
 
 export default function PostCard({
   post,
   currentUserId,
+  hideEdit,
+  hideExternalLink,
 }: {
   post: Post;
   currentUserId?: string;
+  hideEdit?: boolean;
+  hideExternalLink?: boolean;
 }) {
   const locale = useLocale();
   const t = useTranslations("PostCard");
@@ -31,7 +36,13 @@ export default function PostCard({
   );
 
   const images = useMemo(() => post.media.filter((m) => m.type === "image"), [post.media]);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const otherMedia = useMemo(() => post.media.filter((m) => m.type !== "image"), [post.media]);
+
+  const handleCopyLink = useCallback(() => {
+    const url = `${window.location.origin}/${locale}/post/${post.id}`;
+    navigator.clipboard.writeText(url);
+    toast.success(t("linkCopied"));
+  }, [locale, post.id, t]);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-5 border border-sand">
@@ -46,18 +57,42 @@ export default function PostCard({
           >
             {post.author.name || t("anonymous")}
           </Link>
-          <p className="text-xs text-deep/60">{date}</p>
+          <p className="text-xs text-deep/60">
+            <Link href={`/post/${post.id}`} className="hover:text-gold">
+              {date}
+            </Link>
+          </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Link
-            href={`/post/${post.id}`}
-            className="text-deep/40 hover:text-gold transition-colors p-1"
-            title={t("openPost")}
-            aria-label={t("openPost")}
-          >
-            <ExternalLink className="w-4 h-4" />
-          </Link>
-
+          {currentUserId === post.author.id && !hideEdit && (
+            <Link
+              href={`/post/${post.id}/edit`}
+              className="text-deep/40 hover:text-gold transition-colors p-1"
+              title={t("editPost")}
+              aria-label={t("editPost")}
+            >
+              <Pencil className="w-4 h-4" />
+            </Link>
+          )}
+          {hideExternalLink ? (
+            <button
+              onClick={handleCopyLink}
+              className="text-deep/40 hover:text-gold transition-colors p-1 cursor-pointer"
+              title={t("copyLink")}
+              aria-label={t("copyLink")}
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          ) : (
+            <Link
+              href={`/post/${post.id}`}
+              className="text-deep/40 hover:text-gold transition-colors p-1"
+              title={t("openPost")}
+              aria-label={t("openPost")}
+            >
+              <ExternalLink className="w-4 h-4" />
+            </Link>
+          )}
         </div>
       </div>
 
@@ -65,7 +100,9 @@ export default function PostCard({
         <p className="text-deep mb-3 whitespace-pre-wrap">{cleanContent}</p>
       )}
 
-      {post.media.map((m) => (
+      <ImageGallery images={images} t={t} />
+
+      {otherMedia.map((m) => (
         <div key={m.url} className="rounded-lg overflow-hidden mb-2">
           {m.type === "youtube" ? (
             <div className="aspect-video">
@@ -84,21 +121,6 @@ export default function PostCard({
               controls
               className="w-full max-h-96 object-contain"
             />
-          ) : m.type === "image" ? (
-            <button
-              onClick={() => {
-                const idx = images.findIndex((img) => img.url === m.url);
-                setLightboxIndex(idx);
-              }}
-              className="w-full p-0 border-0 cursor-pointer"
-              aria-label={t("openImage")}
-            >
-              <img
-                src={m.url}
-                alt={t("postMedia")}
-                className="w-full max-h-96 object-contain"
-              />
-            </button>
           ) : (
             <a
               href={m.url}
@@ -112,15 +134,6 @@ export default function PostCard({
           )}
         </div>
       ))}
-
-      {lightboxIndex !== null && images.length > 0 && (
-        <MediaLightbox
-          images={images}
-          currentIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-          onNavigate={setLightboxIndex}
-        />
-      )}
 
       {currentUserId === post.author.id && (
         <div className="flex items-center gap-2 text-xs text-deep/50">

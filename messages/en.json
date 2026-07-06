@@ -49,7 +49,11 @@
     "fileTooLarge": "Some files are too large and were skipped (images max {imageMax} MB, videos max {videoMax} MB).",
     "createPostFailed": "Failed to create post. Please try again.",
     "youtubePreview": "YouTube preview",
-    "preview": "Preview"
+    "preview": "Preview",
+    "saveButton": "Save",
+    "cancel": "Cancel",
+    "postUpdated": "Post updated",
+    "updatePostFailed": "Failed to update post"
   },
   "Auth": {
     "login": {
@@ -104,14 +108,32 @@
     "private": "Private",
     "delete": "Delete post",
     "openPost": "Open post",
+    "editPost": "Edit post",
     "anonymous": "Anonymous",
     "youtubeVideo": "YouTube video",
     "postMedia": "Post media",
-    "openImage": "Open image"
+    "openImage": "Open image",
+    "copyLink": "Copy post link",
+    "linkCopied": "Post link copied to clipboard"
   },
   "SinglePost": {
+    "title": "Post",
+    "backLink": "← Back to posts",
     "notFound": "Post not found",
     "loadError": "Something went wrong loading the post. Please try again."
+  },
+  "EditPost": {
+    "title": "Edit post",
+    "contentLabel": "Content",
+    "visibilityLabel": "Public",
+    "visibilityHint": "Visible to everyone",
+    "save": "Save",
+    "saving": "Saving…",
+    "loadError": "Failed to load post",
+    "saveError": "Failed to update post",
+    "notFound": "Post not found",
+    "forbidden": "You don't have permission to edit this post",
+    "backLink": "← Back to post"
   },
   "Common": {
     "footerLine1": "© {year} 🪷 Sincere Bhakti",

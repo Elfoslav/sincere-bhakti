@@ -17,6 +17,24 @@ export function isSafeHttpUrl(value: string): boolean {
   }
 }
 
+// Validates that a media URL originates from the app's own storage domain
+// or from YouTube (the only trusted embed source). This prevents users from
+// embedding arbitrary external URLs in posts.
+export function isTrustedMediaUrl(
+  url: string,
+  type: string,
+  storageDomain: string,
+): boolean {
+  try {
+    if (type === "youtube") {
+      return url.startsWith("https://www.youtube.com/embed/");
+    }
+    return url.startsWith(storageDomain);
+  } catch {
+    return false;
+  }
+}
+
 // Uploads are restricted to common web-safe formats.
 // SVG is excluded because of stored-XSS risk (inline scripts in SVGs).
 export const ALLOWED_UPLOAD_CONTENT_TYPES = [
@@ -27,10 +45,18 @@ export const ALLOWED_UPLOAD_CONTENT_TYPES = [
   "image/avif",
   "video/mp4",
   "video/webm",
+  "video/ogg",
 ] as const;
 
 export function isAllowedUploadContentType(contentType: string): boolean {
   return (ALLOWED_UPLOAD_CONTENT_TYPES as readonly string[]).includes(contentType);
+}
+
+// Build a comma-separated accept string for <input accept> that stays in sync
+// with the allowed types list. This avoids drift between the file picker filter
+// and server-side validation.
+export function getAcceptString(): string {
+  return ALLOWED_UPLOAD_CONTENT_TYPES.join(",");
 }
 
 // Max upload size (bytes), per media type. Enforced client-side before

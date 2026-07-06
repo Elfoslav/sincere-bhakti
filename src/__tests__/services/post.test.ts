@@ -6,13 +6,19 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
       deleteMany: vi.fn(),
     },
+    media: {
+      deleteMany: vi.fn(),
+      createMany: vi.fn(),
+    },
+    $transaction: vi.fn((cb: (tx: any) => any) => cb(prisma)),
   },
 }));
 
 import { prisma } from "@/lib/prisma";
-import { getPosts, getPostById, createPost, deletePost, UnauthorizedError, NotFoundError, ForbiddenError } from "@/lib/services/post";
+import { getPosts, getPostById, createPost, deletePost, updatePost, UnauthorizedError, NotFoundError, ForbiddenError } from "@/lib/services/post";
 
 const basePost = {
   id: "post-1",
@@ -250,5 +256,77 @@ describe("deletePost", () => {
     vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
 
     await expect(deletePost("post-1", "user-2")).rejects.toThrow(ForbiddenError);
+  });
+});
+
+describe("updatePost", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("updates own post content", async () => {
+    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
+    vi.mocked(prisma.post.update).mockResolvedValue({ ...basePost, content: "Updated!" });
+
+    const result = await updatePost("post-1", "user-1", { content: "Updated!" });
+
+    expect(result.content).toBe("Updated!");
+    expect(prisma.post.update).toHaveBeenCalledWith({
+      where: { id: "post-1" },
+      data: { content: "Updated!" },
+      include: expect.any(Object),
+    });
+  });
+
+  it("updates post visibility", async () => {
+    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
+    vi.mocked(prisma.post.update).mockResolvedValue({ ...basePost, isPublic: false });
+
+    const result = await updatePost("post-1", "user-1", { isPublic: false });
+
+    expect(result.isPublic).toBe(false);
+  });
+
+  it("throws when post not found", async () => {
+    vi.mocked(prisma.post.findUnique).mockResolvedValue(null);
+
+    await expect(updatePost("missing", "user-1", { content: "x" })).rejects.toThrow(NotFoundError);
+  });
+
+  it("throws when not the author", async () => {
+    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
+
+    await expect(updatePost("post-1", "user-2", { content: "x" })).rejects.toThrow(ForbiddenError);
+  });
+
+  it("replaces media when provided", async () => {
+    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
+    vi.mocked(prisma.post.update).mockResolvedValue({
+      ...basePost,
+      media: [
+        { url: "https://example.com/new.jpg", type: "image", position: 0 },
+      ],
+    });
+
+    const result = await updatePost("post-1", "user-1", {
+      media: [{ url: "https://example.com/new.jpg", type: "image" }],
+    });
+
+    expect(prisma.media.deleteMany).toHaveBeenCalledWith({ where: { postId: "post-1" } });
+    expect(prisma.media.createMany).toHaveBeenCalledWith({
+      data: [{ url: "https://example.com/new.jpg", type: "image", position: 0, postId: "post-1", userId: "user-1" }],
+    });
+    expect(result.media).toHaveLength(1);
+  });
+
+  it("clears media when empty array provided", async () => {
+    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
+    vi.mocked(prisma.post.update).mockResolvedValue({ ...basePost, media: [] });
+
+    const result = await updatePost("post-1", "user-1", { media: [] });
+
+    expect(prisma.media.deleteMany).toHaveBeenCalledWith({ where: { postId: "post-1" } });
+    expect(prisma.media.createMany).not.toHaveBeenCalled();
+    expect(result.media).toHaveLength(0);
   });
 });

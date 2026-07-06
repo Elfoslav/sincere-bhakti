@@ -52,6 +52,12 @@ export interface CreatePostData {
   language?: string;
 }
 
+export interface UpdatePostData {
+  content?: string | null;
+  isPublic?: boolean;
+  media?: { url: string; type: string }[];
+}
+
 const postInclude = {
   author: { select: { id: true, name: true, image: true } },
   media: { orderBy: { position: "asc" as const } },
@@ -145,4 +151,41 @@ export async function deletePost(
     if (!existing) throw new NotFoundError();
     throw new ForbiddenError();
   }
+}
+
+export async function updatePost(
+  id: string,
+  userId: string,
+  data: UpdatePostData,
+): Promise<PostResponse> {
+  const existing = await prisma.post.findUnique({ where: { id } });
+  if (!existing) throw new NotFoundError();
+  if (existing.authorId !== userId) throw new ForbiddenError();
+
+  const { media, ...postData } = data;
+
+  const post = await prisma.$transaction(async (tx) => {
+    if (media !== undefined) {
+      await tx.media.deleteMany({ where: { postId: id } });
+      if (media.length > 0) {
+        await tx.media.createMany({
+          data: media.map((m, i) => ({
+            url: m.url,
+            type: m.type,
+            position: i,
+            postId: id,
+            userId,
+          })),
+        });
+      }
+    }
+
+    return tx.post.update({
+      where: { id },
+      data: postData,
+      include: postInclude,
+    });
+  });
+
+  return post;
 }

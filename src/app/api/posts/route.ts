@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPosts, createPost, UnauthorizedError } from "@/lib/services/post";
-import { createPostSchema, paginationSchema } from "@/lib/validation";
+import { createPostSchema, paginationSchema, isTrustedMediaUrl } from "@/lib/validation";
 import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 
@@ -75,6 +75,18 @@ export async function POST(request: NextRequest) {
         { error: `validation_error:${String(field)}:${issue.code}` },
         { status: 400 }
       );
+    }
+
+    const storageDomain = process.env.R2_PUBLIC_URL;
+    if (storageDomain) {
+      for (const m of parsed.data.media ?? []) {
+        if (!isTrustedMediaUrl(m.url, m.type, storageDomain)) {
+          return NextResponse.json(
+            { error: `validation_error:media:untrusted_url` },
+            { status: 400 },
+          );
+        }
+      }
     }
 
     const post = await createPost(parsed.data, session.user.id);

@@ -8,6 +8,9 @@ import {
   maxUploadSizeForContentType,
   MAX_IMAGE_SIZE_BYTES,
   MAX_VIDEO_SIZE_BYTES,
+  getAcceptString,
+  ALLOWED_UPLOAD_CONTENT_TYPES,
+  isTrustedMediaUrl,
 } from "@/lib/validation";
 
 describe("registerSchema", () => {
@@ -303,6 +306,24 @@ describe("uploadUrlSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("accepts video/ogg", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "clip.ogv",
+      contentType: "video/ogg",
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("getAcceptString", () => {
+  it("includes every allowed content type", () => {
+    const accept = getAcceptString();
+    for (const ct of ALLOWED_UPLOAD_CONTENT_TYPES) {
+      expect(accept).toContain(ct);
+    }
+    expect(accept.split(",")).toHaveLength(ALLOWED_UPLOAD_CONTENT_TYPES.length);
+  });
 });
 
 describe("maxUploadSizeForContentType", () => {
@@ -323,5 +344,33 @@ describe("maxUploadSizeForContentType", () => {
   it("caps videos at 200 MB and images at 10 MB", () => {
     expect(MAX_VIDEO_SIZE_BYTES).toBe(200 * 1024 * 1024);
     expect(MAX_IMAGE_SIZE_BYTES).toBe(10 * 1024 * 1024);
+  });
+});
+
+describe("isTrustedMediaUrl", () => {
+  const storageDomain = "https://cdn.example.com";
+
+  it("accepts storage domain URLs for images", () => {
+    expect(isTrustedMediaUrl("https://cdn.example.com/posts/abc.jpg", "image", storageDomain)).toBe(true);
+  });
+
+  it("accepts storage domain URLs for videos", () => {
+    expect(isTrustedMediaUrl("https://cdn.example.com/posts/vid.mp4", "video", storageDomain)).toBe(true);
+  });
+
+  it("accepts YouTube embed URLs", () => {
+    expect(isTrustedMediaUrl("https://www.youtube.com/embed/abc123defgh", "youtube", storageDomain)).toBe(true);
+  });
+
+  it("rejects external URLs for images", () => {
+    expect(isTrustedMediaUrl("https://evil.com/track.png", "image", storageDomain)).toBe(false);
+  });
+
+  it("rejects non-embed YouTube URLs", () => {
+    expect(isTrustedMediaUrl("https://www.youtube.com/watch?v=abc123", "youtube", storageDomain)).toBe(false);
+  });
+
+  it("rejects javascript: URLs", () => {
+    expect(isTrustedMediaUrl("javascript:alert(1)", "image", storageDomain)).toBe(false);
   });
 });

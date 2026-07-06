@@ -49,7 +49,11 @@
     "fileTooLarge": "Některé soubory jsou příliš velké a byly přeskočeny (obrázky max. {imageMax} MB, videa max. {videoMax} MB).",
     "createPostFailed": "Nepodařilo se vytvořit příspěvek. Zkuste to prosím znovu.",
     "youtubePreview": "YouTube náhled",
-    "preview": "Náhled"
+    "preview": "Náhled",
+    "saveButton": "Uložit",
+    "cancel": "Zrušit",
+    "postUpdated": "Příspěvek aktualizován",
+    "updatePostFailed": "Aktualizace příspěvku se nezdařila"
   },
   "Auth": {
     "login": {
@@ -104,14 +108,32 @@
     "private": "Soukromé",
     "delete": "Smazat příspěvek",
     "openPost": "Otevřít příspěvek",
+    "editPost": "Upravit příspěvek",
     "anonymous": "Anonymní",
     "youtubeVideo": "YouTube video",
     "postMedia": "Média příspěvku",
-    "openImage": "Otevřít obrázek"
+    "openImage": "Otevřít obrázek",
+    "copyLink": "Zkopírovat odkaz na příspěvek",
+    "linkCopied": "Odkaz na příspěvek zkopírován do schránky"
   },
   "SinglePost": {
+    "title": "Příspěvek",
+    "backLink": "← Zpět na příspěvky",
     "notFound": "Příspěvek nenalezen",
     "loadError": "Při načítání příspěvku došlo k chybě. Zkuste to prosím znovu."
+  },
+  "EditPost": {
+    "title": "Upravit příspěvek",
+    "contentLabel": "Obsah",
+    "visibilityLabel": "Veřejný",
+    "visibilityHint": "Viditelný pro všechny",
+    "save": "Uložit",
+    "saving": "Ukládám…",
+    "loadError": "Nepodařilo se načíst příspěvek",
+    "saveError": "Nepodařilo se uložit změny",
+    "notFound": "Příspěvek nenalezen",
+    "forbidden": "Nemáte oprávnění upravovat tento příspěvek",
+    "backLink": "← Zpět na příspěvek"
   },
   "Common": {
     "footerLine1": "© {year} 🪷 Sincere Bhakti",
