@@ -46,6 +46,7 @@
     "nothingToPost": "Nic k přidání — přidej text nebo média",
     "postPublished": "Příspěvek zveřejněn",
     "uploadFailed": "Nahrávání selhalo. Zkuste to prosím znovu.",
+    "fileTooLarge": "Některé soubory jsou příliš velké a byly přeskočeny (obrázky max. {imageMax} MB, videa max. {videoMax} MB).",
     "createPostFailed": "Nepodařilo se vytvořit příspěvek. Zkuste to prosím znovu.",
     "youtubePreview": "YouTube náhled",
     "preview": "Náhled"

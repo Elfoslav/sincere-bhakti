@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function validateOrigin(request: NextRequest): boolean {
@@ -29,5 +28,8 @@ export function validateOrigin(request: NextRequest): boolean {
     return false;
   }
 
-  return true;
+  // Fail closed: browsers send Origin on all cross-origin (and modern
+  // same-origin) state-changing requests, so a request with neither Origin
+  // nor Referer is treated as untrusted.
+  return false;
 }

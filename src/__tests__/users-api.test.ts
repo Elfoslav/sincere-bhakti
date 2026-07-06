@@ -61,7 +61,7 @@ describe("GET /api/users/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(404);
-    expect(json.error).toBe("User not found");
+    expect(json.error).toBe("not_found");
   });
 
   it("returns 500 on database error", async () => {
@@ -71,7 +71,7 @@ describe("GET /api/users/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("Failed to fetch user");
+    expect(json.error).toBe("server_error");
   });
 });
 
@@ -150,6 +150,6 @@ describe("PATCH /api/users/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("Failed to update user");
+    expect(json.error).toBe("server_error");
   });
 });

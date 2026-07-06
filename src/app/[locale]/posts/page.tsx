@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { getYouTubeEmbedUrl } from "@/lib/video";
+import {
+  MAX_IMAGE_SIZE_BYTES,
+  MAX_VIDEO_SIZE_BYTES,
+  maxUploadSizeForContentType,
+} from "@/lib/validation";
+
+const BYTES_PER_MB = 1024 * 1024;
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
 import type { Post } from "@/types/post";
@@ -52,8 +59,22 @@ export default function TimelinePage() {
   }, [session]);
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
+    const selected = Array.from(e.target.files ?? []);
+    if (selected.length === 0) return;
+
+    const files = selected.filter(
+      (f) => f.size <= maxUploadSizeForContentType(f.type),
+    );
+    if (files.length < selected.length) {
+      toast.error(
+        t("fileTooLarge", {
+          imageMax: MAX_IMAGE_SIZE_BYTES / BYTES_PER_MB,
+          videoMax: MAX_VIDEO_SIZE_BYTES / BYTES_PER_MB,
+        }),
+      );
+    }
     if (files.length === 0) return;
+
     setMediaFiles((prev) => [...prev, ...files]);
     setMediaPreviews((prev) => [
       ...prev,

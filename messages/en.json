@@ -46,6 +46,7 @@
     "nothingToPost": "Nothing to post — add text or media",
     "postPublished": "Post published",
     "uploadFailed": "Upload failed. Please try again.",
+    "fileTooLarge": "Some files are too large and were skipped (images max {imageMax} MB, videos max {videoMax} MB).",
     "createPostFailed": "Failed to create post. Please try again.",
     "youtubePreview": "YouTube preview",
     "preview": "Preview"

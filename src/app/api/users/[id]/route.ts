@@ -26,13 +26,13 @@ export async function GET(
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
     return NextResponse.json(user);
   } catch (error) {
     console.error("GET /api/users/[id] failed:", error);
-    return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }
 
@@ -64,8 +64,10 @@ export async function PATCH(
     const parsed = updateNameSchema.safeParse(body);
 
     if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const field = issue.path[0] || "input";
       return NextResponse.json(
-        { error: parsed.error.issues[0].message },
+        { error: `validation_error:${String(field)}:${issue.code}` },
         { status: 400 }
       );
     }
@@ -79,6 +81,6 @@ export async function PATCH(
     return NextResponse.json(user);
   } catch (error) {
     console.error("PATCH /api/users/[id] failed:", error);
-    return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }

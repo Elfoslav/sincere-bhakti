@@ -18,6 +18,7 @@ const basePost = {
   id: "post-1",
   content: "Hare Krishna!",
   isPublic: true,
+  language: "en",
   authorId: "user-1",
   createdAt: new Date("2026-07-01"),
   author: { id: "user-1", name: "Devotee", image: null },
@@ -110,6 +111,30 @@ describe("getPosts", () => {
 
   it("throws when no scope and no userId", async () => {
     await expect(getPosts({})).rejects.toThrow(UnauthorizedError);
+  });
+
+  it("restricts to public posts when requesting another user's posts without scope", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+
+    await getPosts({ authorId: "user-2" }, "user-1");
+
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { authorId: "user-2", isPublic: true },
+      }),
+    );
+  });
+
+  it("returns own posts (public + private) when authorId matches current user", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+
+    await getPosts({ authorId: "user-1" }, "user-1");
+
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { authorId: "user-1" },
+      }),
+    );
   });
 });
 

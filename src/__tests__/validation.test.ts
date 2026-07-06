@@ -5,6 +5,9 @@ import {
   updateNameSchema,
   paginationSchema,
   uploadUrlSchema,
+  maxUploadSizeForContentType,
+  MAX_IMAGE_SIZE_BYTES,
+  MAX_VIDEO_SIZE_BYTES,
 } from "@/lib/validation";
 
 describe("registerSchema", () => {
@@ -106,6 +109,20 @@ describe("createPostSchema", () => {
   it("rejects invalid media URL", () => {
     const result = createPostSchema.safeParse({
       media: [{ url: "not-a-url", type: "image" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects javascript: media URL", () => {
+    const result = createPostSchema.safeParse({
+      media: [{ url: "javascript:alert(1)", type: "file" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects data: media URL", () => {
+    const result = createPostSchema.safeParse({
+      media: [{ url: "data:text/html,<script>alert(1)</script>", type: "file" }],
     });
     expect(result.success).toBe(false);
   });
@@ -261,5 +278,42 @@ describe("uploadUrlSchema", () => {
       contentType: "a".repeat(256),
     });
     expect(result.success).toBe(false);
+  });
+
+  it("accepts video content types", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "clip.mp4",
+      contentType: "video/mp4",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects disallowed content types", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "page.html",
+      contentType: "text/html",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("maxUploadSizeForContentType", () => {
+  it("returns the video limit for video/* types", () => {
+    expect(maxUploadSizeForContentType("video/mp4")).toBe(MAX_VIDEO_SIZE_BYTES);
+  });
+
+  it("returns the image limit for image/* types", () => {
+    expect(maxUploadSizeForContentType("image/png")).toBe(MAX_IMAGE_SIZE_BYTES);
+  });
+
+  it("falls back to the stricter image limit for other types", () => {
+    expect(maxUploadSizeForContentType("application/octet-stream")).toBe(
+      MAX_IMAGE_SIZE_BYTES,
+    );
+  });
+
+  it("caps videos at 200 MB and images at 10 MB", () => {
+    expect(MAX_VIDEO_SIZE_BYTES).toBe(200 * 1024 * 1024);
+    expect(MAX_IMAGE_SIZE_BYTES).toBe(10 * 1024 * 1024);
   });
 });

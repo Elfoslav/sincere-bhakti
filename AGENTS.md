@@ -51,6 +51,13 @@ export const NAME_MAX_LENGTH = 50;
 
 Then import and use them everywhere — client-side checks, HTML `minLength`, Zod schemas — so all three stay in sync.
 
+## User-Supplied URLs & Uploads
+- **Never accept a bare `z.string().url()` for a URL that will be rendered.** `.url()` accepts dangerous schemes like `javascript:` and `data:`, which become stored XSS when placed in `<a href>`/`<img src>`/`<iframe src>`. Always chain `.refine(isSafeHttpUrl)` (from `src/lib/validation.ts`) to restrict to `http:`/`https:`. This applies to all media URLs and any other user-provided link.
+- **Restrict upload content types to an allowlist.** `uploadUrlSchema.contentType` uses `isAllowedUploadContentType` (only `image/` and `video/` prefixes) so users can't stash arbitrary files (e.g. HTML) in the bucket. Add new prefixes to `ALLOWED_UPLOAD_CONTENT_TYPE_PREFIXES` if a new media kind is genuinely needed.
+- **Enforce a max upload size, per media type.** Check `file.size <= maxUploadSizeForContentType(file.type)` on the client before requesting a presigned URL, and surface a translated error (`PostsPage.fileTooLarge`, which interpolates `{imageMax}`/`{videoMax}`). Limits live in `src/lib/validation.ts` (`MAX_IMAGE_SIZE_BYTES` = 10 MB, `MAX_VIDEO_SIZE_BYTES` = 200 MB). This is a UX guard only — the file uploads browser→R2 directly, so it is not server-enforced; use a presigned-POST `content-length-range` or multipart if hard enforcement is needed. The 200 MB video ceiling assumes the single presigned-PUT flow (R2 caps a single PUT at 5 GiB); larger/long-form video needs multipart upload.
+- Prefer validating that media URLs originate from the known storage domain (`R2_PUBLIC_URL`) or a whitelisted provider (YouTube) rather than accepting any `https:` URL, when feasible.
+- **Direct browser→R2 uploads require bucket CORS.** The version-controlled policies live in `infra/r2/` (`cors-dev.json`, `cors-prod.json`) with apply/verify instructions in `infra/r2/README.md`. Update those files (and re-apply via `wrangler r2 bucket cors put`) whenever the app's origin, allowed methods, or upload headers change.
+
 ## Translations
 - Every user-facing string must use `useTranslations("Namespace")` on client or `getTranslations({locale, namespace})` on server.
 - Add new keys to ALL three message files (`en.json`, `cs.json`, `sk.json`).
@@ -69,7 +76,7 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 - Business logic goes in `src/lib/services/` — routes are thin wrappers (parse, rate limit, delegate, respond).
 - Use custom error classes (`UnauthorizedError`, `NotFoundError`, `ForbiddenError`) with `instanceof` checks — no string matching on error messages.
 - `console.error` is acceptable for caught errors in API routes. Replace with `Sentry.captureException(error)` if you want the error tracked in Sentry.
-- **CSRF protection**: Every mutation endpoint (POST/PATCH/DELETE) MUST call `validateOrigin(request)` from `@/lib/csrf` at the top of the handler. Return 403 if invalid.
+- **CSRF protection**: Every mutation endpoint (POST/PATCH/DELETE) MUST call `validateOrigin(request)` from `@/lib/csrf` at the top of the handler. Return 403 if invalid. `validateOrigin` **fails closed** — a request with neither `Origin` nor `Referer` is rejected. Do not "relax" it to return `true` on missing headers.
 - **Error codes, not English strings**: API routes return error codes like `"validation_error:name:too_small"`, `"email_in_use"`, `"server_error"`, `"too_many_requests"`, `"not_found"`. Never return English sentences from API routes — clients map codes to translated messages.
 - **Zod schemas**: Do NOT use custom error messages in Zod `.min()`, `.max()`, `.email()` calls. The API route converts validation errors to structured codes: `validation_error:{field}:{issue.code}`.
 - **Never leak server errors**: `catch` blocks must always return generic error codes, never the original error message.
@@ -78,6 +85,12 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 - Prisma `where` clauses must use proper generated types (`Prisma.PostWhereInput`) not `Record<string, unknown>`.
 - All database queries should be paginated (`take` + `cursor`) — never return unbounded result sets.
 - Use Prisma schema defaults (`@default("en")`) as safety net instead of hardcoding fallback values everywhere.
+
+## Authorization / Access Control
+- **Never trust a user-supplied id to scope a query.** When a query accepts an `authorId`/`userId` filter that could differ from the caller, you MUST also constrain visibility. Example: `getPosts` returns another user's posts ONLY when `isPublic = true`; a caller's own private rows are returned only when `authorId === currentUserId`. A missing visibility filter is a broken-access-control (IDOR) bug — the classic mistake is `where.authorId = authorId || currentUserId` with no `isPublic` guard, which lets any logged-in user read others' private data.
+- Regression-test both directions: "own private posts are returned" AND "another user's private posts are NOT returned".
+- Ownership-mutating operations (delete/update) must scope by owner in the `where` clause itself (`deleteMany({ where: { id, authorId } })`), not by fetching then comparing in JS.
+- For not-found vs. forbidden: returning `404` for resources the caller isn't allowed to see (instead of `403`) avoids leaking existence.
 
 ## Images
 - Use `next/image` with `style={{ width: <desired>, height: "auto" }}` to lock one dimension and let the other scale. This avoids the "width or height modified, but not the other" warning.
@@ -112,7 +125,8 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
   - `X-Content-Type-Options: nosniff`
   - `Referrer-Policy: strict-origin-when-cross-origin`
   - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
-  - `Content-Security-Policy` with restricted script/style/img/media/connect sources
+  - `Content-Security-Policy` with restricted script/style/img/media/connect sources, plus `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`, `object-src 'none'`
+- The CSP is built from the `contentSecurityPolicy` array in `next.config.ts`. `'unsafe-eval'` is included in `script-src` ONLY in development (React Fast Refresh needs it) and dropped in production — do not add it back to the production policy. `script-src 'unsafe-inline'` is still required by Next.js hydration; removing it needs nonce-based CSP via middleware.
 - Any new `next.config.ts` changes must preserve these headers.
 
 ## User Profile API

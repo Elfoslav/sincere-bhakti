@@ -71,7 +71,15 @@ export async function getPosts(
     if (authorId) where.authorId = authorId;
   } else {
     if (!currentUserId) throw new UnauthorizedError();
-    where.authorId = authorId || currentUserId;
+    // Private scope: a user may only see their own posts (public + private).
+    // When requesting another user's posts, restrict to public ones so
+    // private posts never leak via an `authorId` query param.
+    if (authorId && authorId !== currentUserId) {
+      where.authorId = authorId;
+      where.isPublic = true;
+    } else {
+      where.authorId = currentUserId;
+    }
   }
 
   const posts = await prisma.post.findMany({
