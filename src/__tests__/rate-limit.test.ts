@@ -1,4 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+
+// Use in-memory path even on Vercel (NODE_ENV=production + DATABASE_URL set)
+const origDbUrl = process.env.DATABASE_URL;
+beforeAll(() => { process.env.DATABASE_URL = ""; });
+afterAll(() => { process.env.DATABASE_URL = origDbUrl; });
 
 vi.unmock("@/lib/rate-limit");
 
