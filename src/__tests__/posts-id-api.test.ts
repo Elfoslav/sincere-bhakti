@@ -11,10 +11,6 @@ vi.mock("@/lib/services/post", () => {
     ForbiddenError,
   };
 });
-vi.mock("@/lib/rate-limit", () => ({
-  rateLimit: vi.fn(() => ({ allowed: true, remaining: 29, resetIn: 3_600_000 })),
-  rateLimitKey: vi.fn((p: string, id: string) => `${p}:${id}`),
-}));
 vi.mock("@/lib/csrf", () => ({
   validateOrigin: vi.fn(() => true),
 }));

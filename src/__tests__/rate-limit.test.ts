@@ -1,4 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.unmock("@/lib/rate-limit");
+
 import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 
 describe("rateLimitKey", () => {

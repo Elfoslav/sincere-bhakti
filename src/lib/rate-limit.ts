@@ -80,7 +80,7 @@ export async function rateLimit(
   limit: number,
   windowMs: number,
 ): Promise<{ allowed: boolean; remaining: number; resetIn: number }> {
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production" && process.env.DATABASE_URL) {
     return dbRateLimit(key, limit, windowMs);
   }
 

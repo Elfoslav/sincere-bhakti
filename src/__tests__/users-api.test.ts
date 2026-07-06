@@ -9,10 +9,6 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/rate-limit", () => ({
-  rateLimit: vi.fn(() => ({ allowed: true, remaining: 9, resetIn: 3_600_000 })),
-  rateLimitKey: vi.fn((p: string, id: string) => `${p}:${id}`),
-}));
 vi.mock("@/lib/csrf", () => ({
   validateOrigin: vi.fn(() => true),
 }));
