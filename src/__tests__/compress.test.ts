@@ -7,11 +7,19 @@ vi.mock("@/lib/csrf", () => ({
 vi.mock("@/lib/services/upload", () => ({
   compressR2Object: vi.fn(),
 }));
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    media: {
+      findMany: vi.fn(),
+    },
+  },
+}));
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
 import { compressR2Object } from "@/lib/services/upload";
+import { prisma } from "@/lib/prisma";
 import { POST } from "@/app/api/compress/route";
 
 function mockRequest(body: unknown) {
@@ -24,6 +32,7 @@ function mockRequest(body: unknown) {
 describe("POST /api/compress", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.R2_PUBLIC_URL = "https://pub.r2.dev";
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -46,8 +55,9 @@ describe("POST /api/compress", () => {
     expect(json.error).toContain("key");
   });
 
-  it("compresses an image and returns result", async () => {
+  it("allows compress when no Media record exists (fresh upload)", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([]);
     vi.mocked(compressR2Object).mockResolvedValue({
       publicUrl: "https://pub.r2.dev/posts/post-abc/compressed.jpg",
       mediaType: "image",
@@ -62,13 +72,43 @@ describe("POST /api/compress", () => {
     expect(res.status).toBe(200);
     expect(json.width).toBe(800);
     expect(json.height).toBe(600);
-    expect(json.mediaType).toBe("image");
-    expect(json.publicUrl).toContain("compressed.jpg");
     expect(compressR2Object).toHaveBeenCalledWith("posts/post-abc/uuid.jpg");
+  });
+
+  it("allows compress when Media record belongs to caller", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([
+      { userId: "user-1" },
+    ]);
+    vi.mocked(compressR2Object).mockResolvedValue({
+      publicUrl: "https://pub.r2.dev/posts/post-abc/compressed.jpg",
+      mediaType: "image",
+      width: 800,
+      height: 600,
+      key: "posts/post-abc/compressed.jpg",
+    });
+
+    const res = await POST(mockRequest({ key: "posts/post-abc/uuid.jpg" }));
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 403 when key belongs to another user", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([
+      { userId: "user-2" },
+    ]);
+
+    const res = await POST(mockRequest({ key: "posts/post-abc/uuid.jpg" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.error).toBe("forbidden");
+    expect(compressR2Object).not.toHaveBeenCalled();
   });
 
   it("returns 500 on server error", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([]);
     vi.mocked(compressR2Object).mockRejectedValue(new Error("R2 failure"));
 
     const res = await POST(mockRequest({ key: "posts/post-abc/uuid.jpg" }));

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { compressR2Object } from "@/lib/services/upload";
 import { compressSchema } from "@/lib/validation";
+import { prisma } from "@/lib/prisma";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
@@ -37,6 +38,20 @@ export async function POST(request: NextRequest) {
     }
 
     const { key } = parsed.data;
+
+    // If a Media record exists for this key, verify the caller owns it
+    const storageDomain = process.env.R2_PUBLIC_URL;
+    if (storageDomain) {
+      const publicUrl = `${storageDomain.replace(/\/+$/, "")}/${key}`;
+      const existing = await prisma.media.findMany({
+        where: { url: publicUrl },
+        select: { userId: true },
+      });
+      if (existing.some((m) => m.userId !== session.user.id)) {
+        return NextResponse.json({ error: "forbidden" }, { status: 403 });
+      }
+    }
+
     const result = await compressR2Object(key);
 
     return NextResponse.json(result);
