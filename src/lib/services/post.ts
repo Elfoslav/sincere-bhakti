@@ -56,6 +56,7 @@ export interface MediaInput {
 }
 
 export interface CreatePostData {
+  id?: string;
   content?: string;
   media?: MediaInput[];
   isPublic?: boolean;
@@ -145,11 +146,7 @@ async function validateMediaOwnership(
   for (const { item, key } of storageUrls) {
     const url = item.url.split("#")[0];
     const record = existing.find((r) => r.url === url);
-    if (record) {
-      if (record.userId !== userId) {
-        throw new ForbiddenError("media_not_owned");
-      }
-    } else if (!key.startsWith(`posts/${userId}/`)) {
+    if (record && record.userId !== userId) {
       throw new ForbiddenError("media_not_owned");
     }
   }
@@ -159,11 +156,12 @@ export async function createPost(
   data: CreatePostData,
   userId: string,
 ): Promise<PostResponse> {
-  const { content, media = [], isPublic = true, language = "en" } = data;
+  const { id, content, media = [], isPublic = true, language = "en" } = data;
   await validateMediaOwnership(media, userId);
 
   const post = await prisma.post.create({
     data: {
+      ...(id ? { id } : {}),
       content: content || null,
       isPublic,
       language,

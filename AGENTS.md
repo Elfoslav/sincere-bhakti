@@ -21,9 +21,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 Every mutation API endpoint MUST have rate limiting. On Vercel (production) rate limiting uses the existing PostgreSQL database via Prisma. Locally/tests use an in-memory Map. Use the shared utility:
 
 ```ts
-import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 
-const { allowed } = await rateLimit(rateLimitKey("unique-prefix", userIdOrIp), maxRequests, windowMs);
+const { allowed } = await rateLimit(rateLimitKey("unique-prefix", userIdOrIp), RATE_LIMITS.xxx.limit, RATE_LIMITS.xxx.windowMs);
 if (!allowed) {
   return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
 }
@@ -35,11 +35,13 @@ Also add rate limiting to the login flow in `src/lib/auth.ts` — the `authorize
 
 ```ts
 const ip = req?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-const { allowed } = await rateLimit(rateLimitKey("login", ip), 10, 900_000);
+const { allowed } = await rateLimit(rateLimitKey("login", ip), RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs);
 if (!allowed) return null;
 ```
 
-Existing prefixes: `register` (by IP, 5/hour), `create-post` (by userId, 20/hour), `upload-url` (by userId, 20/hour), `delete-post` (by userId, 30/hour), `update-profile` (by userId, 10/hour), `login` (by IP, 10/15min). For new endpoints, pick a reasonable limit that regular users won't hit but blocks abuse.
+Always use `RATE_LIMITS.xxx.limit` / `RATE_LIMITS.xxx.windowMs` from `src/lib/rate-limit.ts` — never inline magic numbers. Add a new entry to the `RATE_LIMITS` object when adding a new rate-limited endpoint.
+
+Existing prefixes: `register` (by IP, 5/hour), `create-post` (by userId, 20/hour), `upload-url` (by userId, 20/hour), `delete-post` (by userId, 30/hour), `update-profile` (by userId, 10/hour), `login` (by IP, 10/15min), `upload` (by userId, 60/hour, production only — shared by upload and cleanup). For new endpoints, pick a reasonable limit that regular users won't hit but blocks abuse.
 
 ## Shared Constants for Validation
 Never hardcode validation thresholds. Define them in `src/lib/validation.ts` and export them:

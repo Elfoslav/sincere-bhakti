@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createUploadUrl, contentTypeToMediaType } from "@/lib/services/upload";
 import { uploadUrlSchema } from "@/lib/validation";
-import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
+import { logServerError, logValidationError } from "@/lib/server-log";
 
 export async function POST(request: NextRequest) {
   if (!validateOrigin(request)) {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { allowed } = await rateLimit(rateLimitKey("upload-url", session.user.id), 20, 3_600_000);
+  const { allowed } = await rateLimit(rateLimitKey("upload-url", session.user.id), RATE_LIMITS.uploadUrl.limit, RATE_LIMITS.uploadUrl.windowMs);
   if (!allowed) {
     return NextResponse.json(
       { error: "too_many_requests" },
@@ -29,19 +30,19 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
-      const field = issue.path[0] || "input";
+      logValidationError("POST /api/upload-url", issue, body);
       return NextResponse.json(
-        { error: `validation_error:${String(field)}:${issue.code}` },
+        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
         { status: 400 },
       );
     }
 
-    const { fileName, contentType } = parsed.data;
+    const { fileName, contentType, postId } = parsed.data;
 
     const { uploadUrl, publicUrl } = await createUploadUrl(
       fileName,
       contentType,
-      session.user.id,
+      postId,
     );
 
     return NextResponse.json({
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
       mediaType: contentTypeToMediaType(contentType),
     });
   } catch (error) {
-    console.error("POST /api/upload-url failed:", error);
+    logServerError("POST /api/upload-url failed", error);
     return NextResponse.json(
       { error: "failed_to_generate_upload_url" },
       { status: 500 },

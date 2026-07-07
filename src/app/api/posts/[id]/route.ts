@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError } from "@/lib/services/post";
-import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { isTrustedMediaUrl, updatePostSchema } from "@/lib/validation";
 import type { MediaInput } from "@/lib/services/post";
+import { logServerError, logValidationError } from "@/lib/server-log";
 
 export async function GET(
   request: NextRequest,
@@ -27,7 +28,7 @@ export async function GET(
 
     return NextResponse.json(post);
   } catch (error) {
-    console.error("GET /api/posts/[id] failed:", error);
+    logServerError("GET /api/posts/[id] failed", error);
     return NextResponse.json({ error: "failed_to_fetch_post" }, { status: 500 });
   }
 }
@@ -46,7 +47,7 @@ export async function PATCH(
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    const { allowed } = await rateLimit(rateLimitKey("update-post", session.user.id), 30, 3_600_000);
+    const { allowed } = await rateLimit(rateLimitKey("update-post", session.user.id), RATE_LIMITS.updatePost.limit, RATE_LIMITS.updatePost.windowMs);
     if (!allowed) {
       return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
     }
@@ -57,9 +58,9 @@ export async function PATCH(
 
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
-      const field = issue.path[0] || "input";
+      logValidationError("PATCH /api/posts/[id]", issue, body);
       return NextResponse.json(
-        { error: `validation_error:${String(field)}:${issue.code}` },
+        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
         { status: 400 }
       );
     }
@@ -91,7 +92,7 @@ export async function PATCH(
     if (error instanceof ForbiddenError) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
-    console.error("PATCH /api/posts/[id] failed:", error);
+    logServerError("PATCH /api/posts/[id] failed", error);
     return NextResponse.json({ error: "failed_to_update_post" }, { status: 500 });
   }
 }
@@ -110,7 +111,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { allowed } = await rateLimit(rateLimitKey("delete-post", session.user.id), 30, 3_600_000);
+    const { allowed } = await rateLimit(rateLimitKey("delete-post", session.user.id), RATE_LIMITS.deletePost.limit, RATE_LIMITS.deletePost.windowMs);
     if (!allowed) {
       return NextResponse.json(
         { error: "too_many_requests" },
@@ -129,7 +130,7 @@ export async function DELETE(
     if (error instanceof ForbiddenError) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    console.error("DELETE /api/posts/[id] failed:", error);
+    logServerError("DELETE /api/posts/[id] failed", error);
     return NextResponse.json({ error: "failed_to_delete_post" }, { status: 500 });
   }
 }

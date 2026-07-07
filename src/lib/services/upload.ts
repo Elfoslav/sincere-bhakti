@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
-import { MAX_IMAGE_DIMENSION } from "@/lib/validation";
+import { MAX_IMAGE_DIMENSION, IMAGE_JPEG_QUALITY } from "@/lib/validation";
 
 const REQUIRED_ENV_VARS = ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_PUBLIC_URL"] as const;
 
@@ -41,18 +41,18 @@ export function setS3Client(mock: S3Client) {
   s3 = mock;
 }
 
-function objectKey(fileName: string, userId: string): string {
+function objectKey(fileName: string, postId: string): string {
   const safe = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
-  return `posts/${userId}/${randomUUID()}-${safe}`;
+  return `posts/${postId}/${randomUUID()}-${safe}`;
 }
 
 export async function createUploadUrl(
   fileName: string,
   contentType: string,
-  userId: string,
+  postId: string,
 ): Promise<UploadUrlResult> {
   const client = getS3Client();
-  const key = objectKey(fileName, userId);
+  const key = objectKey(fileName, postId);
   const bucket = process.env.R2_BUCKET ?? "sincere-bhakti-uploads";
 
   const command = new PutObjectCommand({
@@ -75,53 +75,117 @@ export interface ProcessUploadResult {
   key: string;
 }
 
-export async function processAndUpload(
+export interface ProcessImageResult {
+  buffer: Buffer;
+  contentType: string;
+  width: number | null;
+  height: number | null;
+}
+
+export async function processImage(
   buffer: Buffer,
-  fileName: string,
   contentType: string,
-  userId: string,
-): Promise<ProcessUploadResult> {
-  const client = getS3Client();
-  const key = objectKey(fileName, userId);
-  const bucket = process.env.R2_BUCKET ?? "sincere-bhakti-uploads";
+): Promise<ProcessImageResult> {
+  if (!contentType.startsWith("image/") || contentType === "image/gif") {
+    return { buffer, contentType, width: null, height: null };
+  }
 
   let finalBuffer = buffer;
   let finalType = contentType;
   let width: number | null = null;
   let height: number | null = null;
 
-  if (contentType.startsWith("image/") && contentType !== "image/gif") {
-    const image = sharp(buffer);
-    const meta = await image.metadata();
-    const srcW = meta.width ?? 0;
-    const srcH = meta.height ?? 0;
+  const meta = await sharp(buffer).metadata();
+  const needsResize = (meta.width ?? 0) > MAX_IMAGE_DIMENSION || (meta.height ?? 0) > MAX_IMAGE_DIMENSION;
 
-    if (srcW > MAX_IMAGE_DIMENSION || srcH > MAX_IMAGE_DIMENSION) {
-      const resized = image.resize({
-        width: MAX_IMAGE_DIMENSION,
-        height: MAX_IMAGE_DIMENSION,
-        fit: "inside",
-        withoutEnlargement: true,
-      });
-      finalBuffer = await resized.jpeg({ quality: 85 }).toBuffer();
-      finalType = "image/jpeg";
+  if (needsResize) {
+    const resized = sharp(buffer).resize({
+      width: MAX_IMAGE_DIMENSION,
+      height: MAX_IMAGE_DIMENSION,
+      fit: "inside",
+      withoutEnlargement: true,
+    });
+
+    switch (contentType) {
+      case "image/jpeg":
+        finalBuffer = await resized.jpeg({ quality: IMAGE_JPEG_QUALITY }).toBuffer();
+        finalType = "image/jpeg";
+        break;
+      case "image/png":
+        finalBuffer = await resized.webp({ quality: IMAGE_JPEG_QUALITY }).toBuffer();
+        finalType = "image/webp";
+        break;
+      case "image/webp":
+        finalBuffer = await resized.webp({ quality: IMAGE_JPEG_QUALITY }).toBuffer();
+        finalType = "image/webp";
+        break;
+      case "image/avif":
+        finalBuffer = await resized.avif({ quality: IMAGE_JPEG_QUALITY - 10 }).toBuffer();
+        finalType = "image/avif";
+        break;
     }
-
-    const finalMeta = await sharp(finalBuffer).metadata();
-    width = finalMeta.width ?? null;
-    height = finalMeta.height ?? null;
+  } else {
+    switch (contentType) {
+      case "image/png": {
+        const reEncoded = await sharp(buffer).webp({ quality: IMAGE_JPEG_QUALITY }).toBuffer();
+        if (reEncoded.length < buffer.length) {
+          finalBuffer = reEncoded;
+          finalType = "image/webp";
+        }
+        break;
+      }
+      case "image/webp": {
+        const reEncoded = await sharp(buffer).webp({ quality: IMAGE_JPEG_QUALITY }).toBuffer();
+        finalBuffer = reEncoded.length < buffer.length ? reEncoded : buffer;
+        break;
+      }
+      case "image/avif": {
+        const reEncoded = await sharp(buffer).avif({ quality: IMAGE_JPEG_QUALITY - 10 }).toBuffer();
+        finalBuffer = reEncoded.length < buffer.length ? reEncoded : buffer;
+        break;
+      }
+    }
   }
 
-  const command = new PutObjectCommand({
+  const finalMeta = await sharp(finalBuffer).metadata();
+  width = finalMeta.width ?? null;
+  height = finalMeta.height ?? null;
+
+  return { buffer: finalBuffer, contentType: finalType, width, height };
+}
+
+export async function compressR2Object(key: string): Promise<ProcessUploadResult> {
+  const client = getS3Client();
+  const bucket = process.env.R2_BUCKET ?? "sincere-bhakti-uploads";
+
+  const getCmd = new GetObjectCommand({ Bucket: bucket, Key: key });
+  const { Body, ContentType } = await client.send(getCmd);
+  if (!Body) throw new Error("Empty object");
+  const inputType = ContentType ?? "application/octet-stream";
+
+  if (!inputType.startsWith("image/") || inputType === "image/gif") {
+    const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+    return { publicUrl, mediaType: contentTypeToMediaType(inputType), width: null, height: null, key };
+  }
+
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of Body as AsyncIterable<Uint8Array>) {
+    chunks.push(chunk);
+  }
+  const buffer = Buffer.concat(chunks);
+
+  const { buffer: processed, contentType: finalType, width, height } = await processImage(buffer, inputType);
+
+  const putCmd = new PutObjectCommand({
     Bucket: bucket,
     Key: key,
-    Body: finalBuffer,
+    Body: processed,
     ContentType: finalType,
   });
-  await client.send(command);
+  await client.send(putCmd);
 
   const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
-  return { publicUrl, mediaType: contentTypeToMediaType(contentType), width, height, key };
+  return { publicUrl, mediaType: contentTypeToMediaType(finalType), width, height, key };
 }
 
 export function contentTypeToMediaType(contentType: string): string {

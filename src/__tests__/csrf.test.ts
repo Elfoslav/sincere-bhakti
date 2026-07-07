@@ -1,6 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { NextRequest } from "next/server";
 import { validateOrigin } from "@/lib/csrf";
+
+vi.spyOn(console, "warn").mockImplementation(() => {});
 
 function mockRequest(headers: Record<string, string>): NextRequest {
   return { headers: new Headers(headers) } as unknown as NextRequest;

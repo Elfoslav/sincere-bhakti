@@ -67,11 +67,17 @@ export function getAcceptString(): string {
 // PUT; 200 MB is a safe ceiling for that flow — larger files need multipart.
 export const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 export const MAX_VIDEO_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
+export const MAX_TOTAL_UPLOAD_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB
 
 // Server-side: longest edge capped at 2048px. Client pre-resizes to this
 // so small uploads pass through; server re-resizes anything larger as a
 // safety net (bypassing client-side checks).
 export const MAX_IMAGE_DIMENSION = 2048;
+
+// JPEG quality for image re-encoding. 70 is a good balance between visual
+// quality and file size — typically 5-10x smaller than the original JPEG
+// with no perceptible difference at web viewing sizes.
+export const IMAGE_JPEG_QUALITY = 70;
 
 // Resolve the size limit for a given content type. Uploads are restricted to
 // image/* and video/* (see isAllowedUploadContentType); anything else falls
@@ -116,6 +122,7 @@ const contentField = z.string().trim().max(5000).optional();
 const mediaField = z.array(mediaItemSchema).max(10).optional();
 
 export const createPostSchema = z.object({
+  id: z.string().min(1).max(36).optional(),
   content: contentField,
   media: mediaField.default([]),
   isPublic: z.boolean().default(true),
@@ -160,4 +167,23 @@ export const uploadUrlSchema = z.object({
     .min(1)
     .max(255)
     .refine(isAllowedUploadContentType),
+  postId: z.string().min(1).max(36),
+});
+
+export const batchUploadUrlSchema = z.object({
+  postId: z.string().min(1).max(36),
+  files: z
+    .array(
+      z.object({
+        fileName: z.string().min(1).max(255),
+        contentType: z.string().min(1).max(255).refine(isAllowedUploadContentType),
+        size: z.number().int().positive(),
+      }),
+    )
+    .min(1)
+    .max(10),
+});
+
+export const compressSchema = z.object({
+  key: z.string().min(1).max(500),
 });

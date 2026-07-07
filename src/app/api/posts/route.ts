@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPosts, createPost, UnauthorizedError } from "@/lib/services/post";
 import { createPostSchema, paginationSchema, isTrustedMediaUrl } from "@/lib/validation";
-import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
+import { logServerError, logValidationError } from "@/lib/server-log";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,9 +19,9 @@ export async function GET(request: NextRequest) {
 
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
-      const field = issue.path[0] || "input";
+      logValidationError("GET /api/posts", issue, null);
       return NextResponse.json(
-        { error: `validation_error:${String(field)}:${issue.code}` },
+        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
         { status: 400 }
       );
     }
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof UnauthorizedError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.error("GET /api/posts failed:", error);
+    logServerError("GET /api/posts failed", error);
     return NextResponse.json({ error: "failed_to_fetch_posts" }, { status: 500 });
   }
 }
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { allowed } = await rateLimit(rateLimitKey("create-post", session.user.id), 20, 3_600_000);
+  const { allowed } = await rateLimit(rateLimitKey("create-post", session.user.id), RATE_LIMITS.createPost.limit, RATE_LIMITS.createPost.windowMs);
   if (!allowed) {
     return NextResponse.json(
       { error: "too_many_requests" },
@@ -70,9 +71,9 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
-      const field = issue.path[0] || "input";
+      logValidationError("POST /api/posts", issue, body);
       return NextResponse.json(
-        { error: `validation_error:${String(field)}:${issue.code}` },
+        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
         { status: 400 }
       );
     }
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
     const post = await createPost(parsed.data, session.user.id);
     return NextResponse.json(post, { status: 201 });
   } catch (error) {
-    console.error("POST /api/posts failed:", error);
+    logServerError("POST /api/posts failed", error);
     return NextResponse.json(
       { error: "failed_to_create_post" },
       { status: 500 }

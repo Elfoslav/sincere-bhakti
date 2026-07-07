@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -12,7 +12,9 @@ import type { Post } from "@/types/post";
 import {
   MAX_IMAGE_SIZE_BYTES,
   MAX_VIDEO_SIZE_BYTES,
+  MAX_TOTAL_UPLOAD_SIZE_BYTES,
   MAX_IMAGE_DIMENSION,
+  IMAGE_JPEG_QUALITY,
   maxUploadSizeForContentType,
   getAcceptString,
 } from "@/lib/validation";
@@ -39,7 +41,15 @@ interface MediaItem {
 const DIMENSION_TIMEOUT_MS = 10_000;
 
 function genId(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 9)}`;
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
 // Reads an image file's intrinsic dimensions locally (no network). Resolves
@@ -102,14 +112,23 @@ export default function PostForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragItemId = useRef<string | null>(null);
 
+  const totalUploadSize = useMemo(
+    () => mediaItems.reduce((sum, item) => sum + (item.file?.size ?? 0), 0),
+    [mediaItems],
+  );
+  const newFileCount = useMemo(
+    () => mediaItems.filter((item) => item.file).length,
+    [mediaItems],
+  );
+
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
     if (selected.length === 0) return;
 
-    const files = selected.filter(
+    const withinPerFileLimit = selected.filter(
       (f) => f.size <= maxUploadSizeForContentType(f.type),
     );
-    if (files.length < selected.length) {
+    if (withinPerFileLimit.length < selected.length) {
       toast.error(
         t("fileTooLarge", {
           imageMax: MAX_IMAGE_SIZE_BYTES / BYTES_PER_MB,
@@ -117,10 +136,26 @@ export default function PostForm({
         }),
       );
     }
-    if (files.length === 0) return;
+    if (withinPerFileLimit.length === 0) return;
+
+    const existingKeys = new Set(
+      mediaItems.filter((m) => m.file).map((m) => `${m.file!.name}|${m.file!.size}`),
+    );
+    const deduped = withinPerFileLimit.filter((f) => !existingKeys.has(`${f.name}|${f.size}`));
+    if (deduped.length < withinPerFileLimit.length) {
+      toast.warning(t("duplicateMediaSkipped"));
+    }
+    if (deduped.length === 0) return;
+
+    const currentTotal = mediaItems.reduce((sum, item) => sum + (item.file?.size ?? 0), 0);
+    const addedTotal = deduped.reduce((sum, f) => sum + f.size, 0);
+    if (currentTotal + addedTotal > MAX_TOTAL_UPLOAD_SIZE_BYTES) {
+      toast.error(t("totalUploadTooLarge"));
+      return;
+    }
 
     const newItems: MediaItem[] = await Promise.all(
-      files.map(async (f) => {
+      withinPerFileLimit.map(async (f) => {
         const dims = await getImageDimensions(f);
         return {
           id: genId(),
@@ -134,6 +169,8 @@ export default function PostForm({
     );
 
     setMediaItems((prev) => [...prev, ...newItems]);
+
+    if (e.target) e.target.value = "";
   }
 
   function removeMedia(id: string) {
@@ -168,13 +205,17 @@ export default function PostForm({
   // Client-side canvas resize for images. Reduces upload size and gives the
   // server less work. Returns null when no resize is needed (dimensions already
   // within limits, or non-image).
+  // Skip canvas resize for formats that would lose data when converted to JPEG.
+  const SKIP_CLIENT_RESIZE = ["image/png", "image/webp", "image/avif"];
+
   async function maybeResizeImage(
     file: File,
     width: number,
     height: number,
-  ): Promise<File | null> {
+  ): Promise<{ file: File; width: number; height: number } | null> {
     if (!file.type.startsWith("image/") || file.type === "image/gif") return null;
     if (Math.max(width, height) <= MAX_IMAGE_DIMENSION) return null;
+    if (SKIP_CLIENT_RESIZE.includes(file.type)) return null;
 
     const img = await createImageBitmap(file);
     try {
@@ -194,48 +235,104 @@ export default function PostForm({
       ctx.drawImage(img, 0, 0, newWidth, newHeight);
 
       const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85),
+        canvas.toBlob((b) => resolve(b), "image/jpeg", IMAGE_JPEG_QUALITY / 100),
       );
       if (!blob) return null;
-      return new File([blob], file.name, { type: "image/jpeg" });
+      return { file: new File([blob], file.name, { type: "image/jpeg" }), width: newWidth, height: newHeight };
     } finally {
       img.close();
     }
   }
 
-  async function uploadNewFiles(): Promise<MediaInput[]> {
+  async function uploadNewFiles(postId: string): Promise<{ media: MediaInput[]; error: string | null }> {
     const toUpload = mediaItems.filter((m) => m.file);
-    if (toUpload.length === 0) return [];
+    if (toUpload.length === 0) return { media: [], error: null };
 
-    const uploads = toUpload.map(async (item) => {
-      const file = item.file!;
-      const resized = await maybeResizeImage(file, item.width ?? 0, item.height ?? 0);
-      const uploadFile = resized ?? file;
+    const files = toUpload.map((item) => ({
+      item,
+      fileName: item.file!.name,
+      contentType: item.file!.type,
+    }));
 
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-
-      let res: Response;
-      try {
-        res = await fetch("/api/upload", { method: "POST", body: formData });
-      } catch {
-        return null;
-      }
-      if (!res.ok) return null;
-      const data = await res.json();
-      return { url: data.publicUrl, type: data.mediaType, width: data.width, height: data.height };
+    const urlRes = await fetch("/api/upload-url/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId, files: files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, size: f.item.file!.size })) }),
     });
 
-    const results = await Promise.allSettled(uploads);
-    const uploaded: MediaInput[] = [];
-    for (const r of results) {
-      if (r.status === "fulfilled" && r.value) {
-        uploaded.push(r.value);
-      } else {
-        throw new Error("upload_failed");
-      }
+    if (!urlRes.ok) {
+      const errBody = await urlRes.json().catch(() => ({}));
+      if (errBody?.error === "too_many_requests") return { media: [], error: "rate_limited" };
+      return { media: [], error: "upload_failed" };
     }
-    return uploaded;
+
+    const { urls } = await urlRes.json();
+
+    const results = await Promise.allSettled(
+      files.map(async ({ item }, i) => {
+        const { uploadUrl, publicUrl, key } = urls[i];
+        const file = item.file!;
+        const resized = await maybeResizeImage(file, item.width ?? 0, item.height ?? 0);
+        const uploadFile = resized?.file ?? file;
+
+        const putRes = await fetch(uploadUrl, {
+          method: "PUT",
+          body: uploadFile,
+          headers: { "Content-Type": file.type },
+        });
+        if (!putRes.ok) throw new Error("upload_failed");
+
+        let mediaType = file.type.startsWith("image/") ? "image" : file.type.startsWith("video/") ? "video" : "file";
+        let width: number | undefined;
+        let height: number | undefined;
+
+        if (resized) {
+          width = resized.width;
+          height = resized.height;
+        } else if (file.type.startsWith("image/") && file.type !== "image/gif") {
+          try {
+            const compressRes = await fetch("/api/compress", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ key }),
+            });
+            if (compressRes.ok) {
+              const comp = await compressRes.json();
+              mediaType = comp.mediaType;
+              width = comp.width;
+              height = comp.height;
+            }
+          } catch {
+            // Compress failed — use raw dimensions if available
+          }
+        }
+
+        if (width === undefined && item.width) width = item.width;
+        if (height === undefined && item.height) height = item.height;
+
+        return { url: publicUrl, type: mediaType, width, height } as MediaInput;
+      }),
+    );
+
+    const uploaded: MediaInput[] = [];
+    for (const result of results) {
+      if (result.status === "rejected") {
+        return { media: uploaded, error: "upload_failed" };
+      }
+      uploaded.push(result.value);
+    }
+
+    return { media: uploaded, error: null };
+  }
+
+  async function cleanupUploaded(uploaded: MediaInput[]) {
+    if (uploaded.length === 0) return;
+    const urls = uploaded.map((m) => m.url);
+    fetch("/api/upload/cleanup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ urls }),
+    }).catch(() => {});
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -254,8 +351,15 @@ export default function PostForm({
       ? trimmed.replace(/https?:\/\/\S*(?:youtube\.com|youtu\.be)\S*/gi, "").trim()
       : trimmed;
 
+    const targetPostId = mode === "create" ? crypto.randomUUID() : postId!;
+
     try {
-      const uploaded = await uploadNewFiles();
+      const { media: uploaded, error: uploadError } = await uploadNewFiles(targetPostId);
+      if (uploadError) {
+        await cleanupUploaded(uploaded);
+        throw new Error(uploadError);
+      }
+
       const media: MediaInput[] = [];
 
       let uploadIdx = 0;
@@ -280,6 +384,7 @@ export default function PostForm({
       const url = mode === "edit" && postId ? `/api/posts/${postId}` : "/api/posts";
       const method = mode === "edit" ? "PATCH" : "POST";
       const body: Record<string, unknown> = {
+        id: mode === "create" ? targetPostId : undefined,
         content: mode === "edit" ? (postContent || null) : (postContent || undefined),
         isPublic,
         language: mode === "create" ? locale : undefined,
@@ -303,6 +408,7 @@ export default function PostForm({
         toast.success(mode === "edit" ? t("postUpdated") : t("postPublished"));
         onSuccess(post);
       } else {
+        await cleanupUploaded(uploaded);
         const body = await res.json().catch(() => ({}));
         const err = body?.error ?? "";
         if (err === "validation_error:input:custom") {
@@ -312,8 +418,14 @@ export default function PostForm({
         }
       }
     } catch (err) {
-      if (err instanceof Error && err.message === "upload_failed") {
-        toast.error(t("uploadFailed"));
+      if (err instanceof Error) {
+        if (err.message === "rate_limited") {
+          toast.error(t("uploadRateLimited"));
+        } else if (err.message === "upload_failed") {
+          toast.error(t("uploadFailed"));
+        } else {
+          toast.error(mode === "edit" ? t("updatePostFailed") : t("createPostFailed"));
+        }
       } else {
         toast.error(mode === "edit" ? t("updatePostFailed") : t("createPostFailed"));
       }
@@ -373,6 +485,11 @@ export default function PostForm({
               <span className="text-xs text-deep/60 truncate flex-1">
                 {item.file ? item.file.name : item.url?.split("/").pop()}
               </span>
+              {item.file && (
+                <span className="text-[10px] text-deep/40 shrink-0 tabular-nums">
+                  {formatBytes(item.file.size)}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => removeMedia(item.id)}
@@ -387,18 +504,36 @@ export default function PostForm({
 
       <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
         <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 text-sm text-deep/70 cursor-pointer hover:text-deep">
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={getAcceptString()}
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            <span className="text-xl">📎</span>
-            {mediaItems.length > 0 ? `${t("attachMedia")} (${mediaItems.length})` : t("attachMedia")}
-          </label>
+          <div className="flex flex-col gap-0.5">
+            <label className="flex items-center gap-2 text-sm text-deep/70 cursor-pointer hover:text-deep">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={getAcceptString()}
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <span className="text-xl">📎</span>
+              {mediaItems.length > 0 ? `${t("attachMedia")} (${mediaItems.length})` : t("attachMedia")}
+            </label>
+            {totalUploadSize > 0 && (
+              <>
+                <span className="text-[11px] text-deep/40 ml-8 tabular-nums">
+                  {formatBytes(totalUploadSize)} / {formatBytes(MAX_TOTAL_UPLOAD_SIZE_BYTES)}
+                </span>
+                <div className="ml-8 w-28 h-1.5 rounded-full bg-deep/10 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${Math.min((totalUploadSize / MAX_TOTAL_UPLOAD_SIZE_BYTES) * 100, 100)}%`,
+                      backgroundColor: totalUploadSize > MAX_TOTAL_UPLOAD_SIZE_BYTES * 0.9 ? "#ef4444" : "#db8637",
+                    }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
 
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input

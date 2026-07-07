@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema, BCRYPT_SALT_ROUNDS } from "@/lib/validation";
-import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
+import { logServerError, logValidationError } from "@/lib/server-log";
 
 export async function POST(request: NextRequest) {
   if (!validateOrigin(request)) {
@@ -11,10 +12,10 @@ export async function POST(request: NextRequest) {
   }
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const { allowed } = await rateLimit(rateLimitKey("register", ip), 5, 3_600_000);
-  if (!allowed) {
+  const { allowed } = await rateLimit(rateLimitKey("register", ip), RATE_LIMITS.register.limit, RATE_LIMITS.register.windowMs);
+    if (!allowed) {
     return NextResponse.json(
-      { error: "Too many attempts. Try again later." },
+      { error: "too_many_requests" },
       { status: 429 },
     );
   }
@@ -25,9 +26,9 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
-      const field = issue.path[0] || "input";
+      logValidationError("POST /api/register", issue, body);
       return NextResponse.json(
-        { error: `validation_error:${String(field)}:${issue.code}` },
+        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
         { status: 400 }
       );
     }
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Registration failed:", error);
+    logServerError("POST /api/register failed", error);
     return NextResponse.json(
       { error: "server_error" },
       { status: 500 }
