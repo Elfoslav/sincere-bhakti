@@ -120,7 +120,10 @@
     "postMedia": "Post media",
     "openImage": "Open image",
     "copyLink": "Copy post link",
-    "linkCopied": "Post link copied to clipboard"
+    "linkCopied": "Post link copied to clipboard",
+    "deleteConfirm": "Are you sure you want to delete this post? This cannot be undone.",
+    "deleteSuccess": "Post deleted",
+    "deleteFailed": "Failed to delete post"
   },
   "SinglePost": {
     "title": "Post",
@@ -142,6 +145,7 @@
     "backLink": "← Back to post"
   },
   "Common": {
+    "cancel": "Cancel",
     "footerLine1": "© {year} 🪷 Sincere Bhakti",
     "footerLine2": "Dedicated to the teachings of Śrīla Prabhupāda"
   },

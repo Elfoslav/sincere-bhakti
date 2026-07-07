@@ -51,6 +51,11 @@ export default function PostsPageClient() {
     if (post.isPublic) setPosts((prev) => [post, ...prev]);
   }
 
+  function handleDelete(id: string) {
+    setAllMyPosts((prev) => prev.filter((p) => p.id !== id));
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="text-center mb-8">
@@ -101,7 +106,7 @@ export default function PostsPageClient() {
             ) : (
               <div className="space-y-4">
                 {posts.map((post) => (
-                  <PostCard key={post.id} post={post} currentUserId={session?.user?.id} />
+                  <PostCard key={post.id} post={post} currentUserId={session?.user?.id} onDelete={handleDelete} />
                 ))}
               </div>
             )}
@@ -129,7 +134,7 @@ export default function PostsPageClient() {
             ) : (
               <div className="space-y-4">
                 {myPublicPosts.map((post) => (
-                  <PostCard key={post.id} post={post} currentUserId={session?.user?.id} />
+                  <PostCard key={post.id} post={post} currentUserId={session?.user?.id} onDelete={handleDelete} />
                 ))}
               </div>
             )}
@@ -147,7 +152,7 @@ export default function PostsPageClient() {
             ) : (
               <div className="space-y-4">
                 {myPrivatePosts.map((post) => (
-                  <PostCard key={post.id} post={post} currentUserId={session?.user?.id} />
+                  <PostCard key={post.id} post={post} currentUserId={session?.user?.id} onDelete={handleDelete} />
                 ))}
               </div>
             )}

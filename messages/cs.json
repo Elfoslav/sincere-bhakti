@@ -120,7 +120,10 @@
     "postMedia": "Média příspěvku",
     "openImage": "Otevřít obrázek",
     "copyLink": "Zkopírovat odkaz na příspěvek",
-    "linkCopied": "Odkaz na příspěvek zkopírován do schránky"
+    "linkCopied": "Odkaz na příspěvek zkopírován do schránky",
+    "deleteConfirm": "Opravdu chcete smazat tento příspěvek? Tuto akci nelze vrátit.",
+    "deleteSuccess": "Příspěvek smazán",
+    "deleteFailed": "Nepodařilo se smazat příspěvek"
   },
   "SinglePost": {
     "title": "Příspěvek",
@@ -142,6 +145,7 @@
     "backLink": "← Zpět na příspěvek"
   },
   "Common": {
+    "cancel": "Zrušit",
     "footerLine1": "© {year} 🪷 Sincere Bhakti",
     "footerLine2": "Věnováno učení Śrīly Prabhupādy"
   },

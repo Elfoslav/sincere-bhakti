@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { Copy, ExternalLink, Pencil } from "lucide-react";
+import { Copy, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { extractYouTubeContent } from "@/lib/video";
 import { replaceEmoticons } from "@/lib/emoticons";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import ImageGallery from "@/components/ImageGallery";
 import type { Post } from "@/types/post";
 
@@ -15,14 +16,19 @@ export default function PostCard({
   currentUserId,
   hideEdit,
   hideExternalLink,
+  onDelete,
 }: {
   post: Post;
   currentUserId?: string;
   hideEdit?: boolean;
   hideExternalLink?: boolean;
+  onDelete?: (id: string) => void;
 }) {
   const locale = useLocale();
   const t = useTranslations("PostCard");
+  const commonT = useTranslations("Common");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const date = new Date(post.createdAt).toLocaleDateString(locale === "en" ? "en-US" : locale, {
     year: "numeric",
     month: "long",
@@ -44,6 +50,26 @@ export default function PostCard({
     navigator.clipboard.writeText(url);
     toast.success(t("linkCopied"));
   }, [locale, post.id, t]);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/posts/${post.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error(t("deleteFailed"));
+        setShowDeleteConfirm(false);
+        return;
+      }
+      toast.success(t("deleteSuccess"));
+      setShowDeleteConfirm(false);
+      onDelete?.(post.id);
+    } catch {
+      toast.error(t("deleteFailed"));
+      setShowDeleteConfirm(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [post.id, t, onDelete]);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-5 border border-sand">
@@ -74,6 +100,17 @@ export default function PostCard({
             >
               <Pencil className="w-4 h-4" />
             </Link>
+          )}
+          {currentUserId === post.author.id && onDelete && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isDeleting}
+              className="text-deep/40 hover:text-red-500 transition-colors p-1 cursor-pointer disabled:opacity-30"
+              title={t("delete")}
+              aria-label={t("delete")}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           )}
           {hideExternalLink ? (
             <button
@@ -149,6 +186,18 @@ export default function PostCard({
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title={t("delete")}
+        description={t("deleteConfirm")}
+        confirmLabel={t("delete")}
+        cancelLabel={commonT("cancel")}
+        onConfirm={handleDeleteConfirm}
+        variant="destructive"
+        loading={isDeleting}
+      />
     </div>
   );
 }

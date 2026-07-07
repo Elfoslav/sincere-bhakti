@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
+import { useRouter } from "@/i18n/navigation";
 import PostCard from "@/components/PostCard";
 import PostLayout from "@/components/PostLayout";
 import type { Post } from "@/types/post";
@@ -12,6 +13,7 @@ export default function PostDetailClient({
   post: Post | null;
 }) {
   const { data: session } = useSession();
+  const router = useRouter();
   const t = useTranslations("SinglePost");
 
   if (!post) {
@@ -22,9 +24,13 @@ export default function PostDetailClient({
     );
   }
 
+  function handleDelete() {
+    router.push("/posts");
+  }
+
   return (
     <PostLayout postId={post.id} title={t("title")} backHref="/posts" backLabel={t("backLink")}>
-      <PostCard post={post} currentUserId={session?.user?.id} hideExternalLink />
+      <PostCard post={post} currentUserId={session?.user?.id} hideExternalLink onDelete={handleDelete} />
     </PostLayout>
   );
 }
