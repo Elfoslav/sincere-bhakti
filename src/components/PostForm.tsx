@@ -250,10 +250,10 @@ export default function PostForm({
       const url = mode === "edit" && postId ? `/api/posts/${postId}` : "/api/posts";
       const method = mode === "edit" ? "PATCH" : "POST";
       const body: Record<string, unknown> = {
-        content: postContent || undefined,
+        content: mode === "edit" ? (postContent || null) : (postContent || undefined),
         isPublic,
         language: mode === "create" ? locale : undefined,
-        media: media.length > 0 ? media : undefined,
+        media: mode === "edit" ? media : (media.length > 0 ? media : undefined),
       };
 
       const res = await fetch(url, {

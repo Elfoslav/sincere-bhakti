@@ -9,6 +9,7 @@ vi.mock("@/lib/prisma", () => ({
       update: vi.fn(),
       deleteMany: vi.fn(),
       delete: vi.fn(),
+      updateMany: vi.fn(),
     },
     media: {
       deleteMany: vi.fn(),
@@ -289,22 +290,25 @@ describe("updatePost", () => {
   });
 
   it("updates own post content", async () => {
-    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
-    vi.mocked(prisma.post.update).mockResolvedValue({ ...basePost, content: "Updated!" });
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce(basePost)
+      .mockResolvedValueOnce({ ...basePost, content: "Updated!" });
+    vi.mocked(prisma.post.updateMany).mockResolvedValue([1]);
 
     const result = await updatePost("post-1", "user-1", { content: "Updated!" });
 
     expect(result.content).toBe("Updated!");
-    expect(prisma.post.update).toHaveBeenCalledWith({
-      where: { id: "post-1" },
+    expect(prisma.post.updateMany).toHaveBeenCalledWith({
+      where: { id: "post-1", authorId: "user-1" },
       data: { content: "Updated!" },
-      include: expect.any(Object),
     });
   });
 
   it("updates post visibility", async () => {
-    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
-    vi.mocked(prisma.post.update).mockResolvedValue({ ...basePost, isPublic: false });
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce(basePost)
+      .mockResolvedValueOnce({ ...basePost, isPublic: false });
+    vi.mocked(prisma.post.updateMany).mockResolvedValue([1]);
 
     const result = await updatePost("post-1", "user-1", { isPublic: false });
 
@@ -318,19 +322,24 @@ describe("updatePost", () => {
   });
 
   it("throws when not the author", async () => {
-    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce(basePost)
+      .mockResolvedValueOnce(basePost);
+    vi.mocked(prisma.post.updateMany).mockResolvedValue([0]);
 
     await expect(updatePost("post-1", "user-2", { content: "x" })).rejects.toThrow(ForbiddenError);
   });
 
   it("replaces media when provided", async () => {
-    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
-    vi.mocked(prisma.post.update).mockResolvedValue({
-      ...basePost,
-      media: [
-        { url: "https://example.com/new.jpg", type: "image", position: 0 },
-      ],
-    });
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce(basePost)
+      .mockResolvedValueOnce({
+        ...basePost,
+        media: [
+          { url: "https://example.com/new.jpg", type: "image", position: 0 },
+        ],
+      });
+    vi.mocked(prisma.post.updateMany).mockResolvedValue([1]);
 
     const result = await updatePost("post-1", "user-1", {
       media: [{ url: "https://example.com/new.jpg", type: "image" }],
@@ -344,8 +353,10 @@ describe("updatePost", () => {
   });
 
   it("clears media when empty array provided", async () => {
-    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
-    vi.mocked(prisma.post.update).mockResolvedValue({ ...basePost, media: [] });
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce(basePost)
+      .mockResolvedValueOnce({ ...basePost, media: [] });
+    vi.mocked(prisma.post.updateMany).mockResolvedValue([1]);
 
     const result = await updatePost("post-1", "user-1", { media: [] });
 

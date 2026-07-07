@@ -120,7 +120,7 @@ export const createPostSchema = z.object({
 );
 
 export const updatePostSchema = z.object({
-  content: contentField,
+  content: z.string().trim().max(5000).nullish(),
   media: mediaField,
   isPublic: z.boolean().optional(),
   language: z.enum(locales).optional(),

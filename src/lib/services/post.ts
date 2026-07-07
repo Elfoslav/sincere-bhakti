@@ -175,7 +175,6 @@ export async function updatePost(
     include: { media: { select: { url: true } } },
   });
   if (!existing) throw new NotFoundError();
-  if (existing.authorId !== userId) throw new ForbiddenError();
 
   const { media, ...postData } = data;
 
@@ -197,11 +196,21 @@ export async function updatePost(
       }
     }
 
-    return tx.post.update({
-      where: { id },
+    const [count] = await tx.post.updateMany({
+      where: { id, authorId: userId },
       data: postData,
-      include: postInclude,
     });
+
+    if (count === 0) {
+      const exists = await tx.post.findUnique({ where: { id } });
+      if (!exists) throw new NotFoundError();
+      throw new ForbiddenError();
+    }
+
+    return tx.post.findUnique({
+      where: { id },
+      include: postInclude,
+    })!;
   });
 
   if (media !== undefined) {
