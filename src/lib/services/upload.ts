@@ -39,17 +39,18 @@ export function setS3Client(mock: S3Client) {
   s3 = mock;
 }
 
-function objectKey(fileName: string): string {
+function objectKey(fileName: string, userId: string): string {
   const safe = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
-  return `posts/${randomUUID()}-${safe}`;
+  return `posts/${userId}/${randomUUID()}-${safe}`;
 }
 
 export async function createUploadUrl(
   fileName: string,
   contentType: string,
+  userId: string,
 ): Promise<UploadUrlResult> {
   const client = getS3Client();
-  const key = objectKey(fileName);
+  const key = objectKey(fileName, userId);
   const bucket = process.env.R2_BUCKET ?? "sincere-bhakti-uploads";
 
   const command = new PutObjectCommand({
@@ -70,7 +71,7 @@ export function contentTypeToMediaType(contentType: string): string {
   return "file";
 }
 
-function extractKey(url: string, storageDomain: string): string | null {
+export function extractKey(url: string, storageDomain: string): string | null {
   try {
     const parsed = new URL(url);
     const allowed = new URL(storageDomain);
@@ -86,14 +87,15 @@ function extractKey(url: string, storageDomain: string): string | null {
   }
 }
 
-export async function deleteMediaFiles(urls: string[]): Promise<void> {
+export async function deleteMediaFiles(urls: string[], userId?: string): Promise<void> {
   const storageDomain = process.env.R2_PUBLIC_URL;
   const bucket = process.env.R2_BUCKET;
   if (!storageDomain || !bucket) return;
 
   const keys = urls
     .map((u) => extractKey(u, storageDomain))
-    .filter((k): k is string => k !== null);
+    .filter((k): k is string => k !== null)
+    .filter((k) => !userId || k.startsWith(`posts/${userId}/`));
 
   if (keys.length === 0) return;
 

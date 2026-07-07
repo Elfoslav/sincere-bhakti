@@ -17,14 +17,20 @@ export function validateOrigin(request: NextRequest): boolean {
   if (origin) {
     const originHost = origin.replace(/^https?:\/\//, "").split("/")[0];
     if (originHost === host) return true;
-    if (allowedOrigins.some((o) => origin.startsWith(o))) return true;
+    if (allowedOrigins.some((o) => {
+      try { return new URL(origin).host === new URL(o).host; }
+      catch { return false; }
+    })) return true;
     return false;
   }
 
   if (referer) {
     const refererHost = referer.replace(/^https?:\/\//, "").split("/")[0];
     if (refererHost === host) return true;
-    if (allowedOrigins.some((o) => referer.startsWith(o))) return true;
+    if (allowedOrigins.some((o) => {
+      try { return new URL(referer).host === new URL(o).host; }
+      catch { return false; }
+    })) return true;
     return false;
   }
 

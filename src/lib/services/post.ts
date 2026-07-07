@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { deleteMediaFiles } from "@/lib/services/upload";
+import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import type { Prisma } from "@prisma/client";
 
 export class UnauthorizedError extends Error {
@@ -121,11 +121,46 @@ export async function getPostById(id: string): Promise<PostResponse | null> {
   return post;
 }
 
+async function validateMediaOwnership(
+  media: MediaInput[],
+  userId: string,
+): Promise<void> {
+  const storageDomain = process.env.R2_PUBLIC_URL;
+  if (!storageDomain) return;
+
+  // Filter to storage-origin URLs using origin comparison (not startsWith)
+  const storageUrls: { item: MediaInput; key: string }[] = [];
+  for (const item of media) {
+    const key = extractKey(item.url, storageDomain);
+    if (key) storageUrls.push({ item, key });
+  }
+  if (storageUrls.length === 0) return;
+
+  // Check existing media in DB — if a record exists with a different userId, reject
+  const existing = await prisma.media.findMany({
+    where: { url: { in: storageUrls.map((s) => s.item.url.split("#")[0]) } },
+    select: { url: true, userId: true },
+  });
+
+  for (const { item, key } of storageUrls) {
+    const url = item.url.split("#")[0];
+    const record = existing.find((r) => r.url === url);
+    if (record) {
+      if (record.userId !== userId) {
+        throw new ForbiddenError("media_not_owned");
+      }
+    } else if (!key.startsWith(`posts/${userId}/`)) {
+      throw new ForbiddenError("media_not_owned");
+    }
+  }
+}
+
 export async function createPost(
   data: CreatePostData,
   userId: string,
 ): Promise<PostResponse> {
   const { content, media = [], isPublic = true, language = "en" } = data;
+  await validateMediaOwnership(media, userId);
 
   const post = await prisma.post.create({
     data: {
@@ -162,7 +197,7 @@ export async function deletePost(
   if (post.authorId !== userId) throw new ForbiddenError();
 
   await prisma.post.deleteMany({ where: { id, authorId: userId } });
-  await deleteMediaFiles(post.media.map((m) => m.url));
+  await deleteMediaFiles(post.media.map((m) => m.url), userId);
 }
 
 export async function updatePost(
@@ -177,6 +212,7 @@ export async function updatePost(
   if (!existing) throw new NotFoundError();
 
   const { media, ...postData } = data;
+  if (media !== undefined) await validateMediaOwnership(media, userId);
 
   const post = await prisma.$transaction(async (tx) => {
     if (media !== undefined) {
@@ -217,7 +253,7 @@ export async function updatePost(
     const removed = existing.media.filter(
       (old) => !media.some((m) => m.url.split("#")[0] === old.url.split("#")[0]),
     );
-    await deleteMediaFiles(removed.map((m) => m.url));
+    await deleteMediaFiles(removed.map((m) => m.url), userId);
   }
 
   return post!;

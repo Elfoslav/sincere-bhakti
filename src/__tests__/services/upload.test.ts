@@ -18,18 +18,18 @@ describe("createUploadUrl", () => {
   });
 
   it("generates upload and public URLs", async () => {
-    const result = await createUploadUrl("photo.jpg", "image/jpeg");
+    const result = await createUploadUrl("photo.jpg", "image/jpeg", "user-1");
 
     expect(result.uploadUrl).toBe("https://r2.example.com/upload-url");
-    expect(result.publicUrl).toMatch(/^https:\/\/pub\.r2\.dev\/posts\/.+\.jpg$/);
-    expect(result.key).toMatch(/^posts\/.+\.jpg$/);
+    expect(result.publicUrl).toMatch(/^https:\/\/pub\.r2\.dev\/posts\/user-1\/.+\.jpg$/);
+    expect(result.key).toMatch(/^posts\/user-1\/.+\.jpg$/);
   });
 
   it("sanitizes filename", async () => {
-    const result = await createUploadUrl("my cool photo!@#.jpg", "image/jpeg");
+    const result = await createUploadUrl("my cool photo!@#.jpg", "image/jpeg", "user-1");
 
-    expect(result.key).toMatch(/^posts\/[\w-]+-my_cool_photo___\.jpg$/);
-    expect(result.publicUrl).toMatch(/^https:\/\/pub\.r2\.dev\/posts\/[\w-]+-my_cool_photo___\.jpg$/);
+    expect(result.key).toMatch(/^posts\/user-1\/[\w-]+-my_cool_photo___\.jpg$/);
+    expect(result.publicUrl).toMatch(/^https:\/\/pub\.r2\.dev\/posts\/user-1\/[\w-]+-my_cool_photo___\.jpg$/);
   });
 });
 

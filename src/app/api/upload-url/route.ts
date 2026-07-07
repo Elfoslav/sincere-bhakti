@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     const { uploadUrl, publicUrl } = await createUploadUrl(
       fileName,
       contentType,
+      session.user.id,
     );
 
     return NextResponse.json({
