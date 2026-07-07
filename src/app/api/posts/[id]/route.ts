@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError } from "@/lib/services/post";
 import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
-import { isTrustedMediaUrl, mediaItemSchema } from "@/lib/validation";
+import { isTrustedMediaUrl, updatePostSchema } from "@/lib/validation";
 import type { MediaInput } from "@/lib/services/post";
 
 export async function GET(
@@ -53,28 +53,20 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { content, isPublic, media } = body;
+    const parsed = updatePostSchema.safeParse(body);
 
-    if (content !== undefined && typeof content !== "string") {
-      return NextResponse.json({ error: "validation_error:content:invalid_type" }, { status: 400 });
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const field = issue.path[0] || "input";
+      return NextResponse.json(
+        { error: `validation_error:${String(field)}:${issue.code}` },
+        { status: 400 }
+      );
     }
-    if (isPublic !== undefined && typeof isPublic !== "boolean") {
-      return NextResponse.json({ error: "validation_error:isPublic:invalid_type" }, { status: 400 });
-    }
-    let parsedMedia: MediaInput[] | undefined;
-    if (media !== undefined) {
-      if (!Array.isArray(media)) {
-        return NextResponse.json({ error: "validation_error:media:invalid_type" }, { status: 400 });
-      }
-      parsedMedia = [];
-      for (const m of media) {
-        const result = mediaItemSchema.safeParse(m);
-        if (!result.success) {
-          return NextResponse.json({ error: "validation_error:media:invalid_item" }, { status: 400 });
-        }
-        parsedMedia.push(result.data);
-      }
 
+    const { content, isPublic, media: parsedMedia } = parsed.data;
+
+    if (parsedMedia !== undefined) {
       const storageDomain = process.env.R2_PUBLIC_URL;
       if (storageDomain) {
         for (const m of parsedMedia) {

@@ -105,22 +105,24 @@ export const mediaItemSchema = z.object({
   height: z.number().int().positive().max(MAX_MEDIA_DIMENSION).optional(),
 });
 
+const contentField = z.string().trim().max(5000).optional();
+const mediaField = z.array(mediaItemSchema).max(10).optional();
+
 export const createPostSchema = z.object({
-  content: z
-    .string()
-    .trim()
-    .max(5000)
-    .optional(),
-  media: z
-    .array(mediaItemSchema)
-    .max(10)
-    .optional()
-    .default([]),
+  content: contentField,
+  media: mediaField.default([]),
   isPublic: z.boolean().default(true),
   language: z.enum(locales).default("en"),
 }).refine(
   (data) => data.content || data.media.length > 0,
 );
+
+export const updatePostSchema = z.object({
+  content: contentField,
+  media: mediaField,
+  isPublic: z.boolean().optional(),
+  language: z.enum(locales).optional(),
+});
 
 export const updateNameSchema = z.object({
   name: z
