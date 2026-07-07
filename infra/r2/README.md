@@ -1,12 +1,11 @@
 # R2 bucket configuration
 
 Version-controlled CORS policies for the Cloudflare R2 buckets that back media
-uploads. Uploads go **browser → server → R2** via `POST /api/upload`
-(see `src/lib/services/upload.ts`), so CORS is no longer needed for uploads
-— the server signs `PutObjectCommand` calls directly.
+uploads. Uploads go **browser → R2 directly** via presigned PUT URLs
+(see `src/lib/services/upload.ts`), so CORS is required for the browser's
+cross-origin PUT requests.
 
-CORS is retained for backward compatibility in case old clients still use
-presigned PUT, and for any future direct-browser uploads.
+CORS must be applied before any uploads work in a given environment.
 
 ## Buckets
 

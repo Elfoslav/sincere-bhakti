@@ -2,7 +2,8 @@
   {
     "AllowedOrigins": [
       "https://www.sincerebhakti.com",
-      "https://sincerebhakti.com"
+      "https://sincerebhakti.com",
+      "https://*.vercel.app"
     ],
     "AllowedMethods": ["PUT"],
     "AllowedHeaders": ["content-type"],
