@@ -197,7 +197,7 @@ export async function deletePost(
   if (post.authorId !== userId) throw new ForbiddenError();
 
   await prisma.post.deleteMany({ where: { id, authorId: userId } });
-  await deleteMediaFiles(post.media.map((m) => m.url), userId);
+  await deleteMediaFiles(post.media.map((m) => m.url));
 }
 
 export async function updatePost(
@@ -253,7 +253,7 @@ export async function updatePost(
     const removed = existing.media.filter(
       (old) => !media.some((m) => m.url.split("#")[0] === old.url.split("#")[0]),
     );
-    await deleteMediaFiles(removed.map((m) => m.url), userId);
+    await deleteMediaFiles(removed.map((m) => m.url));
   }
 
   return post!;

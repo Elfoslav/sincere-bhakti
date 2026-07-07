@@ -68,6 +68,11 @@ export function getAcceptString(): string {
 export const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 export const MAX_VIDEO_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
 
+// Server-side: longest edge capped at 2048px. Client pre-resizes to this
+// so small uploads pass through; server re-resizes anything larger as a
+// safety net (bypassing client-side checks).
+export const MAX_IMAGE_DIMENSION = 2048;
+
 // Resolve the size limit for a given content type. Uploads are restricted to
 // image/* and video/* (see isAllowedUploadContentType); anything else falls
 // back to the stricter image limit.

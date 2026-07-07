@@ -12,6 +12,7 @@ import type { Post } from "@/types/post";
 import {
   MAX_IMAGE_SIZE_BYTES,
   MAX_VIDEO_SIZE_BYTES,
+  MAX_IMAGE_DIMENSION,
   maxUploadSizeForContentType,
   getAcceptString,
 } from "@/lib/validation";
@@ -164,36 +165,65 @@ export default function PostForm({
     dragItemId.current = null;
   }, []);
 
+  // Client-side canvas resize for images. Reduces upload size and gives the
+  // server less work. Returns null when no resize is needed (dimensions already
+  // within limits, or non-image).
+  async function maybeResizeImage(
+    file: File,
+    width: number,
+    height: number,
+  ): Promise<File | null> {
+    if (!file.type.startsWith("image/") || file.type === "image/gif") return null;
+    if (Math.max(width, height) <= MAX_IMAGE_DIMENSION) return null;
+
+    const img = await createImageBitmap(file);
+    try {
+      let newWidth: number, newHeight: number;
+      if (width > height) {
+        newWidth = MAX_IMAGE_DIMENSION;
+        newHeight = Math.round((height / width) * MAX_IMAGE_DIMENSION);
+      } else {
+        newHeight = MAX_IMAGE_DIMENSION;
+        newWidth = Math.round((width / height) * MAX_IMAGE_DIMENSION);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, newWidth, newHeight);
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85),
+      );
+      if (!blob) return null;
+      return new File([blob], file.name, { type: "image/jpeg" });
+    } finally {
+      img.close();
+    }
+  }
+
   async function uploadNewFiles(): Promise<MediaInput[]> {
     const toUpload = mediaItems.filter((m) => m.file);
     if (toUpload.length === 0) return [];
 
     const uploads = toUpload.map(async (item) => {
       const file = item.file!;
+      const resized = await maybeResizeImage(file, item.width ?? 0, item.height ?? 0);
+      const uploadFile = resized ?? file;
+
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+
       let res: Response;
       try {
-        res = await fetch("/api/upload-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileName: file.name, contentType: file.type }),
-        });
+        res = await fetch("/api/upload", { method: "POST", body: formData });
       } catch {
         return null;
       }
       if (!res.ok) return null;
-      const { uploadUrl, publicUrl, mediaType: mt } = await res.json();
-      let putRes: Response;
-      try {
-        putRes = await fetch(uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type || "application/octet-stream" },
-        });
-      } catch {
-        return null;
-      }
-      if (!putRes.ok) return null;
-      return { url: publicUrl, type: mt, width: item.width, height: item.height };
+      const data = await res.json();
+      return { url: data.publicUrl, type: data.mediaType, width: data.width, height: data.height };
     });
 
     const results = await Promise.allSettled(uploads);

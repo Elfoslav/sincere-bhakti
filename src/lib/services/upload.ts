@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import sharp from "sharp";
+import { MAX_IMAGE_DIMENSION } from "@/lib/validation";
 
 const REQUIRED_ENV_VARS = ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_PUBLIC_URL"] as const;
 
@@ -65,6 +67,63 @@ export async function createUploadUrl(
   return { uploadUrl, publicUrl, key };
 }
 
+export interface ProcessUploadResult {
+  publicUrl: string;
+  mediaType: string;
+  width: number | null;
+  height: number | null;
+  key: string;
+}
+
+export async function processAndUpload(
+  buffer: Buffer,
+  fileName: string,
+  contentType: string,
+  userId: string,
+): Promise<ProcessUploadResult> {
+  const client = getS3Client();
+  const key = objectKey(fileName, userId);
+  const bucket = process.env.R2_BUCKET ?? "sincere-bhakti-uploads";
+
+  let finalBuffer = buffer;
+  let finalType = contentType;
+  let width: number | null = null;
+  let height: number | null = null;
+
+  if (contentType.startsWith("image/") && contentType !== "image/gif") {
+    const image = sharp(buffer);
+    const meta = await image.metadata();
+    const srcW = meta.width ?? 0;
+    const srcH = meta.height ?? 0;
+
+    if (srcW > MAX_IMAGE_DIMENSION || srcH > MAX_IMAGE_DIMENSION) {
+      const resized = image.resize({
+        width: MAX_IMAGE_DIMENSION,
+        height: MAX_IMAGE_DIMENSION,
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+      finalBuffer = await resized.jpeg({ quality: 85 }).toBuffer();
+      finalType = "image/jpeg";
+    }
+
+    const finalMeta = await sharp(finalBuffer).metadata();
+    width = finalMeta.width ?? null;
+    height = finalMeta.height ?? null;
+  }
+
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    Body: finalBuffer,
+    ContentType: finalType,
+  });
+  await client.send(command);
+
+  const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+  return { publicUrl, mediaType: contentTypeToMediaType(contentType), width, height, key };
+}
+
 export function contentTypeToMediaType(contentType: string): string {
   if (contentType.startsWith("video/")) return "video";
   if (contentType.startsWith("image/")) return "image";
@@ -87,15 +146,14 @@ export function extractKey(url: string, storageDomain: string): string | null {
   }
 }
 
-export async function deleteMediaFiles(urls: string[], userId?: string): Promise<void> {
+export async function deleteMediaFiles(urls: string[]): Promise<void> {
   const storageDomain = process.env.R2_PUBLIC_URL;
   const bucket = process.env.R2_BUCKET;
   if (!storageDomain || !bucket) return;
 
   const keys = urls
     .map((u) => extractKey(u, storageDomain))
-    .filter((k): k is string => k !== null)
-    .filter((k) => !userId || k.startsWith(`posts/${userId}/`));
+    .filter((k): k is string => k !== null);
 
   if (keys.length === 0) return;
 
