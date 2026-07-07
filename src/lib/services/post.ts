@@ -196,7 +196,7 @@ export async function updatePost(
       }
     }
 
-    const [count] = await tx.post.updateMany({
+    const { count } = await tx.post.updateMany({
       where: { id, authorId: userId },
       data: postData,
     });
@@ -220,5 +220,5 @@ export async function updatePost(
     await deleteMediaFiles(removed.map((m) => m.url));
   }
 
-  return post;
+  return post!;
 }
