@@ -26,10 +26,12 @@ export function isTrustedMediaUrl(
   storageDomain: string,
 ): boolean {
   try {
+    const parsed = new URL(url);
     if (type === "youtube") {
-      return url.startsWith("https://www.youtube.com/embed/");
+      return parsed.origin === "https://www.youtube.com" && parsed.pathname.startsWith("/embed/");
     }
-    return url.startsWith(storageDomain);
+    const allowed = new URL(storageDomain);
+    return parsed.origin === allowed.origin;
   } catch {
     return false;
   }
