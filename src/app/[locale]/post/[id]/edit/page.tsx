@@ -14,13 +14,14 @@ import type { Post } from "@/types/post";
 export default function EditPostPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const t = useTranslations("EditPost");
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (status === "loading") return;
     let mounted = true;
     fetch(`/api/posts/${id}`)
       .then(async (r) => {
@@ -31,7 +32,7 @@ export default function EditPostPage() {
       })
       .then((data: Post) => {
         if (!mounted) return;
-        if (!session?.user?.id || session.user.id !== data.author.id) {
+        if (status !== "authenticated" || session?.user?.id !== data.author.id) {
           setError(t("forbidden"));
           setLoading(false);
           return;
@@ -46,7 +47,7 @@ export default function EditPostPage() {
         }
       });
     return () => { mounted = false; };
-  }, [id, session?.user?.id, t]);
+  }, [id, status, session?.user?.id, t]);
 
   if (loading) {
     return (
