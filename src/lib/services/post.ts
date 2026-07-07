@@ -122,6 +122,10 @@ export async function getPostById(id: string): Promise<PostResponse | null> {
   return post;
 }
 
+function canonicalizeUrl(url: string): string {
+  return url.split("?")[0].split("#")[0];
+}
+
 async function validateMediaOwnership(
   media: MediaInput[],
   userId: string,
@@ -139,13 +143,13 @@ async function validateMediaOwnership(
 
   // Check existing media in DB — if a record exists with a different userId, reject
   const existing = await prisma.media.findMany({
-    where: { url: { in: storageUrls.map((s) => s.item.url.split("#")[0]) } },
+    where: { url: { in: storageUrls.map((s) => canonicalizeUrl(s.item.url)) } },
     select: { url: true, userId: true },
   });
 
   for (const { item, key } of storageUrls) {
-    const url = item.url.split("#")[0];
-    const record = existing.find((r) => r.url === url);
+    const url = canonicalizeUrl(item.url);
+    const record = existing.find((r) => canonicalizeUrl(r.url) === url);
     if (record && record.userId !== userId) {
       throw new ForbiddenError("media_not_owned");
     }
@@ -194,7 +198,7 @@ export async function deletePost(
   if (!post) throw new NotFoundError();
   if (post.authorId !== userId) throw new ForbiddenError();
 
-  const urls = post.media.map((m) => m.url.split("#")[0]);
+  const urls = post.media.map((m) => canonicalizeUrl(m.url));
   const counts = await Promise.all(
     urls.map((url) => prisma.media.count({ where: { url } })),
   );
@@ -257,9 +261,9 @@ export async function updatePost(
   if (media !== undefined) {
     const removed = existing.media
       .filter(
-        (old) => !media.some((m) => m.url.split("#")[0] === old.url.split("#")[0]),
+        (old) => !media.some((m) => canonicalizeUrl(m.url) === canonicalizeUrl(old.url)),
       )
-      .map((m) => m.url.split("#")[0]);
+      .map((m) => canonicalizeUrl(m.url));
     const counts = await Promise.all(
       removed.map((url) => prisma.media.count({ where: { url } })),
     );
