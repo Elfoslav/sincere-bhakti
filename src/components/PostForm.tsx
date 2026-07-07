@@ -198,12 +198,13 @@ export default function PostForm({
 
     const results = await Promise.allSettled(uploads);
     const uploaded: MediaInput[] = [];
-    let failed = false;
     for (const r of results) {
-      if (r.status === "fulfilled" && r.value) uploaded.push(r.value);
-      else failed = true;
+      if (r.status === "fulfilled" && r.value) {
+        uploaded.push(r.value);
+      } else {
+        throw new Error("upload_failed");
+      }
     }
-    if (failed) toast.error(t("uploadFailed"));
     return uploaded;
   }
 
@@ -223,29 +224,29 @@ export default function PostForm({
       ? trimmed.replace(/https?:\/\/\S*(?:youtube\.com|youtu\.be)\S*/gi, "").trim()
       : trimmed;
 
-    const uploaded = await uploadNewFiles();
-    const media: MediaInput[] = [];
-
-    let uploadIdx = 0;
-    for (const item of mediaItems) {
-      if (item.file) {
-        if (uploaded[uploadIdx]) media.push(uploaded[uploadIdx]);
-        uploadIdx++;
-      } else if (item.url) {
-        media.push({
-          url: item.url,
-          type: item.type,
-          width: item.width,
-          height: item.height,
-        });
-      }
-    }
-
-    if (youtubeUrl) {
-      media.push({ url: youtubeUrl, type: "youtube" });
-    }
-
     try {
+      const uploaded = await uploadNewFiles();
+      const media: MediaInput[] = [];
+
+      let uploadIdx = 0;
+      for (const item of mediaItems) {
+        if (item.file) {
+          media.push(uploaded[uploadIdx]);
+          uploadIdx++;
+        } else if (item.url) {
+          media.push({
+            url: item.url,
+            type: item.type,
+            width: item.width,
+            height: item.height,
+          });
+        }
+      }
+
+      if (youtubeUrl) {
+        media.push({ url: youtubeUrl, type: "youtube" });
+      }
+
       const url = mode === "edit" && postId ? `/api/posts/${postId}` : "/api/posts";
       const method = mode === "edit" ? "PATCH" : "POST";
       const body: Record<string, unknown> = {
@@ -274,8 +275,12 @@ export default function PostForm({
       } else {
         toast.error(mode === "edit" ? t("updatePostFailed") : t("createPostFailed"));
       }
-    } catch {
-      toast.error(mode === "edit" ? t("updatePostFailed") : t("createPostFailed"));
+    } catch (err) {
+      if (err instanceof Error && err.message === "upload_failed") {
+        toast.error(t("uploadFailed"));
+      } else {
+        toast.error(mode === "edit" ? t("updatePostFailed") : t("createPostFailed"));
+      }
     }
 
     setSubmitting(false);
