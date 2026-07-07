@@ -129,7 +129,13 @@ export const updatePostSchema = z.object({
   media: mediaField,
   isPublic: z.boolean().optional(),
   language: z.enum(locales).optional(),
-});
+}).refine(
+  (data) => {
+    const clearContent = data.content === null || data.content === "";
+    const clearMedia = Array.isArray(data.media) && data.media.length === 0;
+    return !(clearContent && clearMedia);
+  },
+);
 
 export const updateNameSchema = z.object({
   name: z

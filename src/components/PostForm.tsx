@@ -303,7 +303,13 @@ export default function PostForm({
         toast.success(mode === "edit" ? t("postUpdated") : t("postPublished"));
         onSuccess(post);
       } else {
-        toast.error(mode === "edit" ? t("updatePostFailed") : t("createPostFailed"));
+        const body = await res.json().catch(() => ({}));
+        const err = body?.error ?? "";
+        if (err === "validation_error:input:custom") {
+          toast.error(t("nothingToPost"));
+        } else {
+          toast.error(mode === "edit" ? t("updatePostFailed") : t("createPostFailed"));
+        }
       }
     } catch (err) {
       if (err instanceof Error && err.message === "upload_failed") {
