@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -83,6 +83,7 @@ export default function PostForm({
   onCancel,
 }: PostFormProps) {
   const { data: session } = useSession();
+  const locale = useLocale();
   const t = useTranslations("PostsPage");
   const [content, setContent] = useState(initialContent);
   const [isPublic, setIsPublic] = useState(initialIsPublic);
@@ -250,6 +251,7 @@ export default function PostForm({
       const body: Record<string, unknown> = {
         content: postContent || undefined,
         isPublic,
+        language: mode === "create" ? locale : undefined,
         media: media.length > 0 ? media : undefined,
       };
 
