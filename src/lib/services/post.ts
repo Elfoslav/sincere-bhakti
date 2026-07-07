@@ -196,8 +196,15 @@ export async function deletePost(
   if (!post) throw new NotFoundError();
   if (post.authorId !== userId) throw new ForbiddenError();
 
+  const urls = post.media.map((m) => m.url.split("#")[0]);
+  const counts = await Promise.all(
+    urls.map((url) => prisma.media.count({ where: { url } })),
+  );
+
   await prisma.post.deleteMany({ where: { id, authorId: userId } });
-  await deleteMediaFiles(post.media.map((m) => m.url));
+
+  const orphaned = urls.filter((_, i) => counts[i] <= 1);
+  await deleteMediaFiles(orphaned);
 }
 
 export async function updatePost(
@@ -250,10 +257,16 @@ export async function updatePost(
   });
 
   if (media !== undefined) {
-    const removed = existing.media.filter(
-      (old) => !media.some((m) => m.url.split("#")[0] === old.url.split("#")[0]),
+    const removed = existing.media
+      .filter(
+        (old) => !media.some((m) => m.url.split("#")[0] === old.url.split("#")[0]),
+      )
+      .map((m) => m.url.split("#")[0]);
+    const counts = await Promise.all(
+      removed.map((url) => prisma.media.count({ where: { url } })),
     );
-    await deleteMediaFiles(removed.map((m) => m.url));
+    const orphaned = removed.filter((_, i) => counts[i] <= 1);
+    await deleteMediaFiles(orphaned);
   }
 
   return post!;
