@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { deleteMediaFiles } from "@/lib/services/upload";
 import type { Prisma } from "@prisma/client";
 
 export class UnauthorizedError extends Error {
@@ -153,15 +154,15 @@ export async function deletePost(
   id: string,
   userId: string,
 ): Promise<void> {
-  const result = await prisma.post.deleteMany({
-    where: { id, authorId: userId },
+  const post = await prisma.post.findUnique({
+    where: { id },
+    include: { media: { select: { url: true } } },
   });
+  if (!post) throw new NotFoundError();
+  if (post.authorId !== userId) throw new ForbiddenError();
 
-  if (result.count === 0) {
-    const existing = await prisma.post.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundError();
-    throw new ForbiddenError();
-  }
+  await prisma.post.deleteMany({ where: { id, authorId: userId } });
+  await deleteMediaFiles(post.media.map((m) => m.url));
 }
 
 export async function updatePost(
@@ -169,7 +170,10 @@ export async function updatePost(
   userId: string,
   data: UpdatePostData,
 ): Promise<PostResponse> {
-  const existing = await prisma.post.findUnique({ where: { id } });
+  const existing = await prisma.post.findUnique({
+    where: { id },
+    include: { media: { select: { url: true } } },
+  });
   if (!existing) throw new NotFoundError();
   if (existing.authorId !== userId) throw new ForbiddenError();
 
@@ -199,6 +203,13 @@ export async function updatePost(
       include: postInclude,
     });
   });
+
+  if (media !== undefined) {
+    const removed = existing.media.filter(
+      (old) => !media.some((m) => m.url.split("#")[0] === old.url.split("#")[0]),
+    );
+    await deleteMediaFiles(removed.map((m) => m.url));
+  }
 
   return post;
 }

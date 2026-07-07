@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const REQUIRED_ENV_VARS = ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_PUBLIC_URL"] as const;
@@ -68,4 +68,44 @@ export function contentTypeToMediaType(contentType: string): string {
   if (contentType.startsWith("video/")) return "video";
   if (contentType.startsWith("image/")) return "image";
   return "file";
+}
+
+function extractKey(url: string, storageDomain: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const allowed = new URL(storageDomain);
+    if (parsed.origin !== allowed.origin) return null;
+    const path = parsed.pathname;
+    const base = allowed.pathname.replace(/\/+$/, "") || "/";
+    const prefix = base === "/" ? "/" : base + "/";
+    if (!path.startsWith(prefix)) return null;
+    const key = path.slice(prefix.length);
+    return key || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteMediaFiles(urls: string[]): Promise<void> {
+  const storageDomain = process.env.R2_PUBLIC_URL;
+  const bucket = process.env.R2_BUCKET;
+  if (!storageDomain || !bucket) return;
+
+  const keys = urls
+    .map((u) => extractKey(u, storageDomain))
+    .filter((k): k is string => k !== null);
+
+  if (keys.length === 0) return;
+
+  try {
+    const client = getS3Client();
+    await Promise.all(
+      keys.map((key) =>
+        client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })),
+      ),
+    );
+  } catch {
+    // Logged but not thrown — cleanup failure should not break the request.
+    console.error("Failed to delete media files from R2:", keys);
+  }
 }

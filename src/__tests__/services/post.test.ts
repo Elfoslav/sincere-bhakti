@@ -8,6 +8,7 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn(),
       update: vi.fn(),
       deleteMany: vi.fn(),
+      delete: vi.fn(),
     },
     media: {
       deleteMany: vi.fn(),
@@ -252,25 +253,31 @@ describe("createPost", () => {
 
 describe("deletePost", () => {
   it("deletes own post", async () => {
-    vi.mocked(prisma.post.deleteMany).mockResolvedValue({ count: 1 });
+    vi.mocked(prisma.post.findUnique).mockResolvedValue({
+      ...basePost,
+      media: [],
+    });
+    vi.mocked(prisma.post.delete).mockResolvedValue({ ...basePost, media: [] });
 
     await deletePost("post-1", "user-1");
 
+    expect(prisma.post.findUnique).toHaveBeenCalledWith({
+      where: { id: "post-1" },
+      include: { media: { select: { url: true } } },
+    });
     expect(prisma.post.deleteMany).toHaveBeenCalledWith({
       where: { id: "post-1", authorId: "user-1" },
     });
   });
 
   it("throws when post not found", async () => {
-    vi.mocked(prisma.post.deleteMany).mockResolvedValue({ count: 0 });
     vi.mocked(prisma.post.findUnique).mockResolvedValue(null);
 
     await expect(deletePost("missing", "user-1")).rejects.toThrow(NotFoundError);
   });
 
   it("throws when not the author", async () => {
-    vi.mocked(prisma.post.deleteMany).mockResolvedValue({ count: 0 });
-    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
+    vi.mocked(prisma.post.findUnique).mockResolvedValue({ ...basePost, media: [] });
 
     await expect(deletePost("post-1", "user-2")).rejects.toThrow(ForbiddenError);
   });
