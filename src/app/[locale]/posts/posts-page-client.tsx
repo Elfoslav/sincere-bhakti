@@ -30,7 +30,7 @@ export default function PostsPageClient() {
     loadingMore: myLoadingMore,
     hasMore: myHasMore,
     sentinelRef: mySentinelRef,
-  } = useInfinitePosts({ disabled: !session, language: locale });
+  } = useInfinitePosts({ scope: "private", disabled: !session, language: locale });
 
   const myPublicPosts = useMemo(() => myPosts.filter((p) => p.isPublic), [myPosts]);
   const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);

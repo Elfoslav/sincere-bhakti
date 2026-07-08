@@ -255,15 +255,17 @@ export async function updatePost(
       throw new ForbiddenError();
     }
 
-    return tx.post.findUnique({
+    const updated = await tx.post.findUnique({
       where: { id },
       include: postInclude,
     })!;
-  });
 
-  if (post && !post.content && post.media.length === 0) {
-    throw new ValidationError("post_must_have_content_or_media");
-  }
+    if (updated && !updated.content && updated.media.length === 0) {
+      throw new ValidationError("post_must_have_content_or_media");
+    }
+
+    return updated;
+  });
 
   if (media !== undefined) {
     const removed = existing.media
