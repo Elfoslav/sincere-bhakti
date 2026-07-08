@@ -5,7 +5,6 @@ import { routing } from "@/i18n/routing";
 import { getSiteUrl } from "@/lib/url";
 import { Toaster } from "sonner";
 import Navbar from "@/components/Navbar";
-import Providers from "@/components/Providers";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -77,7 +76,6 @@ export default async function LocaleLayout({ children, params }: Props) {
     >
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider messages={messages}>
-          <Providers>
             <Navbar />
             <main className="flex-1">{children}</main>
             <Toaster position="bottom-right" richColors closeButton />
@@ -87,7 +85,6 @@ export default async function LocaleLayout({ children, params }: Props) {
                 <p>{commonT("footerLine2")}</p>
               </div>
             </footer>
-          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>

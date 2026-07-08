@@ -157,4 +157,7 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 - **No dead exports.** If a type in `src/types/` has zero imports, remove it.
 - **No ambient declarations.** Prefer explicit `import type` over `.d.ts` ambient types.
 - **Import types with `type` prefix** when only the type is needed: `import type { Foo } from "@/types/foo"`.
+
+## Auth / Session
+- Use `status === "authenticated"` (from `useSession()`) for conditional rendering of auth-gated UI (profile link, logout button). The `status` string is stable during client-side navigation and doesn't flash. Do NOT use `session &&` — the `session` object can briefly become `null` during re-renders triggered by locale navigation, causing visible flicker.
 <!-- END:agent-checklist -->

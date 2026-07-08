@@ -1,4 +1,5 @@
 import type { Viewport, Metadata } from "next";
+import Providers from "@/components/Providers";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -16,5 +17,5 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return children;
+  return <Providers>{children}</Providers>;
 }
