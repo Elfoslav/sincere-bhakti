@@ -153,7 +153,7 @@ export const updateNameSchema = z.object({
 });
 
 export const paginationSchema = z.object({
-  scope: z.literal("public").optional(),
+  scope: z.enum(["public", "private"]).optional(),
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(10),
   authorId: z.string().min(1).optional(),

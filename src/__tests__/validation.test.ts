@@ -285,8 +285,13 @@ describe("paginationSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects invalid scope", () => {
+  it("accepts private scope", () => {
     const result = paginationSchema.safeParse({ scope: "private" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid scope", () => {
+    const result = paginationSchema.safeParse({ scope: "invalid" });
     expect(result.success).toBe(false);
   });
 
