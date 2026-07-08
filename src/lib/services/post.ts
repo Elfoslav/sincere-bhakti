@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import type { Prisma } from "@prisma/client";
+import type { PostAuthor } from "@/types/post";
 
 export class UnauthorizedError extends Error {
   name = "UnauthorizedError" as const;
@@ -10,17 +12,16 @@ export class NotFoundError extends Error {
 export class ForbiddenError extends Error {
   name = "ForbiddenError" as const;
 }
-
-export interface PostAuthor {
-  id: string;
-  name: string | null;
-  image: string | null;
+export class ValidationError extends Error {
+  name = "ValidationError" as const;
 }
 
 export interface PostMedia {
   url: string;
   type: string;
   position: number;
+  width: number | null;
+  height: number | null;
 }
 
 export interface PostResponse {
@@ -33,7 +34,7 @@ export interface PostResponse {
 }
 
 export interface GetPostsParams {
-  scope?: "public";
+  scope?: "public" | "private";
   cursor?: string;
   limit?: number;
   authorId?: string;
@@ -45,11 +46,25 @@ export interface GetPostsResult {
   hasMore: boolean;
 }
 
+export interface MediaInput {
+  url: string;
+  type: string;
+  width?: number;
+  height?: number;
+}
+
 export interface CreatePostData {
+  id?: string;
   content?: string;
-  media?: { url: string; type: string }[];
+  media?: MediaInput[];
   isPublic?: boolean;
   language?: string;
+}
+
+export interface UpdatePostData {
+  content?: string | null;
+  isPublic?: boolean;
+  media?: MediaInput[];
 }
 
 const postInclude = {
@@ -105,14 +120,50 @@ export async function getPostById(id: string): Promise<PostResponse | null> {
   return post;
 }
 
+function canonicalizeUrl(url: string): string {
+  return url.split("?")[0].split("#")[0];
+}
+
+async function validateMediaOwnership(
+  media: MediaInput[],
+  userId: string,
+): Promise<void> {
+  const storageDomain = process.env.R2_PUBLIC_URL;
+  if (!storageDomain) return;
+
+  // Filter to storage-origin URLs using origin comparison (not startsWith)
+  const storageUrls: { item: MediaInput; key: string }[] = [];
+  for (const item of media) {
+    const key = extractKey(item.url, storageDomain);
+    if (key) storageUrls.push({ item, key });
+  }
+  if (storageUrls.length === 0) return;
+
+  // Check existing media in DB — if a record exists with a different userId, reject
+  const existing = await prisma.media.findMany({
+    where: { url: { in: storageUrls.map((s) => canonicalizeUrl(s.item.url)) } },
+    select: { url: true, userId: true },
+  });
+
+  for (const { item } of storageUrls) {
+    const url = canonicalizeUrl(item.url);
+    const record = existing.find((r) => canonicalizeUrl(r.url) === url);
+    if (record && record.userId !== userId) {
+      throw new ForbiddenError("media_not_owned");
+    }
+  }
+}
+
 export async function createPost(
   data: CreatePostData,
   userId: string,
 ): Promise<PostResponse> {
-  const { content, media = [], isPublic = true, language = "en" } = data;
+  const { id, content, media = [], isPublic = true, language = "en" } = data;
+  await validateMediaOwnership(media, userId);
 
   const post = await prisma.post.create({
     data: {
+      ...(id ? { id } : {}),
       content: content || null,
       isPublic,
       language,
@@ -122,6 +173,8 @@ export async function createPost(
           url: m.url,
           type: m.type,
           position: i,
+          width: m.width ?? null,
+          height: m.height ?? null,
           userId,
         })),
       },
@@ -136,13 +189,89 @@ export async function deletePost(
   id: string,
   userId: string,
 ): Promise<void> {
-  const result = await prisma.post.deleteMany({
-    where: { id, authorId: userId },
+  const post = await prisma.post.findUnique({
+    where: { id },
+    include: { media: { select: { url: true } } },
+  });
+  if (!post) throw new NotFoundError();
+  if (post.authorId !== userId) throw new ForbiddenError();
+
+  const urls = post.media.map((m) => canonicalizeUrl(m.url));
+
+  await prisma.post.deleteMany({ where: { id, authorId: userId } });
+
+  const counts = await Promise.all(
+    urls.map((url) => prisma.media.count({ where: { url } })),
+  );
+  const orphaned = urls.filter((_, i) => counts[i] === 0);
+  await deleteMediaFiles(orphaned);
+}
+
+export async function updatePost(
+  id: string,
+  userId: string,
+  data: UpdatePostData,
+): Promise<PostResponse> {
+  const existing = await prisma.post.findUnique({
+    where: { id },
+    include: { media: { select: { url: true } } },
+  });
+  if (!existing) throw new NotFoundError();
+
+  const { media, ...postData } = data;
+  if (media !== undefined) await validateMediaOwnership(media, userId);
+
+  const post = await prisma.$transaction(async (tx) => {
+    if (media !== undefined) {
+      await tx.media.deleteMany({ where: { postId: id } });
+      if (media.length > 0) {
+        await tx.media.createMany({
+          data: media.map((m, i) => ({
+            url: m.url,
+            type: m.type,
+            position: i,
+            width: m.width ?? null,
+            height: m.height ?? null,
+            postId: id,
+            userId,
+          })),
+        });
+      }
+    }
+
+    const { count } = await tx.post.updateMany({
+      where: { id, authorId: userId },
+      data: postData,
+    });
+
+    if (count === 0) {
+      throw new NotFoundError();
+    }
+
+    const updated = await tx.post.findUnique({
+      where: { id },
+      include: postInclude,
+    })!;
+
+    if (updated && !updated.content && updated.media.length === 0) {
+      throw new ValidationError("post_must_have_content_or_media");
+    }
+
+    return updated;
   });
 
-  if (result.count === 0) {
-    const existing = await prisma.post.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundError();
-    throw new ForbiddenError();
+  if (media !== undefined) {
+    const removed = existing.media
+      .filter(
+        (old) => !media.some((m) => canonicalizeUrl(m.url) === canonicalizeUrl(old.url)),
+      )
+      .map((m) => canonicalizeUrl(m.url));
+    const counts = await Promise.all(
+      removed.map((url) => prisma.media.count({ where: { url } })),
+    );
+    const orphaned = removed.filter((_, i) => counts[i] === 0);
+    await deleteMediaFiles(orphaned);
   }
+
+  return post!;
 }

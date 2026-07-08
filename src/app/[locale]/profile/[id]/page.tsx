@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
@@ -16,15 +16,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
-
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  image: string | null;
-  createdAt: string;
-}
+import type { UserProfile } from "@/types/user";
+import type { Post } from "@/types/post";
 
 export default function ProfilePage() {
   const params = useParams();
@@ -41,14 +36,24 @@ export default function ProfilePage() {
   const isOwnProfile = session?.user?.id === authorId;
 
   const {
-    posts,
-    loading: postsLoading,
-    loadingMore,
-    hasMore,
-    sentinelRef,
-  } = useInfinitePosts({ authorId, disabled: !authorId });
+    posts: publicPosts,
+    setPosts: setPublicPosts,
+    loading: publicLoading,
+    loadingMore: publicLoadingMore,
+    hasMore: publicHasMore,
+    sentinelRef: publicSentinelRef,
+  } = useInfinitePosts({ authorId, disabled: !authorId, language: locale });
 
-  const loading = profileLoading || postsLoading;
+  const {
+    posts: myPosts,
+    setPosts: setMyPosts,
+    loading: myPostsLoading,
+    loadingMore: myPostsLoadingMore,
+    hasMore: myPostsHasMore,
+    sentinelRef: myPostsSentinelRef,
+  } = useInfinitePosts({ scope: "private", disabled: !isOwnProfile, language: locale });
+
+  const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);
 
   useEffect(() => {
     if (!authorId) return;
@@ -86,7 +91,12 @@ export default function ProfilePage() {
     }
   }
 
-  if (loading) {
+  const handleDelete = useCallback((id: string) => {
+    setPublicPosts((prev) => prev.filter((p) => p.id !== id));
+    setMyPosts((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  if (profileLoading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
         <div className="bg-white rounded-lg shadow-md p-6 border border-sand text-center space-y-4">
@@ -113,6 +123,50 @@ export default function ProfilePage() {
     month: "long",
     day: "numeric",
   });
+
+  function renderPostList(
+    posts: Post[],
+    loading: boolean,
+    loadingMore: boolean,
+    hasMore: boolean,
+    sentinelRef: (node: HTMLDivElement | null) => void,
+    emptyKey: string,
+  ) {
+    if (loading) {
+      return (
+        <div className="space-y-4">
+          <PostCardSkeleton />
+          <PostCardSkeleton />
+          <PostCardSkeleton />
+        </div>
+      );
+    }
+    if (posts.length === 0) {
+      return (
+        <p className="text-center text-deep/50 py-8 bg-white/60 rounded-lg border border-sand">
+          {t(emptyKey)}
+        </p>
+      );
+    }
+    return (
+      <div>
+        <div className="space-y-4">
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} currentUserId={session?.user?.id} onDelete={handleDelete} />
+          ))}
+        </div>
+        {hasMore && (
+          <div ref={sentinelRef} className="flex justify-center py-8">
+            {loadingMore ? (
+              <p className="text-deep/50 text-sm">{t("loadingMore")}</p>
+            ) : (
+              <div className="w-6 h-6" />
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -166,30 +220,28 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      <h2 className="text-xl font-semibold text-deep mb-4">
-        {t("publicPosts", { count: posts.length })}
-      </h2>
+      {isOwnProfile ? (
+        <TabsRoot defaultValue="my-public">
+          <TabsList>
+            <TabsTab value="my-public">{t("myPublicPosts", { count: publicPosts.length })}</TabsTab>
+            <TabsTab value="my-private">{t("myPrivatePosts", { count: myPrivatePosts.length })}</TabsTab>
+          </TabsList>
 
-      {posts.length === 0 ? (
-        <p className="text-center text-deep/50 py-8 bg-white/60 rounded-lg border border-sand">
-          {t("noPosts")}
-        </p>
+          <TabsPanel value="my-public">
+            {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPosts")}
+          </TabsPanel>
+
+          <TabsPanel value="my-private">
+            {renderPostList(myPrivatePosts, myPostsLoading, myPostsLoadingMore, myPostsHasMore, myPostsSentinelRef, "noPrivatePosts")}
+          </TabsPanel>
+        </TabsRoot>
       ) : (
-        <div className="space-y-4">
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} currentUserId={session?.user?.id} />
-          ))}
-        </div>
-      )}
-
-      {hasMore && posts.length > 0 && (
-        <div ref={sentinelRef} className="flex justify-center py-8">
-          {loadingMore ? (
-            <p className="text-deep/50 text-sm">{t("loadingMore")}</p>
-          ) : (
-            <div className="w-6 h-6" />
-          )}
-        </div>
+        <>
+          <h2 className="text-xl font-semibold text-deep mb-4">
+            {t("publicPosts", { count: publicPosts.length })}
+          </h2>
+          {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPosts")}
+        </>
       )}
     </div>
   );

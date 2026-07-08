@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
-import { rateLimit, rateLimitKey } from "./rate-limit";
+import { rateLimit, rateLimitKey, RATE_LIMITS } from "./rate-limit";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -19,7 +19,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           req?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
           "unknown";
 
-        const { allowed } = await rateLimit(rateLimitKey("login", ip), 10, 900_000);
+        const { allowed } = await rateLimit(rateLimitKey("login", ip), RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs);
         if (!allowed) return null;
 
         const user = await prisma.user.findUnique({

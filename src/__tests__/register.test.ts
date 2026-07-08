@@ -93,7 +93,7 @@ describe("POST /api/register", () => {
     const json = await res.json();
 
     expect(res.status).toBe(429);
-    expect(json.error).toContain("Too many attempts"); // kept readable for rate limit
+    expect(json.error).toBe("too_many_requests");
   });
 
   it("returns 500 on server error", async () => {

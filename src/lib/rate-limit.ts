@@ -2,6 +2,25 @@ import { prisma } from "@/lib/prisma";
 
 const memStore = new Map<string, { count: number; resetAt: number }>();
 
+export const RATE_LIMITS = {
+  // Registration: 5 attempts per hour per IP
+  register: { limit: 5, windowMs: 3_600_000 },
+  // Login: 10 attempts per 15 minutes per IP
+  login: { limit: 10, windowMs: 900_000 },
+  // Post creation: 20 per hour per user
+  createPost: { limit: 20, windowMs: 3_600_000 },
+  // Post update: 30 per hour per user
+  updatePost: { limit: 30, windowMs: 3_600_000 },
+  // Post deletion: 30 per hour per user
+  deletePost: { limit: 30, windowMs: 3_600_000 },
+  // File upload (and cleanup): 60 per hour per user (production only)
+  upload: { limit: 60, windowMs: 3_600_000 },
+  // Presigned upload URL generation: 20 per hour per user
+  uploadUrl: { limit: 20, windowMs: 3_600_000 },
+  // Profile update: 10 per hour per user
+  updateProfile: { limit: 10, windowMs: 3_600_000 },
+} as const;
+
 const CLEANUP_INTERVAL = 60_000;
 let lastCleanup = Date.now();
 

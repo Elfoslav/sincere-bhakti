@@ -1,50 +1,79 @@
-"use client";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { getPostById } from "@/lib/services/post";
+import { auth } from "@/lib/auth";
+import { selectOgImageUrl } from "@/lib/og";
+import PostDetailClient from "./post-detail-client";
+import { getSiteUrl } from "@/lib/url";
+import type { Post, MediaType } from "@/types/post";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { useTranslations } from "next-intl";
-import PostCard from "@/components/PostCard";
-import { PostCardSkeleton } from "@/components/ui/skeleton";
-import type { Post } from "@/types/post";
+const siteUrl = getSiteUrl();
 
-export default function SinglePostPage() {
-  const { id } = useParams<{ id: string }>();
-  const t = useTranslations("SinglePost");
-  const [post, setPost] = useState<Post | null>(null);
-  const [error, setError] = useState<string | null>(null);
+type Params = { locale: string; id: string };
 
-  useEffect(() => {
-    let mounted = true;
-    fetch(`/api/posts/${id}`)
-      .then(async (r) => {
-        if (r.status === 404) throw new Error(t("notFound"));
-        if (!r.ok) throw new Error(t("loadError"));
-        return r.json();
-      })
-      .then((data) => { if (mounted) setPost(data); })
-      .catch((e) => { if (mounted) setError(e.message); });
-    return () => { mounted = false; };
-  }, [id, t]);
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<Params>;
+}): Promise<Metadata> {
+  const { locale, id } = await params;
 
-  if (error) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <p className="text-deep/60">{error}</p>
-      </div>
-    );
-  }
+  const post = await getPostById(id);
+  if (!post || !post.isPublic) return {};
 
-  if (!post) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <PostCardSkeleton />
-      </div>
-    );
-  }
+  const ogTitle = post.content ? post.content.slice(0, 60) : undefined;
+  const ogDescription = post.content ? post.content.slice(0, 160) : undefined;
 
-  return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <PostCard post={post} />
-    </div>
-  );
+  const postImage = selectOgImageUrl(post.media);
+  const ogUrl = postImage ?? "/images/sincere-bhakti-logo.png";
+  const selected = postImage
+    ? post.media.find((m) => m.url === postImage)
+    : undefined;
+
+  const ogImages =
+    selected?.width && selected?.height
+      ? [{ url: ogUrl, width: selected.width, height: selected.height }]
+      : postImage
+        ? [{ url: ogUrl }]
+        : [{ url: ogUrl, width: 603, height: 414 }];
+
+  return {
+    title: ogTitle || "Post",
+    description: ogDescription,
+    openGraph: {
+      title: ogTitle,
+      description: ogDescription,
+      type: "article",
+      locale: locale === "en" ? "en_US" : locale === "cs" ? "cs_CZ" : "sk_SK",
+      url: `${siteUrl}/${locale}/post/${id}`,
+      images: ogImages,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: ogTitle,
+      description: ogDescription,
+      images: [ogUrl],
+    },
+  };
+}
+
+export default async function PostPage({
+  params,
+}: {
+  params: Promise<Params>;
+}) {
+  const { id } = await params;
+
+  const [post, session] = await Promise.all([getPostById(id), auth()]);
+
+  if (!post) notFound();
+  if (!post.isPublic && session?.user?.id !== post.author.id) notFound();
+
+  const serialized: Post = {
+    ...post,
+    createdAt: post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt,
+    media: post.media.map((m) => ({ ...m, type: m.type as MediaType })),
+  };
+
+  return <PostDetailClient post={serialized} />;
 }

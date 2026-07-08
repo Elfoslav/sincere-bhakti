@@ -2,12 +2,16 @@ import { describe, it, expect } from "vitest";
 import {
   registerSchema,
   createPostSchema,
+  updatePostSchema,
   updateNameSchema,
   paginationSchema,
   uploadUrlSchema,
   maxUploadSizeForContentType,
   MAX_IMAGE_SIZE_BYTES,
   MAX_VIDEO_SIZE_BYTES,
+  getAcceptString,
+  ALLOWED_UPLOAD_CONTENT_TYPES,
+  isTrustedMediaUrl,
 } from "@/lib/validation";
 
 describe("registerSchema", () => {
@@ -113,6 +117,30 @@ describe("createPostSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts optional media dimensions", () => {
+    const result = createPostSchema.safeParse({
+      media: [{ url: "https://example.com/i.jpg", type: "image", width: 1600, height: 900 }],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.media[0].width).toBe(1600);
+      expect(result.data.media[0].height).toBe(900);
+    }
+  });
+
+  it("rejects non-positive or non-integer dimensions", () => {
+    expect(
+      createPostSchema.safeParse({
+        media: [{ url: "https://example.com/i.jpg", type: "image", width: 0, height: 900 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      createPostSchema.safeParse({
+        media: [{ url: "https://example.com/i.jpg", type: "image", width: 12.5, height: 900 }],
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects javascript: media URL", () => {
     const result = createPostSchema.safeParse({
       media: [{ url: "javascript:alert(1)", type: "file" }],
@@ -173,6 +201,45 @@ describe("createPostSchema", () => {
   });
 });
 
+describe("updatePostSchema", () => {
+  it("accepts content-only update", () => {
+    const result = updatePostSchema.safeParse({ content: "Updated!" });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts media-only update", () => {
+    const result = updatePostSchema.safeParse({
+      media: [{ url: "https://example.com/img.jpg", type: "image" }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts clearing content while keeping media", () => {
+    const result = updatePostSchema.safeParse({ content: null });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts clearing media while keeping content", () => {
+    const result = updatePostSchema.safeParse({ media: [] });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects clearing both content and media simultaneously", () => {
+    const result = updatePostSchema.safeParse({ content: null, media: [] });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects clearing both with empty content string and empty media", () => {
+    const result = updatePostSchema.safeParse({ content: "", media: [] });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts changing visibility only", () => {
+    const result = updatePostSchema.safeParse({ isPublic: false });
+    expect(result.success).toBe(true);
+  });
+});
+
 describe("updateNameSchema", () => {
   it("accepts valid name", () => {
     const result = updateNameSchema.safeParse({ name: "New Name" });
@@ -218,8 +285,13 @@ describe("paginationSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects invalid scope", () => {
+  it("accepts private scope", () => {
     const result = paginationSchema.safeParse({ scope: "private" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid scope", () => {
+    const result = paginationSchema.safeParse({ scope: "invalid" });
     expect(result.success).toBe(false);
   });
 
@@ -242,17 +314,23 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "photo.jpg",
       contentType: "image/jpeg",
+      postId: "post-123",
     });
     expect(result.success).toBe(true);
   });
 
   it("rejects missing fileName", () => {
-    const result = uploadUrlSchema.safeParse({ contentType: "image/jpeg" });
+    const result = uploadUrlSchema.safeParse({ contentType: "image/jpeg", postId: "post-123" });
     expect(result.success).toBe(false);
   });
 
   it("rejects missing contentType", () => {
-    const result = uploadUrlSchema.safeParse({ fileName: "photo.jpg" });
+    const result = uploadUrlSchema.safeParse({ fileName: "photo.jpg", postId: "post-123" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing postId", () => {
+    const result = uploadUrlSchema.safeParse({ fileName: "photo.jpg", contentType: "image/jpeg" });
     expect(result.success).toBe(false);
   });
 
@@ -260,6 +338,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "",
       contentType: "image/jpeg",
+      postId: "post-123",
     });
     expect(result.success).toBe(false);
   });
@@ -268,6 +347,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "a".repeat(256),
       contentType: "image/jpeg",
+      postId: "post-123",
     });
     expect(result.success).toBe(false);
   });
@@ -276,6 +356,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "photo.jpg",
       contentType: "a".repeat(256),
+      postId: "post-123",
     });
     expect(result.success).toBe(false);
   });
@@ -284,6 +365,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "clip.mp4",
       contentType: "video/mp4",
+      postId: "post-123",
     });
     expect(result.success).toBe(true);
   });
@@ -292,8 +374,37 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "page.html",
       contentType: "text/html",
+      postId: "post-123",
     });
     expect(result.success).toBe(false);
+  });
+
+  it("rejects SVG uploads (stored XSS risk)", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "image.svg",
+      contentType: "image/svg+xml",
+      postId: "post-123",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts video/ogg", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "clip.ogv",
+      contentType: "video/ogg",
+      postId: "post-123",
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("getAcceptString", () => {
+  it("includes every allowed content type", () => {
+    const accept = getAcceptString();
+    for (const ct of ALLOWED_UPLOAD_CONTENT_TYPES) {
+      expect(accept).toContain(ct);
+    }
+    expect(accept.split(",")).toHaveLength(ALLOWED_UPLOAD_CONTENT_TYPES.length);
   });
 });
 
@@ -315,5 +426,33 @@ describe("maxUploadSizeForContentType", () => {
   it("caps videos at 200 MB and images at 10 MB", () => {
     expect(MAX_VIDEO_SIZE_BYTES).toBe(200 * 1024 * 1024);
     expect(MAX_IMAGE_SIZE_BYTES).toBe(10 * 1024 * 1024);
+  });
+});
+
+describe("isTrustedMediaUrl", () => {
+  const storageDomain = "https://cdn.example.com";
+
+  it("accepts storage domain URLs for images", () => {
+    expect(isTrustedMediaUrl("https://cdn.example.com/posts/abc.jpg", "image", storageDomain)).toBe(true);
+  });
+
+  it("accepts storage domain URLs for videos", () => {
+    expect(isTrustedMediaUrl("https://cdn.example.com/posts/vid.mp4", "video", storageDomain)).toBe(true);
+  });
+
+  it("accepts YouTube embed URLs", () => {
+    expect(isTrustedMediaUrl("https://www.youtube.com/embed/abc123defgh", "youtube", storageDomain)).toBe(true);
+  });
+
+  it("rejects external URLs for images", () => {
+    expect(isTrustedMediaUrl("https://evil.com/track.png", "image", storageDomain)).toBe(false);
+  });
+
+  it("rejects non-embed YouTube URLs", () => {
+    expect(isTrustedMediaUrl("https://www.youtube.com/watch?v=abc123", "youtube", storageDomain)).toBe(false);
+  });
+
+  it("rejects javascript: URLs", () => {
+    expect(isTrustedMediaUrl("javascript:alert(1)", "image", storageDomain)).toBe(false);
   });
 });

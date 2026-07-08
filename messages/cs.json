@@ -15,6 +15,8 @@
   },
   "HomePage": {
     "logoAlt": "Sincere Bhakti",
+    "metaTitle": "Sincere Bhakti",
+    "metaDescription": "Posvátný prostor pro oddané Gaudiya vaišnavismu. Sdílej oddané realizace, kirtany a postřehy se saṅgou.",
     "subtitle": "Jednoduchý život, vznešené myšlení",
     "description": "Posvátný prostor pro oddané Gaudiya vaišnavismu. Sdílej své realizace, kirtany, písemná zasvěcení a oddaná média se saṅgou.",
     "ctaJoin": "Připoj se k saṅze",
@@ -29,11 +31,15 @@
   "PostsPage": {
     "title": "Příspěvky",
     "subtitle": "Oddané příspěvky z globální saṅgy",
+    "metaTitle": "Příspěvky — Sincere Bhakti",
+    "metaDescription": "Oddané příspěvky z globální saṅgy — realizace, kirtany a písemná zasvěcení.",
     "composePlaceholder": "Sdílej svou realizaci, verš, YouTube odkaz nebo myšlenku...",
     "publicTab": "Veřejné příspěvky",
-    "myTab": "Moje příspěvky",
+    "myPublicTab": "Moje veřejné příspěvky",
+    "myPrivateTab": "Moje soukromé příspěvky",
     "emptyPublic": "Zatím žádné veřejné příspěvky. Buď první!",
-    "emptyMy": "Zatím žádné příspěvky.",
+    "emptyMyPublic": "Zatím žádné veřejné příspěvky.",
+    "emptyMyPrivate": "Zatím žádné soukromé příspěvky.",
     "signInToPost": "pro sdílení příspěvku se saṅgou",
     "signIn": "Přihlásit se",
     "posting": "Odesílám...",
@@ -46,10 +52,17 @@
     "nothingToPost": "Nic k přidání — přidej text nebo média",
     "postPublished": "Příspěvek zveřejněn",
     "uploadFailed": "Nahrávání selhalo. Zkuste to prosím znovu.",
+    "uploadRateLimited": "Příliš mnoho nahrávání. Počkejte chvíli a zkuste to znovu.",
     "fileTooLarge": "Některé soubory jsou příliš velké a byly přeskočeny (obrázky max. {imageMax} MB, videa max. {videoMax} MB).",
+    "duplicateMediaSkipped": "Duplicitní soubory byly přeskočeny.",
+    "totalUploadTooLarge": "Celková velikost souborů překračuje limit. Prosím odeberte některé soubory.",
     "createPostFailed": "Nepodařilo se vytvořit příspěvek. Zkuste to prosím znovu.",
     "youtubePreview": "YouTube náhled",
-    "preview": "Náhled"
+    "preview": "Náhled",
+    "saveButton": "Uložit",
+    "cancel": "Zrušit",
+    "postUpdated": "Příspěvek aktualizován",
+    "updatePostFailed": "Aktualizace příspěvku se nezdařila"
   },
   "Auth": {
     "login": {
@@ -95,7 +108,10 @@
     "saving": "Ukládám...",
     "joined": "Připojil se {date}",
     "publicPosts": "Veřejné příspěvky ({count})",
+    "myPublicPosts": "Moje veřejné příspěvky ({count})",
+    "myPrivatePosts": "Moje soukromé příspěvky ({count})",
     "noPosts": "Zatím žádné veřejné příspěvky.",
+    "noPrivatePosts": "Zatím žádné soukromé příspěvky.",
     "noProfile": "Oddaný nenalezen",
     "loadingMore": "Načítám další..."
   },
@@ -104,16 +120,40 @@
     "private": "Soukromé",
     "delete": "Smazat příspěvek",
     "openPost": "Otevřít příspěvek",
+    "editPost": "Upravit příspěvek",
     "anonymous": "Anonymní",
     "youtubeVideo": "YouTube video",
-    "postMedia": "Média příspěvku"
+    "postMedia": "Média příspěvku",
+    "openImage": "Otevřít obrázek",
+    "copyLink": "Zkopírovat odkaz na příspěvek",
+    "linkCopied": "Odkaz na příspěvek zkopírován do schránky",
+    "deleteConfirm": "Opravdu chcete smazat tento příspěvek? Tuto akci nelze vrátit.",
+    "deleteSuccess": "Příspěvek smazán",
+    "deleteFailed": "Nepodařilo se smazat příspěvek"
   },
   "SinglePost": {
+    "title": "Příspěvek",
+    "backLink": "← Zpět na příspěvky",
     "notFound": "Příspěvek nenalezen",
     "loadError": "Při načítání příspěvku došlo k chybě. Zkuste to prosím znovu."
   },
+  "EditPost": {
+    "title": "Upravit příspěvek",
+    "contentLabel": "Obsah",
+    "visibilityLabel": "Veřejný",
+    "visibilityHint": "Viditelný pro všechny",
+    "save": "Uložit",
+    "saving": "Ukládám…",
+    "loadError": "Nepodařilo se načíst příspěvek",
+    "saveError": "Nepodařilo se uložit změny",
+    "notFound": "Příspěvek nenalezen",
+    "forbidden": "Nemáte oprávnění upravovat tento příspěvek",
+    "backLink": "← Zpět na příspěvek"
+  },
   "Common": {
-    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Věnováno učení Śrīly Prabhupādy"
+    "cancel": "Zrušit",
+    "footerLine1": "© {year} 🪷 Sincere Bhakti",
+    "footerLine2": "Věnováno učení Śrīly Prabhupādy"
   },
   "ErrorPages": {
     "notFound": "Stránka nenalezena",

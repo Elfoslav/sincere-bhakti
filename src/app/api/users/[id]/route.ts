@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { updateNameSchema } from "@/lib/validation";
-import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
+import { logServerError, logValidationError } from "@/lib/server-log";
 
 export async function GET(
   request: NextRequest,
@@ -31,7 +32,7 @@ export async function GET(
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error("GET /api/users/[id] failed:", error);
+    logServerError("GET /api/users/[id] failed", error);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }
@@ -42,17 +43,17 @@ export async function PATCH(
 ) {
   try {
     if (!validateOrigin(request)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     const session = await auth();
     const { id } = await params;
 
     if (!session?.user?.id || session.user.id !== id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
-    const { allowed } = await rateLimit(rateLimitKey("update-profile", id), 10, 3_600_000);
+    const { allowed } = await rateLimit(rateLimitKey("update-profile", id), RATE_LIMITS.updateProfile.limit, RATE_LIMITS.updateProfile.windowMs);
     if (!allowed) {
       return NextResponse.json(
         { error: "too_many_requests" },
@@ -65,9 +66,9 @@ export async function PATCH(
 
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
-      const field = issue.path[0] || "input";
+      logValidationError("PATCH /api/users/[id]", issue, body);
       return NextResponse.json(
-        { error: `validation_error:${String(field)}:${issue.code}` },
+        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
         { status: 400 }
       );
     }
@@ -80,7 +81,7 @@ export async function PATCH(
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error("PATCH /api/users/[id] failed:", error);
+    logServerError("PATCH /api/users/[id] failed", error);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }

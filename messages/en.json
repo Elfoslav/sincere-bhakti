@@ -15,6 +15,8 @@
   },
   "HomePage": {
     "logoAlt": "Sincere Bhakti",
+    "metaTitle": "Sincere Bhakti",
+    "metaDescription": "A sacred space for devotees of Gaudiya Vaishnavism. Share devotional realizations, kirtans, and insights with the saṅga.",
     "subtitle": "Simple living, high thinking",
     "description": "A sacred space for devotees of Gaudiya Vaishnavism. Share your realizations, kirtans, scriptural insights, and devotional media with the saṅga.",
     "ctaJoin": "Join the Saṅga",
@@ -29,11 +31,15 @@
   "PostsPage": {
     "title": "Posts",
     "subtitle": "Devotional posts from the global saṅga",
+    "metaTitle": "Posts — Sincere Bhakti",
+    "metaDescription": "Devotional posts from the global saṅga — realizations, kirtans, and scriptural insights.",
     "composePlaceholder": "Share your realization, a verse, a YouTube link, or a thought...",
     "publicTab": "Public posts",
-    "myTab": "My posts",
+    "myPublicTab": "My public posts",
+    "myPrivateTab": "My private posts",
     "emptyPublic": "No public posts yet. Be the first to share!",
-    "emptyMy": "No posts yet.",
+    "emptyMyPublic": "No public posts yet.",
+    "emptyMyPrivate": "No private posts yet.",
     "signInToPost": "to share a post with the saṅga",
     "signIn": "Sign in",
     "posting": "Posting...",
@@ -46,10 +52,17 @@
     "nothingToPost": "Nothing to post — add text or media",
     "postPublished": "Post published",
     "uploadFailed": "Upload failed. Please try again.",
+    "uploadRateLimited": "Too many uploads. Please wait a moment and try again.",
     "fileTooLarge": "Some files are too large and were skipped (images max {imageMax} MB, videos max {videoMax} MB).",
+    "duplicateMediaSkipped": "Duplicate files were skipped.",
+    "totalUploadTooLarge": "Total file size exceeds the limit. Please remove some files.",
     "createPostFailed": "Failed to create post. Please try again.",
     "youtubePreview": "YouTube preview",
-    "preview": "Preview"
+    "preview": "Preview",
+    "saveButton": "Save",
+    "cancel": "Cancel",
+    "postUpdated": "Post updated",
+    "updatePostFailed": "Failed to update post"
   },
   "Auth": {
     "login": {
@@ -95,7 +108,10 @@
     "saving": "Saving...",
     "joined": "Joined {date}",
     "publicPosts": "Public Posts ({count})",
+    "myPublicPosts": "My Public Posts ({count})",
+    "myPrivatePosts": "My Private Posts ({count})",
     "noPosts": "No public posts yet.",
+    "noPrivatePosts": "No private posts yet.",
     "noProfile": "Devotee not found",
     "loadingMore": "Loading more..."
   },
@@ -104,16 +120,40 @@
     "private": "Private",
     "delete": "Delete post",
     "openPost": "Open post",
+    "editPost": "Edit post",
     "anonymous": "Anonymous",
     "youtubeVideo": "YouTube video",
-    "postMedia": "Post media"
+    "postMedia": "Post media",
+    "openImage": "Open image",
+    "copyLink": "Copy post link",
+    "linkCopied": "Post link copied to clipboard",
+    "deleteConfirm": "Are you sure you want to delete this post? This cannot be undone.",
+    "deleteSuccess": "Post deleted",
+    "deleteFailed": "Failed to delete post"
   },
   "SinglePost": {
+    "title": "Post",
+    "backLink": "← Back to posts",
     "notFound": "Post not found",
     "loadError": "Something went wrong loading the post. Please try again."
   },
+  "EditPost": {
+    "title": "Edit post",
+    "contentLabel": "Content",
+    "visibilityLabel": "Public",
+    "visibilityHint": "Visible to everyone",
+    "save": "Save",
+    "saving": "Saving…",
+    "loadError": "Failed to load post",
+    "saveError": "Failed to update post",
+    "notFound": "Post not found",
+    "forbidden": "You don't have permission to edit this post",
+    "backLink": "← Back to post"
+  },
   "Common": {
-    "footerCopyright": "© {year} 🪷 Sincere Bhakti — Dedicated to the teachings of Śrīla Prabhupāda"
+    "cancel": "Cancel",
+    "footerLine1": "© {year} 🪷 Sincere Bhakti",
+    "footerLine2": "Dedicated to the teachings of Śrīla Prabhupāda"
   },
   "ErrorPages": {
     "notFound": "Page not found",

@@ -4,6 +4,7 @@ import type { Post } from "@/types/post";
 const PAGE_SIZE = 10;
 
 type ApiParams = {
+  scope?: "public" | "private";
   authorId?: string;
   disabled?: boolean;
   pageSize?: number;
@@ -11,18 +12,18 @@ type ApiParams = {
 };
 
 export function useInfinitePosts(params?: ApiParams) {
-  const { authorId, disabled, pageSize = PAGE_SIZE, language } = params ?? {};
+  const { scope = "public", authorId, disabled, pageSize = PAGE_SIZE, language } = params ?? {};
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(!disabled);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const fetchPosts = useCallback(
     async (cursor?: string) => {
       try {
         const query = new URLSearchParams({
-          scope: "public",
+          scope,
           limit: String(pageSize),
         });
         if (cursor) query.set("cursor", cursor);
@@ -37,12 +38,17 @@ export function useInfinitePosts(params?: ApiParams) {
         return null;
       }
     },
-    [authorId, pageSize, language],
+    [scope, authorId, pageSize, language],
   );
 
   useEffect(() => {
     if (disabled) return;
     let mounted = true;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    setPosts([]);
+    setHasMore(true);
 
     fetchPosts().then((data) => {
       if (!mounted || !data) {
@@ -80,18 +86,24 @@ export function useInfinitePosts(params?: ApiParams) {
     setLoadingMore(false);
   }, [posts, loadingMore, hasMore, fetchPosts]);
 
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || disabled) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore().catch(() => {});
-      },
-      { rootMargin: "200px" },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [loadMore, disabled]);
+  const sentinelRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+      if (node && !disabled) {
+        observerRef.current = new IntersectionObserver(
+          (entries) => {
+            if (entries[0].isIntersecting) loadMore().catch(() => {});
+          },
+          { rootMargin: "200px" },
+        );
+        observerRef.current.observe(node);
+      }
+    },
+    [loadMore, disabled],
+  );
 
   return {
     posts,

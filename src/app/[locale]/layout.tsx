@@ -2,9 +2,9 @@ import { Geist } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
+import { getSiteUrl } from "@/lib/url";
 import { Toaster } from "sonner";
 import Navbar from "@/components/Navbar";
-import Providers from "@/components/Providers";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -12,11 +12,7 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const siteUrl =
-  process.env.NEXTAUTH_URL ||
-  (process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-    : "http://localhost:3000");
+const siteUrl = getSiteUrl();
 
 type Props = {
   children: React.ReactNode;
@@ -80,16 +76,15 @@ export default async function LocaleLayout({ children, params }: Props) {
     >
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider messages={messages}>
-          <Providers>
             <Navbar />
             <main className="flex-1">{children}</main>
             <Toaster position="bottom-right" richColors closeButton />
             <footer className="bg-deep text-white/50 text-center text-sm py-4 border-t border-sand/20">
-              <p>
-                {commonT("footerCopyright", { year: String(new Date().getFullYear()) })}
-              </p>
+              <div className="max-w-6xl mx-auto px-4">
+                <p>{commonT("footerLine1", { year: String(new Date().getFullYear()) })}</p>
+                <p>{commonT("footerLine2")}</p>
+              </div>
             </footer>
-          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>

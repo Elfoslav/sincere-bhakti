@@ -9,6 +9,8 @@ vi.mock("@/lib/services/upload", () => ({
   contentTypeToMediaType: vi.fn(),
 }));
 
+vi.spyOn(console, "error").mockImplementation(() => {});
+
 import { auth } from "@/lib/auth";
 import { createUploadUrl, contentTypeToMediaType } from "@/lib/services/upload";
 import { POST } from "@/app/api/upload-url/route";
@@ -32,7 +34,7 @@ describe("POST /api/upload-url", () => {
     const json = await res.json();
 
     expect(res.status).toBe(401);
-    expect(json.error).toBe("Unauthorized");
+    expect(json.error).toBe("unauthorized");
   });
 
   it("returns upload URL for authenticated user", async () => {
@@ -43,14 +45,14 @@ describe("POST /api/upload-url", () => {
     });
     vi.mocked(contentTypeToMediaType).mockReturnValue("image");
 
-    const res = await POST(mockRequest({ fileName: "test.jpg", contentType: "image/jpeg" }));
+    const res = await POST(mockRequest({ fileName: "test.jpg", contentType: "image/jpeg", postId: "post-1" }));
     const json = await res.json();
 
     expect(res.status).toBe(200);
     expect(json.uploadUrl).toBe("https://r2.example.com/upload-url");
     expect(json.publicUrl).toBe("https://pub.r2.dev/posts/uuid-test.jpg");
     expect(json.mediaType).toBe("image");
-    expect(createUploadUrl).toHaveBeenCalledWith("test.jpg", "image/jpeg");
+    expect(createUploadUrl).toHaveBeenCalledWith("test.jpg", "image/jpeg", "post-1");
   });
 
   it("returns 400 when fileName is missing", async () => {

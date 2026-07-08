@@ -24,6 +24,25 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Rate Limiting
+
+Every mutation API endpoint is rate-limited using PostgreSQL (Prisma) in production and an in-memory `Map` locally/tests.
+
+**Adding a new rate-limited endpoint:**
+1. Add an entry to `RATE_LIMITS` in `src/lib/rate-limit.ts`
+2. Use `RATE_LIMITS.xxx.limit` / `RATE_LIMITS.xxx.windowMs` — never inline numbers
+
+```ts
+import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
+
+const { allowed } = await rateLimit(rateLimitKey("prefix", userIdOrIp), RATE_LIMITS.xxx.limit, RATE_LIMITS.xxx.windowMs);
+if (!allowed) {
+  return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+}
+```
+
+The test mock in `src/__tests__/setup.ts` must also export the new `RATE_LIMITS` entry.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

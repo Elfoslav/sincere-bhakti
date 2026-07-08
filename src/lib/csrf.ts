@@ -5,7 +5,10 @@ export function validateOrigin(request: NextRequest): boolean {
   const referer = request.headers.get("referer");
   const host = request.headers.get("host");
 
-  if (!host) return false;
+  if (!host) {
+    console.warn("CSRF: missing Host header");
+    return false;
+  }
 
   const allowedOrigins = [
     process.env.NEXTAUTH_URL,
@@ -17,19 +20,25 @@ export function validateOrigin(request: NextRequest): boolean {
   if (origin) {
     const originHost = origin.replace(/^https?:\/\//, "").split("/")[0];
     if (originHost === host) return true;
-    if (allowedOrigins.some((o) => origin.startsWith(o))) return true;
+    if (allowedOrigins.some((o) => {
+      try { return new URL(origin).host === new URL(o).host; }
+      catch { return false; }
+    })) return true;
+    console.warn("CSRF: origin mismatch", { origin, host, allowedOrigins });
     return false;
   }
 
   if (referer) {
     const refererHost = referer.replace(/^https?:\/\//, "").split("/")[0];
     if (refererHost === host) return true;
-    if (allowedOrigins.some((o) => referer.startsWith(o))) return true;
+    if (allowedOrigins.some((o) => {
+      try { return new URL(referer).host === new URL(o).host; }
+      catch { return false; }
+    })) return true;
+    console.warn("CSRF: referer mismatch", { referer, host, allowedOrigins });
     return false;
   }
 
-  // Fail closed: browsers send Origin on all cross-origin (and modern
-  // same-origin) state-changing requests, so a request with neither Origin
-  // nor Referer is treated as untrusted.
+  console.warn("CSRF: no Origin or Referer header", { host });
   return false;
 }

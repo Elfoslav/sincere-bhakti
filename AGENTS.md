@@ -9,9 +9,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - **No repeating code.** Any pattern used in more than one place must be extracted to a shared function in `src/lib/` or a shared constant.
 - **Utility functions** go in `src/lib/` (e.g. `video.ts`, `auth.ts`, `validation.ts`, `rate-limit.ts`).
+- **Extract pure utilities from components.** Any function inside a `.tsx` file that has no React hooks (`useState`, `useEffect`, etc.) and no browser-DOM dependency must be moved to `src/lib/` so it can be unit-tested without jsdom. Examples: `genId()`, `formatBytes()`, `getSiteUrl()`.
+- **Do not duplicate constants that are already exported from `src/lib/`.** If a list, threshold, or config constant exists in a lib file, import it — never redeclare it locally.
 - **Reusable UI** goes in `src/components/` or `src/components/ui/` (shadcn).
-- **Types/interfaces** shared across files go in `src/types/`.
+- **Types/interfaces** shared across files MUST go in `src/types/` and be imported where needed — never define the same type inline in multiple places. Service-specific types may stay in the service file but must be exported. Component-props interfaces stay co-located with the component.
 - Inline the same logic in multiple files only if there's a strong reason — otherwise refactor.
+- **No dead type exports.** If a type/interface is defined in `src/types/` and not imported anywhere, remove it.
+- **No ambient types.** Do not rely on `.d.ts` files for types that are used as values or exported. Use explicit imports.
 <!-- END:code-organization -->
 
 <!-- BEGIN:agent-checklist -->
@@ -21,9 +25,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 Every mutation API endpoint MUST have rate limiting. On Vercel (production) rate limiting uses the existing PostgreSQL database via Prisma. Locally/tests use an in-memory Map. Use the shared utility:
 
 ```ts
-import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 
-const { allowed } = await rateLimit(rateLimitKey("unique-prefix", userIdOrIp), maxRequests, windowMs);
+const { allowed } = await rateLimit(rateLimitKey("unique-prefix", userIdOrIp), RATE_LIMITS.xxx.limit, RATE_LIMITS.xxx.windowMs);
 if (!allowed) {
   return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
 }
@@ -35,11 +39,13 @@ Also add rate limiting to the login flow in `src/lib/auth.ts` — the `authorize
 
 ```ts
 const ip = req?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-const { allowed } = await rateLimit(rateLimitKey("login", ip), 10, 900_000);
+const { allowed } = await rateLimit(rateLimitKey("login", ip), RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs);
 if (!allowed) return null;
 ```
 
-Existing prefixes: `register` (by IP, 5/hour), `create-post` (by userId, 20/hour), `upload-url` (by userId, 20/hour), `delete-post` (by userId, 30/hour), `update-profile` (by userId, 10/hour), `login` (by IP, 10/15min). For new endpoints, pick a reasonable limit that regular users won't hit but blocks abuse.
+Always use `RATE_LIMITS.xxx.limit` / `RATE_LIMITS.xxx.windowMs` from `src/lib/rate-limit.ts` — never inline magic numbers. Add a new entry to the `RATE_LIMITS` object when adding a new rate-limited endpoint.
+
+Existing prefixes: `register` (by IP, 5/hour), `create-post` (by userId, 20/hour), `upload-url` (by userId, 20/hour), `delete-post` (by userId, 30/hour), `update-profile` (by userId, 10/hour), `login` (by IP, 10/15min), `upload` (by userId, 60/hour, production only — shared by upload and cleanup). For new endpoints, pick a reasonable limit that regular users won't hit but blocks abuse.
 
 ## Shared Constants for Validation
 Never hardcode validation thresholds. Define them in `src/lib/validation.ts` and export them:
@@ -64,6 +70,9 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 - Never hardcode English strings like "Public" / "Private" / "Delete" in components — they must come from translation files.
 - Reuse existing namespace keys when possible. Avoid duplicating the same key in multiple namespaces.
 - When adding UI text, check if a translation key already exists before creating one.
+
+## Posts & Language Filtering
+- Every `useInfinitePosts` call MUST pass `language: locale` (from `useLocale()`) so posts are always filtered by the currently selected locale. This applies everywhere — homepage, profile page, and any future page that displays posts. The API and service layer already support the parameter; the only missing piece is the caller passing it through.
 
 ## Links & Navigation
 - Always use `Link` from `@/i18n/navigation` for internal links — never `next/link` or `<a>` tags.
@@ -107,6 +116,8 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 ## Tests
 - **Always run `pnpm test`** before writing any code to see the current test state.
 - After making changes, run `pnpm test` again and fix any failing tests before considering work complete.
+- **Always run `pnpm lint`** alongside tests and fix any errors and warnings before considering work complete. The only exception is `@next/next/no-img-element` (using `<img>` vs `<Image>`) — that can be intentional.
+- **Every extracted lib function must have a corresponding test file.** Pure functions in `src/lib/` (format, id, url, etc.) get their own `src/__tests__/<name>.test.ts`. Browser-API functions in `src/lib/` (client-media, etc.) are tested by mocking the browser API.
 - Every test file that exercises error paths (e.g. "returns 500 on server error") MUST silence `console.error` to keep stderr clean:
   ```ts
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -137,4 +148,16 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
     ...(session?.user?.id === id ? { email: true } : {}),
   }
   ```
+
+## Types & Interfaces
+- **Shared types** (used across modules) go in `src/types/`, one file per domain (`post.ts`, `user.ts`).
+- **Service-layer types** may stay in the service file but must be exported. If a service type duplicates a shape in `src/types/`, remove the local definition and import from types instead.
+- **Component props** stay co-located with the component — do not extract them to `src/types/`.
+- **No duplicate shapes.** If two files define the same shape, extract it to `src/types/`.
+- **No dead exports.** If a type in `src/types/` has zero imports, remove it.
+- **No ambient declarations.** Prefer explicit `import type` over `.d.ts` ambient types.
+- **Import types with `type` prefix** when only the type is needed: `import type { Foo } from "@/types/foo"`.
+
+## Auth / Session
+- Use `status === "authenticated"` (from `useSession()`) for conditional rendering of auth-gated UI (profile link, logout button). The `status` string is stable during client-side navigation and doesn't flash. Do NOT use `session &&` — the `session` object can briefly become `null` during re-renders triggered by locale navigation, causing visible flicker.
 <!-- END:agent-checklist -->
