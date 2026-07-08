@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { GripVertical } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { getYouTubeEmbedUrl } from "@/lib/video";
 import type { Post } from "@/types/post";
 import {
@@ -535,15 +536,17 @@ export default function PostForm({
             )}
           </div>
 
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input
-              type="checkbox"
+          <label className="flex items-center gap-3 cursor-pointer">
+            <Switch
               checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-              className="accent-gold"
+              onCheckedChange={(checked) => setIsPublic(checked)}
             />
-            <span className={isPublic ? "text-tulsi" : "text-saffron"}>
-              {isPublic ? t("public") : t("private")}
+            <span className="text-sm font-medium">
+              {isPublic ? (
+                <span className="text-tulsi">{t("public")}</span>
+              ) : (
+                <span className="text-saffron">{t("private")}</span>
+              )}
             </span>
           </label>
         </div>
