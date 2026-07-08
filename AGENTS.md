@@ -71,6 +71,9 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 - Reuse existing namespace keys when possible. Avoid duplicating the same key in multiple namespaces.
 - When adding UI text, check if a translation key already exists before creating one.
 
+## Posts & Language Filtering
+- Every `useInfinitePosts` call MUST pass `language: locale` (from `useLocale()`) so posts are always filtered by the currently selected locale. This applies everywhere — homepage, profile page, and any future page that displays posts. The API and service layer already support the parameter; the only missing piece is the caller passing it through.
+
 ## Links & Navigation
 - Always use `Link` from `@/i18n/navigation` for internal links — never `next/link` or `<a>` tags.
 - `Link` auto-prepends locale prefixes (`/cs/login`, `/sk/login`). Plain `<a href="/login">` breaks i18n.

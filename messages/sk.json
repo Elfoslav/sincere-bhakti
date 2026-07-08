@@ -108,7 +108,10 @@
     "saving": "Ukladám...",
     "joined": "Pripojil sa {date}",
     "publicPosts": "Verejné príspevky ({count})",
+    "myPublicPosts": "Moje verejné príspevky ({count})",
+    "myPrivatePosts": "Moje súkromné príspevky ({count})",
     "noPosts": "Zatiaľ žiadne verejné príspevky.",
+    "noPrivatePosts": "Zatiaľ žiadne súkromné príspevky.",
     "noProfile": "Oddaný nenájdený",
     "loadingMore": "Načítavam ďalšie..."
   },

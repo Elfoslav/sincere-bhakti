@@ -108,7 +108,10 @@
     "saving": "Saving...",
     "joined": "Joined {date}",
     "publicPosts": "Public Posts ({count})",
+    "myPublicPosts": "My Public Posts ({count})",
+    "myPrivatePosts": "My Private Posts ({count})",
     "noPosts": "No public posts yet.",
+    "noPrivatePosts": "No private posts yet.",
     "noProfile": "Devotee not found",
     "loadingMore": "Loading more..."
   },
