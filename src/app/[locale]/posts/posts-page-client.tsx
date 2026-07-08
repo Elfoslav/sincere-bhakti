@@ -118,15 +118,19 @@ export default function PostsPageClient() {
                 <PostCardSkeleton />
                 <PostCardSkeleton />
               </div>
-            ) : myPublicPosts.length === 0 ? (
-              <p className="text-center text-deep/50 py-8 bg-white rounded-lg border border-sand">
-                {t("emptyMyPublic")}
-              </p>
             ) : (
-              <div className="space-y-4">
-                {myPublicPosts.map((post) => (
-                  <PostCard key={post.id} post={post} currentUserId={session?.user?.id} onDelete={handleDelete} />
-                ))}
+              <div>
+                {myPublicPosts.length === 0 ? (
+                  <p className="text-center text-deep/50 py-8 bg-white rounded-lg border border-sand">
+                    {t("emptyMyPublic")}
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {myPublicPosts.map((post) => (
+                      <PostCard key={post.id} post={post} currentUserId={session?.user?.id} onDelete={handleDelete} />
+                    ))}
+                  </div>
+                )}
                 {myHasMore && (
                   <div ref={mySentinelRef} className="flex justify-center py-8">
                     {myLoadingMore ? (
@@ -147,15 +151,19 @@ export default function PostsPageClient() {
                 <PostCardSkeleton />
                 <PostCardSkeleton />
               </div>
-            ) : myPrivatePosts.length === 0 ? (
-              <p className="text-center text-deep/50 py-8 bg-white rounded-lg border border-sand">
-                {t("emptyMyPrivate")}
-              </p>
             ) : (
-              <div className="space-y-4">
-                {myPrivatePosts.map((post) => (
-                  <PostCard key={post.id} post={post} currentUserId={session?.user?.id} onDelete={handleDelete} />
-                ))}
+              <div>
+                {myPrivatePosts.length === 0 ? (
+                  <p className="text-center text-deep/50 py-8 bg-white rounded-lg border border-sand">
+                    {t("emptyMyPrivate")}
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {myPrivatePosts.map((post) => (
+                      <PostCard key={post.id} post={post} currentUserId={session?.user?.id} onDelete={handleDelete} />
+                    ))}
+                  </div>
+                )}
                 {myHasMore && (
                   <div ref={mySentinelRef} className="flex justify-center py-8">
                     {myLoadingMore ? (

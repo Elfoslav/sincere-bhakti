@@ -17,7 +17,7 @@ export function useInfinitePosts(params?: ApiParams) {
   const [loading, setLoading] = useState(!disabled);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const fetchPosts = useCallback(
     async (cursor?: string) => {
@@ -81,18 +81,24 @@ export function useInfinitePosts(params?: ApiParams) {
     setLoadingMore(false);
   }, [posts, loadingMore, hasMore, fetchPosts]);
 
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || disabled) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore().catch(() => {});
-      },
-      { rootMargin: "200px" },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [loadMore, disabled]);
+  const sentinelRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+      if (node && !disabled) {
+        observerRef.current = new IntersectionObserver(
+          (entries) => {
+            if (entries[0].isIntersecting) loadMore().catch(() => {});
+          },
+          { rootMargin: "200px" },
+        );
+        observerRef.current.observe(node);
+      }
+    },
+    [loadMore, disabled],
+  );
 
   return {
     posts,
