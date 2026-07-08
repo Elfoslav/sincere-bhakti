@@ -113,6 +113,7 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 ## Tests
 - **Always run `pnpm test`** before writing any code to see the current test state.
 - After making changes, run `pnpm test` again and fix any failing tests before considering work complete.
+- **Always run `pnpm lint`** alongside tests and fix any errors and warnings before considering work complete. The only exception is `@next/next/no-img-element` (using `<img>` vs `<Image>`) — that can be intentional.
 - **Every extracted lib function must have a corresponding test file.** Pure functions in `src/lib/` (format, id, url, etc.) get their own `src/__tests__/<name>.test.ts`. Browser-API functions in `src/lib/` (client-media, etc.) are tested by mocking the browser API.
 - Every test file that exercises error paths (e.g. "returns 500 on server error") MUST silence `console.error` to keep stderr clean:
   ```ts

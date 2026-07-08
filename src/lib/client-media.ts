@@ -17,15 +17,23 @@ export function getImageDimensions(
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    function finish(result: { width: number; height: number } | null) {
-      if (timer !== undefined) clearTimeout(timer);
+    function cleanup() {
       URL.revokeObjectURL(url);
-      resolve(result);
     }
-    timer = setTimeout(() => finish(null), getTimeout());
-    img.onload = () => finish({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => finish(null);
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, getTimeout());
+    img.onload = () => {
+      clearTimeout(timer);
+      cleanup();
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      cleanup();
+      resolve(null);
+    };
     img.src = url;
   });
 }

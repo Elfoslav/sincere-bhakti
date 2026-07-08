@@ -77,10 +77,6 @@ export default function PostForm({
     () => mediaItems.reduce((sum, item) => sum + (item.file?.size ?? 0), 0),
     [mediaItems],
   );
-  const newFileCount = useMemo(
-    () => mediaItems.filter((item) => item.file).length,
-    [mediaItems],
-  );
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
