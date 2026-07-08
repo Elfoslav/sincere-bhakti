@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     const results = await Promise.all(
-      files.map((f) => createUploadUrl(f.fileName, f.contentType, postId)),
+      files.map((f) => createUploadUrl(f.fileName, f.contentType, postId, f.size)),
     );
 
     return NextResponse.json({ urls: results });

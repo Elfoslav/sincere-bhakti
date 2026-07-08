@@ -118,8 +118,8 @@ describe("POST /api/upload-url/batch", () => {
     expect(json.urls[0].publicUrl).toContain("file1.jpg");
     expect(json.urls[1].publicUrl).toContain("file2.jpg");
     expect(createUploadUrl).toHaveBeenCalledTimes(2);
-    expect(createUploadUrl).toHaveBeenCalledWith("file1.jpg", "image/jpeg", "post-1");
-    expect(createUploadUrl).toHaveBeenCalledWith("file2.png", "image/png", "post-1");
+    expect(createUploadUrl).toHaveBeenCalledWith("file1.jpg", "image/jpeg", "post-1", 1024);
+    expect(createUploadUrl).toHaveBeenCalledWith("file2.png", "image/png", "post-1", 2048);
   });
 
   it("returns 500 on server error", async () => {

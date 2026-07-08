@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
-import { MAX_IMAGE_DIMENSION, IMAGE_JPEG_QUALITY } from "@/lib/validation";
+import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_DIMENSION, IMAGE_JPEG_QUALITY } from "@/lib/validation";
 
 const REQUIRED_ENV_VARS = ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_PUBLIC_URL"] as const;
 
@@ -50,6 +50,7 @@ export async function createUploadUrl(
   fileName: string,
   contentType: string,
   postId: string,
+  contentLength?: number,
 ): Promise<UploadUrlResult> {
   const client = getS3Client();
   const key = objectKey(fileName, postId);
@@ -59,6 +60,7 @@ export async function createUploadUrl(
     Bucket: bucket,
     Key: key,
     ContentType: contentType,
+    ...(contentLength !== undefined ? { ContentLength: contentLength } : {}),
   });
 
   const uploadUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
@@ -159,8 +161,11 @@ export async function compressR2Object(key: string): Promise<ProcessUploadResult
   const bucket = process.env.R2_BUCKET ?? "sincere-bhakti-uploads";
 
   const getCmd = new GetObjectCommand({ Bucket: bucket, Key: key });
-  const { Body, ContentType } = await client.send(getCmd);
+  const { Body, ContentType, ContentLength } = await client.send(getCmd);
   if (!Body) throw new Error("Empty object");
+  if (ContentLength && ContentLength > MAX_IMAGE_SIZE_BYTES) {
+    throw new Error("compress_input_too_large");
+  }
   const inputType = ContentType ?? "application/octet-stream";
 
   if (!inputType.startsWith("image/") || inputType === "image/gif") {
