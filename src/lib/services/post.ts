@@ -150,7 +150,7 @@ async function validateMediaOwnership(
     select: { url: true, userId: true },
   });
 
-  for (const { item, key } of storageUrls) {
+  for (const { item } of storageUrls) {
     const url = canonicalizeUrl(item.url);
     const record = existing.find((r) => canonicalizeUrl(r.url) === url);
     if (record && record.userId !== userId) {

@@ -38,7 +38,7 @@ export function useInfinitePosts(params?: ApiParams) {
         return null;
       }
     },
-    [authorId, pageSize, language],
+    [scope, authorId, pageSize, language],
   );
 
   useEffect(() => {
