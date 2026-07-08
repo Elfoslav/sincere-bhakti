@@ -10,8 +10,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **No repeating code.** Any pattern used in more than one place must be extracted to a shared function in `src/lib/` or a shared constant.
 - **Utility functions** go in `src/lib/` (e.g. `video.ts`, `auth.ts`, `validation.ts`, `rate-limit.ts`).
 - **Reusable UI** goes in `src/components/` or `src/components/ui/` (shadcn).
-- **Types/interfaces** shared across files go in `src/types/`.
+- **Types/interfaces** shared across files MUST go in `src/types/` and be imported where needed — never define the same type inline in multiple places. Service-specific types may stay in the service file but must be exported. Component-props interfaces stay co-located with the component.
 - Inline the same logic in multiple files only if there's a strong reason — otherwise refactor.
+- **No dead type exports.** If a type/interface is defined in `src/types/` and not imported anywhere, remove it.
+- **No ambient types.** Do not rely on `.d.ts` files for types that are used as values or exported. Use explicit imports.
 <!-- END:code-organization -->
 
 <!-- BEGIN:agent-checklist -->
@@ -139,4 +141,13 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
     ...(session?.user?.id === id ? { email: true } : {}),
   }
   ```
+
+## Types & Interfaces
+- **Shared types** (used across modules) go in `src/types/`, one file per domain (`post.ts`, `user.ts`).
+- **Service-layer types** may stay in the service file but must be exported. If a service type duplicates a shape in `src/types/`, remove the local definition and import from types instead.
+- **Component props** stay co-located with the component — do not extract them to `src/types/`.
+- **No duplicate shapes.** If two files define the same shape, extract it to `src/types/`.
+- **No dead exports.** If a type in `src/types/` has zero imports, remove it.
+- **No ambient declarations.** Prefer explicit `import type` over `.d.ts` ambient types.
+- **Import types with `type` prefix** when only the type is needed: `import type { Foo } from "@/types/foo"`.
 <!-- END:agent-checklist -->

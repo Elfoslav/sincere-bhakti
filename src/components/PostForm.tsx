@@ -10,6 +10,7 @@ import { GripVertical } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getYouTubeEmbedUrl } from "@/lib/video";
 import type { Post } from "@/types/post";
+import type { MediaInput } from "@/lib/services/post";
 import {
   MAX_IMAGE_SIZE_BYTES,
   MAX_VIDEO_SIZE_BYTES,
@@ -21,13 +22,6 @@ import {
 } from "@/lib/validation";
 
 const BYTES_PER_MB = 1024 * 1024;
-
-type MediaInput = {
-  url: string;
-  type: string;
-  width?: number;
-  height?: number;
-};
 
 interface MediaItem {
   id: string;

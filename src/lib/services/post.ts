@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import type { Prisma } from "@prisma/client";
+import type { PostAuthor } from "@/types/post";
 
 export class UnauthorizedError extends Error {
   name = "UnauthorizedError" as const;
@@ -13,12 +14,6 @@ export class ForbiddenError extends Error {
 }
 export class ValidationError extends Error {
   name = "ValidationError" as const;
-}
-
-export interface PostAuthor {
-  id: string;
-  name: string | null;
-  image: string | null;
 }
 
 export interface PostMedia {
@@ -39,7 +34,7 @@ export interface PostResponse {
 }
 
 export interface GetPostsParams {
-  scope?: "public";
+  scope?: "public" | "private";
   cursor?: string;
   limit?: number;
   authorId?: string;

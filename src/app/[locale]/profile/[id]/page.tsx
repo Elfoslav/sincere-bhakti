@@ -17,14 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
-
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  image: string | null;
-  createdAt: string;
-}
+import type { UserProfile } from "@/types/user";
 
 export default function ProfilePage() {
   const params = useParams();
