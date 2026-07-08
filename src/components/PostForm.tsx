@@ -286,11 +286,16 @@ export default function PostForm({
     );
 
     const uploaded: MediaInput[] = [];
+    let uploadError: string | null = null;
     for (const result of results) {
       if (result.status === "rejected") {
-        return { media: uploaded, error: "upload_failed" };
+        if (!uploadError) uploadError = "upload_failed";
+      } else {
+        uploaded.push(result.value);
       }
-      uploaded.push(result.value);
+    }
+    if (uploadError) {
+      return { media: uploaded, error: uploadError };
     }
 
     return { media: uploaded, error: null };
