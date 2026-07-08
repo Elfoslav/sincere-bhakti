@@ -322,12 +322,10 @@ describe("updatePost", () => {
   });
 
   it("throws when not the author", async () => {
-    vi.mocked(prisma.post.findUnique)
-      .mockResolvedValueOnce(basePost)
-      .mockResolvedValueOnce(basePost);
+    vi.mocked(prisma.post.findUnique).mockResolvedValueOnce(basePost);
     vi.mocked(prisma.post.updateMany).mockResolvedValue({ count: 0 });
 
-    await expect(updatePost("post-1", "user-2", { content: "x" })).rejects.toThrow(ForbiddenError);
+    await expect(updatePost("post-1", "user-2", { content: "x" })).rejects.toThrow(NotFoundError);
   });
 
   it("replaces media when provided", async () => {

@@ -245,9 +245,7 @@ export async function updatePost(
     });
 
     if (count === 0) {
-      const exists = await tx.post.findUnique({ where: { id } });
-      if (!exists) throw new NotFoundError();
-      throw new ForbiddenError();
+      throw new NotFoundError();
     }
 
     const updated = await tx.post.findUnique({
