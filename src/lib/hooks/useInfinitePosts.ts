@@ -45,6 +45,11 @@ export function useInfinitePosts(params?: ApiParams) {
     if (disabled) return;
     let mounted = true;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    setPosts([]);
+    setHasMore(true);
+
     fetchPosts().then((data) => {
       if (!mounted || !data) {
         if (mounted) startTransition(() => setLoading(false));
