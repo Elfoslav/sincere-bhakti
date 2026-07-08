@@ -243,16 +243,27 @@ export default function PostForm({
     const toUpload = mediaItems.filter((m) => m.file);
     if (toUpload.length === 0) return { media: [], error: null };
 
-    const files = toUpload.map((item) => ({
-      item,
-      fileName: item.file!.name,
-      contentType: item.file!.type,
-    }));
+    // Step 1: Pre-process (resize if needed) all files client-side before requesting URLs
+    const preprocessed = await Promise.all(
+      toUpload.map(async (item) => {
+        const file = item.file!;
+        const resized = await maybeResizeImage(file, item.width ?? 0, item.height ?? 0);
+        return { item, file, uploadFile: resized?.file ?? file, resized };
+      }),
+    );
 
+    // Step 2: Request presigned URLs with the actual (post-resize) file sizes
     const urlRes = await fetch("/api/upload-url/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId, files: files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, size: f.item.file!.size })) }),
+      body: JSON.stringify({
+        postId,
+        files: preprocessed.map((p) => ({
+          fileName: p.file.name,
+          contentType: p.file.type,
+          size: p.uploadFile.size,
+        })),
+      }),
     });
 
     if (!urlRes.ok) {
@@ -263,12 +274,10 @@ export default function PostForm({
 
     const { urls } = await urlRes.json();
 
+    // Step 3: Upload preprocessed files and process results
     const results = await Promise.allSettled(
-      files.map(async ({ item }, i) => {
+      preprocessed.map(async ({ item, file, uploadFile, resized }, i) => {
         const { uploadUrl, publicUrl, key } = urls[i];
-        const file = item.file!;
-        const resized = await maybeResizeImage(file, item.width ?? 0, item.height ?? 0);
-        const uploadFile = resized?.file ?? file;
 
         const putRes = await fetch(uploadUrl, {
           method: "PUT",
