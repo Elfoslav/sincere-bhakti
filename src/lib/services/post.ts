@@ -11,6 +11,9 @@ export class NotFoundError extends Error {
 export class ForbiddenError extends Error {
   name = "ForbiddenError" as const;
 }
+export class ValidationError extends Error {
+  name = "ValidationError" as const;
+}
 
 export interface PostAuthor {
   id: string;
@@ -257,6 +260,10 @@ export async function updatePost(
       include: postInclude,
     })!;
   });
+
+  if (post && !post.content && post.media.length === 0) {
+    throw new ValidationError("post_must_have_content_or_media");
+  }
 
   if (media !== undefined) {
     const removed = existing.media

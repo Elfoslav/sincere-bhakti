@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError } from "@/lib/services/post";
+import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError, ValidationError } from "@/lib/services/post";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { isTrustedMediaUrl, updatePostSchema } from "@/lib/validation";
@@ -91,6 +91,9 @@ export async function PATCH(
     }
     if (error instanceof ForbiddenError) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ error: "validation_error:post:empty" }, { status: 400 });
     }
     logServerError("PATCH /api/posts/[id] failed", error);
     return NextResponse.json({ error: "failed_to_update_post" }, { status: 500 });

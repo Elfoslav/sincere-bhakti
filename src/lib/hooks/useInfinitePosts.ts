@@ -4,6 +4,7 @@ import type { Post } from "@/types/post";
 const PAGE_SIZE = 10;
 
 type ApiParams = {
+  scope?: "public" | "private";
   authorId?: string;
   disabled?: boolean;
   pageSize?: number;
@@ -11,7 +12,7 @@ type ApiParams = {
 };
 
 export function useInfinitePosts(params?: ApiParams) {
-  const { authorId, disabled, pageSize = PAGE_SIZE, language } = params ?? {};
+  const { scope = "public", authorId, disabled, pageSize = PAGE_SIZE, language } = params ?? {};
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(!disabled);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -22,7 +23,7 @@ export function useInfinitePosts(params?: ApiParams) {
     async (cursor?: string) => {
       try {
         const query = new URLSearchParams({
-          scope: "public",
+          scope,
           limit: String(pageSize),
         });
         if (cursor) query.set("cursor", cursor);

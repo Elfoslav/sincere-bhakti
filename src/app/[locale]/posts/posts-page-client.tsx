@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, startTransition } from "react";
+import { useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -23,36 +23,25 @@ export default function PostsPageClient() {
     hasMore,
     sentinelRef,
   } = useInfinitePosts({ language: locale });
+  const {
+    posts: myPosts,
+    setPosts: setMyPosts,
+    loading: myLoading,
+    loadingMore: myLoadingMore,
+    hasMore: myHasMore,
+    sentinelRef: mySentinelRef,
+  } = useInfinitePosts({ disabled: !session, language: locale });
 
-  const [allMyPosts, setAllMyPosts] = useState<Post[]>([]);
-  const [myPostsError, setMyPostsError] = useState(false);
-
-  useEffect(() => {
-    if (!session) return;
-    let mounted = true;
-
-    fetch("/api/posts?limit=50")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (mounted && data) startTransition(() => setAllMyPosts(data.posts));
-      })
-      .catch(() => { if (mounted) setMyPostsError(true); });
-
-    return () => {
-      mounted = false;
-    };
-  }, [session]);
-
-  const myPublicPosts = useMemo(() => allMyPosts.filter((p) => p.isPublic), [allMyPosts]);
-  const myPrivatePosts = useMemo(() => allMyPosts.filter((p) => !p.isPublic), [allMyPosts]);
+  const myPublicPosts = useMemo(() => myPosts.filter((p) => p.isPublic), [myPosts]);
+  const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);
 
   function handleCreateSuccess(post: Post) {
-    setAllMyPosts((prev) => [post, ...prev]);
+    setMyPosts((prev) => [post, ...prev]);
     if (post.isPublic) setPosts((prev) => [post, ...prev]);
   }
 
   function handleDelete(id: string) {
-    setAllMyPosts((prev) => prev.filter((p) => p.id !== id));
+    setMyPosts((prev) => prev.filter((p) => p.id !== id));
     setPosts((prev) => prev.filter((p) => p.id !== id));
   }
 
@@ -123,10 +112,12 @@ export default function PostsPageClient() {
           </TabsPanel>
 
           <TabsPanel value="my-public">
-            {myPostsError ? (
-              <p className="text-center text-red-500 py-8 bg-white rounded-lg border border-sand">
-                {t("failedToLoad")}
-              </p>
+            {!session ? null : myLoading ? (
+              <div className="space-y-4">
+                <PostCardSkeleton />
+                <PostCardSkeleton />
+                <PostCardSkeleton />
+              </div>
             ) : myPublicPosts.length === 0 ? (
               <p className="text-center text-deep/50 py-8 bg-white rounded-lg border border-sand">
                 {t("emptyMyPublic")}
@@ -136,15 +127,26 @@ export default function PostsPageClient() {
                 {myPublicPosts.map((post) => (
                   <PostCard key={post.id} post={post} currentUserId={session?.user?.id} onDelete={handleDelete} />
                 ))}
+                {myHasMore && (
+                  <div ref={mySentinelRef} className="flex justify-center py-8">
+                    {myLoadingMore ? (
+                      <p className="text-deep/50 text-sm">{t("loadingMore")}</p>
+                    ) : (
+                      <div className="w-6 h-6" />
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </TabsPanel>
 
           <TabsPanel value="my-private">
-            {myPostsError ? (
-              <p className="text-center text-red-500 py-8 bg-white rounded-lg border border-sand">
-                {t("failedToLoad")}
-              </p>
+            {!session ? null : myLoading ? (
+              <div className="space-y-4">
+                <PostCardSkeleton />
+                <PostCardSkeleton />
+                <PostCardSkeleton />
+              </div>
             ) : myPrivatePosts.length === 0 ? (
               <p className="text-center text-deep/50 py-8 bg-white rounded-lg border border-sand">
                 {t("emptyMyPrivate")}
@@ -154,6 +156,15 @@ export default function PostsPageClient() {
                 {myPrivatePosts.map((post) => (
                   <PostCard key={post.id} post={post} currentUserId={session?.user?.id} onDelete={handleDelete} />
                 ))}
+                {myHasMore && (
+                  <div ref={mySentinelRef} className="flex justify-center py-8">
+                    {myLoadingMore ? (
+                      <p className="text-deep/50 text-sm">{t("loadingMore")}</p>
+                    ) : (
+                      <div className="w-6 h-6" />
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </TabsPanel>
