@@ -9,6 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { GripVertical } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getYouTubeEmbedUrl } from "@/lib/video";
+import { formatBytes } from "@/lib/format";
+import { genId } from "@/lib/id";
+import { getImageDimensions } from "@/lib/client-media";
 import type { Post } from "@/types/post";
 import type { MediaInput } from "@/lib/services/post";
 import {
@@ -17,6 +20,7 @@ import {
   MAX_TOTAL_UPLOAD_SIZE_BYTES,
   MAX_IMAGE_DIMENSION,
   IMAGE_JPEG_QUALITY,
+  SKIP_CLIENT_RESIZE,
   maxUploadSizeForContentType,
   getAcceptString,
 } from "@/lib/validation";
@@ -31,42 +35,6 @@ interface MediaItem {
   type: string;
   width?: number;
   height?: number;
-}
-
-const DIMENSION_TIMEOUT_MS = 10_000;
-
-function genId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-}
-
-// Reads an image file's intrinsic dimensions locally (no network). Resolves
-// null for non-images, undecodable files, or if it stalls past the timeout —
-// so orientation is simply treated as unknown rather than blocking submit.
-function getImageDimensions(
-  file: File,
-): Promise<{ width: number; height: number } | null> {
-  if (!file.type.startsWith("image/")) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    const timer = setTimeout(() => finish(null), DIMENSION_TIMEOUT_MS);
-    function finish(result: { width: number; height: number } | null) {
-      clearTimeout(timer);
-      URL.revokeObjectURL(url);
-      resolve(result);
-    }
-    img.onload = () => finish({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => finish(null);
-    img.src = url;
-  });
 }
 
 export interface PostFormProps {
@@ -201,7 +169,6 @@ export default function PostForm({
   // server less work. Returns null when no resize is needed (dimensions already
   // within limits, or non-image).
   // Skip canvas resize for formats that would lose data when converted to JPEG.
-  const SKIP_CLIENT_RESIZE = ["image/png", "image/webp", "image/avif"];
 
   async function maybeResizeImage(
     file: File,

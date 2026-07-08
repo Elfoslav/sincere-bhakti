@@ -4,13 +4,10 @@ import { getPostById } from "@/lib/services/post";
 import { auth } from "@/lib/auth";
 import { selectOgImageUrl } from "@/lib/og";
 import PostDetailClient from "./post-detail-client";
+import { getSiteUrl } from "@/lib/url";
 import type { Post, MediaType } from "@/types/post";
 
-const siteUrl =
-  process.env.NEXTAUTH_URL ||
-  (process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-    : "http://localhost:3000");
+const siteUrl = getSiteUrl();
 
 type Params = { locale: string; id: string };
 

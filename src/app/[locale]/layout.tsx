@@ -2,6 +2,7 @@ import { Geist } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
+import { getSiteUrl } from "@/lib/url";
 import { Toaster } from "sonner";
 import Navbar from "@/components/Navbar";
 import Providers from "@/components/Providers";
@@ -12,11 +13,7 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const siteUrl =
-  process.env.NEXTAUTH_URL ||
-  (process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-    : "http://localhost:3000");
+const siteUrl = getSiteUrl();
 
 type Props = {
   children: React.ReactNode;

@@ -79,6 +79,11 @@ export const MAX_IMAGE_DIMENSION = 2048;
 // with no perceptible difference at web viewing sizes.
 export const IMAGE_JPEG_QUALITY = 70;
 
+// Image formats that skip client-side canvas resize because the conversion to
+// JPEG would lose data (e.g. transparency in PNG, alpha in WebP/AVIF). These
+// are instead resized server-side by Sharp during /api/compress.
+export const SKIP_CLIENT_RESIZE = ["image/png", "image/webp", "image/avif"];
+
 // Resolve the size limit for a given content type. Uploads are restricted to
 // image/* and video/* (see isAllowedUploadContentType); anything else falls
 // back to the stricter image limit.

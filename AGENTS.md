@@ -9,6 +9,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - **No repeating code.** Any pattern used in more than one place must be extracted to a shared function in `src/lib/` or a shared constant.
 - **Utility functions** go in `src/lib/` (e.g. `video.ts`, `auth.ts`, `validation.ts`, `rate-limit.ts`).
+- **Extract pure utilities from components.** Any function inside a `.tsx` file that has no React hooks (`useState`, `useEffect`, etc.) and no browser-DOM dependency must be moved to `src/lib/` so it can be unit-tested without jsdom. Examples: `genId()`, `formatBytes()`, `getSiteUrl()`.
+- **Do not duplicate constants that are already exported from `src/lib/`.** If a list, threshold, or config constant exists in a lib file, import it — never redeclare it locally.
 - **Reusable UI** goes in `src/components/` or `src/components/ui/` (shadcn).
 - **Types/interfaces** shared across files MUST go in `src/types/` and be imported where needed — never define the same type inline in multiple places. Service-specific types may stay in the service file but must be exported. Component-props interfaces stay co-located with the component.
 - Inline the same logic in multiple files only if there's a strong reason — otherwise refactor.
@@ -111,6 +113,7 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 ## Tests
 - **Always run `pnpm test`** before writing any code to see the current test state.
 - After making changes, run `pnpm test` again and fix any failing tests before considering work complete.
+- **Every extracted lib function must have a corresponding test file.** Pure functions in `src/lib/` (format, id, url, etc.) get their own `src/__tests__/<name>.test.ts`. Browser-API functions in `src/lib/` (client-media, etc.) are tested by mocking the browser API.
 - Every test file that exercises error paths (e.g. "returns 500 on server error") MUST silence `console.error` to keep stderr clean:
   ```ts
   vi.spyOn(console, "error").mockImplementation(() => {});
