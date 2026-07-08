@@ -8,12 +8,12 @@ import { logServerError, logValidationError } from "@/lib/server-log";
 
 export async function POST(request: NextRequest) {
   if (!validateOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const { allowed } = await rateLimit(rateLimitKey("upload-url", session.user.id), RATE_LIMITS.uploadUrl.limit, RATE_LIMITS.uploadUrl.windowMs);

@@ -106,12 +106,12 @@ export async function DELETE(
 ) {
   try {
     if (!validateOrigin(request)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
     const { allowed } = await rateLimit(rateLimitKey("delete-post", session.user.id), RATE_LIMITS.deletePost.limit, RATE_LIMITS.deletePost.windowMs);
@@ -131,7 +131,7 @@ export async function DELETE(
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
     if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
     logServerError("DELETE /api/posts/[id] failed", error);
     return NextResponse.json({ error: "failed_to_delete_post" }, { status: 500 });

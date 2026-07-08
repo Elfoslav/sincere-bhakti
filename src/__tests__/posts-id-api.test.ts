@@ -121,7 +121,7 @@ describe("DELETE /api/posts/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(401);
-    expect(json.error).toBe("Unauthorized");
+    expect(json.error).toBe("unauthorized");
   });
 
   it("returns 404 when post not found", async () => {
@@ -145,7 +145,7 @@ describe("DELETE /api/posts/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(403);
-    expect(json.error).toBe("Forbidden");
+    expect(json.error).toBe("forbidden");
   });
 
   it("returns 429 when rate limited", async () => {

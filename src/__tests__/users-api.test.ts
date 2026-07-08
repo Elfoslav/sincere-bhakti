@@ -103,7 +103,7 @@ describe("PATCH /api/users/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(403);
-    expect(json.error).toBe("Forbidden");
+    expect(json.error).toBe("forbidden");
   });
 
   it("returns 403 when not authenticated", async () => {
@@ -113,7 +113,7 @@ describe("PATCH /api/users/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(403);
-    expect(json.error).toBe("Forbidden");
+    expect(json.error).toBe("forbidden");
   });
 
   it("returns 400 on invalid name", async () => {

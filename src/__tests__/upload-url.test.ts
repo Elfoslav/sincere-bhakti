@@ -34,7 +34,7 @@ describe("POST /api/upload-url", () => {
     const json = await res.json();
 
     expect(res.status).toBe(401);
-    expect(json.error).toBe("Unauthorized");
+    expect(json.error).toBe("unauthorized");
   });
 
   it("returns upload URL for authenticated user", async () => {

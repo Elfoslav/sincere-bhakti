@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { validateOrigin } from "@/lib/csrf";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-log";
+import { isSafeHttpUrl } from "@/lib/validation";
 import { z } from "zod";
 
 function canonicalizeUrl(url: string): string {
@@ -12,7 +13,7 @@ function canonicalizeUrl(url: string): string {
 }
 
 const cleanupSchema = z.object({
-  urls: z.array(z.string().url()).max(100),
+  urls: z.array(z.string().url().refine(isSafeHttpUrl)).max(100),
 });
 
 export async function POST(request: NextRequest) {
