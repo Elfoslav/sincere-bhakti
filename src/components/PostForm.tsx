@@ -12,15 +12,13 @@ import { getYouTubeEmbedUrl } from "@/lib/video";
 import { formatBytes } from "@/lib/format";
 import { genId } from "@/lib/id";
 import { getImageDimensions } from "@/lib/client-media";
+import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
 import type { Post } from "@/types/post";
 import type { MediaInput } from "@/lib/services/post";
 import {
   MAX_IMAGE_SIZE_BYTES,
   MAX_VIDEO_SIZE_BYTES,
   MAX_TOTAL_UPLOAD_SIZE_BYTES,
-  MAX_IMAGE_DIMENSION,
-  IMAGE_JPEG_QUALITY,
-  SKIP_CLIENT_RESIZE,
   maxUploadSizeForContentType,
   getAcceptString,
 } from "@/lib/validation";
@@ -88,10 +86,11 @@ export default function PostForm({
     const selected = Array.from(e.target.files ?? []);
     if (selected.length === 0) return;
 
-    const withinPerFileLimit = selected.filter(
-      (f) => f.size <= maxUploadSizeForContentType(f.type),
+    // Step 1: reject files that exceed the per-type size limit
+    const oversized = selected.filter(
+      (f) => f.size > maxUploadSizeForContentType(f.type),
     );
-    if (withinPerFileLimit.length < selected.length) {
+    if (oversized.length > 0) {
       toast.error(
         t("fileTooLarge", {
           imageMax: MAX_IMAGE_SIZE_BYTES / BYTES_PER_MB,
@@ -99,26 +98,33 @@ export default function PostForm({
         }),
       );
     }
-    if (withinPerFileLimit.length === 0) return;
 
+    const valid = selected.filter(
+      (f) => f.size <= maxUploadSizeForContentType(f.type),
+    );
+    if (valid.length === 0) return;
+
+    // Step 2: remove duplicates (same name + size as an already-added file)
     const existingKeys = new Set(
       mediaItems.filter((m) => m.file).map((m) => `${m.file!.name}|${m.file!.size}`),
     );
-    const deduped = withinPerFileLimit.filter((f) => !existingKeys.has(`${f.name}|${f.size}`));
-    if (deduped.length < withinPerFileLimit.length) {
+    const newFiles = valid.filter((f) => !existingKeys.has(`${f.name}|${f.size}`));
+    if (newFiles.length < valid.length) {
       toast.warning(t("duplicateMediaSkipped"));
     }
-    if (deduped.length === 0) return;
+    if (newFiles.length === 0) return;
 
+    // Step 3: verify total upload size stays within limits
     const currentTotal = mediaItems.reduce((sum, item) => sum + (item.file?.size ?? 0), 0);
-    const addedTotal = deduped.reduce((sum, f) => sum + f.size, 0);
+    const addedTotal = newFiles.reduce((sum, f) => sum + f.size, 0);
     if (currentTotal + addedTotal > MAX_TOTAL_UPLOAD_SIZE_BYTES) {
       toast.error(t("totalUploadTooLarge"));
       return;
     }
 
+    // Step 4: read dimensions and build media items
     const newItems: MediaItem[] = await Promise.all(
-      withinPerFileLimit.map(async (f) => {
+      newFiles.map(async (f) => {
         const dims = await getImageDimensions(f);
         return {
           id: genId(),
@@ -132,7 +138,6 @@ export default function PostForm({
     );
 
     setMediaItems((prev) => [...prev, ...newItems]);
-
     if (e.target) e.target.value = "";
   }
 
@@ -165,152 +170,6 @@ export default function PostForm({
     dragItemId.current = null;
   }, []);
 
-  // Client-side canvas resize for images. Reduces upload size and gives the
-  // server less work. Returns null when no resize is needed (dimensions already
-  // within limits, or non-image).
-  // Skip canvas resize for formats that would lose data when converted to JPEG.
-
-  async function maybeResizeImage(
-    file: File,
-    width: number,
-    height: number,
-  ): Promise<{ file: File; width: number; height: number } | null> {
-    if (!file.type.startsWith("image/") || file.type === "image/gif") return null;
-    if (Math.max(width, height) <= MAX_IMAGE_DIMENSION) return null;
-    if (SKIP_CLIENT_RESIZE.includes(file.type)) return null;
-
-    const img = await createImageBitmap(file);
-    try {
-      let newWidth: number, newHeight: number;
-      if (width > height) {
-        newWidth = MAX_IMAGE_DIMENSION;
-        newHeight = Math.round((height / width) * MAX_IMAGE_DIMENSION);
-      } else {
-        newHeight = MAX_IMAGE_DIMENSION;
-        newWidth = Math.round((width / height) * MAX_IMAGE_DIMENSION);
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = newWidth;
-      canvas.height = newHeight;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, newWidth, newHeight);
-
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob((b) => resolve(b), "image/jpeg", IMAGE_JPEG_QUALITY / 100),
-      );
-      if (!blob) return null;
-      return { file: new File([blob], file.name, { type: "image/jpeg" }), width: newWidth, height: newHeight };
-    } finally {
-      img.close();
-    }
-  }
-
-  async function uploadNewFiles(postId: string): Promise<{ media: MediaInput[]; error: string | null }> {
-    const toUpload = mediaItems.filter((m) => m.file);
-    if (toUpload.length === 0) return { media: [], error: null };
-
-    // Step 1: Pre-process (resize if needed) all files client-side before requesting URLs
-    const preprocessed = await Promise.all(
-      toUpload.map(async (item) => {
-        const file = item.file!;
-        const resized = await maybeResizeImage(file, item.width ?? 0, item.height ?? 0);
-        return { item, file, uploadFile: resized?.file ?? file, resized };
-      }),
-    );
-
-    // Step 2: Request presigned URLs with the actual (post-resize) file sizes
-    const urlRes = await fetch("/api/upload-url/batch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        postId,
-        files: preprocessed.map((p) => ({
-          fileName: p.file.name,
-          contentType: p.file.type,
-          size: p.uploadFile.size,
-        })),
-      }),
-    });
-
-    if (!urlRes.ok) {
-      const errBody = await urlRes.json().catch(() => ({}));
-      if (errBody?.error === "too_many_requests") return { media: [], error: "rate_limited" };
-      return { media: [], error: "upload_failed" };
-    }
-
-    const { urls } = await urlRes.json();
-
-    // Step 3: Upload preprocessed files and process results
-    const results = await Promise.allSettled(
-      preprocessed.map(async ({ item, file, uploadFile, resized }, i) => {
-        const { uploadUrl, publicUrl, key } = urls[i];
-
-        const putRes = await fetch(uploadUrl, {
-          method: "PUT",
-          body: uploadFile,
-          headers: { "Content-Type": file.type },
-        });
-        if (!putRes.ok) throw new Error("upload_failed");
-
-        let mediaType = file.type.startsWith("image/") ? "image" : file.type.startsWith("video/") ? "video" : "file";
-        let width: number | undefined;
-        let height: number | undefined;
-
-        if (resized) {
-          width = resized.width;
-          height = resized.height;
-        } else if (file.type.startsWith("image/") && file.type !== "image/gif") {
-          try {
-            const compressRes = await fetch("/api/compress", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ key }),
-            });
-            if (compressRes.ok) {
-              const comp = await compressRes.json();
-              mediaType = comp.mediaType;
-              width = comp.width;
-              height = comp.height;
-            }
-          } catch {
-            // Compress failed — use raw dimensions if available
-          }
-        }
-
-        if (width === undefined && item.width) width = item.width;
-        if (height === undefined && item.height) height = item.height;
-
-        return { url: publicUrl, type: mediaType, width, height } as MediaInput;
-      }),
-    );
-
-    const uploaded: MediaInput[] = [];
-    let uploadError: string | null = null;
-    for (const result of results) {
-      if (result.status === "rejected") {
-        if (!uploadError) uploadError = "upload_failed";
-      } else {
-        uploaded.push(result.value);
-      }
-    }
-    if (uploadError) {
-      return { media: uploaded, error: uploadError };
-    }
-
-    return { media: uploaded, error: null };
-  }
-
-  async function cleanupUploaded(uploaded: MediaInput[]) {
-    if (uploaded.length === 0) return;
-    const urls = uploaded.map((m) => m.url);
-    fetch("/api/upload/cleanup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urls }),
-    }).catch(() => {});
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!session) return;
@@ -330,9 +189,12 @@ export default function PostForm({
     const targetPostId = mode === "create" ? crypto.randomUUID() : postId!;
 
     try {
-      const { media: uploaded, error: uploadError } = await uploadNewFiles(targetPostId);
+      const { media: uploaded, error: uploadError } = await uploadMediaFiles(
+        targetPostId,
+        mediaItems.filter((m) => m.file).map((m) => ({ file: m.file!, width: m.width, height: m.height })),
+      );
       if (uploadError) {
-        await cleanupUploaded(uploaded);
+        await cleanupUploadedMedia(uploaded.map((m) => m.url));
         throw new Error(uploadError);
       }
 
@@ -384,7 +246,7 @@ export default function PostForm({
         toast.success(mode === "edit" ? t("postUpdated") : t("postPublished"));
         onSuccess(post);
       } else {
-        await cleanupUploaded(uploaded);
+        await cleanupUploadedMedia(uploaded.map((m) => m.url));
         const body = await res.json().catch(() => ({}));
         const err = body?.error ?? "";
         if (err === "validation_error:input:custom") {
