@@ -84,7 +84,7 @@ describe("POST /api/upload/cleanup", () => {
     expect(deleteMediaFiles).toHaveBeenCalledWith(["https://pub.r2.dev/posts/post-1/orphan.jpg"]);
   });
 
-  it("deletes URLs owned by the requesting user", async () => {
+  it("skips deletion when URL has an existing Media record", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([
       { url: "https://pub.r2.dev/posts/post-1/file.jpg", userId: "user-1" },
@@ -96,8 +96,29 @@ describe("POST /api/upload/cleanup", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.success).toBe(true);
-    expect(deleteMediaFiles).toHaveBeenCalled();
+    expect(json.deleted).toBe(0);
+    expect(deleteMediaFiles).not.toHaveBeenCalled();
+  });
+
+  it("only deletes the subset of URLs that have no Media record", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([
+      { url: "https://pub.r2.dev/posts/post-1/attached.jpg", userId: "user-1" },
+    ]);
+
+    const res = await POST(
+      mockRequest({
+        urls: [
+          "https://pub.r2.dev/posts/post-1/attached.jpg",
+          "https://pub.r2.dev/posts/post-1/orphan.jpg",
+        ],
+      }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.deleted).toBe(1);
+    expect(deleteMediaFiles).toHaveBeenCalledWith(["https://pub.r2.dev/posts/post-1/orphan.jpg"]);
   });
 
   it("canonicalizes URLs before ownership check", async () => {

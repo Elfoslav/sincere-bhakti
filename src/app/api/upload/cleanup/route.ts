@@ -54,8 +54,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await deleteMediaFiles(parsed.data.urls);
-    return NextResponse.json({ success: true });
+    // Only delete URLs that have NO Media record — URLs with an existing row
+    // are still referenced by a post and must not be removed.
+    const existingUrls = new Set(existing.map((r) => r.url));
+    const abandoned = urls.filter((u) => !existingUrls.has(u));
+
+    if (abandoned.length === 0) {
+      return NextResponse.json({ deleted: 0 });
+    }
+
+    await deleteMediaFiles(abandoned);
+    return NextResponse.json({ success: true, deleted: abandoned.length });
   } catch (error) {
     logServerError("POST /api/upload/cleanup failed", error);
     return NextResponse.json({ error: "cleanup_failed" }, { status: 500 });
