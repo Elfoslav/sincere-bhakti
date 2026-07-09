@@ -162,7 +162,7 @@
 	},
 "ChannelsPage": {
     "title": "All Channels",
-    "searchPlaceholder": "Search channels...",
+    "searchPlaceholder": "Search channels by name...",
     "noChannels": "No channels found.",
     "noChannelsQuery": "No channels match your search.",
     "postCount": "{count} posts",

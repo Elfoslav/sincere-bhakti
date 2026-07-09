@@ -162,7 +162,7 @@
   },
   "ChannelsPage": {
     "title": "Všechny kanály",
-    "searchPlaceholder": "Hledat kanály...",
+    "searchPlaceholder": "Hledat kanály podle názvu...",
     "noChannels": "Žádné kanály nenalezeny.",
     "noChannelsQuery": "Žádné kanály neodpovídají vašemu hledání.",
     "postCount": "{count} příspěvků",

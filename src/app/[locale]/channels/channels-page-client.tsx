@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { Hash, FileText, Search } from "lucide-react";
+import { Hash, FileText } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import SearchInput from "@/components/SearchInput";
 import type { ChannelInfo } from "@/types/user";
 
 interface ChannelsResponse {
@@ -68,15 +68,13 @@ return (
     <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col flex-1">
       <h1 className="text-2xl font-bold text-deep mb-6">{t("title")}</h1>
 
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-deep/40" />
-        <Input
-          value={query}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder={t("searchPlaceholder")}
-          className="pl-10"
-        />
-      </div>
+      <SearchInput
+        value={query}
+        onChange={handleSearchChange}
+        placeholder={t("searchPlaceholder")}
+        loading={loading}
+        className="mb-6"
+      />
 
         {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
