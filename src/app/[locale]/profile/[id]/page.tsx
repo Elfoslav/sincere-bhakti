@@ -85,7 +85,17 @@ export default function ProfilePage() {
   if (!profile) {
     return (
       <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
-        <p className="text-deep/60">{t("noProfile")}</p>
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">🔍🕊️</div>
+          <h1 className="text-2xl font-bold text-deep mb-2">{t("noProfileTitle")}</h1>
+          <p className="text-deep/60 mb-6">{t("noProfile")}</p>
+          <Link
+            href="/posts"
+            className="inline-block px-6 py-2.5 bg-gold hover:bg-gold-light active:bg-gold/80 text-white rounded-lg transition-colors font-medium"
+          >
+            {t("backToPosts")}
+          </Link>
+        </div>
       </div>
     );
   }

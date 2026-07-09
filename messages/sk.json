@@ -118,7 +118,9 @@
     "joined": "Pripojil sa {date}",
     "channels": "Kanály",
     "noChannels": "Zatiaľ žiadne kanály.",
-    "noProfile": "Oddaný nenájdený",
+    "noProfile": "Tento oddaný sa buď vybral na zelenšie pastviny, alebo nikdy neexistoval. Tak či tak, nie je tu.",
+    "noProfileTitle": "Oddaný nenájdený",
+    "backToPosts": "← Späť na príspevky",
     "viewChannel": "Zobraziť kanál",
     "postCount": "{count} príspevkov"
   },

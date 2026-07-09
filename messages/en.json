@@ -118,7 +118,9 @@
     "joined": "Joined {date}",
     "channels": "Channels",
     "noChannels": "No channels yet.",
-    "noProfile": "Devotee not found",
+    "noProfile": "This devotee has either moved on to greener pastures, or never existed. Either way, they're not here.",
+    "noProfileTitle": "Devotee Not Found",
+    "backToPosts": "← Back to posts",
     "viewChannel": "View channel",
     "postCount": "{count} posts"
   },
