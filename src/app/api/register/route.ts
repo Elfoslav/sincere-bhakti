@@ -5,18 +5,20 @@ import { registerSchema, BCRYPT_SALT_ROUNDS } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
+import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_EMAIL_IN_USE, ERROR_SERVER_ERROR } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_CONFLICT, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function POST(request: NextRequest) {
   if (!validateOrigin(request)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
   }
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   const { allowed } = await rateLimit(rateLimitKey("register", ip), RATE_LIMITS.register.limit, RATE_LIMITS.register.windowMs);
     if (!allowed) {
     return NextResponse.json(
-      { error: "too_many_requests" },
-      { status: 429 },
+      { error: ERROR_TOO_MANY_REQUESTS },
+      { status: HTTP_TOO_MANY_REQUESTS },
     );
   }
 
@@ -29,7 +31,7 @@ export async function POST(request: NextRequest) {
       logValidationError("POST /api/register", issue, body);
       return NextResponse.json(
         { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: 400 }
+        { status: HTTP_BAD_REQUEST }
       );
     }
 
@@ -41,8 +43,8 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "email_in_use" },
-        { status: 409 }
+        { error: ERROR_EMAIL_IN_USE },
+        { status: HTTP_CONFLICT }
       );
     }
 
@@ -58,13 +60,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { id: user.id, name: user.name, email: user.email },
-      { status: 201 }
+      { status: HTTP_CREATED }
     );
   } catch (error) {
     logServerError("POST /api/register failed", error);
     return NextResponse.json(
-      { error: "server_error" },
-      { status: 500 }
+      { error: ERROR_SERVER_ERROR },
+      { status: HTTP_INTERNAL_SERVER_ERROR }
     );
   }
 }

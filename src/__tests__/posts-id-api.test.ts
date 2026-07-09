@@ -30,7 +30,7 @@ const basePost = {
   content: "Hare Krishna!",
   isPublic: true,
   createdAt: new Date(),
-  author: { id: "user-1", name: "Devotee", image: null },
+  channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
   media: [],
 };
 
@@ -59,11 +59,11 @@ describe("GET /api/posts/[id]", () => {
     expect(json.error).toBe("not_found");
   });
 
-  it("allows author to view private post", async () => {
+  it("allows owner to view private post", async () => {
     vi.mocked(getPostById).mockResolvedValue({
       ...basePost,
       isPublic: false,
-      author: { id: "user-1", name: "Devotee", image: null },
+      channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
     });
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
 
@@ -71,11 +71,11 @@ describe("GET /api/posts/[id]", () => {
     expect(res.status).toBe(200);
   });
 
-  it("hides private post from non-author as 404", async () => {
+  it("hides private post from non-owner as 404", async () => {
     vi.mocked(getPostById).mockResolvedValue({
       ...basePost,
       isPublic: false,
-      author: { id: "user-1", name: "Devotee", image: null },
+      channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
     });
     vi.mocked(auth).mockResolvedValue({ user: { id: "other-user" } } as any);
 
@@ -115,7 +115,7 @@ describe("DELETE /api/posts/[id]", () => {
   });
 
   it("returns 401 when not authenticated", async () => {
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
 
     const res = await DELETE(mockRequest(), { params: Promise.resolve({ id: "post-1" }) });
     const json = await res.json();
@@ -151,7 +151,7 @@ describe("DELETE /api/posts/[id]", () => {
   it("returns 429 when rate limited", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     const { rateLimit } = await import("@/lib/rate-limit");
-    vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 3_600_000 });
+    vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 3_600_000 } as any);
 
     const res = await DELETE(mockRequest(), { params: Promise.resolve({ id: "post-1" }) });
     const json = await res.json();
@@ -207,7 +207,7 @@ describe("PATCH /api/posts/[id]", () => {
   });
 
   it("returns 401 without auth", async () => {
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
 
     const res = await PATCH(patchRequest({ content: "x" }), { params: Promise.resolve({ id: "post-1" }) });
 
@@ -239,7 +239,7 @@ describe("PATCH /api/posts/[id]", () => {
   it("returns 429 when rate limited", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     const { rateLimit } = await import("@/lib/rate-limit");
-    vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 3_600_000 });
+    vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 3_600_000 } as any);
 
     const res = await PATCH(patchRequest({ content: "x" }), { params: Promise.resolve({ id: "post-1" }) });
 
@@ -250,7 +250,7 @@ describe("PATCH /api/posts/[id]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(updatePost).mockResolvedValue({
       ...basePost,
-      media: [{ url: "https://example.com/img.jpg", type: "image", position: 0 }],
+      media: [{ url: "https://example.com/img.jpg", type: "image", position: 0, width: null, height: null }],
     });
 
     const res = await PATCH(

@@ -27,7 +27,7 @@ describe("POST /api/upload-url/batch", () => {
   });
 
   it("returns 401 when not authenticated", async () => {
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
 
     const res = await POST(
       mockRequest({ postId: "post-1", files: [{ fileName: "test.jpg", contentType: "image/jpeg", size: 1024 }] }),

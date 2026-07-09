@@ -5,6 +5,8 @@ import { updateNameSchema } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function GET(
   request: NextRequest,
@@ -22,18 +24,24 @@ export async function GET(
         name: true,
         image: true,
         createdAt: true,
+        channels: {
+          where: { ownerId: id },
+          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true },
+          take: 1,
+        },
         ...(session?.user?.id === id ? { email: true } : {}),
       },
     });
 
     if (!user) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
+      return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
-    return NextResponse.json(user);
+    const { channels, ...profile } = user;
+    return NextResponse.json({ ...profile, channel: channels[0] || null });
   } catch (error) {
     logServerError("GET /api/users/[id] failed", error);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
   }
 }
 
@@ -43,21 +51,21 @@ export async function PATCH(
 ) {
   try {
     if (!validateOrigin(request)) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
     }
 
     const session = await auth();
     const { id } = await params;
 
     if (!session?.user?.id || session.user.id !== id) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
     }
 
     const { allowed } = await rateLimit(rateLimitKey("update-profile", id), RATE_LIMITS.updateProfile.limit, RATE_LIMITS.updateProfile.windowMs);
     if (!allowed) {
       return NextResponse.json(
-        { error: "too_many_requests" },
-        { status: 429 },
+        { error: ERROR_TOO_MANY_REQUESTS },
+        { status: HTTP_TOO_MANY_REQUESTS },
       );
     }
 
@@ -69,19 +77,28 @@ export async function PATCH(
       logValidationError("PATCH /api/users/[id]", issue, body);
       return NextResponse.json(
         { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: 400 }
+        { status: HTTP_BAD_REQUEST }
       );
     }
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: { name: parsed.data.name },
-      select: { id: true, name: true, email: true, image: true, createdAt: true },
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id },
+        data: { name: parsed.data.name },
+        select: { id: true, name: true, email: true, image: true, createdAt: true },
+      });
+
+      await tx.channel.updateMany({
+        where: { ownerId: id },
+        data: { name: parsed.data.name },
+      });
+
+      return updated;
     });
 
     return NextResponse.json(user);
   } catch (error) {
     logServerError("PATCH /api/users/[id] failed", error);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
   }
 }

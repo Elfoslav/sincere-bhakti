@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Pencil } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import PostCard from "@/components/PostCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,7 @@ export default function ProfilePage() {
     loadingMore: publicLoadingMore,
     hasMore: publicHasMore,
     sentinelRef: publicSentinelRef,
-  } = useInfinitePosts({ authorId, disabled: !authorId, language: locale });
+  } = useInfinitePosts({ channelId: profile?.channel?.id, disabled: !profile?.channel?.id, language: locale });
 
   const {
     posts: myPosts,
@@ -51,7 +52,7 @@ export default function ProfilePage() {
     loadingMore: myPostsLoadingMore,
     hasMore: myPostsHasMore,
     sentinelRef: myPostsSentinelRef,
-  } = useInfinitePosts({ scope: "private", disabled: !isOwnProfile, language: locale });
+  } = useInfinitePosts({ channelId: profile?.channel?.id, scope: "private", disabled: !isOwnProfile, language: locale });
 
   const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);
 
@@ -94,7 +95,7 @@ export default function ProfilePage() {
   const handleDelete = useCallback((id: string) => {
     setPublicPosts((prev) => prev.filter((p) => p.id !== id));
     setMyPosts((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+  }, [setPublicPosts, setMyPosts]);
 
   if (profileLoading) {
     return (
@@ -218,6 +219,14 @@ export default function ProfilePage() {
         <p className="text-deep/50 text-sm mt-1">
           {t("joined", { date })}
         </p>
+        {profile.channel && (
+          <Link
+            href={`/channels/${profile.channel.slug}`}
+            className="inline-block mt-3 text-sm text-gold hover:text-gold-light underline-offset-2 hover:underline"
+          >
+            {t("viewChannel")}
+          </Link>
+        )}
       </div>
 
       {isOwnProfile ? (

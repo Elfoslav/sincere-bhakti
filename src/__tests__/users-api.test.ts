@@ -6,6 +6,17 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    channel: {
+      updateMany: vi.fn(),
+    },
+    $transaction: vi.fn((cb: (tx: any) => any) => cb({
+      user: {
+        update: (...args: any[]) => (prisma.user.update as any)(...args),
+      },
+      channel: {
+        updateMany: (...args: any[]) => (prisma.channel.updateMany as any)(...args),
+      },
+    })),
   },
 }));
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
@@ -29,8 +40,10 @@ const baseUser = {
   id: "user-1",
   name: "Devotee",
   email: "devotee@example.com",
+  password: "hashed-pw",
   image: null,
   createdAt: new Date("2026-01-01"),
+  channels: [{ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }],
 };
 
 describe("GET /api/users/[id]", () => {
@@ -38,7 +51,7 @@ describe("GET /api/users/[id]", () => {
     vi.clearAllMocks();
   });
 
-  it("returns user profile with email for authenticated user", async () => {
+  it("returns user profile with email and channel for authenticated user", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.user.findUnique).mockResolvedValue(baseUser);
 
@@ -48,6 +61,7 @@ describe("GET /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("Devotee");
     expect(json.email).toBe("devotee@example.com");
+    expect(json.channel).toEqual({ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" });
   });
 
   it("returns 404 when user not found", async () => {
@@ -68,6 +82,22 @@ describe("GET /api/users/[id]", () => {
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("server_error");
+  });
+
+  it("returns user profile without email for non-owner", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "other-user" } } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      ...baseUser,
+      email: undefined as unknown as string, // email is excluded in the select when not owner
+    });
+
+    const res = await GET(mockRequest(), { params: Promise.resolve({ id: "user-1" }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.name).toBe("Devotee");
+    expect(json.email).toBeUndefined();
+    expect(json.channel).toEqual({ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" });
   });
 });
 
@@ -94,6 +124,10 @@ describe("PATCH /api/users/[id]", () => {
         data: { name: "New Name" },
       }),
     );
+    expect(prisma.channel.updateMany).toHaveBeenCalledWith({
+      where: { ownerId: "user-1" },
+      data: { name: "New Name" },
+    });
   });
 
   it("returns 403 when not the owner", async () => {
@@ -107,7 +141,7 @@ describe("PATCH /api/users/[id]", () => {
   });
 
   it("returns 403 when not authenticated", async () => {
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
 
     const res = await PATCH(mockRequest({ name: "New" }), { params: Promise.resolve({ id: "user-1" }) });
     const json = await res.json();
@@ -129,7 +163,7 @@ describe("PATCH /api/users/[id]", () => {
   it("returns 429 when rate limited", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     const { rateLimit } = await import("@/lib/rate-limit");
-    vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 3_600_000 });
+    vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 3_600_000 } as any);
 
     const res = await PATCH(mockRequest({ name: "New" }), { params: Promise.resolve({ id: "user-1" }) });
     const json = await res.json();

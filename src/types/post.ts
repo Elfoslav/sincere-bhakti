@@ -8,10 +8,12 @@ export interface PostMedia {
   height: number | null;
 }
 
-export interface PostAuthor {
+export interface PostChannel {
   id: string;
-  name: string | null;
-  image: string | null;
+  name: string;
+  slug: string;
+  avatarUrl: string | null;
+  ownerId: string;
 }
 
 export interface Post {
@@ -20,5 +22,5 @@ export interface Post {
   media: PostMedia[];
   isPublic: boolean;
   createdAt: string;
-  author: PostAuthor;
+  channel: PostChannel;
 }

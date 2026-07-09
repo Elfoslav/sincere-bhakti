@@ -28,7 +28,7 @@ describe("POST /api/upload-url", () => {
   });
 
   it("returns 401 when not authenticated", async () => {
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
 
     const res = await POST(mockRequest({ fileName: "test.jpg", contentType: "image/jpeg" }));
     const json = await res.json();
@@ -42,6 +42,7 @@ describe("POST /api/upload-url", () => {
     vi.mocked(createUploadUrl).mockResolvedValue({
       uploadUrl: "https://r2.example.com/upload-url",
       publicUrl: "https://pub.r2.dev/posts/uuid-test.jpg",
+      key: "posts/uuid-test.jpg",
     });
     vi.mocked(contentTypeToMediaType).mockReturnValue("image");
 

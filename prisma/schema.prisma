@@ -6,6 +6,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ChannelRole {
+  owner
+  editor
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -13,8 +18,33 @@ model User {
   password  String
   image     String?
   createdAt DateTime @default(now())
-  posts     Post[]
+  channels  Channel[]       @relation("ChannelOwner")
+  editors   ChannelEditor[]
   media     Media[]
+}
+
+model Channel {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  ownerId   String
+  owner     User          @relation("ChannelOwner", fields: [ownerId], references: [id])
+  posts     Post[]
+  editors   ChannelEditor[]
+
+  @@index([ownerId])
+}
+
+model ChannelEditor {
+  channelId String
+  channel   Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      ChannelRole  @default(editor)
+
+  @@id([channelId, userId])
 }
 
 model Post {
@@ -23,11 +53,11 @@ model Post {
   isPublic  Boolean  @default(true)
   language  String   @default("en")
   createdAt DateTime @default(now())
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   media     Media[]
 
-  @@index([authorId])
+  @@index([channelId])
   @@index([isPublic, createdAt])
   @@index([language, isPublic, createdAt])
 }

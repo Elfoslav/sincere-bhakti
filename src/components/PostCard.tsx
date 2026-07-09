@@ -75,14 +75,14 @@ export default function PostCard({
     <div className="bg-white rounded-lg shadow-md p-5 border border-sand">
       <div className="flex items-start gap-3 mb-3">
         <div className="w-10 h-10 rounded-full bg-gold flex items-center justify-center text-deep font-bold text-lg shrink-0">
-          {post.author.name?.[0]?.toUpperCase() || "?"}
+          {post.channel.name?.[0]?.toUpperCase() || "?"}
         </div>
         <div className="flex-1 min-w-0">
           <Link
-            href={`/profile/${post.author.id}`}
+            href={`/channels/${post.channel.slug}`}
             className="font-semibold text-deep hover:text-gold"
           >
-            {post.author.name || t("anonymous")}
+            {post.channel.name || t("anonymous")}
           </Link>
           <p className="text-xs text-deep/60">
             <Link href={`/post/${post.id}`} className="hover:text-gold">
@@ -91,7 +91,7 @@ export default function PostCard({
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {currentUserId === post.author.id && !hideEdit && (
+          {currentUserId === post.channel.ownerId && !hideEdit && (
             <Link
               href={`/post/${post.id}/edit`}
               className="text-deep/40 hover:text-gold transition-colors p-1"
@@ -101,7 +101,7 @@ export default function PostCard({
               <Pencil className="w-4 h-4" />
             </Link>
           )}
-          {currentUserId === post.author.id && onDelete && (
+          {currentUserId === post.channel.ownerId && onDelete && (
             <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={isDeleting}
@@ -173,7 +173,7 @@ export default function PostCard({
         </div>
       ))}
 
-      {currentUserId === post.author.id && (
+      {currentUserId === post.channel.ownerId && (
         <div className="flex items-center gap-2 text-xs text-deep/50">
           {post.isPublic ? (
             <span className="bg-tulsi/20 text-tulsi px-2 py-0.5 rounded-full">

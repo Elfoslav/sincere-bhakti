@@ -32,7 +32,7 @@ export default function EditPostPage() {
       })
       .then((data: Post) => {
         if (!mounted) return;
-        if (status !== "authenticated" || session?.user?.id !== data.author.id) {
+        if (status !== "authenticated" || session?.user?.id !== data.channel.ownerId) {
           setError(t("forbidden"));
           setLoading(false);
           return;

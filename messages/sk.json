@@ -113,6 +113,7 @@
     "noPosts": "Zatiaľ žiadne verejné príspevky.",
     "noPrivatePosts": "Zatiaľ žiadne súkromné príspevky.",
     "noProfile": "Oddaný nenájdený",
+    "viewChannel": "Zobraziť kanál",
     "loadingMore": "Načítavam ďalšie..."
   },
   "PostCard": {
@@ -149,6 +150,16 @@
     "notFound": "Príspevok nenájdený",
     "forbidden": "Nemáte oprávnenie upravovať tento príspevok",
     "backLink": "← Späť na príspevok"
+  },
+  "ChannelPage": {
+    "posts": "príspevkov",
+    "publicPosts": "Verejné príspevky ({count})",
+    "privatePosts": "Súkromné príspevky ({count})",
+    "noPublicPosts": "Zatiaľ žiadne verejné príspevky.",
+    "noPrivatePosts": "Zatiaľ žiadne súkromné príspevky.",
+    "loadingMore": "Načítavam ďalšie...",
+    "notFound": "Kanál nenájdený",
+    "metaDescription": "Prehliadať príspevky z {name}"
   },
   "Common": {
     "cancel": "Zrušiť",

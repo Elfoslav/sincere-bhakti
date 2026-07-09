@@ -5,14 +5,14 @@ const PAGE_SIZE = 10;
 
 type ApiParams = {
   scope?: "public" | "private";
-  authorId?: string;
+  channelId?: string;
   disabled?: boolean;
   pageSize?: number;
   language?: string;
 };
 
 export function useInfinitePosts(params?: ApiParams) {
-  const { scope = "public", authorId, disabled, pageSize = PAGE_SIZE, language } = params ?? {};
+  const { scope = "public", channelId, disabled, pageSize = PAGE_SIZE, language } = params ?? {};
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(!disabled);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -27,7 +27,7 @@ export function useInfinitePosts(params?: ApiParams) {
           limit: String(pageSize),
         });
         if (cursor) query.set("cursor", cursor);
-        if (authorId) query.set("authorId", authorId);
+        if (channelId) query.set("channelId", channelId);
         if (language) query.set("language", language);
 
         const res = await fetch(`/api/posts?${query}`);
@@ -38,7 +38,7 @@ export function useInfinitePosts(params?: ApiParams) {
         return null;
       }
     },
-    [scope, authorId, pageSize, language],
+    [scope, channelId, pageSize, language],
   );
 
   useEffect(() => {

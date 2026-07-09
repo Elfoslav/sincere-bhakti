@@ -36,7 +36,7 @@ describe("POST /api/compress", () => {
   });
 
   it("returns 401 when not authenticated", async () => {
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
 
     const res = await POST(mockRequest({ key: "posts/post-abc/uuid.jpg" }));
     const json = await res.json();
@@ -78,7 +78,7 @@ describe("POST /api/compress", () => {
   it("allows compress when Media record belongs to caller", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([
-      { userId: "user-1" },
+      { id: "media-1", url: "https://pub.r2.dev/posts/post-abc/uuid.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-abc", userId: "user-1" },
     ]);
     vi.mocked(compressR2Object).mockResolvedValue({
       publicUrl: "https://pub.r2.dev/posts/post-abc/compressed.jpg",
@@ -95,7 +95,7 @@ describe("POST /api/compress", () => {
   it("returns 403 when key belongs to another user", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([
-      { userId: "user-2" },
+      { id: "media-2", url: "https://pub.r2.dev/posts/post-abc/uuid.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-abc", userId: "user-2" },
     ]);
 
     const res = await POST(mockRequest({ key: "posts/post-abc/uuid.jpg" }));

@@ -35,7 +35,7 @@ describe("POST /api/upload/cleanup", () => {
   });
 
   it("returns 401 when not authenticated", async () => {
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
 
     const res = await POST(mockRequest({ urls: ["https://pub.r2.dev/posts/post-1/file.jpg"] }));
     const json = await res.json();
@@ -57,7 +57,7 @@ describe("POST /api/upload/cleanup", () => {
   it("returns 403 when a URL belongs to another user", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([
-      { url: "https://pub.r2.dev/posts/post-2/file.jpg", userId: "user-2" },
+      { id: "media-2", url: "https://pub.r2.dev/posts/post-2/file.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-2", userId: "user-2" },
     ]);
 
     const res = await POST(
@@ -87,7 +87,7 @@ describe("POST /api/upload/cleanup", () => {
   it("skips deletion when URL has an existing Media record", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([
-      { url: "https://pub.r2.dev/posts/post-1/file.jpg", userId: "user-1" },
+      { id: "media-1", url: "https://pub.r2.dev/posts/post-1/file.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-1", userId: "user-1" },
     ]);
 
     const res = await POST(
@@ -103,7 +103,7 @@ describe("POST /api/upload/cleanup", () => {
   it("only deletes the subset of URLs that have no Media record", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([
-      { url: "https://pub.r2.dev/posts/post-1/attached.jpg", userId: "user-1" },
+      { id: "media-3", url: "https://pub.r2.dev/posts/post-1/attached.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-1", userId: "user-1" },
     ]);
 
     const res = await POST(
@@ -124,7 +124,7 @@ describe("POST /api/upload/cleanup", () => {
   it("canonicalizes URLs before ownership check", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([
-      { url: "https://pub.r2.dev/posts/post-2/file.jpg", userId: "user-2" },
+      { id: "media-4", url: "https://pub.r2.dev/posts/post-2/file.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-2", userId: "user-2" },
     ]);
 
     // Append ?x=1 to bypass the exact URL match

@@ -161,7 +161,7 @@ export const paginationSchema = z.object({
   scope: z.enum(["public", "private"]).optional(),
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(10),
-  authorId: z.string().min(1).optional(),
+  channelId: z.string().min(1).optional(),
   language: z.enum(locales).optional(),
 });
 

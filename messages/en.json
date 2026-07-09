@@ -113,6 +113,7 @@
     "noPosts": "No public posts yet.",
     "noPrivatePosts": "No private posts yet.",
     "noProfile": "Devotee not found",
+    "viewChannel": "View channel",
     "loadingMore": "Loading more..."
   },
   "PostCard": {
@@ -149,6 +150,16 @@
     "notFound": "Post not found",
     "forbidden": "You don't have permission to edit this post",
     "backLink": "← Back to post"
+  },
+  "ChannelPage": {
+    "posts": "posts",
+    "publicPosts": "Public Posts ({count})",
+    "privatePosts": "Private Posts ({count})",
+    "noPublicPosts": "No public posts yet.",
+    "noPrivatePosts": "No private posts yet.",
+    "loadingMore": "Loading more...",
+    "notFound": "Channel not found",
+    "metaDescription": "Browse posts from {name}"
   },
   "Common": {
     "cancel": "Cancel",

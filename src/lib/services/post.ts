@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
+import { canonicalizeUrl } from "@/lib/url";
 import type { Prisma } from "@prisma/client";
-import type { PostAuthor } from "@/types/post";
+import type { PostChannel } from "@/types/post";
 
 export class UnauthorizedError extends Error {
   name = "UnauthorizedError" as const;
@@ -29,7 +30,7 @@ export interface PostResponse {
   content: string | null;
   isPublic: boolean;
   createdAt: Date;
-  author: PostAuthor;
+  channel: PostChannel;
   media: PostMedia[];
 }
 
@@ -37,7 +38,7 @@ export interface GetPostsParams {
   scope?: "public" | "private";
   cursor?: string;
   limit?: number;
-  authorId?: string;
+  channelId?: string;
   language?: string;
 }
 
@@ -59,6 +60,7 @@ export interface CreatePostData {
   media?: MediaInput[];
   isPublic?: boolean;
   language?: string;
+  channelId?: string;
 }
 
 export interface UpdatePostData {
@@ -68,7 +70,7 @@ export interface UpdatePostData {
 }
 
 const postInclude = {
-  author: { select: { id: true, name: true, image: true } },
+  channel: { select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true } },
   media: { orderBy: { position: "asc" as const } },
 };
 
@@ -76,24 +78,63 @@ export async function getPosts(
   params: GetPostsParams,
   currentUserId?: string,
 ): Promise<GetPostsResult> {
-  const { scope, cursor, limit = 10, authorId, language } = params;
+  const { scope, cursor, limit = 10, channelId, language } = params;
 
   const where: Prisma.PostWhereInput = {};
   if (language) where.language = language;
 
   if (scope === "public") {
     where.isPublic = true;
-    if (authorId) where.authorId = authorId;
+    if (channelId) where.channelId = channelId;
+  } else if (scope === "private") {
+    if (!currentUserId) throw new UnauthorizedError();
+    if (channelId) {
+      // Only channel owner may view private posts
+      const channel = await prisma.channel.findUnique({
+        where: { id: channelId },
+        select: { ownerId: true },
+      });
+      if (!channel || channel.ownerId !== currentUserId) {
+        throw new UnauthorizedError();
+      }
+      where.channelId = channelId;
+    } else {
+      // No channelId: scope to user's own channels
+      const userChannels = await prisma.channel.findMany({
+        where: { ownerId: currentUserId },
+        select: { id: true },
+      });
+      if (userChannels.length > 0) {
+        where.channelId = { in: userChannels.map((c) => c.id) };
+      } else {
+        where.id = "none";
+      }
+    }
+    where.isPublic = false;
   } else {
     if (!currentUserId) throw new UnauthorizedError();
-    // Private scope: a user may only see their own posts (public + private).
-    // When requesting another user's posts, restrict to public ones so
-    // private posts never leak via an `authorId` query param.
-    if (authorId && authorId !== currentUserId) {
-      where.authorId = authorId;
-      where.isPublic = true;
+    if (channelId) {
+      // Non-owners may only see public posts of the channel
+      const channel = await prisma.channel.findUnique({
+        where: { id: channelId },
+        select: { ownerId: true },
+      });
+      if (!channel) throw new NotFoundError();
+      where.channelId = channelId;
+      if (channel.ownerId !== currentUserId) {
+        where.isPublic = true;
+      }
     } else {
-      where.authorId = currentUserId;
+      // No channelId: scope to user's own channels
+      const userChannels = await prisma.channel.findMany({
+        where: { ownerId: currentUserId },
+        select: { id: true },
+      });
+      if (userChannels.length > 0) {
+        where.channelId = { in: userChannels.map((c) => c.id) };
+      } else {
+        where.id = "none";
+      }
     }
   }
 
@@ -118,10 +159,6 @@ export async function getPostById(id: string): Promise<PostResponse | null> {
   });
 
   return post;
-}
-
-function canonicalizeUrl(url: string): string {
-  return url.split("?")[0].split("#")[0];
 }
 
 async function validateMediaOwnership(
@@ -158,8 +195,10 @@ export async function createPost(
   data: CreatePostData,
   userId: string,
 ): Promise<PostResponse> {
-  const { id, content, media = [], isPublic = true, language = "en" } = data;
+  const { id, content, media = [], isPublic = true, language = "en", channelId } = data;
   await validateMediaOwnership(media, userId);
+
+  if (!channelId) throw new ValidationError("channel_required");
 
   const post = await prisma.post.create({
     data: {
@@ -167,7 +206,7 @@ export async function createPost(
       content: content || null,
       isPublic,
       language,
-      authorId: userId,
+      channelId,
       media: {
         create: media.map((m, i) => ({
           url: m.url,
@@ -191,14 +230,14 @@ export async function deletePost(
 ): Promise<void> {
   const post = await prisma.post.findUnique({
     where: { id },
-    include: { media: { select: { url: true } } },
+    include: { media: { select: { url: true } }, channel: { select: { ownerId: true } } },
   });
   if (!post) throw new NotFoundError();
-  if (post.authorId !== userId) throw new ForbiddenError();
+  if (post.channel.ownerId !== userId) throw new ForbiddenError();
 
   const urls = post.media.map((m) => canonicalizeUrl(m.url));
 
-  await prisma.post.deleteMany({ where: { id, authorId: userId } });
+  await prisma.post.deleteMany({ where: { id, channel: { ownerId: userId } } });
 
   const counts = await Promise.all(
     urls.map((url) => prisma.media.count({ where: { url } })),
@@ -214,7 +253,7 @@ export async function updatePost(
 ): Promise<PostResponse> {
   const existing = await prisma.post.findUnique({
     where: { id },
-    include: { media: { select: { url: true } } },
+    include: { media: { select: { url: true } }, channel: { select: { ownerId: true } } },
   });
   if (!existing) throw new NotFoundError();
 
@@ -239,8 +278,12 @@ export async function updatePost(
       }
     }
 
+    if (existing.channel.ownerId !== userId) {
+      throw new NotFoundError();
+    }
+
     const { count } = await tx.post.updateMany({
-      where: { id, authorId: userId },
+      where: { id },
       data: postData,
     });
 

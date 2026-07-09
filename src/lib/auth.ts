@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "./rate-limit";
+import { createPersonalChannel, getPersonalChannel } from "@/lib/services/channel";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -51,13 +52,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
+        token.id = user.id!;
+
+        let channel = await getPersonalChannel(user.id!);
+        if (!channel) {
+          channel = await createPersonalChannel(user.id!, user.name ?? "User");
+        }
+        token.channelId = channel.id;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        session.user.channelId = token.channelId as string;
       }
       return session;
     },

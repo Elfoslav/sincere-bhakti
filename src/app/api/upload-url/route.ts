@@ -5,22 +5,24 @@ import { uploadUrlSchema } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
+import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function POST(request: NextRequest) {
   if (!validateOrigin(request)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
   }
 
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
   }
 
   const { allowed } = await rateLimit(rateLimitKey("upload-url", session.user.id), RATE_LIMITS.uploadUrl.limit, RATE_LIMITS.uploadUrl.windowMs);
   if (!allowed) {
     return NextResponse.json(
-      { error: "too_many_requests" },
-      { status: 429 },
+      { error: ERROR_TOO_MANY_REQUESTS },
+      { status: HTTP_TOO_MANY_REQUESTS },
     );
   }
 
@@ -33,7 +35,7 @@ export async function POST(request: NextRequest) {
       logValidationError("POST /api/upload-url", issue, body);
       return NextResponse.json(
         { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: 400 },
+        { status: HTTP_BAD_REQUEST },
       );
     }
 
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest) {
     logServerError("POST /api/upload-url failed", error);
     return NextResponse.json(
       { error: "failed_to_generate_upload_url" },
-      { status: 500 },
+      { status: HTTP_INTERNAL_SERVER_ERROR },
     );
   }
 }
