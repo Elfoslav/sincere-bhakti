@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { updateNameSchema } from "@/lib/validation";
+import { updateNameSchema, normalizeName } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
@@ -81,12 +81,13 @@ export async function PATCH(
       );
     }
 
-    // Check if the new name is already taken by another channel
-    const nameTaken = await prisma.channel.findFirst({
-      where: { name: parsed.data.name, ownerId: { not: id } },
-      select: { id: true },
+    // Check if the new name is already taken by another channel (fuzzy: strip diacritics)
+    const otherChannels = await prisma.channel.findMany({
+      where: { ownerId: { not: id } },
+      select: { name: true },
     });
-    if (nameTaken) {
+    const otherNames = new Set(otherChannels.map((c) => normalizeName(c.name)));
+    if (otherNames.has(normalizeName(parsed.data.name))) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 

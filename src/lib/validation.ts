@@ -192,3 +192,12 @@ export const batchUploadUrlSchema = z.object({
 export const compressSchema = z.object({
   key: z.string().min(1).max(500),
 });
+
+// Strips diacritics and lowercases for fuzzy-unique name comparison.
+// "Taruṇa Govinda Dāsa" and "Taruna Govinda Dasa" both normalize to "taruna govinda dasa".
+export function normalizeName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}

@@ -8,6 +8,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     channel: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       updateMany: vi.fn(),
     },
     $transaction: vi.fn((cb: (tx: any) => any) => cb({
@@ -109,7 +110,7 @@ describe("PATCH /api/users/[id]", () => {
 
   it("updates own name", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
     vi.mocked(prisma.$transaction).mockImplementation(async (cb: any) => {
       const tx = {
         user: { update: vi.fn().mockResolvedValue({ ...baseUser, name: "New Name" }) },
@@ -123,9 +124,9 @@ describe("PATCH /api/users/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(json.name).toBe("New Name");
-    expect(prisma.channel.findFirst).toHaveBeenCalledWith({
-      where: { name: "New Name", ownerId: { not: "user-1" } },
-      select: { id: true },
+    expect(prisma.channel.findMany).toHaveBeenCalledWith({
+      where: { ownerId: { not: "user-1" } },
+      select: { name: true },
     });
   });
 
@@ -171,9 +172,9 @@ describe("PATCH /api/users/[id]", () => {
     expect(json.error).toBe("too_many_requests");
   });
 
-  it("returns 409 when channel name is taken", async () => {
+  it("returns 409 when channel name is taken (including diacritic variants)", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue({ id: "other-channel" } as any);
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([{ name: "Táken Námé" }] as any);
 
     const res = await PATCH(mockRequest({ name: "Taken Name" }), { params: Promise.resolve({ id: "user-1" }) });
     const json = await res.json();
@@ -184,7 +185,7 @@ describe("PATCH /api/users/[id]", () => {
 
   it("returns 500 on server error", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
     vi.mocked(prisma.$transaction).mockRejectedValue(new Error("DB down"));
 
     const res = await PATCH(mockRequest({ name: "New" }), { params: Promise.resolve({ id: "user-1" }) });

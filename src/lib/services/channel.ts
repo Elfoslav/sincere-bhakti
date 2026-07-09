@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { normalizeName } from "@/lib/validation";
 import type { PostChannel } from "@/types/post";
 
 export class NotFoundError extends Error {
@@ -16,8 +17,7 @@ function toPostChannel(channel: { id: string; name: string; slug: string; avatar
 }
 
 function slugify(name: string): string {
-  return name
-    .toLowerCase()
+  return normalizeName(name)
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 80) || "channel";
@@ -28,24 +28,30 @@ export async function createPersonalChannel(userId: string, userName: string): P
   const existing = await prisma.channel.findFirst({ where: { ownerId: userId } });
   if (existing) return toPostChannel(existing);
 
+  // Fetch all existing names (normalized) for fuzzy-duplicate detection.
+  // "Taruṇa" and "Taruna" should be treated as the same name.
+  const allChannels = await prisma.channel.findMany({ select: { name: true } });
+  const existingNames = new Set(allChannels.map((c) => normalizeName(c.name)));
+
   const baseSlug = slugify(userName);
 
   for (let i = 1; i <= 1000; i++) {
     const name = i === 1 ? userName : `${userName} (${i})`;
     const slug = i === 1 ? baseSlug : `${baseSlug}-${i}`;
 
-    // Fast check — skip if name or slug is already taken
-    const [nameTaken, slugTaken] = await Promise.all([
-      prisma.channel.findFirst({ where: { name }, select: { id: true } }),
-      prisma.channel.findFirst({ where: { slug }, select: { id: true } }),
-    ]);
-    if (nameTaken || slugTaken) continue;
+    // Skip if normalized name is taken (handles diacritic variants)
+    if (existingNames.has(normalizeName(name))) continue;
+
+    // Fast check — skip if slug is already taken
+    const slugTaken = await prisma.channel.findFirst({ where: { slug }, select: { id: true } });
+    if (slugTaken) continue;
 
     try {
       // Race: another request may have sniped name/slug between check and create
       const channel = await prisma.channel.create({
         data: { name, slug, ownerId: userId },
       });
+      existingNames.add(normalizeName(name)); // prevent sibling loops from reusing
       return toPostChannel(channel);
     } catch (err) {
       // P2002 = unique constraint violation — concurrent request took it

@@ -12,6 +12,7 @@ import {
   getAcceptString,
   ALLOWED_UPLOAD_CONTENT_TYPES,
   isTrustedMediaUrl,
+  normalizeName,
 } from "@/lib/validation";
 
 describe("registerSchema", () => {
@@ -454,5 +455,47 @@ describe("isTrustedMediaUrl", () => {
 
   it("rejects javascript: URLs", () => {
     expect(isTrustedMediaUrl("javascript:alert(1)", "image", storageDomain)).toBe(false);
+  });
+});
+
+describe("normalizeName", () => {
+  it("strips diacritics from common Indic transliteration letters", () => {
+    expect(normalizeName("Taruṇa Govinda Dāsa")).toBe("taruna govinda dasa");
+  });
+
+  it("handles Czech diacritics", () => {
+    expect(normalizeName("Příliš žluťoučký kůň")).toBe("prilis zlutoucky kun");
+  });
+
+  it("handles French accents", () => {
+    expect(normalizeName("Café à la crème naïve")).toBe("cafe a la creme naive");
+  });
+
+  it("handles German umlauts (ä/ö/ü decompose, ß is not a combining mark)", () => {
+    expect(normalizeName("Müllerstraße")).toBe("mullerstraße");
+  });
+
+  it("handles Spanish accents and ñ", () => {
+    expect(normalizeName("José María González")).toBe("jose maria gonzalez");
+  });
+
+  it("lowercases ASCII input", () => {
+    expect(normalizeName("Hello World")).toBe("hello world");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(normalizeName("")).toBe("");
+  });
+
+  it("preserves ASCII characters unchanged (apart from casing)", () => {
+    expect(normalizeName("abc123")).toBe("abc123");
+  });
+
+  it("handles Devanagari characters (no change — no combining marks)", () => {
+    expect(normalizeName("कृष्ण")).toBe("कृष्ण");
+  });
+
+  it("handles Tibetan characters (no change)", () => {
+    expect(normalizeName("བོད་སྐད")).toBe("བོད་སྐད");
   });
 });
