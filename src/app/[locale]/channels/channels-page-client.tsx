@@ -65,8 +65,8 @@ export default function ChannelsPageClient() {
   }
 
 return (
-    <div className="w-full max-w-6xl mx-auto px-2 sm:px-4 py-8 flex flex-col flex-1">
-      <h1 className="text-xl sm:text-2xl font-bold text-deep mb-4 sm:mb-6">{t("title")}</h1>
+    <div className="w-full max-w-6xl mx-auto px-4 py-8 flex flex-col flex-1">
+      <h1 className="text-2xl font-bold text-deep mb-6">{t("title")}</h1>
 
       <SearchInput
         value={query}
@@ -76,18 +76,18 @@ return (
         className="mb-6"
       />
 
-      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 flex-1 auto-rows-min">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 flex-1 auto-rows-min">
         {loading ? (
           <>
-            <Skeleton className="h-20 sm:h-24 rounded-lg" />
-            <Skeleton className="h-20 sm:h-24 rounded-lg" />
-            <Skeleton className="h-20 sm:h-24 rounded-lg hidden sm:block" />
-            <Skeleton className="h-20 sm:h-24 rounded-lg hidden sm:block" />
+            <Skeleton className="h-24 rounded-lg" />
+            <Skeleton className="h-24 rounded-lg" />
+            <Skeleton className="h-24 rounded-lg hidden sm:block" />
+            <Skeleton className="h-24 rounded-lg hidden sm:block" />
           </>
       ) : channels.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
-            <Hash className="w-10 h-10 sm:w-12 sm:h-12 text-deep/20 mx-auto mb-4" />
-            <p className="text-deep/50 text-base sm:text-lg">
+            <Hash className="w-12 h-12 text-deep/20 mx-auto mb-4" />
+            <p className="text-deep/50 text-lg">
               {search ? t("noChannelsQuery") : t("noChannels")}
             </p>
           </div>
@@ -122,7 +122,7 @@ return (
             </Link>
           ))}
           {cursor && (
-            <div className="col-span-full text-center mt-2">
+            <div className="col-span-full text-center mt-6">
               <Button
                 variant="outline"
                 onClick={handleLoadMore}
