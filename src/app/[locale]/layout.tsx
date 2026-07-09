@@ -69,7 +69,7 @@ export default async function LocaleLayout({ children, params }: Props) {
       <NextIntlClientProvider messages={messages}>
         <style>{`:root{--navbar-height:4rem}`}</style>
         <Navbar />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 flex flex-col">{children}</main>
         <Toaster position="bottom-right" richColors closeButton />
         <footer className="bg-deep text-white/50 text-center text-sm py-4 border-t border-sand/20">
           <div className="max-w-6xl mx-auto px-4">

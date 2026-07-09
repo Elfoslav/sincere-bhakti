@@ -67,7 +67,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 
   if (profileLoading) {
     return (
-      <div className="min-h-[calc(100vh-var(--navbar-height,4rem))] max-w-3xl mx-auto px-4 py-8 flex flex-col">
+      <div className="max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
         <div className="flex-1 space-y-4">
           <div className="bg-white rounded-lg shadow-md p-6 border border-sand text-center space-y-4">
             <Skeleton className="w-20 h-20 rounded-full mx-auto" />
@@ -83,7 +83,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 
   if (!profile) {
     return (
-      <div className="min-h-[calc(100vh-var(--navbar-height,4rem))] flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="text-6xl mb-4">🔍🕊️</div>
           <h1 className="text-2xl font-bold text-deep mb-2">{t("noProfileTitle")}</h1>
@@ -106,8 +106,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
   });
 
   return (
-    <div className="min-h-[calc(100vh-var(--navbar-height,4rem))] max-w-3xl mx-auto px-4 py-8 flex flex-col">
-      <div className="flex-1">
+    <div className="max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
       <div className="bg-white rounded-lg shadow-md p-6 border border-sand mb-8 text-center">
         <div className="w-20 h-20 rounded-full bg-gold flex items-center justify-center text-deep text-3xl font-bold mx-auto mb-4">
           {profile.name[0]?.toUpperCase() || "?"}
@@ -204,7 +203,6 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
           </div>
         )}
       </section>
-      </div>
     </div>
   );
 }
