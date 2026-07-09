@@ -94,7 +94,7 @@
       "hasAccount": "Už máš účet?",
       "loginLink": "Prihlásiť sa",
       "passwordTooShort": "Heslo musí mať aspoň {min} znakov",
-      "registrationFailed": "Došlo k chybe. Skúste to prosím znova.",
+      "registrationFailed": "Registrácia zlyhala. Ak už máte účet, prihláste sa.",
       "networkError": "Chyba siete. Skontrolujte pripojenie."
     }
   },

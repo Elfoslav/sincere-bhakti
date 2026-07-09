@@ -56,15 +56,8 @@ describe("POST /api/register", () => {
     expect(bcrypt.hash).toHaveBeenCalledWith("secret123", 12); // BCRYPT_SALT_ROUNDS
   });
 
-  it("rejects duplicate email", async () => {
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({
-      id: "existing",
-      name: "Existing",
-      email: "used@example.com",
-      password: "hash",
-      image: null,
-      createdAt: new Date(),
-    });
+  it("returns 400 on registration error (generic, no info leakage)", async () => {
+    vi.mocked(prisma.user.create).mockRejectedValue(new Error("DB error"));
 
     const res = await POST(mockRequest({
       name: "New User",
@@ -73,8 +66,8 @@ describe("POST /api/register", () => {
     }));
     const json = await res.json();
 
-    expect(res.status).toBe(409);
-    expect(json.error).toBe("email_in_use");
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("registration_failed");
   });
 
   it("returns 400 on invalid input", async () => {
@@ -106,7 +99,7 @@ describe("POST /api/register", () => {
     }));
     const json = await res.json();
 
-    expect(res.status).toBe(500);
-    expect(json.error).toBe("server_error");
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("registration_failed");
   });
 });

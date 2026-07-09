@@ -4,4 +4,3 @@ export const ERROR_FORBIDDEN = "forbidden";
 export const ERROR_NOT_FOUND = "not_found";
 export const ERROR_TOO_MANY_REQUESTS = "too_many_requests";
 export const ERROR_SERVER_ERROR = "server_error";
-export const ERROR_EMAIL_IN_USE = "email_in_use";

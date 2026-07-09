@@ -173,7 +173,7 @@ describe("PATCH /api/users/[id]", () => {
 
   it("returns 409 when channel name is taken", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue({ id: "other-channel" });
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue({ id: "other-channel" } as any);
 
     const res = await PATCH(mockRequest({ name: "Taken Name" }), { params: Promise.resolve({ id: "user-1" }) });
     const json = await res.json();

@@ -94,7 +94,7 @@
       "hasAccount": "Už máš účet?",
       "loginLink": "Přihlásit se",
       "passwordTooShort": "Heslo musí mít alespoň {min} znaků",
-      "registrationFailed": "Došlo k chybě. Zkuste to prosím znovu.",
+      "registrationFailed": "Registrace se nezdařila. Pokud již máte účet, přihlaste se.",
       "networkError": "Chyba sítě. Zkontrolujte připojení."
     }
   },

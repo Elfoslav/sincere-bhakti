@@ -5,8 +5,8 @@ import { registerSchema, BCRYPT_SALT_ROUNDS } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
-import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_EMAIL_IN_USE, ERROR_SERVER_ERROR } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_CONFLICT, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 
 export async function POST(request: NextRequest) {
   if (!validateOrigin(request)) {
@@ -37,17 +37,6 @@ export async function POST(request: NextRequest) {
 
     const { name, email, password } = parsed.data;
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      return NextResponse.json(
-        { error: ERROR_EMAIL_IN_USE },
-        { status: HTTP_CONFLICT }
-      );
-    }
-
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
     const user = await prisma.user.create({
@@ -65,8 +54,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logServerError("POST /api/register failed", error);
     return NextResponse.json(
-      { error: ERROR_SERVER_ERROR },
-      { status: HTTP_INTERNAL_SERVER_ERROR }
+      { error: "registration_failed" },
+      { status: HTTP_BAD_REQUEST }
     );
   }
 }
