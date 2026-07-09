@@ -8,6 +8,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     channel: {
       findFirst: vi.fn(),
+      create: vi.fn(),
     },
   },
 }));
@@ -36,6 +37,7 @@ describe("POST /api/register", () => {
 
   it("creates a new user", async () => {
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channel.create).mockResolvedValue({ id: "ch-1", name: "Krishna Das", normalizedName: "krishna das", slug: "krishna-das", avatarUrl: null, createdAt: new Date(), ownerId: "user-1" } as any);
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
     vi.mocked(bcrypt.hash).mockResolvedValue("hashed-password" as never);
     vi.mocked(prisma.user.create).mockResolvedValue({

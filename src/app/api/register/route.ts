@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName } from "@/lib/validation";
+import { createPersonalChannel } from "@/lib/services/channel";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
@@ -47,12 +48,12 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
     const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-      },
+      data: { name, email, password: hashedPassword },
+      select: { id: true, name: true, email: true },
     });
+
+    // Create personal channel immediately to lock the name
+    await createPersonalChannel(user.id, user.name);
 
     return NextResponse.json(
       { id: user.id, name: user.name, email: user.email },
