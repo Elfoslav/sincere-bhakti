@@ -77,7 +77,8 @@
       "error": "Neplatný email alebo heslo",
       "noAccount": "Nemáš účet?",
       "registerLink": "Registrovať",
-      "networkError": "Chyba siete. Skontrolujte pripojenie."
+      "networkError": "Chyba siete. Skontrolujte pripojenie.",
+      "registeredSuccess": "Účet bol úspešne vytvorený! Prihlás sa a pokračuj."
     },
     "register": {
       "title": "Pripoj sa k saṅge",
@@ -94,6 +95,14 @@
       "hasAccount": "Už máš účet?",
       "loginLink": "Prihlásiť sa",
       "passwordTooShort": "Heslo musí mať aspoň {min} znakov",
+      "passwordWhitespace": "Heslo začína alebo končí medzerou. Odstráňte ju a skúste to znova.",
+      "nameRequired": "Meno je povinné",
+      "nameTooLong": "Meno nesmie presiahnuť {max} znakov",
+      "nameTaken": "Toto meno už používa iný oddaný",
+      "emailRequired": "Email je povinný",
+      "emailInvalid": "Neplatný formát emailu",
+      "emailTooLong": "Email je príliš dlhý",
+      "passwordRequired": "Heslo je povinné",
       "registrationFailed": "Registrácia zlyhala. Ak už máte účet, prihláste sa.",
       "networkError": "Chyba siete. Skontrolujte pripojenie."
     }

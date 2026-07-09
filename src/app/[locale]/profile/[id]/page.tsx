@@ -195,9 +195,11 @@ export default function ProfilePage() {
                   className="space-y-4 pt-2"
                 >
                   <Input
+                    name="name"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder={t("namePlaceholder")}
+                    autoComplete="name"
                     autoFocus
                   />
                   <div className="flex justify-end gap-2">

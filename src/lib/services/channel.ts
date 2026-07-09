@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { normalizeName } from "@/lib/validation";
 import type { PostChannel } from "@/types/post";
 
 export class NotFoundError extends Error {
@@ -17,53 +16,42 @@ function toPostChannel(channel: { id: string; name: string; slug: string; avatar
 }
 
 function slugify(name: string): string {
-  return normalizeName(name)
+  return name
+    .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 80) || "channel";
 }
 
 export async function createPersonalChannel(userId: string, userName: string): Promise<PostChannel> {
-  // Check if channel already exists (handles concurrent JWT callbacks)
   const existing = await prisma.channel.findFirst({ where: { ownerId: userId } });
   if (existing) return toPostChannel(existing);
 
-  // Fetch all existing names (normalized) for fuzzy-duplicate detection.
-  // "Taruṇa" and "Taruna" should be treated as the same name.
-  const allChannels = await prisma.channel.findMany({ select: { name: true } });
-  const existingNames = new Set(allChannels.map((c) => normalizeName(c.name)));
+  const slug = slugify(userName);
 
-  const baseSlug = slugify(userName);
-
-  for (let i = 1; i <= 1000; i++) {
+  // Uniqueness is guaranteed at registration — this is a fallback for
+  // legacy users or edge cases. On collision, append a suffix.
+  for (let i = 1; i <= 10; i++) {
+    const finalSlug = i === 1 ? slug : `${slug}-${i}`;
     const name = i === 1 ? userName : `${userName} (${i})`;
-    const slug = i === 1 ? baseSlug : `${baseSlug}-${i}`;
 
-    // Skip if normalized name is taken (handles diacritic variants)
-    if (existingNames.has(normalizeName(name))) continue;
-
-    // Fast check — skip if slug is already taken
-    const slugTaken = await prisma.channel.findFirst({ where: { slug }, select: { id: true } });
+    const slugTaken = await prisma.channel.findFirst({ where: { slug: finalSlug }, select: { id: true } });
     if (slugTaken) continue;
 
     try {
-      // Race: another request may have sniped name/slug between check and create
       const channel = await prisma.channel.create({
-        data: { name, slug, ownerId: userId },
+        data: { name, slug: finalSlug, ownerId: userId },
       });
-      existingNames.add(normalizeName(name)); // prevent sibling loops from reusing
       return toPostChannel(channel);
     } catch (err) {
-      // P2002 = unique constraint violation — concurrent request took it
       if ((err as { code?: string })?.code === "P2002") continue;
       throw err;
     }
   }
 
-  // Extremely unlikely fallback — random UUID suffix
   const uuid = crypto.randomUUID().slice(0, 8);
   const channel = await prisma.channel.create({
-    data: { name: `${userName} (${uuid})`, slug: `${baseSlug}-${uuid}`, ownerId: userId },
+    data: { name: `${userName} (${uuid})`, slug: `${slug}-${uuid}`, ownerId: userId },
   });
   return toPostChannel(channel);
 }

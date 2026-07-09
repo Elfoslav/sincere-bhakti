@@ -107,6 +107,7 @@ export const registerSchema = z.object({
     .max(255),
   password: z
     .string()
+    .trim()
     .min(PASSWORD_MIN_LENGTH)
     .max(128),
 });
@@ -197,6 +198,7 @@ export const compressSchema = z.object({
 // "Taruṇa Govinda Dāsa" and "Taruna Govinda Dasa" both normalize to "taruna govinda dasa".
 export function normalizeName(name: string): string {
   return name
+    .trim()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();

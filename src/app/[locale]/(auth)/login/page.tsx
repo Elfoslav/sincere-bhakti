@@ -1,18 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFormPersist } from "@/lib/hooks/useFormPersist";
 
 export default function LoginPage() {
   const router = useRouter();
   const t = useTranslations("Auth.login");
+  const searchParams = useSearchParams();
+  const justRegistered = searchParams.get("registered") === "true";
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const { stored, save, clear, loaded } = useFormPersist<{ email: string }>("login", ["password"]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -34,6 +40,7 @@ export default function LoginPage() {
         setError(t("error"));
         setLoading(false);
       } else {
+        clear();
         router.push("/posts");
         router.refresh();
       }
@@ -42,6 +49,13 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+
+  // Restore persisted email after mount
+  useEffect(() => {
+    if (!loaded || !stored?.email || !formRef.current) return;
+    const input = formRef.current.elements.namedItem("email") as HTMLInputElement | null;
+    if (input) input.value = stored.email;
+  }, [loaded, stored]);
 
   return (
     <div className="w-full max-w-md">
@@ -52,7 +66,13 @@ export default function LoginPage() {
           <p className="text-deep/60 text-sm mt-1">{t("subtitle")}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {justRegistered && (
+          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg p-3 mb-4 text-center">
+            {t("registeredSuccess")}
+          </div>
+        )}
+
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-deep mb-1">{t("emailLabel")}</label>
             <Input
@@ -61,6 +81,8 @@ export default function LoginPage() {
               autoComplete="username"
               required
               placeholder={t("emailPlaceholder")}
+              onBlur={(e) => e.target.value && save({ email: e.target.value })}
+              onChange={() => error && setError("")}
             />
           </div>
           <div>

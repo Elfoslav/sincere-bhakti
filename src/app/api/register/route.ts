@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { registerSchema, BCRYPT_SALT_ROUNDS } from "@/lib/validation";
+import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
+import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 
 export async function POST(request: NextRequest) {
   if (!validateOrigin(request)) {
@@ -36,6 +36,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, email, password } = parsed.data;
+
+    // Reject if name (or a diacritic variant) is already taken
+    const allChannels = await prisma.channel.findMany({ select: { name: true } });
+    const normalizedTarget = normalizeName(name);
+    if (allChannels.some((c) => normalizeName(c.name) === normalizedTarget)) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 

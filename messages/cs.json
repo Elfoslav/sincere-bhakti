@@ -77,7 +77,8 @@
       "error": "Neplatný email nebo heslo",
       "noAccount": "Nemáš účet?",
       "registerLink": "Registrovat",
-      "networkError": "Chyba sítě. Zkontrolujte připojení."
+      "networkError": "Chyba sítě. Zkontrolujte připojení.",
+      "registeredSuccess": "Účet byl úspěšně vytvořen! Přihlas se a pokračuj."
     },
     "register": {
       "title": "Připoj se k saṅze",
@@ -94,6 +95,14 @@
       "hasAccount": "Už máš účet?",
       "loginLink": "Přihlásit se",
       "passwordTooShort": "Heslo musí mít alespoň {min} znaků",
+      "passwordWhitespace": "Heslo začíná nebo končí mezerou. Odstraňte ji a zkuste to znovu.",
+      "nameRequired": "Jméno je povinné",
+      "nameTooLong": "Jméno nesmí přesáhnout {max} znaků",
+      "nameTaken": "Toto jméno již používá jiný oddaný",
+      "emailRequired": "Email je povinný",
+      "emailInvalid": "Neplatný formát emailu",
+      "emailTooLong": "Email je příliš dlouhý",
+      "passwordRequired": "Heslo je povinné",
       "registrationFailed": "Registrace se nezdařila. Pokud již máte účet, přihlaste se.",
       "networkError": "Chyba sítě. Zkontrolujte připojení."
     }

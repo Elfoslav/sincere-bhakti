@@ -1,34 +1,95 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PASSWORD_MIN_LENGTH } from "@/lib/validation";
+import { useFormPersist } from "@/lib/hooks/useFormPersist";
+
+function validateName(val: string, t: (key: string, vars?: Record<string, number>) => string): string | null {
+  const trimmed = val.trim();
+  if (!trimmed) return t("nameRequired");
+  if (trimmed.length > 50) return t("nameTooLong", { max: 50 });
+  return null;
+}
+
+function validateEmail(val: string, t: (key: string, vars?: Record<string, number>) => string): string | null {
+  const trimmed = val.trim().toLowerCase();
+  if (!trimmed) return t("emailRequired");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return t("emailInvalid");
+  if (trimmed.length > 255) return t("emailTooLong");
+  return null;
+}
+
+function validatePassword(val: string, t: (key: string, vars?: Record<string, number>) => string): string | null {
+  if (!val) return t("passwordRequired");
+  if (val !== val.trim()) return t("passwordWhitespace");
+  if (val.length < PASSWORD_MIN_LENGTH) return t("passwordTooShort", { min: PASSWORD_MIN_LENGTH });
+  return null;
+}
+
+type FieldErrors = {
+  name: string | null;
+  email: string | null;
+  password: string | null;
+};
+
+const initialErrors: FieldErrors = { name: null, email: null, password: null };
 
 export default function RegisterPage() {
   const router = useRouter();
   const t = useTranslations("Auth.register");
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<FieldErrors>(initialErrors);
+  const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const { stored, save, clear, loaded } = useFormPersist<{ name: string; email: string }>("register", ["password"]);
+
+  const validators = useMemo(() => ({
+    name: (val: string) => validateName(val, t),
+    email: (val: string) => validateEmail(val, t),
+    password: (val: string) => validatePassword(val, t),
+  }), [t]);
+
+  function handleBlur(field: "name" | "email" | "password") {
+    return (e: React.FocusEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      const err = validators[field](val);
+      setErrors((prev) => ({ ...prev, [field]: err }));
+      if (!err) save({ [field]: val });
+    };
+  }
+
+  function handleChange(field: "name" | "email") {
+    return () => {
+      if (errors[field]) setErrors((prev) => ({ ...prev, [field]: null }));
+    };
+  }
+
+  function handleServerError(err: string) {
+    setServerError(err);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
-    setError("");
+    setServerError("");
 
     const form = new FormData(e.currentTarget);
     const name = form.get("name") as string;
     const email = form.get("email") as string;
     const password = form.get("password") as string;
 
-    if (password.length < PASSWORD_MIN_LENGTH) {
-      setError(t("passwordTooShort", { min: PASSWORD_MIN_LENGTH }));
-      setLoading(false);
-      return;
-    }
+    const nameErr = validators.name(name);
+    const emailErr = validators.email(email);
+    const passwordErr = validators.password(password);
+    setErrors({ name: nameErr, email: emailErr, password: passwordErr });
+
+    if (nameErr || emailErr || passwordErr) return;
+
+    setLoading(true);
 
     try {
       const res = await fetch("/api/register", {
@@ -38,18 +99,33 @@ export default function RegisterPage() {
       });
 
       if (!res.ok) {
-        setError(t("registrationFailed"));
+        if (res.status === 409) {
+          setErrors((prev) => ({ ...prev, name: t("nameTaken") }));
+        } else {
+          handleServerError(t("registrationFailed"));
+        }
         setLoading(false);
         return;
       }
     } catch {
-      setError(t("networkError"));
+      handleServerError(t("networkError"));
       setLoading(false);
       return;
     }
 
+    clear();
     router.push("/login?registered=true");
   }
+
+  // Restore persisted values after mount
+  useEffect(() => {
+    if (!loaded || !stored || !formRef.current) return;
+    const form = formRef.current;
+    const nameInput = form.elements.namedItem("name") as HTMLInputElement | null;
+    const emailInput = form.elements.namedItem("email") as HTMLInputElement | null;
+    if (nameInput && stored.name) nameInput.value = stored.name;
+    if (emailInput && stored.email) emailInput.value = stored.email;
+  }, [loaded, stored]);
 
   return (
     <div className="w-full max-w-md">
@@ -60,7 +136,7 @@ export default function RegisterPage() {
           <p className="text-deep/60 text-sm mt-1">{t("subtitle")}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label className="block text-sm font-medium text-deep mb-1">{t("nameLabel")}</label>
             <p className="text-xs text-deep/50 mb-1.5">{t("nameHint")}</p>
@@ -70,7 +146,10 @@ export default function RegisterPage() {
               autoComplete="name"
               required
               placeholder={t("namePlaceholder")}
+              onBlur={handleBlur("name")}
+              onChange={handleChange("name")}
             />
+            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-deep mb-1">{t("emailLabel")}</label>
@@ -80,7 +159,10 @@ export default function RegisterPage() {
               autoComplete="username"
               required
               placeholder={t("emailPlaceholder")}
+              onBlur={handleBlur("email")}
+              onChange={handleChange("email")}
             />
+            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-deep mb-1">{t("passwordLabel")}</label>
@@ -91,10 +173,13 @@ export default function RegisterPage() {
               required
               minLength={PASSWORD_MIN_LENGTH}
               placeholder={t("passwordPlaceholder")}
+              onBlur={handleBlur("password")}
+              onChange={() => errors.password && setErrors((prev) => ({ ...prev, password: null }))}
             />
+            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
           </div>
 
-          {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}
+          {serverError && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{serverError}</p>}
 
           <Button
             type="submit"

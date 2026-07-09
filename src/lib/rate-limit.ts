@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 const memStore = new Map<string, { count: number; resetAt: number }>();
 
 export const RATE_LIMITS = {
-  // Registration: 5 attempts per hour per IP
-  register: { limit: 5, windowMs: 3_600_000 },
-  // Login: 10 attempts per 15 minutes per IP
-  login: { limit: 10, windowMs: 900_000 },
+  // Registration: 20 attempts per hour per IP
+  register: { limit: 20, windowMs: 3_600_000 },
+  // Login: 15 attempts per 15 minutes per IP
+  login: { limit: 15, windowMs: 900_000 },
   // Post creation: 20 per hour per user
   createPost: { limit: 20, windowMs: 3_600_000 },
   // Post update: 30 per hour per user

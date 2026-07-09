@@ -162,4 +162,17 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 
 ## Auth / Session
 - Use `status === "authenticated"` (from `useSession()`) for conditional rendering of auth-gated UI (profile link, logout button). The `status` string is stable during client-side navigation and doesn't flash. Do NOT use `session &&` — the `session` object can briefly become `null` during re-renders triggered by locale navigation, causing visible flicker.
+## Trimming User Input
+- Every string field from user input (name, email, password, content, etc.) must be `.trim()`ed before being stored or used in comparisons.
+- In Zod schemas, always use `.trim()` on string fields — never rely on the caller to trim. The parsed output is already trimmed, so downstream code receives clean values.
+- The only place raw user input enters without Zod is the JWT callback in `auth.ts` — but there `user.name` comes from the database (already trimmed by the Zod schema on registration). Still, be defensive: if a future flow passes untrimmed data to `createPersonalChannel` or any DB write, trim it there.
+- Current coverage:
+  - `registerSchema.name` — `.trim()` ✅
+  - `registerSchema.email` — `.trim().toLowerCase()` ✅
+  - `updateNameSchema.name` — `.trim()` ✅
+  - `createPostSchema.content` (via `contentField`) — `.trim()` ✅
+  - `updatePostSchema.content` — `.trim()` ✅
+  - `paginationSchema.cursor` — `.trim()` ✅
+  - `normalizeName()` — calls `.trim()` internally ✅
+  - `registerSchema.password` — `.trim()` ✅ (client warns first if whitespace is detected, then server trims)
 <!-- END:agent-checklist -->
