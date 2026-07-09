@@ -24,12 +24,13 @@ model User {
 }
 
 model Channel {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  slug      String   @unique
-  avatarUrl String?
-  createdAt DateTime @default(now())
-  ownerId   String
+  id             String   @id @default(cuid())
+  name           String   @unique
+  normalizedName String   @default("")
+  slug           String   @unique
+  avatarUrl      String?
+  createdAt      DateTime @default(now())
+  ownerId        String
   owner     User          @relation("ChannelOwner", fields: [ownerId], references: [id])
   posts     Post[]
   editors   ChannelEditor[]

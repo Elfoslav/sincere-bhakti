@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { slugifyName } from "@/lib/validation";
+import { slugifyName, normalizeName } from "@/lib/validation";
 import type { PostChannel } from "@/types/post";
 
 export class NotFoundError extends Error {
@@ -33,7 +33,7 @@ export async function createPersonalChannel(userId: string, userName: string): P
 
     try {
       const channel = await prisma.channel.create({
-        data: { name, slug: finalSlug, ownerId: userId },
+        data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId },
       });
       return toPostChannel(channel);
     } catch (err) {
@@ -44,7 +44,7 @@ export async function createPersonalChannel(userId: string, userName: string): P
 
   const uuid = crypto.randomUUID().slice(0, 8);
   const channel = await prisma.channel.create({
-    data: { name: `${userName} (${uuid})`, slug: `${slug}-${uuid}`, ownerId: userId },
+    data: { name: `${userName} (${uuid})`, normalizedName: normalizeName(`${userName} (${uuid})`), slug: `${slug}-${uuid}`, ownerId: userId },
   });
   return toPostChannel(channel);
 }

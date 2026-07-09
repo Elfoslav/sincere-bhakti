@@ -80,13 +80,10 @@ export async function PATCH(
       );
     }
 
-    // Check if the new name is already taken by another channel (fuzzy: strip diacritics)
-    const otherChannels = await prisma.channel.findMany({
-      where: { ownerId: { not: id } },
-      select: { name: true },
-    });
-    const otherNames = new Set(otherChannels.map((c) => normalizeName(c.name)));
-    if (otherNames.has(normalizeName(parsed.data.name))) {
+    // Check if the new name is already taken by another channel (strip diacritics)
+    const normalizedTarget = normalizeName(parsed.data.name);
+    const existing = await prisma.channel.findFirst({ where: { normalizedName: normalizedTarget, ownerId: { not: id } }, select: { id: true } });
+    if (existing) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
@@ -97,11 +94,10 @@ export async function PATCH(
         select: { id: true, name: true, email: true, image: true, createdAt: true },
       });
 
-      // Sync the personal channel name but NOT the slug — changing slug would
-      // break indexed URLs and SEO. The channel slug stays at its original value.
+      // Sync the personal channel name and normalized name but NOT the slug
       await tx.channel.updateMany({
         where: { ownerId: id },
-        data: { name: parsed.data.name },
+        data: { name: parsed.data.name, normalizedName: normalizeName(parsed.data.name) },
       });
 
       return updated;

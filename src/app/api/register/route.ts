@@ -38,9 +38,9 @@ export async function POST(request: NextRequest) {
     const { name, email, password } = parsed.data;
 
     // Reject if name (or a diacritic variant) is already taken
-    const allChannels = await prisma.channel.findMany({ select: { name: true } });
     const normalizedTarget = normalizeName(name);
-    if (allChannels.some((c) => normalizeName(c.name) === normalizedTarget)) {
+    const existing = await prisma.channel.findFirst({ where: { normalizedName: normalizedTarget }, select: { id: true } });
+    if (existing) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 

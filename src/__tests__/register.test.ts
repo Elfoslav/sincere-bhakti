@@ -7,7 +7,7 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn(),
     },
     channel: {
-      findMany: vi.fn(),
+      findFirst: vi.fn(),
     },
   },
 }));
@@ -35,7 +35,7 @@ describe("POST /api/register", () => {
   });
 
   it("creates a new user", async () => {
-    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
     vi.mocked(bcrypt.hash).mockResolvedValue("hashed-password" as never);
     vi.mocked(prisma.user.create).mockResolvedValue({
@@ -61,7 +61,7 @@ describe("POST /api/register", () => {
   });
 
   it("returns 400 on registration error (generic, no info leakage)", async () => {
-    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.user.create).mockRejectedValue(new Error("DB error"));
 
     const res = await POST(mockRequest({
@@ -95,7 +95,7 @@ describe("POST /api/register", () => {
   });
 
   it("returns 500 on server error", async () => {
-    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.user.findUnique).mockRejectedValue(new Error("DB down"));
 
     const res = await POST(mockRequest({

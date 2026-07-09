@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logServerError } from "@/lib/server-log";
+import { normalizeName } from "@/lib/validation";
 import { ERROR_NOT_FOUND, ERROR_SERVER_ERROR } from "@/lib/error-messages";
 import { HTTP_NOT_FOUND, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
@@ -34,8 +35,10 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get("cursor");
     const query = searchParams.get("q")?.trim();
 
+    const normalizedQuery = query ? normalizeName(query) : "";
+
     const where = query
-      ? { name: { contains: query, mode: "insensitive" as const } }
+      ? { normalizedName: { contains: normalizedQuery, mode: "insensitive" as const } }
       : {};
 
     const channels = await prisma.channel.findMany({

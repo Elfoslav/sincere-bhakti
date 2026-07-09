@@ -39,7 +39,7 @@ describe("createPersonalChannel", () => {
     expect(result.name).toBe("Krishna Das");
     expect(result.slug).toBe("krishna-das");
     expect(prisma.channel.create).toHaveBeenCalledWith({
-      data: { name: "Krishna Das", slug: "krishna-das", ownerId: "user-1" },
+      data: { name: "Krishna Das", normalizedName: "krishna das", slug: "krishna-das", ownerId: "user-1" },
     });
   });
 
