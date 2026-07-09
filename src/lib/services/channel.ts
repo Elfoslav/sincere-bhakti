@@ -18,7 +18,25 @@ function toPostChannel(channel: { id: string; name: string; slug: string; avatar
 
 export async function createPersonalChannel(userId: string, userName: string): Promise<PostChannel> {
   const existing = await prisma.channel.findFirst({ where: { ownerId: userId } });
-  if (existing) return toPostChannel(existing);
+  if (existing) {
+    // Update legacy bootstrap slug (e.g. "user-cuid") to proper name-based slug.
+    if (existing.slug.startsWith("user-")) {
+      const properSlug = slugifyName(userName);
+      for (let i = 1; i <= 10; i++) {
+        const finalSlug = i === 1 ? properSlug : `${properSlug}-${i}`;
+        try {
+          await prisma.channel.update({
+            where: { id: existing.id },
+            data: { slug: finalSlug, name: userName, normalizedName: normalizeName(userName) },
+          });
+          return toPostChannel({ ...existing, slug: finalSlug, name: userName });
+        } catch (err) {
+          if ((err as { code?: string })?.code !== "P2002") throw err;
+        }
+      }
+    }
+    return toPostChannel(existing);
+  }
 
   const slug = slugifyName(userName);
 
