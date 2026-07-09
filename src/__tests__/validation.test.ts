@@ -13,6 +13,7 @@ import {
   ALLOWED_UPLOAD_CONTENT_TYPES,
   isTrustedMediaUrl,
   normalizeName,
+  slugifyName,
 } from "@/lib/validation";
 
 describe("registerSchema", () => {
@@ -497,5 +498,77 @@ describe("normalizeName", () => {
 
   it("handles Tibetan characters (no change)", () => {
     expect(normalizeName("བོད་སྐད")).toBe("བོད་སྐད");
+  });
+
+  it("handles Czech name with parentheses for slug test", () => {
+    expect(normalizeName("Tomáš Hromník (Taruna)")).toBe("tomas hromnik (taruna)");
+  });
+
+  it("strips polish L-stroke if it decomposes (single char, no combining)", () => {
+    // ł in NFD stays as ł (single codepoint, not base+combining)
+    expect(normalizeName("ł")).toBe("ł");
+  });
+
+  it("handles Danish ø (single char, no decomposition)", () => {
+    expect(normalizeName("Rød")).toBe("rød");
+  });
+
+  it("does not crash on leading combining marks", () => {
+    expect(normalizeName("\u0300abc")).toBe("abc");
+  });
+
+  it("handles purely non-diacritic Unicode (Cyrillic)", () => {
+    expect(normalizeName("Привет")).toBe("привет");
+  });
+
+  it("preserves digits mixed with diacritics", () => {
+    expect(normalizeName("Frédéric 2ème")).toBe("frederic 2eme");
+  });
+
+  it("handles underscores in name", () => {
+    expect(normalizeName("Super_Devotee_123")).toBe("super_devotee_123");
+  });
+});
+
+describe("slugifyName", () => {
+  it("converts Czech name with diacritics and parentheses", () => {
+    expect(slugifyName("Tomáš Hromník (Taruna)")).toBe("tomas-hromnik-taruna");
+  });
+
+  it("handles Indic transliteration", () => {
+    expect(slugifyName("Taruṇa Govinda Dāsa")).toBe("taruna-govinda-dasa");
+  });
+
+  it("converts simple ASCII name", () => {
+    expect(slugifyName("Krishna Das")).toBe("krishna-das");
+  });
+
+  it("collapses multiple special chars into single dash", () => {
+    expect(slugifyName("Hello...World!!")).toBe("hello-world");
+  });
+
+  it("trims leading and trailing non-alphanumeric chars", () => {
+    expect(slugifyName("  --hello!!  ")).toBe("hello");
+  });
+
+  it("handles French accents", () => {
+    expect(slugifyName("Café à la crème")).toBe("cafe-a-la-creme");
+  });
+
+  it("returns 'channel' for string with no valid slug chars", () => {
+    expect(slugifyName("!!! +++")).toBe("channel");
+  });
+
+  it("truncates to 80 characters", () => {
+    const long = "a".repeat(100);
+    expect(slugifyName(long).length).toBeLessThanOrEqual(80);
+  });
+
+  it("treats dots and parentheses as separators", () => {
+    expect(slugifyName("Dr. Livingstone (I presume)")).toBe("dr-livingstone-i-presume");
+  });
+
+  it("handles empty string", () => {
+    expect(slugifyName("")).toBe("channel");
   });
 });

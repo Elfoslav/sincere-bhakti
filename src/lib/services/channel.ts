@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { slugifyName } from "@/lib/validation";
 import type { PostChannel } from "@/types/post";
 
 export class NotFoundError extends Error {
@@ -15,19 +16,11 @@ function toPostChannel(channel: { id: string; name: string; slug: string; avatar
   };
 }
 
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 80) || "channel";
-}
-
 export async function createPersonalChannel(userId: string, userName: string): Promise<PostChannel> {
   const existing = await prisma.channel.findFirst({ where: { ownerId: userId } });
   if (existing) return toPostChannel(existing);
 
-  const slug = slugify(userName);
+  const slug = slugifyName(userName);
 
   // Uniqueness is guaranteed at registration — this is a fallback for
   // legacy users or edge cases. On collision, append a suffix.

@@ -203,3 +203,14 @@ export function normalizeName(name: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 }
+
+// Converts a display name into a URL-safe slug by normalizing diacritics and
+// collapsing non-alphanumeric runs. Examples:
+//   "Tomáš Hromník (Taruna)" → "tomas-hromnik-taruna"
+//   "Hello World!" → "hello-world"
+export function slugifyName(name: string): string {
+  return normalizeName(name)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80) || "channel";
+}
