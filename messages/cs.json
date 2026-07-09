@@ -175,11 +175,23 @@
     "footerLine2": "Věnováno učení Śrīly Prabhupādy"
   },
   "ErrorPages": {
-    "notFound": "Stránka nenalezena",
-    "notFoundDescription": "Tato stránka nebyla nalezena.",
-    "goHome": "Domů",
+    "backToPosts": "← Zpět na příspěvky",
     "somethingWentWrong": "Něco se pokazilo",
     "errorDescription": "Došlo k neočekávané chybě. Zkuste to prosím znovu nebo se vraťte později.",
-    "tryAgain": "Zkusit znovu"
+    "tryAgain": "Zkusit znovu",
+    "joke0Headline": "Jejda! Tuhle stránku nenašel ani Kṛṣṇa.",
+    "joke0Punchline": "Nejspíš ví, kde je, ale nechce nám to říct.",
+    "joke1Headline": "Vypadá to, že tahle stránka opustila hmotný svět.",
+    "joke1Punchline": "Dosáhla osvobození z koloběhu URL. Nechme ji být.",
+    "joke2Headline": "404 — Māyā tuto stránku zahalila.",
+    "joke2Punchline": "Je mocná, ale ty se můžeš osvobodit. Zkus jinou cestu.",
+    "joke3Headline": "Tato stránka odešla na pouť.",
+    "joke3Punchline": "Putuje po 12 lesích Vradži. Vrátí se za pár životů.",
+    "joke4Headline": "Tato stránka dosáhla nitya-siddha statusu — je navždy mimo náš dosah.",
+    "joke4Punchline": "Zkus jinou cestu.",
+    "joke5Headline": "Tato stránka opustila tělo.",
+    "joke5Punchline": "Pohřeb se konal na Ghátu 404. Obětuj na její památku prasādam.",
+    "joke6Headline": "Tato stránka drží mauna-vratu.",
+    "joke6Punchline": "Teď s nikým nemluví. Stav se po maṅgala-ārāti."
   }
 }

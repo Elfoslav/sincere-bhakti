@@ -1,5 +1,12 @@
+import { Geist } from "next/font/google";
 import type { Viewport, Metadata } from "next";
 import Providers from "@/components/Providers";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -17,5 +24,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <Providers>{children}</Providers>;
+  return (
+    <html lang="en" className={`${geistSans.variable} h-full`}>
+      <body className="min-h-full flex flex-col">
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
 }

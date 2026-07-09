@@ -1,16 +1,10 @@
-import { Geist } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import { getSiteUrl } from "@/lib/url";
 import { Toaster } from "sonner";
 import Navbar from "@/components/Navbar";
-import "../globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import LangSetter from "@/components/LangSetter";
 
 const siteUrl = getSiteUrl();
 
@@ -70,23 +64,19 @@ export default async function LocaleLayout({ children, params }: Props) {
   const commonT = await getTranslations({ locale, namespace: "Common" });
 
   return (
-    <html
-      lang={locale}
-      className={`${geistSans.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        <NextIntlClientProvider messages={messages}>
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Toaster position="bottom-right" richColors closeButton />
-            <footer className="bg-deep text-white/50 text-center text-sm py-4 border-t border-sand/20">
-              <div className="max-w-6xl mx-auto px-4">
-                <p>{commonT("footerLine1", { year: String(new Date().getFullYear()) })}</p>
-                <p>{commonT("footerLine2")}</p>
-              </div>
-            </footer>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <div className="flex flex-col">
+      <LangSetter locale={locale} />
+      <NextIntlClientProvider messages={messages}>
+        <Navbar />
+        <main className="flex-1">{children}</main>
+        <Toaster position="bottom-right" richColors closeButton />
+        <footer className="bg-deep text-white/50 text-center text-sm py-4 border-t border-sand/20">
+          <div className="max-w-6xl mx-auto px-4">
+            <p>{commonT("footerLine1", { year: String(new Date().getFullYear()) })}</p>
+            <p>{commonT("footerLine2")}</p>
+          </div>
+        </footer>
+      </NextIntlClientProvider>
+    </div>
   );
 }
