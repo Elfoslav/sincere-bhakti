@@ -6,7 +6,7 @@ import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function GET(
   request: NextRequest,
@@ -81,6 +81,15 @@ export async function PATCH(
       );
     }
 
+    // Check if the new name is already taken by another channel
+    const nameTaken = await prisma.channel.findFirst({
+      where: { name: parsed.data.name, ownerId: { not: id } },
+      select: { id: true },
+    });
+    if (nameTaken) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
+
     const user = await prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({
         where: { id },
@@ -88,6 +97,8 @@ export async function PATCH(
         select: { id: true, name: true, email: true, image: true, createdAt: true },
       });
 
+      // Sync the personal channel name but NOT the slug — changing slug would
+      // break indexed URLs and SEO. The channel slug stays at its original value.
       await tx.channel.updateMany({
         where: { ownerId: id },
         data: { name: parsed.data.name },
