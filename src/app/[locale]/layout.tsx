@@ -67,6 +67,7 @@ export default async function LocaleLayout({ children, params }: Props) {
     <div className="flex flex-col">
       <LangSetter locale={locale} />
       <NextIntlClientProvider messages={messages}>
+        <style>{`:root{--navbar-height:4rem}`}</style>
         <Navbar />
         <main className="flex-1">{children}</main>
         <Toaster position="bottom-right" richColors closeButton />

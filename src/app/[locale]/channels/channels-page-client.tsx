@@ -65,7 +65,7 @@ export default function ChannelsPageClient() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="min-h-[calc(100vh-var(--navbar-height,4rem))] max-w-5xl mx-auto px-4 py-8 flex flex-col">
       <h1 className="text-2xl font-bold text-deep mb-6">{t("title")}</h1>
 
       <div className="relative mb-6">
@@ -78,14 +78,15 @@ export default function ChannelsPageClient() {
         />
       </div>
 
-      {loading ? (
+      <div className="flex-1">
+        {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-lg" />
           ))}
         </div>
       ) : channels.length === 0 ? (
-        <div className="text-center py-16">
+        <div className="min-h-[50vh] flex flex-col items-center justify-center text-center">
           <Hash className="w-12 h-12 text-deep/20 mx-auto mb-4" />
           <p className="text-deep/50 text-lg">
             {search ? t("noChannelsQuery") : t("noChannels")}
@@ -137,6 +138,7 @@ export default function ChannelsPageClient() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }
