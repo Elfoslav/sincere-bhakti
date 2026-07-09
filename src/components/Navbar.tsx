@@ -31,7 +31,7 @@ function Hamburger({ open }: { open: boolean }) {
 }
 
 export default function Navbar() {
-	const { data: session, status } = useSession();
+	const { status } = useSession();
 	const [open, setOpen] = useState(false);
 	const t = useTranslations("Navbar");
 
@@ -65,7 +65,7 @@ export default function Navbar() {
 							</Link>
 							{status === "authenticated" && (
 								<Link
-									href={`/profile/${session!.user.id}`}
+									href="/profile"
 									className="hover:text-gold-light transition-colors"
 								>
 									{t("profile")}
@@ -115,7 +115,7 @@ export default function Navbar() {
 						{t("channels")}
 					</MobileLink>
 					{status === "authenticated" && (
-						<MobileLink href={`/profile/${session!.user.id}`} onClick={close}>
+						<MobileLink href="/profile" onClick={close}>
 							{t("profile")}
 						</MobileLink>
 					)}
