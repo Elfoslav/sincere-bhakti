@@ -64,7 +64,7 @@ export default async function LocaleLayout({ children, params }: Props) {
   const commonT = await getTranslations({ locale, namespace: "Common" });
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col flex-1">
       <LangSetter locale={locale} />
       <NextIntlClientProvider messages={messages}>
         <style>{`:root{--navbar-height:4rem}`}</style>
