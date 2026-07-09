@@ -65,8 +65,8 @@ export default function ChannelsPageClient() {
   }
 
 return (
-    <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col flex-1">
-      <h1 className="text-2xl font-bold text-deep mb-6">{t("title")}</h1>
+    <div className="w-full max-w-6xl mx-auto px-2 sm:px-4 py-8 flex flex-col flex-1">
+      <h1 className="text-xl sm:text-2xl font-bold text-deep mb-4 sm:mb-6">{t("title")}</h1>
 
       <SearchInput
         value={query}
@@ -76,54 +76,53 @@ return (
         className="mb-6"
       />
 
+      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 flex-1 auto-rows-min">
         {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-lg" />
-          ))}
-        </div>
+          <>
+            <Skeleton className="h-20 sm:h-24 rounded-lg" />
+            <Skeleton className="h-20 sm:h-24 rounded-lg" />
+            <Skeleton className="h-20 sm:h-24 rounded-lg hidden sm:block" />
+            <Skeleton className="h-20 sm:h-24 rounded-lg hidden sm:block" />
+          </>
       ) : channels.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <Hash className="w-12 h-12 text-deep/20 mx-auto mb-4" />
-          <p className="text-deep/50 text-lg">
-            {search ? t("noChannelsQuery") : t("noChannels")}
-          </p>
-        </div>
+          <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+            <Hash className="w-10 h-10 sm:w-12 sm:h-12 text-deep/20 mx-auto mb-4" />
+            <p className="text-deep/50 text-base sm:text-lg">
+              {search ? t("noChannelsQuery") : t("noChannels")}
+            </p>
+          </div>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {channels.map((ch) => (
-              <Link
-                key={ch.id}
-                href={`/channels/${ch.slug}`}
-                className="block bg-white hover:bg-sand/30 active:bg-sand/50 rounded-lg border border-sand p-4 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  {ch.avatarUrl ? (
-                    <img
-                      src={ch.avatarUrl}
-                      alt=""
-                      className="w-12 h-12 rounded-full object-cover shrink-0"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-gold/20 flex items-center justify-center shrink-0">
-                      <Hash className="w-6 h-6 text-gold" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-deep truncate">{ch.name}</p>
-                    <p className="text-xs text-deep/50 flex items-center gap-1 mt-0.5">
-                      <FileText className="w-3 h-3" />
-                      {t("postCount", { count: ch.postCount })}
-                    </p>
+          {channels.map((ch) => (
+            <Link
+              key={ch.id}
+              href={`/channels/${ch.slug}`}
+              className="block bg-white hover:bg-sand/30 active:bg-sand/50 rounded-lg border border-sand p-4 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {ch.avatarUrl ? (
+                  <img
+                    src={ch.avatarUrl}
+                    alt=""
+                    className="w-12 h-12 rounded-full object-cover shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gold/20 flex items-center justify-center shrink-0">
+                    <Hash className="w-6 h-6 text-gold" />
                   </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-deep truncate">{ch.name}</p>
+                  <p className="text-xs text-deep/50 flex items-center gap-1 mt-0.5">
+                    <FileText className="w-3 h-3" />
+                    {t("postCount", { count: ch.postCount })}
+                  </p>
                 </div>
-              </Link>
-            ))}
-          </div>
-
+              </div>
+            </Link>
+          ))}
           {cursor && (
-            <div className="text-center mt-8">
+            <div className="col-span-full text-center mt-2">
               <Button
                 variant="outline"
                 onClick={handleLoadMore}
@@ -135,6 +134,7 @@ return (
           )}
         </>
       )}
+      </div>
     </div>
   );
 }
