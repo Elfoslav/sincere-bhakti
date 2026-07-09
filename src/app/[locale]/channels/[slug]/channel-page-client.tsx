@@ -90,7 +90,7 @@ export default function ChannelPageClient({
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="w-full max-w-3xl mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow-md p-6 border border-sand mb-8 text-center">
         <div className="w-20 h-20 rounded-full bg-gold flex items-center justify-center text-deep text-3xl font-bold mx-auto mb-4">
           {channel.name[0]?.toUpperCase() || "?"}
