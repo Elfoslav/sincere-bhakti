@@ -27,7 +27,6 @@ export default function PostsPageClient() {
 		sentinelRef: mySentinelRef,
 	} = useInfinitePosts({
 		channelId: session?.user?.channelId,
-		scope: "private",
 		disabled: !session,
 		language: locale,
 	});
