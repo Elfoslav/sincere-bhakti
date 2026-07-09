@@ -5,6 +5,17 @@ ALTER TABLE "Post" DROP CONSTRAINT IF EXISTS "Post_channelId_fkey";
 -- Drop index on authorId
 DROP INDEX IF EXISTS "Post_authorId_idx";
 
+-- Create personal channels for existing users who don't have one yet,
+-- so the backfill below can link posts and the SET NOT NULL succeeds.
+INSERT INTO "Channel" ("id", "name", "slug", "ownerId")
+SELECT
+  'channel-' || u."id",
+  u."name",
+  'user-' || u."id",
+  u."id"
+FROM "User" u
+WHERE u."id" NOT IN (SELECT "ownerId" FROM "Channel");
+
 -- Backfill channelId for existing posts that still have NULL.
 -- Maps each post's authorId to their personal channel.
 UPDATE "Post"
