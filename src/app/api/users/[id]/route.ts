@@ -26,8 +26,7 @@ export async function GET(
         createdAt: true,
         channels: {
           where: { ownerId: id },
-          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true },
-          take: 1,
+          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, _count: { select: { posts: true } } },
         },
         ...(session?.user?.id === id ? { email: true } : {}),
       },
@@ -38,7 +37,7 @@ export async function GET(
     }
 
     const { channels, ...profile } = user;
-    return NextResponse.json({ ...profile, channel: channels[0] || null });
+    return NextResponse.json({ ...profile, channels: channels.map(({ _count, ...ch }) => ({ ...ch, postCount: _count.posts })) });
   } catch (error) {
     logServerError("GET /api/users/[id] failed", error);
     return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });

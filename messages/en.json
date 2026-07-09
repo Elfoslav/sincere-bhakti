@@ -116,14 +116,11 @@
     "save": "Save",
     "saving": "Saving...",
     "joined": "Joined {date}",
-    "publicPosts": "Public Posts ({count})",
-    "myPublicPosts": "My Public Posts ({count})",
-    "myPrivatePosts": "My Private Posts ({count})",
-    "noPosts": "No public posts in English yet. Be the first to share!",
-    "noPrivatePosts": "No private posts in English yet.",
+    "channels": "Channels",
+    "noChannels": "No channels yet.",
     "noProfile": "Devotee not found",
     "viewChannel": "View channel",
-    "loadingMore": "Loading more..."
+    "postCount": "{count} posts"
   },
   "PostCard": {
     "public": "Public",

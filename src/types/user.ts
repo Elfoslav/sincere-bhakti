@@ -1,4 +1,11 @@
-import type { PostChannel } from "@/types/post";
+export interface ChannelInfo {
+  id: string;
+  name: string;
+  slug: string;
+  avatarUrl: string | null;
+  ownerId: string;
+  postCount: number;
+}
 
 export interface UserProfile {
   id: string;
@@ -6,5 +13,5 @@ export interface UserProfile {
   email: string;
   image: string | null;
   createdAt: string;
-  channel?: PostChannel | null;
+  channels: ChannelInfo[];
 }

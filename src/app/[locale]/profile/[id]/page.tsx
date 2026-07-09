@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
-import { Pencil } from "lucide-react";
+import { Pencil, Hash, FileText } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import PostCard from "@/components/PostCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton, PostCardSkeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -17,10 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
-import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
-import type { UserProfile } from "@/types/user";
-import type { Post } from "@/types/post";
+import type { UserProfile, ChannelInfo } from "@/types/user";
 
 export default function ProfilePage() {
   const params = useParams();
@@ -35,26 +31,6 @@ export default function ProfilePage() {
 
   const authorId = params.id as string;
   const isOwnProfile = session?.user?.id === authorId;
-
-  const {
-    posts: publicPosts,
-    setPosts: setPublicPosts,
-    loading: publicLoading,
-    loadingMore: publicLoadingMore,
-    hasMore: publicHasMore,
-    sentinelRef: publicSentinelRef,
-  } = useInfinitePosts({ channelId: profile?.channel?.id, disabled: !profile?.channel?.id, language: locale });
-
-  const {
-    posts: myPosts,
-    setPosts: setMyPosts,
-    loading: myPostsLoading,
-    loadingMore: myPostsLoadingMore,
-    hasMore: myPostsHasMore,
-    sentinelRef: myPostsSentinelRef,
-  } = useInfinitePosts({ channelId: profile?.channel?.id, scope: "private", disabled: !isOwnProfile, language: locale });
-
-  const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);
 
   useEffect(() => {
     if (!authorId) return;
@@ -82,7 +58,7 @@ export default function ProfilePage() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setProfile(updated);
+        setProfile((prev) => prev ? { ...prev, name: updated.name } : prev);
         setOpen(false);
       }
     } catch {
@@ -92,11 +68,6 @@ export default function ProfilePage() {
     }
   }
 
-  const handleDelete = useCallback((id: string) => {
-    setPublicPosts((prev) => prev.filter((p) => p.id !== id));
-    setMyPosts((prev) => prev.filter((p) => p.id !== id));
-  }, [setPublicPosts, setMyPosts]);
-
   if (profileLoading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
@@ -105,8 +76,8 @@ export default function ProfilePage() {
           <Skeleton className="h-6 w-40 mx-auto" />
           <Skeleton className="h-4 w-24 mx-auto" />
         </div>
-        <PostCardSkeleton />
-        <PostCardSkeleton />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
       </div>
     );
   }
@@ -124,50 +95,6 @@ export default function ProfilePage() {
     month: "long",
     day: "numeric",
   });
-
-  function renderPostList(
-    posts: Post[],
-    loading: boolean,
-    loadingMore: boolean,
-    hasMore: boolean,
-    sentinelRef: (node: HTMLDivElement | null) => void,
-    emptyKey: string,
-  ) {
-    if (loading) {
-      return (
-        <div className="space-y-4">
-          <PostCardSkeleton />
-          <PostCardSkeleton />
-          <PostCardSkeleton />
-        </div>
-      );
-    }
-    if (posts.length === 0) {
-      return (
-        <p className="text-center text-deep/50 py-8 bg-white/60 rounded-lg border border-sand">
-          {t(emptyKey)}
-        </p>
-      );
-    }
-    return (
-      <div>
-        <div className="space-y-4">
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} currentUserId={session?.user?.id} onDelete={handleDelete} />
-          ))}
-        </div>
-        {hasMore && (
-          <div ref={sentinelRef} className="flex justify-center py-8">
-            {loadingMore ? (
-              <p className="text-deep/50 text-sm">{t("loadingMore")}</p>
-            ) : (
-              <div className="w-6 h-6" />
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -221,39 +148,52 @@ export default function ProfilePage() {
         <p className="text-deep/50 text-sm mt-1">
           {t("joined", { date })}
         </p>
-        {profile.channel && (
-          <Link
-            href={`/channels/${profile.channel.slug}`}
-            className="inline-block mt-3 text-sm text-gold hover:text-gold-light underline-offset-2 hover:underline"
-          >
-            {t("viewChannel")}
-          </Link>
-        )}
       </div>
 
-      {isOwnProfile ? (
-        <TabsRoot defaultValue="my-public">
-          <TabsList>
-            <TabsTab value="my-public">{t("myPublicPosts", { count: publicPosts.length })}</TabsTab>
-            <TabsTab value="my-private">{t("myPrivatePosts", { count: myPrivatePosts.length })}</TabsTab>
-          </TabsList>
-
-          <TabsPanel value="my-public">
-            {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPosts")}
-          </TabsPanel>
-
-          <TabsPanel value="my-private">
-            {renderPostList(myPrivatePosts, myPostsLoading, myPostsLoadingMore, myPostsHasMore, myPostsSentinelRef, "noPrivatePosts")}
-          </TabsPanel>
-        </TabsRoot>
-      ) : (
-        <>
-          <h2 className="text-xl font-semibold text-deep mb-4">
-            {t("publicPosts", { count: publicPosts.length })}
-          </h2>
-          {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPosts")}
-        </>
-      )}
+      <section>
+        <h2 className="text-xl font-semibold text-deep mb-4">
+          {t("channels")}
+        </h2>
+        {profile.channels.length === 0 ? (
+          <p className="text-center text-deep/50 py-8 bg-white/60 rounded-lg border border-sand">
+            {t("noChannels")}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {profile.channels.map((ch) => (
+              <Link
+                key={ch.id}
+                href={`/channels/${ch.slug}`}
+                className="block bg-white hover:bg-sand/30 active:bg-sand/50 rounded-lg border border-sand p-4 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {ch.avatarUrl ? (
+                    <img
+                      src={ch.avatarUrl}
+                      alt=""
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center">
+                      <Hash className="w-5 h-5 text-gold" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-deep truncate">{ch.name}</p>
+                    <p className="text-xs text-deep/50 flex items-center gap-1 mt-0.5">
+                      <FileText className="w-3 h-3" />
+                      {t("postCount", { count: ch.postCount })}
+                    </p>
+                  </div>
+                  <span className="text-sm text-gold hover:text-gold-light shrink-0">
+                    {t("viewChannel")} →
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

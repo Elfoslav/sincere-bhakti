@@ -116,14 +116,11 @@
     "save": "Uložit",
     "saving": "Ukládám...",
     "joined": "Připojil se {date}",
-    "publicPosts": "Veřejné příspěvky ({count})",
-    "myPublicPosts": "Moje veřejné příspěvky ({count})",
-    "myPrivatePosts": "Moje soukromé příspěvky ({count})",
-    "noPosts": "Zatím žádné veřejné příspěvky v češtině. Buď první, kdo přidá!",
-    "noPrivatePosts": "Zatím žádné soukromé příspěvky v češtině.",
+    "channels": "Kanály",
+    "noChannels": "Zatím žádné kanály.",
     "noProfile": "Oddaný nenalezen",
     "viewChannel": "Zobrazit kanál",
-    "loadingMore": "Načítám další..."
+    "postCount": "{count} příspěvků"
   },
   "PostCard": {
     "public": "Veřejné",

@@ -116,14 +116,11 @@
     "save": "Uložiť",
     "saving": "Ukladám...",
     "joined": "Pripojil sa {date}",
-    "publicPosts": "Verejné príspevky ({count})",
-    "myPublicPosts": "Moje verejné príspevky ({count})",
-    "myPrivatePosts": "Moje súkromné príspevky ({count})",
-    "noPosts": "Zatiaľ žiadne verejné príspevky v slovenčine. Buď prvý, kto pridá!",
-    "noPrivatePosts": "Zatiaľ žiadne súkromné príspevky v slovenčine.",
+    "channels": "Kanály",
+    "noChannels": "Zatiaľ žiadne kanály.",
     "noProfile": "Oddaný nenájdený",
     "viewChannel": "Zobraziť kanál",
-    "loadingMore": "Načítavam ďalšie..."
+    "postCount": "{count} príspevkov"
   },
   "PostCard": {
     "public": "Verejné",

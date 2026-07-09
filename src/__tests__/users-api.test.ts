@@ -45,7 +45,7 @@ const baseUser = {
   password: "hashed-pw",
   image: null,
   createdAt: new Date("2026-01-01"),
-  channels: [{ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }],
+  channels: [{ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1", _count: { posts: 5 } }],
 };
 
 describe("GET /api/users/[id]", () => {
@@ -63,7 +63,9 @@ describe("GET /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("Devotee");
     expect(json.email).toBe("devotee@example.com");
-    expect(json.channel).toEqual({ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" });
+    expect(json.channels).toHaveLength(1);
+    expect(json.channels[0]).toMatchObject({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1" });
+    expect(json.channels[0].postCount).toBe(5);
   });
 
   it("returns 404 when user not found", async () => {
@@ -99,7 +101,8 @@ describe("GET /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("Devotee");
     expect(json.email).toBeUndefined();
-    expect(json.channel).toEqual({ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" });
+    expect(json.channels).toHaveLength(1);
+    expect(json.channels[0].id).toBe("channel-1");
   });
 });
 
