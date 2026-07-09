@@ -60,6 +60,9 @@ export default function Navbar() {
 							<Link href="/posts" className="hover:text-gold-light transition-colors">
 								{t("posts")}
 							</Link>
+							<Link href="/channels" className="hover:text-gold-light transition-colors">
+								{t("channels")}
+							</Link>
 							{status === "authenticated" && (
 								<Link
 									href={`/profile/${session!.user.id}`}
@@ -107,6 +110,9 @@ export default function Navbar() {
 				<div className="flex flex-col gap-1 px-4 pb-4 pt-1 border-t border-white/10">
 					<MobileLink href="/posts" onClick={close}>
 						{t("posts")}
+					</MobileLink>
+					<MobileLink href="/channels" onClick={close}>
+						{t("channels")}
 					</MobileLink>
 					{status === "authenticated" && (
 						<MobileLink href={`/profile/${session!.user.id}`} onClick={close}>

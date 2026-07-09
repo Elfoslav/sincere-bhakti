@@ -7,6 +7,7 @@
   },
   "Navbar": {
     "posts": "Příspěvky",
+    "channels": "Kanály",
     "profile": "Profil",
     "getIn": "Vstoupit",
     "logout": "Odhlásit",
@@ -158,6 +159,17 @@
     "notFound": "Příspěvek nenalezen",
     "forbidden": "Nemáte oprávnění upravovat tento příspěvek",
     "backLink": "← Zpět na příspěvek"
+  },
+  "ChannelsPage": {
+    "title": "Všechny kanály",
+    "searchPlaceholder": "Hledat kanály...",
+    "noChannels": "Žádné kanály nenalezeny.",
+    "noChannelsQuery": "Žádné kanály neodpovídají vašemu hledání.",
+    "postCount": "{count} příspěvků",
+    "loading": "Načítám kanály...",
+    "loadMore": "Načíst další",
+    "metaTitle": "Kanály | Sincere Bhakti",
+    "metaDescription": "Procházet všechny kanály na Sincere Bhakti"
   },
   "ChannelPage": {
     "posts": "příspěvků",

@@ -6,8 +6,9 @@
 		}
 	},
 	"Navbar": {
-		"posts": "Posts",
-		"profile": "Profile",
+"posts": "Posts",
+    "channels": "Channels",
+    "profile": "Profile",
 		"getIn": "Get in",
 		"logout": "Logout",
 		"toggleMenu": "Toggle menu",
@@ -159,16 +160,27 @@
 		"forbidden": "You don't have permission to edit this post",
 		"backLink": "← Back to post"
 	},
-	"ChannelPage": {
-		"posts": "posts",
-		"publicPosts": "Public Posts ({count})",
-		"privatePosts": "Private Posts ({count})",
-		"noPublicPosts": "No public posts in English yet. Be the first to share!",
-		"noPrivatePosts": "No private posts in English yet.",
-		"loadingMore": "Loading more...",
-		"notFound": "Channel not found",
-		"metaDescription": "Browse posts from {name}"
-	},
+"ChannelsPage": {
+    "title": "All Channels",
+    "searchPlaceholder": "Search channels...",
+    "noChannels": "No channels found.",
+    "noChannelsQuery": "No channels match your search.",
+    "postCount": "{count} posts",
+    "loading": "Loading channels...",
+    "loadMore": "Load more",
+    "metaTitle": "Channels | Sincere Bhakti",
+    "metaDescription": "Browse all channels on Sincere Bhakti"
+  },
+  "ChannelPage": {
+    "posts": "posts",
+    "publicPosts": "Public Posts ({count})",
+    "privatePosts": "Private Posts ({count})",
+    "noPublicPosts": "No public posts in English yet. Be the first to share!",
+    "noPrivatePosts": "No private posts in English yet.",
+    "loadingMore": "Loading more...",
+    "notFound": "Channel not found",
+    "metaDescription": "Browse posts from {name}"
+  },
 	"Common": {
 		"cancel": "Cancel",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
