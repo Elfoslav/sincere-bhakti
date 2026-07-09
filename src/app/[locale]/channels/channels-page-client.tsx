@@ -22,7 +22,7 @@ export default function ChannelsPageClient() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const fetchChannels = useCallback(async (q: string, c?: string) => {
     const params = new URLSearchParams();
