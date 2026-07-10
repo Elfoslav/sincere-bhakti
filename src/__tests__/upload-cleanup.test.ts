@@ -7,7 +7,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     pendingUpload: {
       findUnique: vi.fn(),
-      deleteMany: vi.fn(),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
   },
 }));

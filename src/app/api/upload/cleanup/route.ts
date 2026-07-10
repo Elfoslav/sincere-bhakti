@@ -32,6 +32,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Tidy expired PendingUpload rows (1h TTL) so the table doesn't grow unboundedly.
+  await prisma.pendingUpload.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => {});
+
   try {
     const body = await request.json();
     const parsed = cleanupSchema.safeParse(body);
