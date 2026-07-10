@@ -94,6 +94,21 @@ describe("POST /api/upload/cleanup", () => {
     expect(deleteMediaFiles).toHaveBeenCalledWith(["https://pub.r2.dev/posts/post-1/orphan.jpg"]);
   });
 
+  it("allows deleting legacy orphaned URLs with no PendingUpload record", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.pendingUpload.findUnique).mockResolvedValue(null);
+
+    const res = await POST(
+      mockRequest({ urls: ["https://pub.r2.dev/posts/post-1/legacy.jpg"] }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.deleted).toBe(1);
+    expect(deleteMediaFiles).toHaveBeenCalledWith(["https://pub.r2.dev/posts/post-1/legacy.jpg"]);
+  });
+
   it("skips deletion when URL has an existing Media record", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([

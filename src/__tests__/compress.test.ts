@@ -11,7 +11,6 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     media: {
       findMany: vi.fn(),
-      findFirst: vi.fn(),
     },
     pendingUpload: {
       findUnique: vi.fn(),
@@ -61,7 +60,7 @@ describe("POST /api/compress", () => {
 
   it("allows compress when no Media record exists (fresh upload)", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.media.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([]);
     vi.mocked(prisma.pendingUpload.findUnique).mockResolvedValue({ id: "pu-1", key: "posts/post-abc/uuid.jpg", userId: "user-1", channelId: null, createdAt: new Date(), expiresAt: new Date() } as any);
     vi.mocked(compressR2Object).mockResolvedValue({
       publicUrl: "https://pub.r2.dev/posts/post-abc/compressed.jpg",
@@ -82,7 +81,7 @@ describe("POST /api/compress", () => {
 
   it("allows compress when Media record belongs to caller", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.media.findFirst).mockResolvedValue({ id: "media-1", url: "https://pub.r2.dev/posts/post-abc/uuid.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-abc", userId: "user-1" } as any);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([{ id: "media-1", url: "https://pub.r2.dev/posts/post-abc/uuid.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-abc", userId: "user-1" } as any]);
     vi.mocked(compressR2Object).mockResolvedValue({
       publicUrl: "https://pub.r2.dev/posts/post-abc/compressed.jpg",
       mediaType: "image",
@@ -97,7 +96,22 @@ describe("POST /api/compress", () => {
 
   it("returns 403 when key belongs to another user", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.media.findFirst).mockResolvedValue({ id: "media-2", url: "https://pub.r2.dev/posts/post-abc/uuid.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-abc", userId: "user-2" } as any);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([{ id: "media-2", url: "https://pub.r2.dev/posts/post-abc/uuid.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-abc", userId: "user-2" } as any]);
+
+    const res = await POST(mockRequest({ key: "posts/post-abc/uuid.jpg" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.error).toBe("forbidden");
+    expect(compressR2Object).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when duplicate Media rows include another user", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([
+      { id: "media-a", url: "https://pub.r2.dev/posts/post-abc/uuid.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-abc", userId: "user-1" } as any,
+      { id: "media-b", url: "https://pub.r2.dev/posts/post-abc/uuid.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-abc", userId: "user-2" } as any,
+    ]);
 
     const res = await POST(mockRequest({ key: "posts/post-abc/uuid.jpg" }));
     const json = await res.json();
@@ -109,7 +123,7 @@ describe("POST /api/compress", () => {
 
   it("returns 500 on server error", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.media.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([]);
     vi.mocked(prisma.pendingUpload.findUnique).mockResolvedValue({ userId: "user-1" } as any);
     vi.mocked(compressR2Object).mockRejectedValue(new Error("R2 failure"));
 

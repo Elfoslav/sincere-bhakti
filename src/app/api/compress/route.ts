@@ -41,17 +41,17 @@ export async function POST(request: NextRequest) {
 
     const { key } = parsed.data;
 
-    // If a Media record exists for this key, verify the caller owns it.
+    // If Media records exist for this key, verify the caller owns ALL of them.
     // Otherwise, check PendingUpload for ownership of in-progress uploads.
     const storageDomain = process.env.R2_PUBLIC_URL;
     if (storageDomain) {
       const publicUrl = `${storageDomain.replace(/\/+$/, "")}/${key}`;
-      const mediaOwner = await prisma.media.findFirst({
+      const mediaOwners = await prisma.media.findMany({
         where: { url: publicUrl },
         select: { userId: true },
       });
-      if (mediaOwner) {
-        if (mediaOwner.userId !== session.user.id) {
+      if (mediaOwners.length > 0) {
+        if (mediaOwners.some((m) => m.userId !== session.user.id)) {
           return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
         }
       } else {

@@ -64,6 +64,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify ownership of abandoned URLs via PendingUpload records.
+    // Only block when a PendingUpload record exists but belongs to someone else.
+    // No PendingUpload record = legacy orphaned file, allow deletion.
     const storageDomain = process.env.R2_PUBLIC_URL;
     for (const url of abandoned) {
       const key = storageDomain ? extractKey(url, storageDomain) : null;
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
         where: { key },
         select: { userId: true },
       });
-      if (!pending || pending.userId !== session.user.id) {
+      if (pending && pending.userId !== session.user.id) {
         return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
       }
     }
