@@ -95,10 +95,16 @@ export async function PATCH(
       });
 
       // Sync the personal channel name and normalized name but NOT the slug
-      await tx.channel.updateMany({
+      const personalChannel = await tx.channel.findFirst({
         where: { ownerId: id },
-        data: { name: parsed.data.name, normalizedName: normalizeName(parsed.data.name) },
+        orderBy: { createdAt: "asc" },
       });
+      if (personalChannel) {
+        await tx.channel.update({
+          where: { id: personalChannel.id },
+          data: { name: parsed.data.name, normalizedName: normalizeName(parsed.data.name) },
+        });
+      }
 
       return updated;
     });

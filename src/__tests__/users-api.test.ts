@@ -114,9 +114,13 @@ describe("PATCH /api/users/[id]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.$transaction).mockImplementation(async (cb: any) => {
+      const mockChannel = {
+        findFirst: vi.fn().mockResolvedValue({ id: "channel-1", name: "Devotee", ownerId: "user-1" }),
+        update: vi.fn().mockResolvedValue({ id: "channel-1", name: "New Name" }),
+      };
       const tx = {
         user: { update: vi.fn().mockResolvedValue({ ...baseUser, name: "New Name" }) },
-        channel: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+        channel: mockChannel,
       };
       return cb(tx);
     });
