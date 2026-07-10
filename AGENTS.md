@@ -45,6 +45,8 @@ if (!allowed) return null;
 
 Always use `RATE_LIMITS.xxx.limit` / `RATE_LIMITS.xxx.windowMs` from `src/lib/rate-limit.ts` — never inline magic numbers. Add a new entry to the `RATE_LIMITS` object when adding a new rate-limited endpoint.
 
+Every `RATE_LIMITS` entry must have a human-readable comment describing the limit and window (e.g. `// Read posts: 120 requests per 60s per IP`). This keeps durations self-documenting and prevents confusion when revisiting later.
+
 Existing prefixes: `register` (by IP, 5/hour), `create-post` (by userId, 20/hour), `upload-url` (by userId, 20/hour), `delete-post` (by userId, 30/hour), `update-profile` (by userId, 10/hour), `login` (by IP, 10/15min), `upload` (by userId, 60/hour, production only — shared by upload and cleanup). For new endpoints, pick a reasonable limit that regular users won't hit but blocks abuse.
 
 ## Shared Constants for Validation
