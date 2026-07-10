@@ -176,7 +176,12 @@ export async function compressR2Object(key: string): Promise<ProcessUploadResult
   }
 
   const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
   for await (const chunk of Body as AsyncIterable<Uint8Array>) {
+    totalBytes += chunk.length;
+    if (totalBytes > MAX_IMAGE_SIZE_BYTES) {
+      throw new Error("compress_input_too_large");
+    }
     chunks.push(chunk);
   }
   const buffer = Buffer.concat(chunks);
