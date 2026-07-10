@@ -70,24 +70,26 @@ export async function POST(request: NextRequest) {
     // Only block when a PendingUpload record exists but belongs to someone else.
     // No PendingUpload record = legacy orphaned file, allow deletion.
     const storageDomain = process.env.R2_PUBLIC_URL;
-    for (const url of abandoned) {
-      const key = storageDomain ? extractKey(url, storageDomain) : null;
-      if (!key) continue;
-      const pending = await prisma.pendingUpload.findUnique({
-        where: { key },
-        select: { userId: true },
+    const storageKeys = abandoned
+      .map((u) => (storageDomain ? extractKey(u, storageDomain) : null))
+      .filter((k): k is string => k !== null);
+    if (storageKeys.length > 0) {
+      const pendingRecords = await prisma.pendingUpload.findMany({
+        where: { key: { in: storageKeys } },
+        select: { key: true, userId: true },
       });
-      if (pending && pending.userId !== session.user.id) {
-        return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+      const ownerByKey = new Map(pendingRecords.map((r) => [r.key, r.userId]));
+      for (const key of storageKeys) {
+        const owner = ownerByKey.get(key);
+        if (owner && owner !== session.user.id) {
+          return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+        }
       }
     }
 
     await deleteMediaFiles(abandoned);
 
     // Remove PendingUpload records for deleted files
-    const storageKeys = abandoned
-      .map((u) => (storageDomain ? extractKey(u, storageDomain) : null))
-      .filter((k): k is string => k !== null);
     if (storageKeys.length > 0) {
       await prisma.pendingUpload.deleteMany({ where: { key: { in: storageKeys } } });
     }

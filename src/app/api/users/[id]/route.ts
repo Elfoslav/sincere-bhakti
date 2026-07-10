@@ -26,7 +26,7 @@ export async function GET(
         createdAt: true,
         channels: {
           where: { ownerId: id },
-          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, _count: { select: { posts: true } } },
+          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, _count: { select: { posts: { where: { isPublic: true } } } } },
         },
         ...(session?.user?.id === id ? { email: true } : {}),
       },

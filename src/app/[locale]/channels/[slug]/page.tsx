@@ -51,7 +51,7 @@ export default async function ChannelPage({ params }: Props) {
       avatarUrl: true,
       createdAt: true,
       ownerId: true,
-      _count: { select: { posts: true } },
+      _count: { select: { posts: { where: { isPublic: true } } } },
     },
   });
 

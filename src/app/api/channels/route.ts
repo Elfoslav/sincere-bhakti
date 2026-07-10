@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
           avatarUrl: true,
           createdAt: true,
           ownerId: true,
-          _count: { select: { posts: true } },
+          _count: { select: { posts: { where: { isPublic: true } } } },
         },
       });
 
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         avatarUrl: true,
         createdAt: true,
         ownerId: true,
-        _count: { select: { posts: true } },
+        _count: { select: { posts: { where: { isPublic: true } } } },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 20,

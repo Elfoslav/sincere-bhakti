@@ -90,7 +90,7 @@ export async function getChannelBySlug(slug: string): Promise<{
     where: { slug },
     include: {
       owner: { select: { id: true, name: true, image: true } },
-      _count: { select: { posts: true } },
+      _count: { select: { posts: { where: { isPublic: true } } } },
     },
   });
   if (!channel) return null;
