@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         ownerId: true,
         _count: { select: { posts: true } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 20,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });

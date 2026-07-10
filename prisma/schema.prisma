@@ -37,6 +37,7 @@ model Channel {
   editors   ChannelEditor[]
 
   @@index([ownerId])
+  @@index([createdAt, id])
 }
 
 model ChannelEditor {
@@ -62,6 +63,7 @@ model Post {
   @@index([channelId])
   @@index([isPublic, createdAt])
   @@index([language, isPublic, createdAt])
+  @@index([createdAt, id])
 }
 
 model RateLimit {
