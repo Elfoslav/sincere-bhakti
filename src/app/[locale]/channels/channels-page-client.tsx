@@ -80,10 +80,10 @@ return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 flex-1 auto-rows-min">
         {loading ? (
           <>
-            <Skeleton className="h-24 rounded-lg" />
-            <Skeleton className="h-24 rounded-lg" />
-            <Skeleton className="h-24 rounded-lg hidden sm:block" />
-            <Skeleton className="h-24 rounded-lg hidden sm:block" />
+            <Skeleton className="h-24 w-full rounded-lg" />
+            <Skeleton className="h-24 w-full rounded-lg" />
+            <Skeleton className="h-24 w-full rounded-lg hidden sm:block" />
+            <Skeleton className="h-24 w-full rounded-lg hidden sm:block" />
           </>
       ) : channels.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">

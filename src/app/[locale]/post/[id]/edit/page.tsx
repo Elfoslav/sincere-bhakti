@@ -55,7 +55,7 @@ export default function EditPostPage() {
       <div className="w-full max-w-3xl mx-auto px-4 py-8 space-y-6">
         <div className="h-6 w-32 bg-sand rounded animate-pulse" />
         <PostCardSkeleton />
-        <div className="h-32 bg-sand rounded animate-pulse" />
+        <div className="h-32 w-full bg-sand rounded animate-pulse" />
       </div>
     );
   }
