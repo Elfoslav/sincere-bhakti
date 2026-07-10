@@ -40,12 +40,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { fileName, contentType, postId } = parsed.data;
+    const { fileName, contentType, postId, contentLength } = parsed.data;
 
     const { uploadUrl, publicUrl, key } = await createUploadUrl(
       fileName,
       contentType,
       postId,
+      contentLength,
     );
 
     if (key) {

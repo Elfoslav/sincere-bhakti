@@ -19,6 +19,12 @@ export const RATE_LIMITS = {
   uploadUrl: { limit: 20, windowMs: 3_600_000 },
   // Profile update: 10 per hour per user
   updateProfile: { limit: 10, windowMs: 3_600_000 },
+  // Read posts: 120 requests per 60s per IP (2 req/s average)
+  readPosts: { limit: 120, windowMs: 60_000 },
+  // Read channel by slug: 60 requests per 60s per IP
+  readChannel: { limit: 60, windowMs: 60_000 },
+  // Search channels: 30 requests per 60s per IP
+  searchChannels: { limit: 30, windowMs: 60_000 },
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;

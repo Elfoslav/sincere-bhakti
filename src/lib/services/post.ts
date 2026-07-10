@@ -291,13 +291,17 @@ export async function deletePost(
 
   const urls = post.media.map((m) => canonicalizeUrl(m.url));
 
-  await prisma.post.deleteMany({ where: { id, channel: { ownerId: userId } } });
+  const orphaned = await prisma.$transaction(async (tx) => {
+    await tx.post.deleteMany({ where: { id, channel: { ownerId: userId } } });
+    const counts = await Promise.all(
+      urls.map((url) => tx.media.count({ where: { url } })),
+    );
+    return urls.filter((_, i) => counts[i] === 0);
+  });
 
-  const counts = await Promise.all(
-    urls.map((url) => prisma.media.count({ where: { url } })),
-  );
-  const orphaned = urls.filter((_, i) => counts[i] === 0);
-  await deleteMediaFiles(orphaned);
+  if (orphaned.length > 0) {
+    await deleteMediaFiles(orphaned);
+  }
 }
 
 export async function updatePost(

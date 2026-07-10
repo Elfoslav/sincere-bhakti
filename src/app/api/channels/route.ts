@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-log";
 import { normalizeName } from "@/lib/validation";
-import { ERROR_NOT_FOUND, ERROR_SERVER_ERROR } from "@/lib/error-messages";
-import { HTTP_NOT_FOUND, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = request.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const { allowed } = await rateLimit(rateLimitKey("search-channels", ip), RATE_LIMITS.searchChannels.limit, RATE_LIMITS.searchChannels.windowMs);
+    if (!allowed) {
+      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
+    }
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
 

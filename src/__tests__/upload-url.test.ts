@@ -62,7 +62,7 @@ describe("POST /api/upload-url", () => {
     expect(json.uploadUrl).toBe("https://r2.example.com/upload-url");
     expect(json.publicUrl).toBe("https://pub.r2.dev/posts/uuid-test.jpg");
     expect(json.mediaType).toBe("image");
-    expect(createUploadUrl).toHaveBeenCalledWith("test.jpg", "image/jpeg", "post-1");
+    expect(createUploadUrl).toHaveBeenCalledWith("test.jpg", "image/jpeg", "post-1", undefined);
   });
 
   it("returns 400 when fileName is missing", async () => {

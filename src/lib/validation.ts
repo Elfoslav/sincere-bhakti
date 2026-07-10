@@ -176,6 +176,7 @@ export const uploadUrlSchema = z.object({
     .max(255)
     .refine(isAllowedUploadContentType),
   postId: z.string().min(1).max(36),
+  contentLength: z.number().int().positive().max(MAX_VIDEO_SIZE_BYTES).optional(),
 });
 
 export const batchUploadUrlSchema = z.object({

@@ -11,6 +11,12 @@ import { logServerError, logValidationError } from "@/lib/server-log";
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = request.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const { allowed } = await rateLimit(rateLimitKey("read-posts", ip), RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs);
+    if (!allowed) {
+      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
+    }
+
     const { searchParams } = new URL(request.url);
     const parsed = paginationSchema.safeParse({
       scope: searchParams.get("scope") ?? undefined,
@@ -114,3 +120,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
