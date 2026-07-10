@@ -256,6 +256,7 @@ export async function updatePost(
     include: { media: { select: { url: true } }, channel: { select: { ownerId: true } } },
   });
   if (!existing) throw new NotFoundError();
+  if (existing.channel.ownerId !== userId) throw new NotFoundError();
 
   const { media, ...postData } = data;
   if (media !== undefined) await validateMediaOwnership(media, userId);
@@ -276,10 +277,6 @@ export async function updatePost(
           })),
         });
       }
-    }
-
-    if (existing.channel.ownerId !== userId) {
-      throw new NotFoundError();
     }
 
     const { count } = await tx.post.updateMany({
