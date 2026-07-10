@@ -70,7 +70,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
     return (
       <div className="w-full max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
         <div className="flex-1 space-y-4">
-          <Card variant="default" padding="lg" className="text-center space-y-4">
+          <Card variant="default" padding="lg" className="w-full text-center space-y-4">
             <Skeleton className="w-20 h-20 rounded-full mx-auto" />
             <Skeleton className="h-6 w-40 mx-auto" />
             <Skeleton className="h-4 w-24 mx-auto" />
