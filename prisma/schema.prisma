@@ -30,13 +30,14 @@ model Channel {
   normalizedName String   @default("")
   slug           String   @unique
   avatarUrl      String?
+  isPersonal     Boolean  @default(false)
   createdAt      DateTime @default(now())
   ownerId        String
   owner     User          @relation("ChannelOwner", fields: [ownerId], references: [id])
   posts     Post[]
   editors   ChannelEditor[]
 
-  @@index([ownerId])
+  @@index([ownerId, isPersonal])
   @@index([createdAt, id])
 }
 

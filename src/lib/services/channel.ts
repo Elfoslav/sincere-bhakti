@@ -17,7 +17,7 @@ function toPostChannel(channel: { id: string; name: string; slug: string; avatar
 }
 
 export async function createPersonalChannel(userId: string, userName: string): Promise<PostChannel> {
-  const existing = await prisma.channel.findFirst({ where: { ownerId: userId } });
+  const existing = await prisma.channel.findFirst({ where: { ownerId: userId, isPersonal: true } });
   if (existing) {
     // Update legacy bootstrap slug (e.g. "user-cuid") to proper name-based slug.
     if (existing.slug.startsWith("user-")) {
@@ -51,7 +51,7 @@ export async function createPersonalChannel(userId: string, userName: string): P
 
     try {
       const channel = await prisma.channel.create({
-        data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId },
+        data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId, isPersonal: true },
       });
       return toPostChannel(channel);
     } catch (err) {
@@ -62,14 +62,14 @@ export async function createPersonalChannel(userId: string, userName: string): P
 
   const uuid = crypto.randomUUID().slice(0, 8);
   const channel = await prisma.channel.create({
-    data: { name: `${userName} (${uuid})`, normalizedName: normalizeName(`${userName} (${uuid})`), slug: `${slug}-${uuid}`, ownerId: userId },
+    data: { name: `${userName} (${uuid})`, normalizedName: normalizeName(`${userName} (${uuid})`), slug: `${slug}-${uuid}`, ownerId: userId, isPersonal: true },
   });
   return toPostChannel(channel);
 }
 
 export async function getPersonalChannel(userId: string): Promise<PostChannel | null> {
   const channel = await prisma.channel.findFirst({
-    where: { ownerId: userId },
+    where: { ownerId: userId, isPersonal: true },
   });
   if (!channel) return null;
   return toPostChannel(channel);

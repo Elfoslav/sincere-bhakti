@@ -96,8 +96,7 @@ export async function PATCH(
 
       // Sync the personal channel name and normalized name but NOT the slug
       const personalChannel = await tx.channel.findFirst({
-        where: { ownerId: id },
-        orderBy: { createdAt: "asc" },
+        where: { ownerId: id, isPersonal: true },
       });
       if (personalChannel) {
         await tx.channel.update({
