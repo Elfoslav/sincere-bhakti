@@ -130,11 +130,11 @@ describe("POST /api/upload/cleanup", () => {
     vi.mocked(prisma.media.findMany).mockResolvedValue([
       { id: "media-3", url: "https://pub.r2.dev/posts/post-1/attached.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-1", userId: "user-1" },
     ]);
-    vi.mocked(prisma.pendingUpload.findUnique).mockImplementation(async ({ where: { key } }: any) =>
+    vi.mocked(prisma.pendingUpload.findUnique).mockImplementation((({ where: { key } }: any) =>
       key === "posts/post-1/orphan.jpg"
-        ? ({ id: "pu-1", key, userId: "user-1", channelId: null, createdAt: new Date(), expiresAt: new Date() } as any)
-        : null,
-    );
+        ? ({ id: "pu-1", key, userId: "user-1", channelId: null, createdAt: new Date(), expiresAt: new Date(), user: { id: "user-1" } } as any)
+        : null
+    ) as any);
 
     const res = await POST(
       mockRequest({

@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { PrismaClientKnownRequestError } from "@prisma/client";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { canonicalizeUrl } from "@/lib/url";
 import type { Prisma } from "@prisma/client";
@@ -266,7 +265,7 @@ export async function createPost(
       include: postInclude,
     });
   } catch (error) {
-    if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
+    if ((error as { code?: string })?.code === "P2002") {
       throw new ConflictError("post_id_collision");
     }
     throw error;
