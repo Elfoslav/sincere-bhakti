@@ -6,8 +6,8 @@ import { createPersonalChannel } from "@/lib/services/channel";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
-import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
+import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function POST(request: NextRequest) {
   if (!validateOrigin(request)) {
@@ -60,10 +60,20 @@ export async function POST(request: NextRequest) {
       { status: HTTP_CREATED }
     );
   } catch (error) {
+    // Unique-constraint collision (e.g. email already registered, or a channel
+    // name/slug race). Return a generic error without revealing which field
+    // collided, to avoid account/email enumeration.
+    if ((error as { code?: string })?.code === "P2002") {
+      return NextResponse.json(
+        { error: "registration_failed" },
+        { status: HTTP_BAD_REQUEST }
+      );
+    }
+    // Genuine server fault (DB down, etc.) — surface as 500, not a client error.
     logServerError("POST /api/register failed", error);
     return NextResponse.json(
-      { error: "registration_failed" },
-      { status: HTTP_BAD_REQUEST }
+      { error: ERROR_SERVER_ERROR },
+      { status: HTTP_INTERNAL_SERVER_ERROR }
     );
   }
 }

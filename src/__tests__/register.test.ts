@@ -62,9 +62,13 @@ describe("POST /api/register", () => {
     expect(bcrypt.hash).toHaveBeenCalledWith("secret123", 12); // BCRYPT_SALT_ROUNDS
   });
 
-  it("returns 400 on registration error (generic, no info leakage)", async () => {
+  it("returns a generic 400 on duplicate email without revealing which field collided", async () => {
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.user.create).mockRejectedValue(new Error("DB error"));
+    vi.mocked(bcrypt.hash).mockResolvedValue("hashed-password" as never);
+    // Prisma throws a unique-constraint error (P2002) when the email already exists.
+    vi.mocked(prisma.user.create).mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
 
     const res = await POST(mockRequest({
       name: "New User",
@@ -75,6 +79,8 @@ describe("POST /api/register", () => {
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("registration_failed");
+    // Must NOT reveal that the email specifically is in use.
+    expect(JSON.stringify(json)).not.toContain("email");
   });
 
   it("returns 400 on invalid input", async () => {
@@ -96,9 +102,10 @@ describe("POST /api/register", () => {
     expect(json.error).toBe("too_many_requests");
   });
 
-  it("returns 500 on server error", async () => {
+  it("returns 500 on a genuine server error", async () => {
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.user.findUnique).mockRejectedValue(new Error("DB down"));
+    vi.mocked(bcrypt.hash).mockResolvedValue("hashed-password" as never);
+    vi.mocked(prisma.user.create).mockRejectedValue(new Error("DB down"));
 
     const res = await POST(mockRequest({
       name: "Krishna",
@@ -107,7 +114,7 @@ describe("POST /api/register", () => {
     }));
     const json = await res.json();
 
-    expect(res.status).toBe(400);
-    expect(json.error).toBe("registration_failed");
+    expect(res.status).toBe(500);
+    expect(json.error).toBe("server_error");
   });
 });

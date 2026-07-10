@@ -14,7 +14,7 @@ export default async function middleware(req: NextRequest) {
     normalized === "/login" || normalized === "/register";
 
   if (isAuthPage) {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({ req });
 
     if (token) {
       const localeMatch = pathname.match(/^\/(sk|cs)/);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-log";
 import { normalizeName } from "@/lib/validation";
@@ -17,6 +18,8 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("userId");
 
     if (userId) {
+      const session = await auth();
+      const isOwner = session?.user?.id === userId;
       const channel = await prisma.channel.findFirst({
         where: { ownerId: userId },
         select: {
@@ -26,7 +29,7 @@ export async function GET(request: NextRequest) {
           avatarUrl: true,
           createdAt: true,
           ownerId: true,
-          _count: { select: { posts: { where: { isPublic: true } } } },
+          _count: { select: { posts: isOwner ? true : { where: { isPublic: true } } } },
         },
       });
 
