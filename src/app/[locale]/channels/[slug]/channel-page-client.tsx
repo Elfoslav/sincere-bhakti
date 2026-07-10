@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
+import { Card } from "@/components/ui/card";
 import PostCard from "@/components/PostCard";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
@@ -64,9 +65,9 @@ export default function ChannelPageClient({
     }
     if (posts.length === 0) {
       return (
-        <p className="text-center text-deep/50 py-8 bg-white/60 rounded-lg border border-sand">
+        <Card variant="ghost-muted" className="text-center py-8 text-deep/50">
           {t(emptyKey)}
-        </p>
+        </Card>
       );
     }
     return (
@@ -91,7 +92,7 @@ export default function ChannelPageClient({
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8">
-      <div className="bg-white rounded-lg shadow-md p-6 border border-sand mb-8 text-center">
+      <Card variant="default" padding="lg" className="mb-8 text-center">
         <div className="w-20 h-20 rounded-full bg-gold flex items-center justify-center text-deep text-3xl font-bold mx-auto mb-4">
           {channel.name[0]?.toUpperCase() || "?"}
         </div>
@@ -99,7 +100,7 @@ export default function ChannelPageClient({
         <p className="text-deep/50 text-sm mt-2">
           {channel.postCount} {t("posts")}
         </p>
-      </div>
+      </Card>
 
       {isOwner ? (
         <TabsRoot defaultValue="public">

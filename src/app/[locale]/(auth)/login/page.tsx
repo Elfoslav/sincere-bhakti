@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFormPersist } from "@/lib/hooks/useFormPersist";
@@ -59,7 +60,7 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="bg-white rounded-lg shadow-xl p-8 border border-sand">
+      <Card variant="elevated">
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">🪷</div>
           <h1 className="text-2xl font-bold text-deep">{t("title")}</h1>
@@ -109,7 +110,7 @@ export default function LoginPage() {
             {t("registerLink")}
           </Link>
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

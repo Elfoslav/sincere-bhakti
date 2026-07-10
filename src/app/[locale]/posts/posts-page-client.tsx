@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { Card } from "@/components/ui/card";
 import PostCard from "@/components/PostCard";
 import PostForm from "@/components/PostForm";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
@@ -51,7 +52,7 @@ export default function PostsPageClient() {
 				<p className="text-deep/60 mt-1">{t("subtitle")}</p>
 			</div>
 
-			<div className="bg-white rounded-lg shadow-md p-6 border border-sand mb-6">
+			<Card variant="default" padding="lg" className="mb-6">
 				{session ? (
 					<PostForm mode="create" onSuccess={handleCreateSuccess} />
 				) : (
@@ -65,7 +66,7 @@ export default function PostsPageClient() {
 						{t("signInToPost")}
 					</p>
 				)}
-			</div>
+			</Card>
 
 			{session ? (
 				<TabsRoot defaultValue="public">
@@ -87,10 +88,10 @@ export default function PostsPageClient() {
 								<PostCardSkeleton />
 							</div>
 						) : posts.length === 0 ? (
-							<div className="text-center py-12 px-6 bg-white rounded-lg border border-sand">
+							<Card variant="ghost" className="text-center py-12 px-6">
 								<div className="text-4xl mb-3">📿</div>
 								<p className="text-deep/60">{t("emptyPublic")}</p>
-							</div>
+							</Card>
 						) : (
 							<div className="space-y-4">
 								{posts.map((post) => (
@@ -125,9 +126,9 @@ export default function PostsPageClient() {
 						) : (
 							<div>
 								{myPublicPosts.length === 0 ? (
-									<p className="text-center text-deep/50 py-8 bg-white rounded-lg border border-sand">
+									<Card variant="ghost" className="text-center py-8 text-deep/50">
 										{t("emptyMyPublic")}
-									</p>
+									</Card>
 								) : (
 									<div className="space-y-4">
 										{myPublicPosts.map((post) => (
@@ -163,9 +164,9 @@ export default function PostsPageClient() {
 						) : (
 							<div>
 								{myPrivatePosts.length === 0 ? (
-									<p className="text-center text-deep/50 py-8 bg-white rounded-lg border border-sand">
+									<Card variant="ghost" className="text-center py-8 text-deep/50">
 										{t("emptyMyPrivate")}
-									</p>
+									</Card>
 								) : (
 									<div className="space-y-4">
 										{myPrivatePosts.map((post) => (
@@ -200,10 +201,10 @@ export default function PostsPageClient() {
 							<PostCardSkeleton />
 						</div>
 					) : posts.length === 0 ? (
-						<div className="text-center py-12 px-6 bg-white rounded-lg border border-sand">
+						<Card variant="ghost" className="text-center py-12 px-6">
 							<div className="text-4xl mb-3">📿</div>
 							<p className="text-deep/60">{t("emptyPublic")}</p>
-						</div>
+						</Card>
 					) : (
 						<div className="space-y-4">
 							{posts.map((post) => (

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
+import { Card } from "@/components/ui/card";
 import { Hash, FileText } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -97,9 +98,10 @@ return (
             <Link
               key={ch.id}
               href={`/channels/${ch.slug}`}
-              className="block bg-white hover:bg-sand/30 active:bg-sand/50 rounded-lg border border-sand p-4 transition-colors"
+              className="block"
             >
-              <div className="flex items-center gap-3">
+              <Card variant="hover">
+                <div className="flex items-center gap-3">
                 {ch.avatarUrl ? (
                   <img
                     src={ch.avatarUrl}
@@ -119,6 +121,7 @@ return (
                   </p>
                 </div>
               </div>
+              </Card>
             </Link>
           ))}
           {cursor && (

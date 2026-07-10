@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { deleteMediaFiles } from "@/lib/services/upload";
+import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { prisma } from "@/lib/prisma";
 import { canonicalizeUrl } from "@/lib/url";
 import { validateOrigin } from "@/lib/csrf";
@@ -63,7 +63,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ deleted: 0 });
     }
 
+    // Verify ownership of abandoned URLs via PendingUpload records.
+    const storageDomain = process.env.R2_PUBLIC_URL;
+    for (const url of abandoned) {
+      const key = storageDomain ? extractKey(url, storageDomain) : null;
+      if (!key) continue;
+      const pending = await prisma.pendingUpload.findUnique({
+        where: { key },
+        select: { userId: true },
+      });
+      if (!pending || pending.userId !== session.user.id) {
+        return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+      }
+    }
+
     await deleteMediaFiles(abandoned);
+
+    // Remove PendingUpload records for deleted files
+    const storageKeys = abandoned
+      .map((u) => (storageDomain ? extractKey(u, storageDomain) : null))
+      .filter((k): k is string => k !== null);
+    if (storageKeys.length > 0) {
+      await prisma.pendingUpload.deleteMany({ where: { key: { in: storageKeys } } });
+    }
+
     return NextResponse.json({ success: true, deleted: abandoned.length });
   } catch (error) {
     logServerError("POST /api/upload/cleanup failed", error);

@@ -5,6 +5,10 @@ vi.mock("@/lib/prisma", () => ({
     media: {
       findMany: vi.fn(),
     },
+    pendingUpload: {
+      findUnique: vi.fn(),
+      deleteMany: vi.fn(),
+    },
   },
 }));
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
@@ -13,13 +17,14 @@ vi.mock("@/lib/csrf", () => ({
 }));
 vi.mock("@/lib/services/upload", () => ({
   deleteMediaFiles: vi.fn(),
+  extractKey: vi.fn(),
 }));
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { deleteMediaFiles } from "@/lib/services/upload";
+import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { POST } from "@/app/api/upload/cleanup/route";
 
 function mockRequest(body: unknown) {
@@ -32,6 +37,10 @@ function mockRequest(body: unknown) {
 describe("POST /api/upload/cleanup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(extractKey).mockImplementation((url: string) => {
+      const prefix = "https://pub.r2.dev/";
+      return url.startsWith(prefix) ? url.slice(prefix.length) : null;
+    });
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -73,6 +82,7 @@ describe("POST /api/upload/cleanup", () => {
   it("deletes orphaned URLs with no Media record", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.pendingUpload.findUnique).mockResolvedValue({ id: "pu-1", key: "posts/post-1/orphan.jpg", userId: "user-1", channelId: null, createdAt: new Date(), expiresAt: new Date() } as any);
 
     const res = await POST(
       mockRequest({ urls: ["https://pub.r2.dev/posts/post-1/orphan.jpg"] }),
@@ -105,6 +115,11 @@ describe("POST /api/upload/cleanup", () => {
     vi.mocked(prisma.media.findMany).mockResolvedValue([
       { id: "media-3", url: "https://pub.r2.dev/posts/post-1/attached.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-1", userId: "user-1" },
     ]);
+    vi.mocked(prisma.pendingUpload.findUnique).mockImplementation(async ({ where: { key } }: any) =>
+      key === "posts/post-1/orphan.jpg"
+        ? ({ id: "pu-1", key, userId: "user-1", channelId: null, createdAt: new Date(), expiresAt: new Date() } as any)
+        : null,
+    );
 
     const res = await POST(
       mockRequest({

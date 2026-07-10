@@ -145,8 +145,10 @@ export async function processImage(
         const reEncoded = await sharp(buffer).avif({ quality: IMAGE_JPEG_QUALITY - 10 }).toBuffer();
         finalBuffer = reEncoded.length < buffer.length ? reEncoded : buffer;
         break;
-      }
-    }
+  }
+}
+
+
   }
 
   const finalMeta = await sharp(finalBuffer).metadata();

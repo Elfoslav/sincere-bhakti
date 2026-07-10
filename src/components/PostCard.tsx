@@ -7,6 +7,7 @@ import { Copy, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { extractYouTubeContent } from "@/lib/video";
 import { replaceEmoticons } from "@/lib/emoticons";
+import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import ImageGallery from "@/components/ImageGallery";
 import type { Post } from "@/types/post";
@@ -72,7 +73,7 @@ export default function PostCard({
   }, [post.id, t, onDelete]);
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-5 border border-sand">
+    <Card>
       <div className="flex items-start gap-3 mb-3">
         <div className="w-10 h-10 rounded-full bg-gold flex items-center justify-center text-deep font-bold text-lg shrink-0">
           {post.channel.name?.[0]?.toUpperCase() || "?"}
@@ -198,6 +199,6 @@ export default function PostCard({
         variant="destructive"
         loading={isDeleting}
       />
-    </div>
+    </Card>
   );
 }

@@ -4,6 +4,17 @@ import { canonicalizeUrl } from "@/lib/url";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
 
+async function deletePendingUploads(urls: string[]): Promise<void> {
+  const storageDomain = process.env.R2_PUBLIC_URL;
+  if (!storageDomain) return;
+  const keys = urls
+    .map((u) => extractKey(u, storageDomain))
+    .filter((k): k is string => k !== null);
+  if (keys.length > 0) {
+    await prisma.pendingUpload.deleteMany({ where: { key: { in: keys } } });
+  }
+}
+
 export class UnauthorizedError extends Error {
   name = "UnauthorizedError" as const;
 }
@@ -189,6 +200,20 @@ async function validateMediaOwnership(
       throw new ForbiddenError("media_not_owned");
     }
   }
+
+  // Check PendingUpload records for URLs not yet linked to a post
+  const keys = storageUrls.map((s) => s.key);
+  const pending = await prisma.pendingUpload.findMany({
+    where: { key: { in: keys } },
+    select: { key: true, userId: true },
+  });
+  const pendingMap = new Map(pending.map((p) => [p.key, p.userId]));
+  for (const { key } of storageUrls) {
+    const ownerId = pendingMap.get(key);
+    if (ownerId && ownerId !== userId) {
+      throw new ForbiddenError("media_not_owned");
+    }
+  }
 }
 
 export async function createPost(
@@ -220,6 +245,9 @@ export async function createPost(
     },
     include: postInclude,
   });
+
+  // Remove PendingUpload records for the newly created media
+  await deletePendingUploads(media.map((m) => m.url));
 
   return post;
 }
@@ -301,6 +329,9 @@ export async function updatePost(
   });
 
   if (media !== undefined) {
+    // Remove PendingUpload records for newly linked media URLs
+    await deletePendingUploads(media.map((m) => m.url));
+
     const removed = existing.media
       .filter(
         (old) => !media.some((m) => canonicalizeUrl(m.url) === canonicalizeUrl(old.url)),

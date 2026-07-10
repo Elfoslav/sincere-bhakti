@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
+import { Card } from "@/components/ui/card";
 import { Pencil, Hash, FileText } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -69,11 +70,11 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
     return (
       <div className="w-full max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
         <div className="flex-1 space-y-4">
-          <div className="bg-white rounded-lg shadow-md p-6 border border-sand text-center space-y-4">
+          <Card variant="default" padding="lg" className="text-center space-y-4">
             <Skeleton className="w-20 h-20 rounded-full mx-auto" />
             <Skeleton className="h-6 w-40 mx-auto" />
             <Skeleton className="h-4 w-24 mx-auto" />
-          </div>
+          </Card>
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-12 w-full" />
         </div>
@@ -107,7 +108,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
-      <div className="bg-white rounded-lg shadow-md p-6 border border-sand mb-8 text-center">
+      <Card variant="default" padding="lg" className="mb-8 text-center">
         <div className="w-20 h-20 rounded-full bg-gold flex items-center justify-center text-deep text-3xl font-bold mx-auto mb-4">
           {profile.name[0]?.toUpperCase() || "?"}
         </div>
@@ -157,24 +158,25 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
         <p className="text-deep/50 text-sm mt-1">
           {t("joined", { date })}
         </p>
-      </div>
+      </Card>
 
       <section>
         <h2 className="text-xl font-semibold text-deep mb-4">
           {t("channels")}
         </h2>
         {profile.channels.length === 0 ? (
-          <p className="text-center text-deep/50 py-8 bg-white/60 rounded-lg border border-sand">
+          <Card variant="ghost-muted" className="text-center py-8">
             {t("noChannels")}
-          </p>
+          </Card>
         ) : (
           <div className="space-y-3">
             {profile.channels.map((ch) => (
               <Link
                 key={ch.id}
                 href={`/channels/${ch.slug}`}
-                className="block bg-white hover:bg-sand/30 active:bg-sand/50 rounded-lg border border-sand p-4 transition-colors"
+                className="block"
               >
+                <Card variant="hover">
                 <div className="flex items-center gap-3">
                   {ch.avatarUrl ? (
                     <img
@@ -198,6 +200,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
                     {t("viewChannel")} →
                   </span>
                 </div>
+              </Card>
               </Link>
             ))}
           </div>

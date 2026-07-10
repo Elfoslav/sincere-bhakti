@@ -4,6 +4,7 @@ import { createUploadUrl, contentTypeToMediaType } from "@/lib/services/upload";
 import { uploadUrlSchema } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
+import { prisma } from "@/lib/prisma";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
@@ -41,11 +42,22 @@ export async function POST(request: NextRequest) {
 
     const { fileName, contentType, postId } = parsed.data;
 
-    const { uploadUrl, publicUrl } = await createUploadUrl(
+    const { uploadUrl, publicUrl, key } = await createUploadUrl(
       fileName,
       contentType,
       postId,
     );
+
+    if (key) {
+      await prisma.pendingUpload.create({
+        data: {
+          key,
+          userId: session.user.id,
+          channelId: session.user.channelId,
+          expiresAt: new Date(Date.now() + 3600_000),
+        },
+      });
+    }
 
     return NextResponse.json({
       uploadUrl,

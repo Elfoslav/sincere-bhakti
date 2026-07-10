@@ -18,7 +18,7 @@ export default function PostDetailClient({
 
   if (!post) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+      <div className="w-full max-w-3xl mx-auto px-4 py-16 text-center">
         <p className="text-deep/60 mb-4">{t("notFound")}</p>
       </div>
     );

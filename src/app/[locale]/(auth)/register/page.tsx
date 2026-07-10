@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PASSWORD_MIN_LENGTH } from "@/lib/validation";
@@ -129,7 +130,7 @@ export default function RegisterPage() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="bg-white rounded-lg shadow-xl p-8 border border-sand">
+      <Card variant="elevated">
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">🪷</div>
           <h1 className="text-2xl font-bold text-deep">{t("title")}</h1>
@@ -198,7 +199,7 @@ export default function RegisterPage() {
             {t("loginLink")}
           </Link>
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

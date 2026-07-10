@@ -4,6 +4,7 @@ import { createUploadUrl } from "@/lib/services/upload";
 import { batchUploadUrlSchema, MAX_TOTAL_UPLOAD_SIZE_BYTES, maxUploadSizeForContentType } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
+import { prisma } from "@/lib/prisma";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
@@ -60,6 +61,14 @@ export async function POST(request: NextRequest) {
     const results = await Promise.all(
       files.map((f) => createUploadUrl(f.fileName, f.contentType, postId, f.size)),
     );
+
+    const pendingData = results.map((r) => ({
+      key: r.key,
+      userId: session.user.id,
+      channelId: session.user.channelId,
+      expiresAt: new Date(Date.now() + 3600_000),
+    }));
+    await prisma.pendingUpload.createMany({ data: pendingData });
 
     return NextResponse.json({ urls: results });
   } catch (error) {

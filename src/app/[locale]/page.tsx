@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import Image from "next/image";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -57,21 +58,21 @@ export default async function Home({ params }: Props) {
 				</div>
 
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-					<div className="bg-white rounded-lg p-6 border border-sand">
+					<Card variant="flat">
 						<div className="text-3xl mb-2">📿</div>
 						<h3 className="font-semibold text-deep mb-2">{t("cardBhaktiTitle")}</h3>
 						<p className="text-sm text-deep/60">{t("cardBhaktiDesc")}</p>
-					</div>
-					<div className="bg-white rounded-lg p-6 border border-sand">
+					</Card>
+					<Card variant="flat">
 						<div className="text-3xl mb-2">🌺</div>
 						<h3 className="font-semibold text-deep mb-2">{t("cardMediaTitle")}</h3>
 						<p className="text-sm text-deep/60">{t("cardMediaDesc")}</p>
-					</div>
-					<div className="bg-white rounded-lg p-6 border border-sand">
+					</Card>
+					<Card variant="flat">
 						<div className="text-3xl mb-2">🤝</div>
 						<h3 className="font-semibold text-deep mb-2">{t("cardSangaTitle")}</h3>
 						<p className="text-sm text-deep/60">{t("cardSangaDesc")}</p>
-					</div>
+					</Card>
 				</div>
 			</div>
 		</div>

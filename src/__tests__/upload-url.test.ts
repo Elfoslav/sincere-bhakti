@@ -8,11 +8,19 @@ vi.mock("@/lib/services/upload", () => ({
   createUploadUrl: vi.fn(),
   contentTypeToMediaType: vi.fn(),
 }));
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    pendingUpload: {
+      create: vi.fn(),
+    },
+  },
+}));
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
 import { createUploadUrl, contentTypeToMediaType } from "@/lib/services/upload";
+import { prisma } from "@/lib/prisma";
 import { POST } from "@/app/api/upload-url/route";
 
 function mockRequest(body: unknown) {
@@ -39,6 +47,7 @@ describe("POST /api/upload-url", () => {
 
   it("returns upload URL for authenticated user", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.pendingUpload.create).mockResolvedValue({} as any);
     vi.mocked(createUploadUrl).mockResolvedValue({
       uploadUrl: "https://r2.example.com/upload-url",
       publicUrl: "https://pub.r2.dev/posts/uuid-test.jpg",

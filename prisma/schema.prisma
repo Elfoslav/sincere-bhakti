@@ -18,9 +18,10 @@ model User {
   password  String
   image     String?
   createdAt DateTime @default(now())
-  channels  Channel[]       @relation("ChannelOwner")
-  editors   ChannelEditor[]
-  media     Media[]
+  channels       Channel[]       @relation("ChannelOwner")
+  editors        ChannelEditor[]
+  media          Media[]
+  pendingUploads PendingUpload[]
 }
 
 model Channel {
@@ -85,5 +86,19 @@ model Media {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([postId])
+  @@index([userId])
+}
+
+model PendingUpload {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  userId    String
+  channelId String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([key])
   @@index([userId])
 }

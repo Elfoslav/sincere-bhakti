@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
+import { Card } from "@/components/ui/card";
 import PostCard from "@/components/PostCard";
 import PostForm from "@/components/PostForm";
 import PostLayout from "@/components/PostLayout";
@@ -51,7 +52,7 @@ export default function EditPostPage() {
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div className="w-full max-w-3xl mx-auto px-4 py-8 space-y-6">
         <div className="h-6 w-32 bg-sand rounded animate-pulse" />
         <PostCardSkeleton />
         <div className="h-32 bg-sand rounded animate-pulse" />
@@ -61,7 +62,7 @@ export default function EditPostPage() {
 
   if (error || !post) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+      <div className="w-full max-w-3xl mx-auto px-4 py-16 text-center">
         <p className="text-deep/60 mb-4">{error || t("notFound")}</p>
       </div>
     );
@@ -69,7 +70,7 @@ export default function EditPostPage() {
 
   return (
     <PostLayout postId={id} title={t("title")} backLabel={t("backLink")}>
-      <div className="bg-white rounded-lg shadow-md p-6 border border-sand">
+      <Card variant="default" padding="lg">
         <PostForm
           mode="edit"
           postId={id}
@@ -79,7 +80,7 @@ export default function EditPostPage() {
           onSuccess={() => router.push(`/post/${id}`)}
           onCancel={() => router.push(`/post/${id}`)}
         />
-      </div>
+      </Card>
 
       <PostCard post={post} currentUserId={session?.user?.id} hideEdit />
     </PostLayout>
