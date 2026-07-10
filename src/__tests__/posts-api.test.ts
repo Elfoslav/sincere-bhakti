@@ -18,6 +18,9 @@ vi.mock("@/lib/services/post", () => {
     ForbiddenError: class ForbiddenError extends Error {
       name = "ForbiddenError" as const;
     },
+    ConflictError: class ConflictError extends Error {
+      name = "ConflictError" as const;
+    },
   };
 });
 vi.mock("@/lib/csrf", () => ({

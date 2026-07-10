@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { PrismaClientKnownRequestError } from "@prisma/client";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { canonicalizeUrl } from "@/lib/url";
 import type { Prisma } from "@prisma/client";
@@ -26,6 +27,9 @@ export class ForbiddenError extends Error {
 }
 export class ValidationError extends Error {
   name = "ValidationError" as const;
+}
+export class ConflictError extends Error {
+  name = "ConflictError" as const;
 }
 
 export interface PostMedia {
@@ -239,26 +243,34 @@ export async function createPost(
     if (!editor) throw new ForbiddenError("not_channel_author");
   }
 
-  const post = await prisma.post.create({
-    data: {
-      ...(id ? { id } : {}),
-      content: content || null,
-      isPublic,
-      language,
-      channelId,
-      media: {
-        create: media.map((m, i) => ({
-          url: m.url,
-          type: m.type,
-          position: i,
-          width: m.width ?? null,
-          height: m.height ?? null,
-          userId,
-        })),
+  let post: PostResponse;
+  try {
+    post = await prisma.post.create({
+      data: {
+        ...(id ? { id } : {}),
+        content: content || null,
+        isPublic,
+        language,
+        channelId,
+        media: {
+          create: media.map((m, i) => ({
+            url: m.url,
+            type: m.type,
+            position: i,
+            width: m.width ?? null,
+            height: m.height ?? null,
+            userId,
+          })),
+        },
       },
-    },
-    include: postInclude,
-  });
+      include: postInclude,
+    });
+  } catch (error) {
+    if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new ConflictError("post_id_collision");
+    }
+    throw error;
+  }
 
   // Remove PendingUpload records for the newly created media
   await deletePendingUploads(media.map((m) => m.url));

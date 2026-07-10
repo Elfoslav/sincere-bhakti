@@ -127,8 +127,10 @@ export const mediaItemSchema = z.object({
 const contentField = z.string().trim().max(5000).optional();
 const mediaField = z.array(mediaItemSchema).max(10).optional();
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const createPostSchema = z.object({
-  id: z.string().min(1).max(36).optional(),
+  id: z.string().regex(uuidRegex).optional(),
   content: contentField,
   media: mediaField.default([]),
   isPublic: z.boolean().default(true),
