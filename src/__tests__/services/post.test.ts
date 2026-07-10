@@ -20,6 +20,9 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(),
       findFirst: vi.fn(),
     },
+    channelEditor: {
+      findUnique: vi.fn(),
+    },
     $transaction: vi.fn((cb: (tx: any) => any) => cb(prisma)),
   },
 }));
@@ -197,6 +200,10 @@ describe("getPostById", () => {
 });
 
 describe("createPost", () => {
+  beforeEach(() => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
+  });
+
   it("creates post with text and media, persisting dimensions", async () => {
     const media = [{ url: "https://r2.dev/img.jpg", type: "image", width: 1600, height: 900 }];
     vi.mocked(prisma.post.create).mockResolvedValue(basePost as any);
@@ -284,6 +291,29 @@ describe("createPost", () => {
 
   it("throws when channelId is missing", async () => {
     await expect(createPost({ content: "Hello" }, "user-1")).rejects.toThrow("channel_required");
+  });
+
+  it("throws when channel is not found", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue(null);
+
+    await expect(createPost({ content: "Hello", channelId: "missing" }, "user-1")).rejects.toThrow("channel_not_found");
+  });
+
+  it("throws when user is not channel owner nor editor", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-2" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
+
+    await expect(createPost({ content: "Hello", channelId: "channel-1" }, "user-1")).rejects.toThrow("not_channel_author");
+  });
+
+  it("allows post creation for channel editors", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-2" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-1" } as any);
+    vi.mocked(prisma.post.create).mockResolvedValue(basePost as any);
+
+    const post = await createPost({ content: "Editor post", channelId: "channel-1" }, "user-1");
+
+    expect(post.content).toBe("Hare Krishna!");
   });
 });
 

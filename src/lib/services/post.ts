@@ -225,6 +225,20 @@ export async function createPost(
 
   if (!channelId) throw new ValidationError("channel_required");
 
+  // Verify the caller owns or edits this channel.
+  const channel = await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { ownerId: true },
+  });
+  if (!channel) throw new NotFoundError("channel_not_found");
+  if (channel.ownerId !== userId) {
+    const editor = await prisma.channelEditor.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+      select: { userId: true },
+    });
+    if (!editor) throw new ForbiddenError("not_channel_author");
+  }
+
   const post = await prisma.post.create({
     data: {
       ...(id ? { id } : {}),
