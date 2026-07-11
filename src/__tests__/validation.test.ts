@@ -4,6 +4,7 @@ import {
   createPostSchema,
   updatePostSchema,
   updateNameSchema,
+  createChannelSchema,
   paginationSchema,
   uploadUrlSchema,
   maxUploadSizeForContentType,
@@ -257,6 +258,29 @@ describe("updateNameSchema", () => {
   it("rejects whitespace-only name", () => {
     const result = updateNameSchema.safeParse({ name: "   " });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("createChannelSchema", () => {
+  it("accepts valid channel name", () => {
+    const result = createChannelSchema.safeParse({ name: "My Devotees" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects name shorter than 2 chars", () => {
+    expect(createChannelSchema.safeParse({ name: "a" }).success).toBe(false);
+  });
+
+  it("accepts name with exactly 2 chars", () => {
+    expect(createChannelSchema.safeParse({ name: "ab" }).success).toBe(true);
+  });
+
+  it("rejects empty name", () => {
+    expect(createChannelSchema.safeParse({ name: "" }).success).toBe(false);
+  });
+
+  it("rejects whitespace-only name", () => {
+    expect(createChannelSchema.safeParse({ name: "   " }).success).toBe(false);
   });
 });
 

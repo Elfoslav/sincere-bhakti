@@ -3,6 +3,8 @@ import { locales } from "@/i18n/routing";
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const BCRYPT_SALT_ROUNDS = 12;
+export const NAME_MAX_LENGTH = 50;
+export const CHANNEL_NAME_MIN_LENGTH = 2;
 
 // Only http(s) URLs are allowed for user-supplied media. This blocks
 // dangerous schemes like `javascript:` and `data:` that would otherwise
@@ -98,7 +100,7 @@ export const registerSchema = z.object({
     .string()
     .trim()
     .min(1)
-    .max(50),
+    .max(NAME_MAX_LENGTH),
   email: z
     .string()
     .trim()
@@ -157,7 +159,15 @@ export const updateNameSchema = z.object({
     .string()
     .trim()
     .min(1)
-    .max(50),
+    .max(NAME_MAX_LENGTH),
+});
+
+export const createChannelSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(CHANNEL_NAME_MIN_LENGTH)
+    .max(NAME_MAX_LENGTH),
 });
 
 export const paginationSchema = z.object({

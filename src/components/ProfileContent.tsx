@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
-import { Pencil, Hash, FileText } from "lucide-react";
+import { Pencil, Hash, FileText, Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,10 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [channelDialogOpen, setChannelDialogOpen] = useState(false);
+  const [channelName, setChannelName] = useState("");
+  const [channelSaving, setChannelSaving] = useState(false);
+  const [channelError, setChannelError] = useState("");
 
   const isOwnProfile = session?.user?.id === authorId;
 
@@ -76,6 +80,36 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
       setNameError(t("saveError"));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleCreateChannel() {
+    if (!channelName.trim() || !profile) return;
+    setChannelSaving(true);
+    setChannelError("");
+    try {
+      const res = await fetch("/api/channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: channelName.trim() }),
+      });
+      if (res.ok) {
+        const channel = await res.json();
+        setProfile((prev) => prev ? { ...prev, channels: [...prev.channels, channel] } : prev);
+        setChannelDialogOpen(false);
+        setChannelName("");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === "name_taken") {
+          setChannelError(t("nameTaken"));
+        } else {
+          setChannelError(t("saveError"));
+        }
+      }
+    } catch {
+      setChannelError(t("saveError"));
+    } finally {
+      setChannelSaving(false);
     }
   }
 
@@ -175,9 +209,50 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
       </Card>
 
       <section>
-        <h2 className="text-xl font-semibold text-deep mb-4">
-          {t("channels")}
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-deep">
+            {t("channels")}
+          </h2>
+          {isOwnProfile && (
+            <Dialog open={channelDialogOpen} onOpenChange={setChannelDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="w-4 h-4 mr-1" />
+                  {t("createChannel")}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{t("createChannelTitle")}</DialogTitle>
+                </DialogHeader>
+                <form
+                  onSubmit={(e) => { e.preventDefault(); handleCreateChannel(); }}
+                  className="space-y-4 pt-2"
+                >
+                  <Input
+                    name="channelName"
+                    value={channelName}
+                    onChange={(e) => { setChannelName(e.target.value); setChannelError(""); }}
+                    placeholder={t("channelNamePlaceholder")}
+                    autoFocus
+                    errorMessage={channelError || undefined}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => { setChannelDialogOpen(false); setChannelName(""); setChannelError(""); }}>
+                      {t("cancel")}
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={channelSaving || !channelName.trim()}
+                    >
+                      {channelSaving ? t("creating") : t("save")}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
         {profile.channels.length === 0 ? (
           <Card variant="ghost-muted" className="text-center py-8">
             {t("noChannels")}

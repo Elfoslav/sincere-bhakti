@@ -25,6 +25,8 @@ export const RATE_LIMITS = {
   readChannel: { limit: 60, windowMs: 60_000 },
   // Search channels: 30 requests per 60s per IP
   searchChannels: { limit: 30, windowMs: 60_000 },
+  // Channel creation: 10 per hour per user
+  createChannel: { limit: 10, windowMs: 3_600_000 },
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;

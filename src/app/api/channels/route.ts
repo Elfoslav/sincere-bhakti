@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
-import { logServerError } from "@/lib/server-log";
-import { normalizeName } from "@/lib/validation";
-import { ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
-import { HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { validateOrigin } from "@/lib/csrf";
+import { logServerError, logValidationError } from "@/lib/server-log";
+import { normalizeName, createChannelSchema, isBrandName } from "@/lib/validation";
+import { createChannel } from "@/lib/services/channel";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function GET(request: NextRequest) {
   try {
@@ -78,6 +80,60 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logServerError("GET /api/channels failed", error);
+    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) {
+    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+  }
+
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+  }
+
+  const { allowed } = await rateLimit(rateLimitKey("create-channel", session.user.id), RATE_LIMITS.createChannel.limit, RATE_LIMITS.createChannel.windowMs);
+  if (!allowed) {
+    console.warn("rate_limited", { route: "create-channel", userId: session.user.id });
+    return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
+  }
+
+  try {
+    const body = await request.json();
+    const parsed = createChannelSchema.safeParse(body);
+
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      logValidationError("POST /api/channels", issue, body);
+      return NextResponse.json(
+        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
+        { status: HTTP_BAD_REQUEST }
+      );
+    }
+
+    const { name } = parsed.data;
+
+    if (isBrandName(name, process.env.SINCERE_BHAKTI_NAME)) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
+
+    const normalizedTarget = normalizeName(name);
+    const existing = await prisma.channel.findFirst({ where: { normalizedName: normalizedTarget }, select: { id: true } });
+    if (existing) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
+
+    const channel = await createChannel(session.user.id, name);
+
+    return NextResponse.json(channel, { status: HTTP_CREATED });
+  } catch (error) {
+    if ((error as { code?: string })?.code === "P2002") {
+      logServerError("POST /api/channels P2002 collision", error);
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
+    logServerError("POST /api/channels failed", error);
     return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
   }
 }

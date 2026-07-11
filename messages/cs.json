@@ -125,7 +125,11 @@
 		"viewChannel": "Zobrazit kanál",
 		"postCount": "{count} příspěvků",
 		"nameTaken": "Toto jméno je již obsazeno",
-		"saveError": "Nepodařilo se uložit"
+		"saveError": "Nepodařilo se uložit",
+		"createChannel": "Vytvořit kanál",
+		"createChannelTitle": "Vytvořit kanál",
+		"channelNamePlaceholder": "Název kanálu",
+		"creating": "Vytvářím..."
 	},
 	"PostCard": {
 		"public": "Veřejné",

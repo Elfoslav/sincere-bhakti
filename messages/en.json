@@ -125,7 +125,11 @@
 		"viewChannel": "View channel",
 		"postCount": "{count} posts",
 		"nameTaken": "This name is already taken",
-		"saveError": "Failed to save"
+		"saveError": "Failed to save",
+		"createChannel": "Create channel",
+		"createChannelTitle": "Create Channel",
+		"channelNamePlaceholder": "Channel name",
+		"creating": "Creating..."
 	},
 	"PostCard": {
 		"public": "Public",

@@ -10,7 +10,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
-import { createPersonalChannel } from "@/lib/services/channel";
+import { createPersonalChannel, createChannel } from "@/lib/services/channel";
 
 const baseChannel = {
   id: "",
@@ -76,5 +76,41 @@ describe("createPersonalChannel", () => {
     const result = await createPersonalChannel("user-99", "Test");
 
     expect(result.slug).toBe(fallbackSlug);
+  });
+});
+
+describe("createChannel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("creates a non-personal channel with the given name", async () => {
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channel.create).mockResolvedValue({
+      id: "ch-1", name: "My Devotees", normalizedName: "my devotees", slug: "my-devotees", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
+    } as any);
+
+    const result = await createChannel("user-1", "My Devotees");
+
+    expect(result.name).toBe("My Devotees");
+    expect(result.slug).toBe("my-devotees");
+    expect(result.postCount).toBe(0);
+    expect(prisma.channel.create).toHaveBeenCalledWith({
+      data: { name: "My Devotees", normalizedName: "my devotees", slug: "my-devotees", ownerId: "user-1", isPersonal: false },
+    });
+  });
+
+  it("appends suffix when slug is taken", async () => {
+    vi.mocked(prisma.channel.findFirst)
+      .mockResolvedValueOnce({ id: "taken" } as any) // slugTaken for my-devotees
+      .mockResolvedValueOnce(null);                  // slugTaken for my-devotees-2
+    vi.mocked(prisma.channel.create).mockResolvedValue({
+      id: "ch-2", name: "My Devotees (2)", normalizedName: "my devotees (2)", slug: "my-devotees-2", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
+    } as any);
+
+    const result = await createChannel("user-1", "My Devotees");
+
+    expect(result.slug).toBe("my-devotees-2");
+    expect(result.name).toBe("My Devotees (2)");
   });
 });

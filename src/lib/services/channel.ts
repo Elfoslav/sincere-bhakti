@@ -113,3 +113,31 @@ export async function isChannelEditor(channelId: string, userId: string): Promis
   });
   return !!editor;
 }
+
+export async function createChannel(userId: string, channelName: string): Promise<PostChannel & { postCount: number }> {
+  const slug = slugifyName(channelName);
+
+  for (let i = 1; i <= 10; i++) {
+    const finalSlug = i === 1 ? slug : `${slug}-${i}`;
+    const name = i === 1 ? channelName : `${channelName} (${i})`;
+
+    const slugTaken = await prisma.channel.findFirst({ where: { slug: finalSlug }, select: { id: true } });
+    if (slugTaken) continue;
+
+    try {
+      const channel = await prisma.channel.create({
+        data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId, isPersonal: false },
+      });
+      return { ...toPostChannel(channel), postCount: 0 };
+    } catch (err) {
+      if ((err as { code?: string })?.code === "P2002") continue;
+      throw err;
+    }
+  }
+
+  const uuid = crypto.randomUUID().slice(0, 8);
+  const channel = await prisma.channel.create({
+    data: { name: `${channelName} (${uuid})`, normalizedName: normalizeName(`${channelName} (${uuid})`), slug: `${slug}-${uuid}`, ownerId: userId, isPersonal: false },
+  });
+  return { ...toPostChannel(channel), postCount: 0 };
+}
