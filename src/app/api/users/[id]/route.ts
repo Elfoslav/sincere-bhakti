@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { updateNameSchema, normalizeName, isBrandNameBlocked } from "@/lib/validation";
+import { updateNameSchema, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
+import { isNormalizedNameTaken } from "@/lib/services/channel";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
@@ -89,36 +90,38 @@ export async function PATCH(
     // Check if the new name is already taken by any other channel (name is globally unique).
     // Exclude only the caller's personal channel since that is the one being renamed.
     const normalizedTarget = normalizeName(parsed.data.name);
-    const existing = await prisma.channel.findFirst({
-      where: { normalizedName: normalizedTarget, NOT: { ownerId: id, isPersonal: true } },
-      select: { id: true },
+    const personalChannel = await prisma.channel.findFirst({
+      where: { ownerId: id, isPersonal: true },
+      select: { id: true, name: true, slug: true },
     });
-    if (existing) {
+    if (await isNormalizedNameTaken(normalizedTarget, personalChannel?.id)) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
-    const user = await prisma.$transaction(async (tx) => {
-      const updated = await tx.user.update({
-        where: { id },
-        data: { name: parsed.data.name },
-        select: { id: true, name: true, email: true, image: true, createdAt: true },
-      });
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { name: parsed.data.name },
+      select: { id: true, name: true, email: true, image: true, createdAt: true },
+    });
 
-      // Sync the personal channel name to match the user's display name.
-      const personalChannel = await tx.channel.findFirst({
-        where: { ownerId: id, isPersonal: true },
-      });
-      if (personalChannel) {
-        await tx.channel.update({
-          where: { id: personalChannel.id },
-          data: { name: parsed.data.name, normalizedName: normalizeName(parsed.data.name) },
+    // Sync the personal channel name to match the user's display name.
+    if (personalChannel) {
+      const newSlug = slugifyName(parsed.data.name);
+      const oldSlug = personalChannel.slug;
+
+      if (oldSlug !== newSlug) {
+        await prisma.channelSlugHistory.create({
+          data: { oldSlug, oldNormalizedName: normalizeName(personalChannel.name), channelId: personalChannel.id },
         });
       }
 
-      return updated;
-    });
+      await prisma.channel.update({
+        where: { id: personalChannel.id },
+        data: { name: parsed.data.name, normalizedName: normalizeName(parsed.data.name), slug: newSlug },
+      });
+    }
 
-    return NextResponse.json(user);
+    return NextResponse.json(updated);
   } catch (error) {
     logServerError("PATCH /api/users/[id] failed", error);
     return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });

@@ -10,15 +10,10 @@ vi.mock("@/lib/prisma", () => ({
       findFirst: vi.fn(),
       update: vi.fn(),
     },
-    $transaction: vi.fn((cb: (tx: any) => any) => cb({
-      user: {
-        update: (...args: any[]) => (prisma.user.update as any)(...args),
-      },
-      channel: {
-        findFirst: (...args: any[]) => (prisma.channel.findFirst as any)(...args),
-        update: (...args: any[]) => (prisma.channel.update as any)(...args),
-      },
-    })),
+    channelSlugHistory: {
+      create: vi.fn(),
+      findFirst: vi.fn(),
+    },
   },
 }));
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
@@ -113,18 +108,13 @@ describe("PATCH /api/users/[id]", () => {
 
   it("updates own name", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.$transaction).mockImplementation(async (cb: any) => {
-      const mockChannel = {
-        findFirst: vi.fn().mockResolvedValue({ id: "channel-1", name: "Devotee", ownerId: "user-1" }),
-        update: vi.fn().mockResolvedValue({ id: "channel-1", name: "New Name" }),
-      };
-      const tx = {
-        user: { update: vi.fn().mockResolvedValue({ ...baseUser, name: "New Name" }) },
-        channel: mockChannel,
-      };
-      return cb(tx);
-    });
+    vi.mocked(prisma.channel.findFirst)
+      .mockResolvedValueOnce({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1", isPersonal: true } as any)
+      .mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
+    vi.mocked(prisma.user.update).mockResolvedValue({ id: "user-1", name: "New Name", email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01") } as any);
+    vi.mocked(prisma.channel.update).mockResolvedValue({ id: "channel-1", name: "New Name", slug: "new-name" } as any);
 
     const res = await PATCH(mockRequest({ name: "New Name" }), { params: Promise.resolve({ id: "user-1" }) });
     const json = await res.json();
@@ -132,8 +122,8 @@ describe("PATCH /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("New Name");
     expect(prisma.channel.findFirst).toHaveBeenCalledWith({
-      where: { normalizedName: "new name", NOT: { ownerId: "user-1", isPersonal: true } },
-      select: { id: true },
+      where: { ownerId: "user-1", isPersonal: true },
+      select: { id: true, name: true, slug: true },
     });
   });
 
@@ -184,7 +174,9 @@ describe("PATCH /api/users/[id]", () => {
 
   it("returns 409 when channel name is taken (including diacritic variants)", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue({ id: "taken" } as any);
+    vi.mocked(prisma.channel.findFirst)
+      .mockResolvedValueOnce({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1", isPersonal: true } as any)
+      .mockResolvedValueOnce({ id: "taken" } as any);
 
     const res = await PATCH(mockRequest({ name: "Taken Name" }), { params: Promise.resolve({ id: "user-1" }) });
     const json = await res.json();
@@ -208,17 +200,13 @@ describe("PATCH /api/users/[id]", () => {
     try {
       process.env.SINCERE_BHAKTI_EMAIL = "devotee@example.com";
       vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "devotee@example.com" } } as any);
-      vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
-      vi.mocked(prisma.$transaction).mockImplementation(async (cb: any) => {
-        const tx = {
-          user: { update: vi.fn().mockResolvedValue({ ...baseUser, name: "Sincere Bhakti" }) },
-          channel: {
-            findFirst: vi.fn().mockResolvedValue({ id: "channel-1", name: "Sincere Bhakti", ownerId: "user-1" }),
-            update: vi.fn().mockResolvedValue({ id: "channel-1", name: "Sincere Bhakti" }),
-          },
-        };
-        return cb(tx);
-      });
+      vi.mocked(prisma.channel.findFirst)
+        .mockResolvedValueOnce({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1", isPersonal: true } as any)
+        .mockResolvedValue(null);
+      vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
+      vi.mocked(prisma.user.update).mockResolvedValue({ id: "user-1", name: "Sincere Bhakti", email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01") } as any);
+      vi.mocked(prisma.channel.update).mockResolvedValue({ id: "channel-1", name: "Sincere Bhakti", slug: "sincere-bhakti" } as any);
 
       const res = await PATCH(mockRequest({ name: "Sincere Bhakti" }), { params: Promise.resolve({ id: "user-1" }) });
       const json = await res.json();
@@ -232,8 +220,11 @@ describe("PATCH /api/users/[id]", () => {
 
   it("returns 500 on server error", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.$transaction).mockRejectedValue(new Error("DB down"));
+    vi.mocked(prisma.channel.findFirst)
+      .mockResolvedValueOnce({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1", isPersonal: true } as any)
+      .mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.user.update).mockRejectedValue(new Error("DB down"));
 
     const res = await PATCH(mockRequest({ name: "New" }), { params: Promise.resolve({ id: "user-1" }) });
     const json = await res.json();

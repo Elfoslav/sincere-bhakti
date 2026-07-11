@@ -109,6 +109,34 @@ export async function getChannelBySlug(slug: string): Promise<{
   };
 }
 
+// Check if a normalizedName is taken by any active channel or slug history,
+// optionally excluding a specific channel (e.g. the one being renamed).
+export async function isNormalizedNameTaken(
+  normalizedName: string,
+  excludeChannelId?: string,
+): Promise<boolean> {
+  const existing = await prisma.channel.findFirst({
+    where: { normalizedName, id: excludeChannelId ? { not: excludeChannelId } : undefined },
+    select: { id: true },
+  });
+  if (existing) return true;
+
+  const historical = await prisma.channelSlugHistory.findFirst({
+    where: { oldNormalizedName: normalizedName, channelId: excludeChannelId ? { not: excludeChannelId } : undefined },
+    select: { id: true },
+  });
+  return !!historical;
+}
+
+// Resolve an old slug to the channel's current slug, or return null.
+export async function resolveSlugRedirect(oldSlug: string): Promise<string | null> {
+  const entry = await prisma.channelSlugHistory.findUnique({
+    where: { oldSlug },
+    include: { channel: { select: { slug: true } } },
+  });
+  return entry?.channel.slug ?? null;
+}
+
 export async function isChannelEditor(channelId: string, userId: string): Promise<boolean> {
   const editor = await prisma.channelEditor.findUnique({
     where: { channelId_userId: { channelId, userId } },
@@ -129,6 +157,12 @@ export async function createChannel(userId: string, channelName: string): Promis
       select: { id: true },
     });
     if (existing) continue;
+
+    const historyTaken = await prisma.channelSlugHistory.findFirst({
+      where: { oldNormalizedName: normalized },
+      select: { id: true },
+    });
+    if (historyTaken) continue;
 
     try {
       const channel = await prisma.channel.create({

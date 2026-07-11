@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { getChannelBySlug } from "@/lib/services/channel";
+import { getChannelBySlug, isNormalizedNameTaken } from "@/lib/services/channel";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
-import { createChannelSchema, normalizeName, isBrandNameBlocked } from "@/lib/validation";
+import { createChannelSchema, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
@@ -58,7 +58,7 @@ export async function PATCH(
   try {
     const channel = await prisma.channel.findUnique({
       where: { slug },
-      select: { id: true, name: true, ownerId: true, isPersonal: true },
+      select: { id: true, name: true, ownerId: true, isPersonal: true, slug: true },
     });
 
     if (!channel) {
@@ -94,17 +94,34 @@ export async function PATCH(
 
     // Check if the new name is already taken by another channel
     const normalizedTarget = normalizeName(name);
-    const existing = await prisma.channel.findFirst({
-      where: { normalizedName: normalizedTarget, id: { not: channel.id } },
-      select: { id: true },
-    });
-    if (existing) {
+    if (await isNormalizedNameTaken(normalizedTarget, channel.id)) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
+
+    const newSlug = slugifyName(name);
+    const oldSlug = channel.slug;
+
+    const finalSlug = newSlug;
+    if (newSlug !== oldSlug) {
+      // Check if the new slug is already taken by another channel or history.
+      const slugTaken = await prisma.channel.findFirst({
+        where: { slug: newSlug, id: { not: channel.id } },
+        select: { id: true },
+      });
+      if (slugTaken) {
+        return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      }
+    }
+
+    if (oldSlug !== finalSlug) {
+      await prisma.channelSlugHistory.create({
+        data: { oldSlug, oldNormalizedName: normalizeName(channel.name), channelId: channel.id },
+      });
     }
 
     const updated = await prisma.channel.update({
       where: { id: channel.id },
-      data: { name, normalizedName: normalizedTarget },
+      data: { name, normalizedName: normalizedTarget, slug: finalSlug },
       select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true },
     });
 

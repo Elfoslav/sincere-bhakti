@@ -36,9 +36,22 @@ model Channel {
   owner     User          @relation("ChannelOwner", fields: [ownerId], references: [id])
   posts     Post[]
   editors   ChannelEditor[]
+  slugHistory ChannelSlugHistory[]
 
   @@index([ownerId, isPersonal])
   @@index([createdAt, id])
+}
+
+model ChannelSlugHistory {
+  id                String   @id @default(cuid())
+  oldSlug           String   @unique
+  oldNormalizedName String
+  channelId         String
+  channel           Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+
+  @@index([channelId])
+  @@index([oldNormalizedName])
 }
 
 model ChannelEditor {

@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { resolveSlugRedirect } from "@/lib/services/channel";
 import ChannelPageClient from "./channel-page-client";
 
 type Props = {
@@ -40,7 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ChannelPage({ params }: Props) {
-  const { slug } = await params;
+  const { locale, slug } = await params;
 
   const channel = await prisma.channel.findUnique({
     where: { slug },
@@ -56,7 +57,13 @@ export default async function ChannelPage({ params }: Props) {
     },
   });
 
-  if (!channel) notFound();
+  if (!channel) {
+    const targetSlug = await resolveSlugRedirect(slug);
+    if (targetSlug) {
+      redirect(`/${locale}/channels/${targetSlug}`);
+    }
+    notFound();
+  }
 
   const { _count, ...data } = channel;
   return <ChannelPageClient channel={{ ...data, createdAt: data.createdAt.toISOString(), postCount: _count.posts }} />;
