@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ export default function ChannelPageClient({
 }) {
   const { data: session } = useSession();
   const locale = useLocale();
+  const router = useRouter();
   const t = useTranslations("ChannelPage");
   const isOwner = session?.user?.id === initialChannel.ownerId;
 
@@ -80,8 +82,9 @@ export default function ChannelPageClient({
       });
       if (res.ok) {
         const updated = await res.json();
-        setChannel((prev) => ({ ...prev, name: updated.name }));
+        setChannel((prev) => ({ ...prev, name: updated.name, slug: updated.slug }));
         setRenameOpen(false);
+        router.replace(`/${locale}/channels/${updated.slug}`);
       } else {
         const data = await res.json().catch(() => ({}));
         if (data.error === "name_taken") {

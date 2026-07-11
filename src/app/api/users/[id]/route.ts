@@ -110,6 +110,22 @@ export async function PATCH(
       const oldSlug = personalChannel.slug;
 
       if (oldSlug !== newSlug) {
+        const slugTaken = await prisma.channel.findFirst({
+          where: { slug: newSlug, id: { not: personalChannel.id } },
+          select: { id: true },
+        });
+        if (slugTaken) {
+          return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+        }
+
+        const historySlugTaken = await prisma.channelSlugHistory.findFirst({
+          where: { oldSlug: newSlug, channelId: { not: personalChannel.id } },
+          select: { id: true },
+        });
+        if (historySlugTaken) {
+          return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+        }
+
         await prisma.channelSlugHistory.create({
           data: { oldSlug, oldNormalizedName: normalizeName(personalChannel.name), channelId: personalChannel.id },
         });

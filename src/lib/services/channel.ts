@@ -158,11 +158,17 @@ export async function createChannel(userId: string, channelName: string): Promis
     });
     if (existing) continue;
 
-    const historyTaken = await prisma.channelSlugHistory.findFirst({
+    const historyNameTaken = await prisma.channelSlugHistory.findFirst({
       where: { oldNormalizedName: normalized },
       select: { id: true },
     });
-    if (historyTaken) continue;
+    if (historyNameTaken) continue;
+
+    const historySlugTaken = await prisma.channelSlugHistory.findFirst({
+      where: { oldSlug: finalSlug },
+      select: { id: true },
+    });
+    if (historySlugTaken) continue;
 
     try {
       const channel = await prisma.channel.create({

@@ -101,9 +101,7 @@ export async function PATCH(
     const newSlug = slugifyName(name);
     const oldSlug = channel.slug;
 
-    const finalSlug = newSlug;
     if (newSlug !== oldSlug) {
-      // Check if the new slug is already taken by another channel or history.
       const slugTaken = await prisma.channel.findFirst({
         where: { slug: newSlug, id: { not: channel.id } },
         select: { id: true },
@@ -111,9 +109,15 @@ export async function PATCH(
       if (slugTaken) {
         return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
       }
-    }
 
-    if (oldSlug !== finalSlug) {
+      const historySlugTaken = await prisma.channelSlugHistory.findFirst({
+        where: { oldSlug: newSlug, channelId: { not: channel.id } },
+        select: { id: true },
+      });
+      if (historySlugTaken) {
+        return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      }
+
       await prisma.channelSlugHistory.create({
         data: { oldSlug, oldNormalizedName: normalizeName(channel.name), channelId: channel.id },
       });
@@ -121,7 +125,7 @@ export async function PATCH(
 
     const updated = await prisma.channel.update({
       where: { id: channel.id },
-      data: { name, normalizedName: normalizedTarget, slug: finalSlug },
+      data: { name, normalizedName: normalizedTarget, slug: newSlug },
       select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true },
     });
 
