@@ -185,7 +185,14 @@
     "noPrivatePosts": "No private posts in English yet.",
     "loadingMore": "Loading more...",
     "notFound": "Channel not found",
-    "metaDescription": "Browse posts from {name}"
+    "metaDescription": "Browse posts from {name}",
+    "editName": "Edit channel name",
+    "editNameTitle": "Rename channel",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "saveError": "Something went wrong",
+    "nameTaken": "This name is already taken"
   },
 	"Common": {
 		"cancel": "Cancel",

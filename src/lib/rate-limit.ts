@@ -27,6 +27,8 @@ export const RATE_LIMITS = {
   searchChannels: { limit: 30, windowMs: 60_000 },
   // Channel creation: 10 per hour per user
   createChannel: { limit: 10, windowMs: 3_600_000 },
+  // Channel rename: 10 per hour per user
+  updateChannel: { limit: 10, windowMs: 3_600_000 },
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;

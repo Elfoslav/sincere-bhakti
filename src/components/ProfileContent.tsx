@@ -73,7 +73,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 								...prev,
 								name: updated.name,
 								channels: prev.channels.map((ch) =>
-									ch.ownerId === prev.id ? { ...ch, name: updated.name } : ch,
+									ch.isPersonal ? { ...ch, name: updated.name } : ch,
 								),
 							}
 						: prev,

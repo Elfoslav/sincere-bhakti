@@ -26,7 +26,7 @@ export async function GET(
         createdAt: true,
         channels: {
           where: { ownerId: id },
-          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, _count: { select: { posts: { where: { isPublic: true } } } } },
+          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, isPersonal: true, _count: { select: { posts: { where: { isPublic: true } } } } },
         },
         ...(session?.user?.id === id ? { email: true } : {}),
       },
@@ -86,9 +86,13 @@ export async function PATCH(
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
-    // Check if the new name is already taken by another channel (strip diacritics)
+    // Check if the new name is already taken by any other channel (name is globally unique).
+    // Exclude only the caller's personal channel since that is the one being renamed.
     const normalizedTarget = normalizeName(parsed.data.name);
-    const existing = await prisma.channel.findFirst({ where: { normalizedName: normalizedTarget, ownerId: { not: id } }, select: { id: true } });
+    const existing = await prisma.channel.findFirst({
+      where: { normalizedName: normalizedTarget, NOT: { ownerId: id, isPersonal: true } },
+      select: { id: true },
+    });
     if (existing) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
@@ -100,7 +104,7 @@ export async function PATCH(
         select: { id: true, name: true, email: true, image: true, createdAt: true },
       });
 
-      // Sync the personal channel name and normalized name but NOT the slug
+      // Sync the personal channel name to match the user's display name.
       const personalChannel = await tx.channel.findFirst({
         where: { ownerId: id, isPersonal: true },
       });

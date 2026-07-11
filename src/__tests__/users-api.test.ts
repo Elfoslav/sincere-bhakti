@@ -132,7 +132,7 @@ describe("PATCH /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("New Name");
     expect(prisma.channel.findFirst).toHaveBeenCalledWith({
-      where: { normalizedName: "new name", ownerId: { not: "user-1" } },
+      where: { normalizedName: "new name", NOT: { ownerId: "user-1", isPersonal: true } },
       select: { id: true },
     });
   });

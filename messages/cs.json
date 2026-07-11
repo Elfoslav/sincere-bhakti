@@ -185,7 +185,14 @@
 		"noPrivatePosts": "Zatím žádné soukromé příspěvky v češtině.",
 		"loadingMore": "Načítám další...",
 		"notFound": "Kanál nenalezen",
-		"metaDescription": "Procházet příspěvky z {name}"
+		"metaDescription": "Procházet příspěvky z {name}",
+		"editName": "Upravit název kanálu",
+		"editNameTitle": "Přejmenovat kanál",
+		"cancel": "Zrušit",
+		"save": "Uložit",
+		"saving": "Ukládám...",
+		"saveError": "Něco se pokazilo",
+		"nameTaken": "Tento název je již obsazen"
 	},
 	"Common": {
 		"cancel": "Zrušit",

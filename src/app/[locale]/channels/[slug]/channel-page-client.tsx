@@ -1,10 +1,20 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Pencil } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import PostCard from "@/components/PostCard";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
@@ -13,14 +23,20 @@ import type { Post } from "@/types/post";
 import type { ChannelWithPostCount } from "@/types/channel";
 
 export default function ChannelPageClient({
-  channel,
+  channel: initialChannel,
 }: {
   channel: ChannelWithPostCount;
 }) {
   const { data: session } = useSession();
   const locale = useLocale();
   const t = useTranslations("ChannelPage");
-  const isOwner = session?.user?.id === channel.ownerId;
+  const isOwner = session?.user?.id === initialChannel.ownerId;
+
+  const [channel, setChannel] = useState(initialChannel);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [nameError, setNameError] = useState("");
 
   const {
     posts: publicPosts,
@@ -46,6 +62,35 @@ export default function ChannelPageClient({
     setPublicPosts((prev) => prev.filter((p) => p.id !== id));
     setMyPosts((prev) => prev.filter((p) => p.id !== id));
   }, [setPublicPosts, setMyPosts]);
+
+  async function handleRename() {
+    if (!newName.trim()) return;
+    setSaving(true);
+    setNameError("");
+    try {
+      const res = await fetch(`/api/channels/${channel.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setChannel((prev) => ({ ...prev, name: updated.name }));
+        setRenameOpen(false);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === "name_taken") {
+          setNameError(t("nameTaken"));
+        } else {
+          setNameError(t("saveError"));
+        }
+      }
+    } catch {
+      setNameError(t("saveError"));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function renderPostList(
     posts: Post[],
@@ -97,7 +142,53 @@ export default function ChannelPageClient({
         <div className="w-20 h-20 rounded-full bg-gold flex items-center justify-center text-deep text-3xl font-bold mx-auto mb-4">
           {channel.name[0]?.toUpperCase() || "?"}
         </div>
-        <h1 className="text-2xl font-bold text-deep">{channel.name}</h1>
+        <div className="flex items-center justify-center gap-2">
+          <h1 className="text-2xl font-bold text-deep">{channel.name}</h1>
+          {isOwner && (
+            <Dialog open={renameOpen} onOpenChange={(open) => { setRenameOpen(open); if (open) { setNewName(channel.name); setNameError(""); } }}>
+              <DialogTrigger
+                className="text-gold hover:text-gold-light transition-colors cursor-pointer"
+                title={t("editName")}
+                aria-label={t("editName")}
+              >
+                <Pencil className="w-[18px] h-[18px]" />
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{t("editNameTitle")}</DialogTitle>
+                </DialogHeader>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleRename();
+                  }}
+                  className="space-y-4 pt-2"
+                >
+                  <Input
+                    name="name"
+                    value={newName}
+                    onChange={(e) => {
+                      setNewName(e.target.value);
+                      setNameError("");
+                    }}
+                    placeholder={channel.name}
+                    autoComplete="off"
+                    autoFocus
+                    errorMessage={nameError || undefined}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setRenameOpen(false)}>
+                      {t("cancel")}
+                    </Button>
+                    <Button type="submit" disabled={saving || !newName.trim()}>
+                      {saving ? t("saving") : t("save")}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
         <p className="text-deep/50 text-sm mt-2">
           {channel.postCount} {t("posts")}
         </p>

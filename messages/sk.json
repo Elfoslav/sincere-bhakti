@@ -185,7 +185,14 @@
 		"noPrivatePosts": "Zatiaľ žiadne súkromné príspevky v slovenčine.",
 		"loadingMore": "Načítavam ďalšie...",
 		"notFound": "Kanál nenájdený",
-		"metaDescription": "Prehliadať príspevky z {name}"
+		"metaDescription": "Prehliadať príspevky z {name}",
+		"editName": "Upraviť názov kanála",
+		"editNameTitle": "Premenovať kanál",
+		"cancel": "Zrušiť",
+		"save": "Uložiť",
+		"saving": "Ukladám...",
+		"saveError": "Niečo sa pokazilo",
+		"nameTaken": "Tento názov je už obsadený"
 	},
 	"Common": {
 		"cancel": "Zrušiť",

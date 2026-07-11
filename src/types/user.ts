@@ -5,6 +5,7 @@ export interface ChannelInfo {
   avatarUrl: string | null;
   ownerId: string;
   postCount: number;
+  isPersonal: boolean;
 }
 
 export interface UserProfile {
