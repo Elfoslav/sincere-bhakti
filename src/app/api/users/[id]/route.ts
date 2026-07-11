@@ -126,9 +126,16 @@ export async function PATCH(
           return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
         }
 
-        await prisma.channelSlugHistory.create({
-          data: { oldSlug, oldNormalizedName: normalizeName(personalChannel.name), channelId: personalChannel.id },
+        // Avoid P2002 if oldSlug is already in history (e.g. name A→B→A→C).
+        const oldInHistory = await prisma.channelSlugHistory.findFirst({
+          where: { oldSlug, channelId: personalChannel.id },
+          select: { id: true },
         });
+        if (!oldInHistory) {
+          await prisma.channelSlugHistory.create({
+            data: { oldSlug, oldNormalizedName: normalizeName(personalChannel.name), channelId: personalChannel.id },
+          });
+        }
       }
 
       await prisma.channel.update({

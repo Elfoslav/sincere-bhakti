@@ -84,7 +84,7 @@ export default function ChannelPageClient({
         const updated = await res.json();
         setChannel((prev) => ({ ...prev, name: updated.name, slug: updated.slug }));
         setRenameOpen(false);
-        router.replace(`/${locale}/channels/${updated.slug}`);
+        router.replace(`/channels/${updated.slug}`);
       } else {
         const data = await res.json().catch(() => ({}));
         if (data.error === "name_taken") {

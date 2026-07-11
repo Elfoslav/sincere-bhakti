@@ -339,4 +339,28 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(res.status).toBe(500);
     expect(json.error).toBe("server_error");
   });
+
+  it("skips history create when oldSlug already exists in channelSlugHistory (A→B→A→C cycle)", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "A", ownerId: "user-1", isPersonal: false, slug: "a" } as any);
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    // channelSlugHistory.findFirst call order:
+    //   1. isNormalizedNameTaken → oldNormalizedName for "Ca" → null (not in history)
+    //   2. slug collision check → oldSlug "ca" → null (not in other history)
+    //   3. oldInHistory check → oldSlug "a" → found (already in this channel's history)
+    vi.mocked(prisma.channelSlugHistory.findFirst)
+      .mockResolvedValueOnce(null)                    // call 1
+      .mockResolvedValueOnce(null)                    // call 2
+      .mockResolvedValueOnce({ id: "hist-1" } as any); // call 3
+    vi.mocked(prisma.channel.update).mockResolvedValue({
+      id: "ch-1", name: "Ca", slug: "ca", avatarUrl: null, ownerId: "user-1",
+    } as any);
+
+    const res = await PATCH(mockRequest({ name: "Ca" }), params);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.slug).toBe("ca");
+    expect(prisma.channelSlugHistory.create).not.toHaveBeenCalled();
+  });
 });
