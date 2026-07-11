@@ -147,8 +147,8 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
                     placeholder={t("namePlaceholder")}
                     autoComplete="name"
                     autoFocus
+                    errorMessage={nameError || undefined}
                   />
-                  {nameError && <p className="text-red-500 text-xs">{nameError}</p>}
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                       {t("cancel")}
