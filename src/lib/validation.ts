@@ -242,3 +242,12 @@ export function isBrandName(name: string, brandName?: string): boolean {
   const lowerName = name.toLowerCase();
   return words.every(word => lowerName.includes(word));
 }
+
+// Returns true when the name is a brand variant AND the caller is not the
+// SINCERE_BHAKTI_EMAIL owner. The owner is allowed to use the brand name.
+export function isBrandNameBlocked(name: string, callerEmail: string | null | undefined): boolean {
+  if (!process.env.SINCERE_BHAKTI_EMAIL || callerEmail !== process.env.SINCERE_BHAKTI_EMAIL) {
+    return isBrandName(name, process.env.SINCERE_BHAKTI_NAME);
+  }
+  return false;
+}

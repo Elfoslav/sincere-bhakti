@@ -132,4 +132,31 @@ describe("POST /api/register", () => {
     expect(res.status).toBe(409);
     expect(json.error).toBe("name_taken");
   });
+
+  it("allows brand name when registering with the SINCERE_BHAKTI_EMAIL", async () => {
+    const prev = process.env.SINCERE_BHAKTI_EMAIL;
+    try {
+      process.env.SINCERE_BHAKTI_EMAIL = "owner@sincerebhakti.com";
+      vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+      vi.mocked(bcrypt.hash).mockResolvedValue("hashed-pw" as never);
+      vi.mocked(prisma.user.create).mockResolvedValue({
+        id: "owner-1", name: "Sincere Bhakti", email: "owner@sincerebhakti.com",
+      } as any);
+      vi.mocked(prisma.channel.create).mockResolvedValue({
+        id: "ch-1", name: "Sincere Bhakti", normalizedName: "sincere bhakti", slug: "sincere-bhakti", avatarUrl: null, ownerId: "owner-1", isPersonal: true, createdAt: new Date(),
+      } as any);
+
+      const res = await POST(mockRequest({
+        name: "Sincere Bhakti",
+        email: "owner@sincerebhakti.com",
+        password: "secret123",
+      }));
+      const json = await res.json();
+
+      expect(res.status).toBe(201);
+      expect(json.name).toBe("Sincere Bhakti");
+    } finally {
+      process.env.SINCERE_BHAKTI_EMAIL = prev;
+    }
+  });
 });

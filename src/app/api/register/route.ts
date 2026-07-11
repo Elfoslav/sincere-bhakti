@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName, isBrandName } from "@/lib/validation";
+import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName, isBrandNameBlocked } from "@/lib/validation";
 import { createPersonalChannel } from "@/lib/services/channel";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
 
     const { name, email, password } = parsed.data;
 
-    // Reject if name matches the app's own brand name
-    if (isBrandName(name, process.env.SINCERE_BHAKTI_NAME)) {
+    // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
+    if (isBrandNameBlocked(name, email)) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 

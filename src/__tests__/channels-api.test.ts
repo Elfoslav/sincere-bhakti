@@ -68,6 +68,26 @@ describe("POST /api/channels", () => {
     expect(json.error).toBe("name_taken");
   });
 
+  it("allows brand name when caller is the SINCERE_BHAKTI_EMAIL owner", async () => {
+    const prev = process.env.SINCERE_BHAKTI_EMAIL;
+    try {
+      process.env.SINCERE_BHAKTI_EMAIL = "owner@sincerebhakti.com";
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "owner@sincerebhakti.com" } } as any);
+      vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.channel.create).mockResolvedValue({
+        id: "ch-brand", name: "Sincere Bhakti", normalizedName: "sincere bhakti", slug: "sincere-bhakti", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
+      } as any);
+
+      const res = await POST(mockRequest({ name: "Sincere Bhakti" }));
+      const json = await res.json();
+
+      expect(res.status).toBe(201);
+      expect(json.name).toBe("Sincere Bhakti");
+    } finally {
+      process.env.SINCERE_BHAKTI_EMAIL = prev;
+    }
+  });
+
   it("creates channel with suffix when normalized name is taken", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue({ id: "existing" } as any);

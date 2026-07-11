@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
+import { Heading } from "@/components/ui/heading";
 import PostCard from "@/components/PostCard";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
@@ -119,9 +120,7 @@ export default function ChannelPageClient({
         </TabsRoot>
       ) : (
         <>
-          <h2 className="text-xl font-semibold text-deep mb-4">
-            {t("publicPosts", { count: publicPosts.length })}
-          </h2>
+          <Heading as="h2" className="mb-4">{t("publicPosts", { count: publicPosts.length })}</Heading>
           {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPublicPosts")}
         </>
       )}

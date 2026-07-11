@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
+import { Heading } from "@/components/ui/heading";
 import { Pencil, Hash, FileText, Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -221,14 +222,12 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 
 			<section>
 				<div className="flex items-center justify-between mb-4">
-					<h2 className="text-xl font-semibold text-deep">{t("channels")}</h2>
+					<Heading as="h2">{t("channels")}</Heading>
 					{isOwnProfile && (
 						<Dialog open={channelDialogOpen} onOpenChange={(open) => { setChannelDialogOpen(open); if (open) { setChannelName(""); setChannelError(""); } }}>
-							<DialogTrigger asChild>
-								<Button variant="outline">
-									<Plus className="w-4 h-4 mr-1" />
-									{t("createChannel")}
-								</Button>
+							<DialogTrigger render={<Button variant="outline" />}>
+								<Plus className="w-4 h-4 mr-1" />
+								{t("createChannel")}
 							</DialogTrigger>
 							<DialogContent className="sm:max-w-md">
 								<DialogHeader>

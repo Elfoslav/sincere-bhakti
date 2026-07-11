@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
-import { normalizeName, createChannelSchema, isBrandName } from "@/lib/validation";
+import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/validation";
 import { createChannel } from "@/lib/services/channel";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
@@ -115,7 +115,8 @@ export async function POST(request: NextRequest) {
 
     const { name } = parsed.data;
 
-    if (isBrandName(name, process.env.SINCERE_BHAKTI_NAME)) {
+    // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
+    if (isBrandNameBlocked(name, session.user.email)) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 

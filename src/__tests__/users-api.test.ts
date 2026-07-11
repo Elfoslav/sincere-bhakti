@@ -203,6 +203,33 @@ describe("PATCH /api/users/[id]", () => {
     expect(json.error).toBe("name_taken");
   });
 
+  it("allows brand name when caller is the SINCERE_BHAKTI_EMAIL owner", async () => {
+    const prev = process.env.SINCERE_BHAKTI_EMAIL;
+    try {
+      process.env.SINCERE_BHAKTI_EMAIL = "devotee@example.com";
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "devotee@example.com" } } as any);
+      vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.$transaction).mockImplementation(async (cb: any) => {
+        const tx = {
+          user: { update: vi.fn().mockResolvedValue({ ...baseUser, name: "Sincere Bhakti" }) },
+          channel: {
+            findFirst: vi.fn().mockResolvedValue({ id: "channel-1", name: "Sincere Bhakti", ownerId: "user-1" }),
+            update: vi.fn().mockResolvedValue({ id: "channel-1", name: "Sincere Bhakti" }),
+          },
+        };
+        return cb(tx);
+      });
+
+      const res = await PATCH(mockRequest({ name: "Sincere Bhakti" }), { params: Promise.resolve({ id: "user-1" }) });
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.name).toBe("Sincere Bhakti");
+    } finally {
+      process.env.SINCERE_BHAKTI_EMAIL = prev;
+    }
+  });
+
   it("returns 500 on server error", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);

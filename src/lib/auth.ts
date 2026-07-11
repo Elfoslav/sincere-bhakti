@@ -53,6 +53,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id!;
+        token.email = user.email!;
 
         let channel = await getPersonalChannel(user.id!);
         if (!channel) {
@@ -65,6 +66,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        session.user.email = token.email as string;
         session.user.channelId = token.channelId as string;
       }
       return session;

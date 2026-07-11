@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { updateNameSchema, normalizeName, isBrandName } from "@/lib/validation";
+import { updateNameSchema, normalizeName, isBrandNameBlocked } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
@@ -81,8 +81,8 @@ export async function PATCH(
       );
     }
 
-    // Reject if name matches the app's own brand name
-    if (isBrandName(parsed.data.name, process.env.SINCERE_BHAKTI_NAME)) {
+    // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
+    if (isBrandNameBlocked(parsed.data.name, session.user.email)) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
