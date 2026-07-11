@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { updateNameSchema, normalizeName } from "@/lib/validation";
+import { updateNameSchema, normalizeName, isBrandName } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
@@ -78,6 +78,11 @@ export async function PATCH(
         { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
         { status: HTTP_BAD_REQUEST }
       );
+    }
+
+    // Reject if name matches the app's own brand name
+    if (isBrandName(parsed.data.name, process.env.SINCERE_BHAKTI_NAME)) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
     // Check if the new name is already taken by another channel (strip diacritics)

@@ -217,3 +217,18 @@ export function slugifyName(name: string): string {
     .replace(/^-|-$/g, "")
     .slice(0, 80) || "channel";
 }
+
+// Checks whether `name` contains all words from the brand name (case-insensitive).
+// Used to block registration/rename when someone tries to use the app's own brand.
+// The brand name is configurable via SINCERE_BHAKTI_NAME env var (default: "Sincere Bhakti").
+// Each word is matched as a substring, so "1sincere bhakti whatever" and "sincerebhakti"
+// both trigger the block.
+export function isBrandName(name: string, brandName?: string): boolean {
+  const words = (brandName ?? "Sincere Bhakti")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  if (words.length === 0) return false;
+  const lowerName = name.toLowerCase();
+  return words.every(word => lowerName.includes(word));
+}

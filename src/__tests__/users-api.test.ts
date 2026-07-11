@@ -8,14 +8,15 @@ vi.mock("@/lib/prisma", () => ({
     },
     channel: {
       findFirst: vi.fn(),
-      updateMany: vi.fn(),
+      update: vi.fn(),
     },
     $transaction: vi.fn((cb: (tx: any) => any) => cb({
       user: {
         update: (...args: any[]) => (prisma.user.update as any)(...args),
       },
       channel: {
-        updateMany: (...args: any[]) => (prisma.channel.updateMany as any)(...args),
+        findFirst: (...args: any[]) => (prisma.channel.findFirst as any)(...args),
+        update: (...args: any[]) => (prisma.channel.update as any)(...args),
       },
     })),
   },
@@ -183,6 +184,16 @@ describe("PATCH /api/users/[id]", () => {
     vi.mocked(prisma.channel.findFirst).mockResolvedValue({ id: "taken" } as any);
 
     const res = await PATCH(mockRequest({ name: "Taken Name" }), { params: Promise.resolve({ id: "user-1" }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(json.error).toBe("name_taken");
+  });
+
+  it("returns 409 when new name matches the brand name", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+
+    const res = await PATCH(mockRequest({ name: "Sincere Bhakti" }), { params: Promise.resolve({ id: "user-1" }) });
     const json = await res.json();
 
     expect(res.status).toBe(409);

@@ -117,4 +117,16 @@ describe("POST /api/register", () => {
     expect(res.status).toBe(500);
     expect(json.error).toBe("server_error");
   });
+
+  it("returns 409 when name matches the brand name", async () => {
+    const res = await POST(mockRequest({
+      name: "Sincere Bhakti",
+      email: "spam@example.com",
+      password: "secret123",
+    }));
+    const json = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(json.error).toBe("name_taken");
+  });
 });
