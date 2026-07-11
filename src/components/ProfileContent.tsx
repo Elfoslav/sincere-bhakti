@@ -27,6 +27,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [nameError, setNameError] = useState("");
 
   const isOwnProfile = session?.user?.id === authorId;
 
@@ -48,6 +49,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
   async function handleSave() {
     if (!newName.trim() || !profile) return;
     setSaving(true);
+    setNameError("");
     try {
       const res = await fetch(`/api/users/${profile.id}`, {
         method: "PATCH",
@@ -58,9 +60,16 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
         const updated = await res.json();
         setProfile((prev) => prev ? { ...prev, name: updated.name } : prev);
         setOpen(false);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === "name_taken") {
+          setNameError(t("nameTaken"));
+        } else {
+          setNameError(t("saveError"));
+        }
       }
     } catch {
-      /* empty */
+      setNameError(t("saveError"));
     } finally {
       setSaving(false);
     }
@@ -134,11 +143,12 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
                   <Input
                     name="name"
                     value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
+                    onChange={(e) => { setNewName(e.target.value); setNameError(""); }}
                     placeholder={t("namePlaceholder")}
                     autoComplete="name"
                     autoFocus
                   />
+                  {nameError && <p className="text-red-500 text-xs">{nameError}</p>}
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                       {t("cancel")}

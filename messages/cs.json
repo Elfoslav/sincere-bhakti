@@ -123,7 +123,9 @@
 		"noProfileTitle": "Oddaný nenalezen",
 		"backToPosts": "← Zpět na příspěvky",
 		"viewChannel": "Zobrazit kanál",
-		"postCount": "{count} příspěvků"
+		"postCount": "{count} příspěvků",
+		"nameTaken": "Toto jméno je již obsazeno",
+		"saveError": "Nepodařilo se uložit"
 	},
 	"PostCard": {
 		"public": "Veřejné",
