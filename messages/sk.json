@@ -124,7 +124,7 @@
 		"backToPosts": "← Späť na príspevky",
 		"viewChannel": "Zobraziť kanál",
 		"postCount": "{count} príspevkov",
-		"nameTaken": "Toto meno je už obsadené",
+		"nameTaken": "Toto meno už bolo obsadené",
 		"saveError": "Nepodarilo sa uložiť",
 		"createChannel": "Vytvoriť kanál",
 		"createChannelTitle": "Vytvoriť kanál",
@@ -192,7 +192,7 @@
 		"save": "Uložiť",
 		"saving": "Ukladám...",
 		"saveError": "Niečo sa pokazilo",
-		"nameTaken": "Tento názov je už obsadený",
+		"nameTaken": "Tento názov už bol obsadený",
 		"changeNameInProfile": "Zmeňte svoje meno v nastaveniach profilu"
 	},
 	"Common": {

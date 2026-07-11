@@ -124,7 +124,7 @@
 		"backToPosts": "← Back to posts",
 		"viewChannel": "View channel",
 		"postCount": "{count} posts",
-		"nameTaken": "This name is already taken",
+		"nameTaken": "This name has already been taken.",
 		"saveError": "Failed to save",
 		"createChannel": "Create channel",
 		"createChannelTitle": "Create Channel",
@@ -192,7 +192,7 @@
     "save": "Save",
     "saving": "Saving...",
     "saveError": "Something went wrong",
-    "nameTaken": "This name is already taken",
+    "nameTaken": "This name has already been taken.",
     "changeNameInProfile": "Change your name in profile settings"
   },
 	"Common": {
