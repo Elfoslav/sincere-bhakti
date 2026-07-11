@@ -15,6 +15,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import PostCard from "@/components/PostCard";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
@@ -145,48 +150,59 @@ export default function ChannelPageClient({
         <div className="flex items-center justify-center gap-2">
           <h1 className="text-2xl font-bold text-deep">{channel.name}</h1>
           {isOwner && (
-            <Dialog open={renameOpen} onOpenChange={(open) => { setRenameOpen(open); if (open) { setNewName(channel.name); setNameError(""); } }}>
-              <DialogTrigger
-                className="text-gold hover:text-gold-light transition-colors cursor-pointer"
-                title={t("editName")}
-                aria-label={t("editName")}
-              >
-                <Pencil className="w-[18px] h-[18px]" />
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>{t("editNameTitle")}</DialogTitle>
-                </DialogHeader>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleRename();
-                  }}
-                  className="space-y-4 pt-2"
+            channel.isPersonal ? (
+              <Tooltip>
+                <TooltipTrigger aria-label={t("changeNameInProfile")}>
+                  <Pencil className="w-[18px] h-[18px] text-deep/20 cursor-not-allowed" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t("changeNameInProfile")}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Dialog open={renameOpen} onOpenChange={(open) => { setRenameOpen(open); if (open) { setNewName(channel.name); setNameError(""); } }}>
+                <DialogTrigger
+                  className="text-gold hover:text-gold-light transition-colors cursor-pointer"
+                  title={t("editName")}
+                  aria-label={t("editName")}
                 >
-                  <Input
-                    name="name"
-                    value={newName}
-                    onChange={(e) => {
-                      setNewName(e.target.value);
-                      setNameError("");
+                  <Pencil className="w-[18px] h-[18px]" />
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>{t("editNameTitle")}</DialogTitle>
+                  </DialogHeader>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleRename();
                     }}
-                    placeholder={channel.name}
-                    autoComplete="off"
-                    autoFocus
-                    errorMessage={nameError || undefined}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setRenameOpen(false)}>
-                      {t("cancel")}
-                    </Button>
-                    <Button type="submit" disabled={saving || !newName.trim()}>
-                      {saving ? t("saving") : t("save")}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    className="space-y-4 pt-2"
+                  >
+                    <Input
+                      name="name"
+                      value={newName}
+                      onChange={(e) => {
+                        setNewName(e.target.value);
+                        setNameError("");
+                      }}
+                      placeholder={channel.name}
+                      autoComplete="off"
+                      autoFocus
+                      errorMessage={nameError || undefined}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" onClick={() => setRenameOpen(false)}>
+                        {t("cancel")}
+                      </Button>
+                      <Button type="submit" disabled={saving || !newName.trim()}>
+                        {saving ? t("saving") : t("save")}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )
           )}
         </div>
         <p className="text-deep/50 text-sm mt-2">

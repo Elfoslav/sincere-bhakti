@@ -192,7 +192,8 @@
     "save": "Save",
     "saving": "Saving...",
     "saveError": "Something went wrong",
-    "nameTaken": "This name is already taken"
+    "nameTaken": "This name is already taken",
+    "changeNameInProfile": "Change your name in profile settings"
   },
 	"Common": {
 		"cancel": "Cancel",

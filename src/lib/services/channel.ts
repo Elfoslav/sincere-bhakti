@@ -85,6 +85,7 @@ export async function getChannelBySlug(slug: string): Promise<{
   ownerName: string;
   ownerImage: string | null;
   postCount: number;
+  isPersonal: boolean;
 } | null> {
   const channel = await prisma.channel.findUnique({
     where: { slug },
@@ -104,6 +105,7 @@ export async function getChannelBySlug(slug: string): Promise<{
     ownerName: channel.owner.name,
     ownerImage: channel.owner.image,
     postCount: channel._count.posts,
+    isPersonal: channel.isPersonal,
   };
 }
 

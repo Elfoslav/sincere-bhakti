@@ -6,4 +6,5 @@ export interface ChannelWithPostCount {
   createdAt: string;
   ownerId: string;
   postCount: number;
+  isPersonal: boolean;
 }

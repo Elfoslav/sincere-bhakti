@@ -172,7 +172,7 @@ describe("PATCH /api/channels/[slug]", () => {
 
   it("renames a channel", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old Name", ownerId: "user-1" } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old Name", ownerId: "user-1", isPersonal: false } as any);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channel.update).mockResolvedValue({
       id: "ch-1", name: "New Name", slug: "my-channel", avatarUrl: null, ownerId: "user-1",
@@ -201,7 +201,7 @@ describe("PATCH /api/channels/[slug]", () => {
 
   it("returns 403 when not the owner", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-2" } } as any);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1" } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1", isPersonal: false } as any);
 
     const res = await PATCH(mockRequest({ name: "New" }), params);
     const json = await res.json();
@@ -233,7 +233,7 @@ describe("PATCH /api/channels/[slug]", () => {
 
   it("returns 409 when name matches the brand name", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1" } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1", isPersonal: false } as any);
 
     const res = await PATCH(mockRequest({ name: "Sincere Bhakti" }), params);
     const json = await res.json();
@@ -242,12 +242,23 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(json.error).toBe("name_taken");
   });
 
+  it("returns 400 when trying to rename a personal channel", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Personal", ownerId: "user-1", isPersonal: true } as any);
+
+    const res = await PATCH(mockRequest({ name: "New Name" }), params);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("cannot_rename_personal_channel");
+  });
+
   it("allows brand name when caller is the SINCERE_BHAKTI_EMAIL owner", async () => {
     const prev = process.env.SINCERE_BHAKTI_EMAIL;
     try {
       process.env.SINCERE_BHAKTI_EMAIL = "owner@sincerebhakti.com";
       vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "owner@sincerebhakti.com" } } as any);
-      vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1" } as any);
+      vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1", isPersonal: false } as any);
       vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.channel.update).mockResolvedValue({
         id: "ch-1", name: "Sincere Bhakti", slug: "my-channel", avatarUrl: null, ownerId: "user-1",
@@ -265,7 +276,7 @@ describe("PATCH /api/channels/[slug]", () => {
 
   it("returns 409 when normalized name is taken by another channel", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1" } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1", isPersonal: false } as any);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue({ id: "ch-2" } as any);
 
     const res = await PATCH(mockRequest({ name: "Existing Name" }), params);
@@ -280,7 +291,7 @@ describe("PATCH /api/channels/[slug]", () => {
 
   it("returns 400 on invalid name", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1" } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1", isPersonal: false } as any);
 
     const res = await PATCH(mockRequest({ name: "a" }), params);
     const json = await res.json();
@@ -306,7 +317,7 @@ describe("PATCH /api/channels/[slug]", () => {
 
   it("returns 500 on server error", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1" } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1", isPersonal: false } as any);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channel.update).mockRejectedValue(new Error("DB down"));
 

@@ -58,7 +58,7 @@ export async function PATCH(
   try {
     const channel = await prisma.channel.findUnique({
       where: { slug },
-      select: { id: true, name: true, ownerId: true },
+      select: { id: true, name: true, ownerId: true, isPersonal: true },
     });
 
     if (!channel) {
@@ -67,6 +67,10 @@ export async function PATCH(
 
     if (channel.ownerId !== session.user.id) {
       return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+    }
+
+    if (channel.isPersonal) {
+      return NextResponse.json({ error: "cannot_rename_personal_channel" }, { status: 400 });
     }
 
     const body = await request.json();

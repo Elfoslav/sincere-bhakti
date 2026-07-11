@@ -192,7 +192,8 @@
 		"save": "Uložit",
 		"saving": "Ukládám...",
 		"saveError": "Něco se pokazilo",
-		"nameTaken": "Tento název je již obsazen"
+		"nameTaken": "Tento název je již obsazen",
+		"changeNameInProfile": "Změňte své jméno v nastavení profilu"
 	},
 	"Common": {
 		"cancel": "Zrušit",
