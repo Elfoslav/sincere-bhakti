@@ -17,6 +17,7 @@ export default function PostsPageClient() {
 	const locale = useLocale();
 	const t = useTranslations("PostsPage");
 	const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef } = useInfinitePosts({
+		scope: "public",
 		language: locale,
 	});
 	const {

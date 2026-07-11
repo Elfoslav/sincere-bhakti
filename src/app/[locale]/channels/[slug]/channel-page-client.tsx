@@ -28,7 +28,7 @@ export default function ChannelPageClient({
     loadingMore: publicLoadingMore,
     hasMore: publicHasMore,
     sentinelRef: publicSentinelRef,
-  } = useInfinitePosts({ channelId: channel.id, language: locale });
+  } = useInfinitePosts({ channelId: channel.id, scope: "public", language: locale });
 
   const {
     posts: myPosts,
