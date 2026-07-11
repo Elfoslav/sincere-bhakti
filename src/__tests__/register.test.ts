@@ -9,7 +9,20 @@ vi.mock("@/lib/prisma", () => ({
     channel: {
       findFirst: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
+    $transaction: vi.fn((cb: (tx: any) => any) =>
+      cb({
+        user: {
+          create: (...args: any[]) => (prisma.user.create as any)(...args),
+        },
+        channel: {
+          findFirst: (...args: any[]) => (prisma.channel.findFirst as any)(...args),
+          create: (...args: any[]) => (prisma.channel.create as any)(...args),
+          update: (...args: any[]) => (prisma.channel.update as any)(...args),
+        },
+      }),
+    ),
   },
 }));
 vi.mock("bcryptjs", () => ({ default: { hash: vi.fn() }, hash: vi.fn() }));
@@ -60,6 +73,7 @@ describe("POST /api/register", () => {
     expect(json.name).toBe("Krishna Das");
     expect(json.email).toBe("kdas@example.com");
     expect(bcrypt.hash).toHaveBeenCalledWith("secret123", 12); // BCRYPT_SALT_ROUNDS
+    expect(prisma.$transaction).toHaveBeenCalled();
   });
 
   it("returns a generic 400 on duplicate email without revealing which field collided", async () => {

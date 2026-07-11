@@ -1,13 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName, isBrandNameBlocked } from "@/lib/validation";
-import { createPersonalChannel } from "@/lib/services/channel";
+import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+
+type RegistrationTx = {
+  channel: {
+    findFirst: typeof prisma.channel.findFirst;
+    create: typeof prisma.channel.create;
+  };
+  user: {
+    create: typeof prisma.user.create;
+  };
+};
+
+async function createPersonalChannelForRegistration(
+  tx: RegistrationTx,
+  userId: string,
+  userName: string,
+): Promise<void> {
+  const slug = slugifyName(userName);
+
+  for (let i = 1; i <= 10; i++) {
+    const finalSlug = i === 1 ? slug : `${slug}-${i}`;
+    const name = i === 1 ? userName : `${userName} (${i})`;
+
+    const slugTaken = await tx.channel.findFirst({ where: { slug: finalSlug }, select: { id: true } });
+    if (slugTaken) continue;
+
+    try {
+      await tx.channel.create({
+        data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId, isPersonal: true },
+      });
+      return;
+    } catch (error) {
+      if ((error as { code?: string })?.code === "P2002") continue;
+      throw error;
+    }
+  }
+
+  const uuid = crypto.randomUUID().slice(0, 8);
+  await tx.channel.create({
+    data: {
+      name: `${userName} (${uuid})`,
+      normalizedName: normalizeName(`${userName} (${uuid})`),
+      slug: `${slug}-${uuid}`,
+      ownerId: userId,
+      isPersonal: true,
+    },
+  });
+}
 
 export async function POST(request: NextRequest) {
   if (!validateOrigin(request)) {
@@ -16,9 +62,9 @@ export async function POST(request: NextRequest) {
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   const { allowed } = await rateLimit(rateLimitKey("register", ip), RATE_LIMITS.register.limit, RATE_LIMITS.register.windowMs);
-    if (!allowed) {
-      console.warn("rate_limited", { route: "register", ip });
-      return NextResponse.json(
+  if (!allowed) {
+    console.warn("rate_limited", { route: "register", ip });
+    return NextResponse.json(
       { error: ERROR_TOO_MANY_REQUESTS },
       { status: HTTP_TOO_MANY_REQUESTS },
     );
@@ -53,13 +99,17 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
-    const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword },
-      select: { id: true, name: true, email: true },
-    });
+    const user = await prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: { name, email, password: hashedPassword },
+        select: { id: true, name: true, email: true },
+      });
 
-    // Create personal channel immediately to lock the name
-    await createPersonalChannel(user.id, user.name);
+      // Create the personal channel inside the same transaction so a channel
+      // failure cannot leave behind a half-created user account.
+      await createPersonalChannelForRegistration(tx as RegistrationTx, createdUser.id, createdUser.name);
+      return createdUser;
+    });
 
     return NextResponse.json(
       { id: user.id, name: user.name, email: user.email },
