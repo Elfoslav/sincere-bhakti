@@ -33,6 +33,7 @@ export async function ensureDefaultUser(): Promise<void> {
         console.log(`[seed] user "${existing.name}" exists but has no personal channel — creating one`);
         await createPersonalChannel(existing.id, existing.name);
       }
+      globalForSeed.seeded = true;
       return;
     }
 
@@ -43,7 +44,10 @@ export async function ensureDefaultUser(): Promise<void> {
     });
     await createPersonalChannel(user.id, user.name);
     console.log(`[seed] created user "${name}" with personal channel`);
+    globalForSeed.seeded = true;
   } catch (e) {
     console.error("[seed] failed:", e);
+    // Allow retry on next call (transient DB failure should not permanently suppress seeding).
+    globalForSeed.seeded = false;
   }
 }

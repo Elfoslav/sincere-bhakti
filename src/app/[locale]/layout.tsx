@@ -59,11 +59,6 @@ export async function generateMetadata({ params }: Omit<Props, "children">) {
 export default async function LocaleLayout({ children, params }: Props) {
   const { locale } = await params;
 
-  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.SINCERE_BHAKTI_NAME) {
-    const { ensureDefaultUser } = await import("@/lib/seed");
-    ensureDefaultUser().catch((e) => console.error("[startup] seed failed", e));
-  }
-
   setRequestLocale(locale);
 
   const messages = await getMessages();
