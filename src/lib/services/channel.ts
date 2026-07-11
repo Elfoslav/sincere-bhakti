@@ -120,13 +120,17 @@ export async function createChannel(userId: string, channelName: string): Promis
   for (let i = 1; i <= 10; i++) {
     const finalSlug = i === 1 ? slug : `${slug}-${i}`;
     const name = i === 1 ? channelName : `${channelName} (${i})`;
+    const normalized = normalizeName(name);
 
-    const slugTaken = await prisma.channel.findFirst({ where: { slug: finalSlug }, select: { id: true } });
-    if (slugTaken) continue;
+    const existing = await prisma.channel.findFirst({
+      where: { OR: [{ slug: finalSlug }, { normalizedName: normalized }] },
+      select: { id: true },
+    });
+    if (existing) continue;
 
     try {
       const channel = await prisma.channel.create({
-        data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId, isPersonal: false },
+        data: { name, normalizedName: normalized, slug: finalSlug, ownerId: userId, isPersonal: false },
       });
       return { ...toPostChannel(channel), postCount: 0 };
     } catch (err) {

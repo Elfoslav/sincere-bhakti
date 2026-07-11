@@ -100,10 +100,9 @@ describe("createChannel", () => {
     });
   });
 
-  it("appends suffix when slug is taken", async () => {
+  it("appends suffix when normalizedName is taken", async () => {
     vi.mocked(prisma.channel.findFirst)
-      .mockResolvedValueOnce({ id: "taken" } as any) // slugTaken for my-devotees
-      .mockResolvedValueOnce(null);                  // slugTaken for my-devotees-2
+      .mockResolvedValueOnce({ id: "taken" } as any); // normalizedName check for "my devotees"
     vi.mocked(prisma.channel.create).mockResolvedValue({
       id: "ch-2", name: "My Devotees (2)", normalizedName: "my devotees (2)", slug: "my-devotees-2", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
     } as any);
@@ -112,5 +111,32 @@ describe("createChannel", () => {
 
     expect(result.slug).toBe("my-devotees-2");
     expect(result.name).toBe("My Devotees (2)");
+  });
+
+  it("appends suffix when slug is taken", async () => {
+    vi.mocked(prisma.channel.findFirst)
+      .mockResolvedValueOnce({ id: "taken" } as any) // slug/normalizedName for my-devotees
+      .mockResolvedValueOnce(null);                  // for my-devotees-2
+    vi.mocked(prisma.channel.create).mockResolvedValue({
+      id: "ch-3", name: "My Devotees (2)", normalizedName: "my devotees (2)", slug: "my-devotees-2", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
+    } as any);
+
+    const result = await createChannel("user-1", "My Devotees");
+
+    expect(result.slug).toBe("my-devotees-2");
+    expect(result.name).toBe("My Devotees (2)");
+  });
+
+  it("falls back to UUID suffix when retries are exhausted", async () => {
+    vi.mocked(prisma.channel.findFirst)
+      .mockResolvedValue({ id: "taken" } as any); // all slug/normalizedName checks return taken
+    vi.mocked(prisma.channel.create).mockResolvedValue({
+      id: "ch-99", name: "Test (abc12345)", normalizedName: "test (abc12345)", slug: "test-abc12345", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
+    } as any);
+
+    const result = await createChannel("user-1", "Test");
+
+    expect(result.slug).toBe("test-abc12345");
+    expect(result.name).toBe("Test (abc12345)");
   });
 });

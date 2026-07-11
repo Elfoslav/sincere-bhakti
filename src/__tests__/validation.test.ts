@@ -282,6 +282,14 @@ describe("createChannelSchema", () => {
   it("rejects whitespace-only name", () => {
     expect(createChannelSchema.safeParse({ name: "   " }).success).toBe(false);
   });
+
+  it("accepts name at max length", () => {
+    expect(createChannelSchema.safeParse({ name: "a".repeat(50) }).success).toBe(true);
+  });
+
+  it("rejects name exceeding max length", () => {
+    expect(createChannelSchema.safeParse({ name: "a".repeat(51) }).success).toBe(false);
+  });
 });
 
 describe("paginationSchema", () => {

@@ -119,12 +119,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
-    const normalizedTarget = normalizeName(name);
-    const existing = await prisma.channel.findFirst({ where: { normalizedName: normalizedTarget }, select: { id: true } });
-    if (existing) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
-    }
-
     const channel = await createChannel(session.user.id, name);
 
     return NextResponse.json(channel, { status: HTTP_CREATED });

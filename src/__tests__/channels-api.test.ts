@@ -58,15 +58,28 @@ describe("POST /api/channels", () => {
     expect(json.postCount).toBe(0);
   });
 
-  it("returns 409 when name is taken", async () => {
+  it("returns 409 when name matches the brand name", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue({ id: "existing" } as any);
 
-    const res = await POST(mockRequest({ name: "Taken Name" }));
+    const res = await POST(mockRequest({ name: "Sincere Bhakti" }));
     const json = await res.json();
 
     expect(res.status).toBe(409);
     expect(json.error).toBe("name_taken");
+  });
+
+  it("creates channel with suffix when normalized name is taken", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue({ id: "existing" } as any);
+    vi.mocked(prisma.channel.create).mockResolvedValue({
+      id: "ch-2", name: "My Name (2)", normalizedName: "my name (2)", slug: "my-name-2", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
+    } as any);
+
+    const res = await POST(mockRequest({ name: "My Name" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(json.name).toBe("My Name (2)");
   });
 
   it("returns 400 on invalid name", async () => {
@@ -81,6 +94,17 @@ describe("POST /api/channels", () => {
 
   it("returns 403 when not authenticated", async () => {
     vi.mocked(auth).mockResolvedValue(null as unknown as never);
+
+    const res = await POST(mockRequest({ name: "Channel" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.error).toBe("forbidden");
+  });
+
+  it("returns 403 on invalid origin", async () => {
+    const { validateOrigin } = await import("@/lib/csrf");
+    vi.mocked(validateOrigin).mockReturnValueOnce(false);
 
     const res = await POST(mockRequest({ name: "Channel" }));
     const json = await res.json();
