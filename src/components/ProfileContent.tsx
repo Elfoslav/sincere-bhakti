@@ -58,7 +58,11 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
       });
       if (res.ok) {
         const updated = await res.json();
-        setProfile((prev) => prev ? { ...prev, name: updated.name } : prev);
+        setProfile((prev) => prev ? {
+          ...prev,
+          name: updated.name,
+          channels: prev.channels.map((ch) => ch.ownerId === prev.id ? { ...ch, name: updated.name } : ch),
+        } : prev);
         setOpen(false);
       } else {
         const data = await res.json().catch(() => ({}));
