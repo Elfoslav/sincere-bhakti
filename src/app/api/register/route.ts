@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
     // name/slug race). Return a generic error without revealing which field
     // collided, to avoid account/email enumeration.
     if ((error as { code?: string })?.code === "P2002") {
+      logServerError("POST /api/register P2002 collision", error);
       return NextResponse.json(
         { error: "registration_failed" },
         { status: HTTP_BAD_REQUEST }
