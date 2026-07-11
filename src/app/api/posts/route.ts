@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const ip = request.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const { allowed } = await rateLimit(rateLimitKey("read-posts", ip), RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs);
     if (!allowed) {
+      console.warn("rate_limited", { route: "read-posts", ip });
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
 
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
 
   const { allowed } = await rateLimit(rateLimitKey("create-post", session.user.id), RATE_LIMITS.createPost.limit, RATE_LIMITS.createPost.windowMs);
   if (!allowed) {
+    console.warn("rate_limited", { route: "create-post", userId: session.user.id });
     return NextResponse.json(
       { error: ERROR_TOO_MANY_REQUESTS },
       { status: HTTP_TOO_MANY_REQUESTS },

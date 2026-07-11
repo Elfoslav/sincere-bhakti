@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   const { allowed } = await rateLimit(rateLimitKey("register", ip), RATE_LIMITS.register.limit, RATE_LIMITS.register.windowMs);
     if (!allowed) {
-    return NextResponse.json(
+      console.warn("rate_limited", { route: "register", ip });
+      return NextResponse.json(
       { error: ERROR_TOO_MANY_REQUESTS },
       { status: HTTP_TOO_MANY_REQUESTS },
     );

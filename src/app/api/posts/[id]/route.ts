@@ -51,6 +51,7 @@ export async function PATCH(
 
     const { allowed } = await rateLimit(rateLimitKey("update-post", session.user.id), RATE_LIMITS.updatePost.limit, RATE_LIMITS.updatePost.windowMs);
     if (!allowed) {
+      console.warn("rate_limited", { route: "update-post", userId: session.user.id });
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
 
@@ -118,6 +119,7 @@ export async function DELETE(
 
     const { allowed } = await rateLimit(rateLimitKey("delete-post", session.user.id), RATE_LIMITS.deletePost.limit, RATE_LIMITS.deletePost.windowMs);
     if (!allowed) {
+      console.warn("rate_limited", { route: "delete-post", userId: session.user.id });
       return NextResponse.json(
         { error: ERROR_TOO_MANY_REQUESTS },
         { status: HTTP_TOO_MANY_REQUESTS },

@@ -171,12 +171,15 @@ describe("PATCH /api/users/[id]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     const { rateLimit } = await import("@/lib/rate-limit");
     vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 3_600_000 } as any);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const res = await PATCH(mockRequest({ name: "New" }), { params: Promise.resolve({ id: "user-1" }) });
     const json = await res.json();
 
     expect(res.status).toBe(429);
     expect(json.error).toBe("too_many_requests");
+    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "update-profile", userId: "user-1" });
+    warnSpy.mockRestore();
   });
 
   it("returns 409 when channel name is taken (including diacritic variants)", async () => {

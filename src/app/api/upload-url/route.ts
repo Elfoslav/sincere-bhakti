@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
 
   const { allowed } = await rateLimit(rateLimitKey("upload-url", session.user.id), RATE_LIMITS.uploadUrl.limit, RATE_LIMITS.uploadUrl.windowMs);
   if (!allowed) {
+    console.warn("rate_limited", { route: "upload-url", userId: session.user.id });
     return NextResponse.json(
       { error: ERROR_TOO_MANY_REQUESTS },
       { status: HTTP_TOO_MANY_REQUESTS },

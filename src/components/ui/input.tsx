@@ -19,7 +19,7 @@ function Input({ className, type, errorMessage, ...props }: InputProps) {
         )}
         {...props}
       />
-      {errorMessage && <p className="text-red-500 text-xs mt-0">{errorMessage}</p>}
+      {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
     </div>
   )
 }

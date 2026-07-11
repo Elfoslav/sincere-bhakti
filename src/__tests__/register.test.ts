@@ -94,12 +94,15 @@ describe("POST /api/register", () => {
   it("returns 429 when rate limited", async () => {
     const { rateLimit } = await import("@/lib/rate-limit");
     vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 3_600_000 } as any);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const res = await POST(mockRequest({ name: "A", email: "spam@b.com", password: "secret123" }));
     const json = await res.json();
 
     expect(res.status).toBe(429);
     expect(json.error).toBe("too_many_requests");
+    expect(warnSpy).toHaveBeenCalledWith("rate_limited", expect.objectContaining({ route: "register" }));
+    warnSpy.mockRestore();
   });
 
   it("returns 500 on a genuine server error", async () => {

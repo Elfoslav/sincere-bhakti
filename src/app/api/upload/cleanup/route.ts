@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
   if (process.env.NODE_ENV === "production") {
     const { allowed } = await rateLimit(rateLimitKey("upload", session.user.id), RATE_LIMITS.upload.limit, RATE_LIMITS.upload.windowMs);
     if (!allowed) {
+      console.warn("rate_limited", { route: "upload-cleanup", userId: session.user.id });
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
   }

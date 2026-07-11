@@ -62,6 +62,7 @@ export async function PATCH(
 
     const { allowed } = await rateLimit(rateLimitKey("update-profile", id), RATE_LIMITS.updateProfile.limit, RATE_LIMITS.updateProfile.windowMs);
     if (!allowed) {
+      console.warn("rate_limited", { route: "update-profile", userId: id });
       return NextResponse.json(
         { error: ERROR_TOO_MANY_REQUESTS },
         { status: HTTP_TOO_MANY_REQUESTS },

@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const ip = request.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const { allowed } = await rateLimit(rateLimitKey("search-channels", ip), RATE_LIMITS.searchChannels.limit, RATE_LIMITS.searchChannels.windowMs);
     if (!allowed) {
+      console.warn("rate_limited", { route: "search-channels", ip });
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
     const { searchParams } = new URL(request.url);

@@ -13,6 +13,7 @@ export async function GET(
     const ip = request.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const { allowed } = await rateLimit(rateLimitKey("read-channel", ip), RATE_LIMITS.readChannel.limit, RATE_LIMITS.readChannel.windowMs);
     if (!allowed) {
+      console.warn("rate_limited", { route: "read-channel", ip });
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
     const { slug } = await params;
