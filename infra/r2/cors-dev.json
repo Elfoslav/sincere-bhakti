@@ -1,6 +1,9 @@
 [
   {
-    "AllowedOrigins": ["http://localhost:3000"],
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "https://*.vercel.app"
+    ],
     "AllowedMethods": ["PUT"],
     "AllowedHeaders": ["content-type"],
     "MaxAgeSeconds": 3600
