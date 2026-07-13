@@ -1,0 +1,41 @@
+name: Sync develop after release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  sync-develop:
+    # Run only when a PR from develop into main was actually merged
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'develop'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward develop to main
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin main develop
+
+          # Refuse to overwrite develop if new commits were added meanwhile.
+          if ! git merge-base --is-ancestor origin/develop origin/main; then
+            echo "::error::develop contains commits that are not in main."
+            echo "::error::Cannot safely fast-forward develop."
+            exit 1
+          fi
+
+          git push origin origin/main:develop
