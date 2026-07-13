@@ -1,21 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    user: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
+vi.mock("@/lib/prisma", () => {
+  const user = {
+    findUnique: vi.fn(),
+    update: vi.fn(),
+  };
+  const channel = {
+    findFirst: vi.fn(),
+    update: vi.fn(),
+  };
+  const channelSlugHistory = {
+    create: vi.fn(),
+    findFirst: vi.fn(),
+  };
+  return {
+    prisma: {
+      user,
+      channel,
+      channelSlugHistory,
+      $transaction: vi.fn((cb: any) => cb({ user, channel, channelSlugHistory })),
     },
-    channel: {
-      findFirst: vi.fn(),
-      update: vi.fn(),
-    },
-    channelSlugHistory: {
-      create: vi.fn(),
-      findFirst: vi.fn(),
-    },
-  },
-}));
+  };
+});
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/csrf", () => ({
   validateOrigin: vi.fn(() => true),

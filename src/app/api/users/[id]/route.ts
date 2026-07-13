@@ -122,35 +122,38 @@ export async function PATCH(
       }
     }
 
-    const updated = await prisma.user.update({
-      where: { id },
-      data: { name: parsed.data.name },
-      select: { id: true, name: true, email: true, image: true, createdAt: true },
-    });
+    const updated = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id },
+        data: { name: parsed.data.name },
+        select: { id: true, name: true, email: true, image: true, createdAt: true },
+      });
 
-    // Sync the personal channel name to match the user's display name.
-    if (personalChannel) {
-      const newSlug = slugifyName(parsed.data.name);
-      const oldSlug = personalChannel.slug;
+      // Sync the personal channel name to match the user's display name.
+      if (personalChannel) {
+        const newSlug = slugifyName(parsed.data.name);
+        const oldSlug = personalChannel.slug;
 
-      if (oldSlug !== newSlug) {
-        // Avoid P2002 if oldSlug is already in history (e.g. name A→B→A→C).
-        const oldInHistory = await prisma.channelSlugHistory.findFirst({
-          where: { oldSlug, channelId: personalChannel.id },
-          select: { id: true },
-        });
-        if (!oldInHistory) {
-          await prisma.channelSlugHistory.create({
-            data: { oldSlug, oldNormalizedName: normalizeName(personalChannel.name), channelId: personalChannel.id },
+        if (oldSlug !== newSlug) {
+          const oldInHistory = await tx.channelSlugHistory.findFirst({
+            where: { oldSlug, channelId: personalChannel.id },
+            select: { id: true },
           });
+          if (!oldInHistory) {
+            await tx.channelSlugHistory.create({
+              data: { oldSlug, oldNormalizedName: normalizeName(personalChannel.name), channelId: personalChannel.id },
+            });
+          }
         }
+
+        await tx.channel.update({
+          where: { id: personalChannel.id },
+          data: { name: parsed.data.name, normalizedName: normalizeName(parsed.data.name), slug: newSlug },
+        });
       }
 
-      await prisma.channel.update({
-        where: { id: personalChannel.id },
-        data: { name: parsed.data.name, normalizedName: normalizeName(parsed.data.name), slug: newSlug },
-      });
-    }
+      return user;
+    });
 
     return NextResponse.json(updated);
   } catch (error) {

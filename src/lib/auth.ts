@@ -23,8 +23,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const { allowed } = await rateLimit(rateLimitKey("login", ip), RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs);
         if (!allowed) return null;
 
+        const email = (credentials.email as string).trim().toLowerCase();
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
+          where: { email },
         });
 
         if (!user) return null;
