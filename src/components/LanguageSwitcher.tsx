@@ -65,7 +65,7 @@ export default function LanguageSwitcher() {
       <button
         ref={btnRef}
         onClick={() => setOpen((p) => !p)}
-        className="flex items-center gap-1 text-sm text-white/80 hover:text-white transition-colors px-2 py-1.5 rounded-md border border-white/10 hover:border-white/20"
+        className="flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors px-3 py-2 rounded-md border border-white/10 hover:border-white/20 min-h-10"
       >
         <span className="leading-none">{current.flag}</span>
         <span className="text-xs font-medium uppercase">{current.label}</span>
