@@ -98,17 +98,11 @@ export async function PATCH(
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
-    const updated = await prisma.user.update({
-      where: { id },
-      data: { name: parsed.data.name },
-      select: { id: true, name: true, email: true, image: true, createdAt: true },
-    });
-
-    // Sync the personal channel name to match the user's display name.
+    // Validate slug collisions before committing the user update. If the new slug
+    // collides with another channel/history, return 409 before any writes.
     if (personalChannel) {
       const newSlug = slugifyName(parsed.data.name);
       const oldSlug = personalChannel.slug;
-
       if (oldSlug !== newSlug) {
         const slugTaken = await prisma.channel.findFirst({
           where: { slug: newSlug, id: { not: personalChannel.id } },
@@ -125,7 +119,21 @@ export async function PATCH(
         if (historySlugTaken) {
           return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
         }
+      }
+    }
 
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { name: parsed.data.name },
+      select: { id: true, name: true, email: true, image: true, createdAt: true },
+    });
+
+    // Sync the personal channel name to match the user's display name.
+    if (personalChannel) {
+      const newSlug = slugifyName(parsed.data.name);
+      const oldSlug = personalChannel.slug;
+
+      if (oldSlug !== newSlug) {
         // Avoid P2002 if oldSlug is already in history (e.g. name A→B→A→C).
         const oldInHistory = await prisma.channelSlugHistory.findFirst({
           where: { oldSlug, channelId: personalChannel.id },
