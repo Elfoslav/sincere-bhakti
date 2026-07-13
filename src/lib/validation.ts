@@ -134,6 +134,7 @@ const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 export const createPostSchema = z.object({
   id: z.string().regex(uuidRegex).optional(),
   content: contentField,
+  channelId: z.string().optional(),
   media: mediaField.default([]),
   isPublic: z.boolean().default(true),
   language: z.enum(locales).default("en"),

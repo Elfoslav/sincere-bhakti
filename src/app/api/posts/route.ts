@@ -101,8 +101,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Resolve channelId — session value is a cache; fall back to DB lookup
-    const channelId = session.user.channelId
+    // Resolve channelId — prefer the one from the request if provided
+    const channelId = parsed.data.channelId
+      ?? session.user.channelId
       ?? (await getPersonalChannel(session.user.id))?.id
       ?? (await createPersonalChannel(session.user.id, session.user.name || "User")).id;
 
