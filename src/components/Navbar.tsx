@@ -51,6 +51,7 @@ export default function Navbar() {
 								title={t("logoAlt")}
 								width={77}
 								height={52}
+								priority
 								className="shrink-0"
 								style={{ width: 77, height: 52 }}
 							/>

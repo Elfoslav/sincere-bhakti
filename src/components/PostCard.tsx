@@ -3,7 +3,8 @@
 import { useMemo, useCallback, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { Copy, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { localeFlags } from "@/i18n/routing";
+import { Link as LinkIcon, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { extractYouTubeContent } from "@/lib/video";
 import { replaceEmoticons } from "@/lib/emoticons";
@@ -18,12 +19,14 @@ export default function PostCard({
   hideEdit,
   hideExternalLink,
   onDelete,
+  onEdit,
 }: {
   post: Post;
   currentUserId?: string;
   hideEdit?: boolean;
   hideExternalLink?: boolean;
   onDelete?: (id: string) => void;
+  onEdit?: (postId: string) => void;
 }) {
   const locale = useLocale();
   const t = useTranslations("PostCard");
@@ -86,21 +89,24 @@ export default function PostCard({
             {post.channel.name || t("anonymous")}
           </Link>
           <p className="text-xs text-deep/60">
+            <span className="mr-1 text-sm text-deep" title={post.language}>
+              {localeFlags[post.language] || post.language}
+            </span>
             <Link href={`/posts/${post.id}`} className="hover:text-gold">
               {date}
             </Link>
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {currentUserId === post.channel.ownerId && !hideEdit && (
-            <Link
-              href={`/posts/${post.id}/edit`}
-              className="text-deep/40 hover:text-gold transition-colors p-1"
+          {currentUserId === post.channel.ownerId && !hideEdit && onEdit && (
+            <button
+              onClick={() => onEdit(post.id)}
+              className="text-deep/40 hover:text-gold transition-colors p-1 cursor-pointer"
               title={t("editPost")}
               aria-label={t("editPost")}
             >
               <Pencil className="w-4 h-4" />
-            </Link>
+            </button>
           )}
           {currentUserId === post.channel.ownerId && onDelete && (
             <button
@@ -120,7 +126,7 @@ export default function PostCard({
               title={t("copyLink")}
               aria-label={t("copyLink")}
             >
-              <Copy className="w-4 h-4" />
+              <LinkIcon className="w-4 h-4" />
             </button>
           ) : (
             <Link

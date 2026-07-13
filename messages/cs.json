@@ -155,16 +155,8 @@
 	},
 	"EditPost": {
 		"title": "Upravit příspěvek",
-		"contentLabel": "Obsah",
-		"visibilityLabel": "Veřejný",
-		"visibilityHint": "Viditelný pro všechny",
-		"save": "Uložit",
-		"saving": "Ukládám…",
-		"loadError": "Nepodařilo se načíst příspěvek",
-		"saveError": "Nepodařilo se uložit změny",
-		"notFound": "Příspěvek nenalezen",
-		"forbidden": "Nemáte oprávnění upravovat tento příspěvek",
-		"backLink": "← Zpět na příspěvek"
+		"editTab": "Napsat",
+		"previewTab": "Náhled"
 	},
 	"ChannelsPage": {
 		"title": "Všechny kanály",

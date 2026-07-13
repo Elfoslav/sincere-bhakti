@@ -155,16 +155,8 @@
 	},
 	"EditPost": {
 		"title": "Edit post",
-		"contentLabel": "Content",
-		"visibilityLabel": "Public",
-		"visibilityHint": "Visible to everyone",
-		"save": "Save",
-		"saving": "Saving…",
-		"loadError": "Failed to load post",
-		"saveError": "Failed to update post",
-		"notFound": "Post not found",
-		"forbidden": "You don't have permission to edit this post",
-		"backLink": "← Back to post"
+		"editTab": "Write",
+		"previewTab": "Preview"
 	},
 	"ChannelsPage": {
 		"title": "All Channels",

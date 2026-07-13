@@ -68,7 +68,7 @@ export async function PATCH(
       );
     }
 
-    const { content, isPublic, media: parsedMedia } = parsed.data;
+    const { content, isPublic, language, media: parsedMedia } = parsed.data;
 
     if (parsedMedia !== undefined) {
       const storageDomain = process.env.R2_PUBLIC_URL;
@@ -81,9 +81,10 @@ export async function PATCH(
       }
     }
 
-    const data: { content?: string | null; isPublic?: boolean; media?: MediaInput[] } = {};
+    const data: { content?: string | null; isPublic?: boolean; media?: MediaInput[]; language?: string } = {};
     if (content !== undefined) data.content = content || null;
     if (isPublic !== undefined) data.isPublic = isPublic;
+    if (language !== undefined) data.language = language;
     if (parsedMedia !== undefined) data.media = parsedMedia;
 
     const post = await updatePost(id, session.user.id, data);

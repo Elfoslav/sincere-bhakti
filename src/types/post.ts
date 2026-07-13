@@ -21,6 +21,7 @@ export interface Post {
   content: string | null;
   media: PostMedia[];
   isPublic: boolean;
+  language: string;
   createdAt: string;
   channel: PostChannel;
 }

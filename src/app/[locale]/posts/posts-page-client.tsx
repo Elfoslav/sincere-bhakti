@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import PostCard from "@/components/PostCard";
 import PostForm from "@/components/PostForm";
+import EditPostModal from "@/components/EditPostModal";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
@@ -16,6 +17,7 @@ export default function PostsPageClient() {
 	const { data: session } = useSession();
 	const locale = useLocale();
 	const t = useTranslations("PostsPage");
+	const [editingPost, setEditingPost] = useState<Post | null>(null);
 	const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef } = useInfinitePosts({
 		scope: "public",
 		language: locale,
@@ -45,6 +47,17 @@ export default function PostsPageClient() {
 		setMyPosts((prev) => prev.filter((p) => p.id !== id));
 		setPosts((prev) => prev.filter((p) => p.id !== id));
 	}
+
+	const handleEdit = useCallback((postId: string) => {
+		const found = [...posts, ...myPosts].find((p) => p.id === postId);
+		if (found) setEditingPost(found);
+	}, [posts, myPosts]);
+
+	const handleEditSuccess = useCallback((updatedPost: Post) => {
+		setMyPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+		setPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+		setEditingPost(null);
+	}, [setMyPosts, setPosts]);
 
 	return (
 		<div className="w-full max-w-3xl mx-auto px-4 py-8">
@@ -101,6 +114,7 @@ export default function PostsPageClient() {
 										post={post}
 										currentUserId={session?.user?.id}
 										onDelete={handleDelete}
+										onEdit={handleEdit}
 									/>
 								))}
 							</div>
@@ -132,14 +146,15 @@ export default function PostsPageClient() {
 									</Card>
 								) : (
 									<div className="space-y-4">
-										{myPublicPosts.map((post) => (
-											<PostCard
-												key={post.id}
-												post={post}
-												currentUserId={session?.user?.id}
-												onDelete={handleDelete}
-											/>
-										))}
+									{myPublicPosts.map((post) => (
+										<PostCard
+											key={post.id}
+											post={post}
+											currentUserId={session?.user?.id}
+											onDelete={handleDelete}
+											onEdit={handleEdit}
+										/>
+									))}
 									</div>
 								)}
 								{myHasMore && (
@@ -170,14 +185,15 @@ export default function PostsPageClient() {
 									</Card>
 								) : (
 									<div className="space-y-4">
-										{myPrivatePosts.map((post) => (
-											<PostCard
-												key={post.id}
-												post={post}
-												currentUserId={session?.user?.id}
-												onDelete={handleDelete}
-											/>
-										))}
+									{myPrivatePosts.map((post) => (
+										<PostCard
+											key={post.id}
+											post={post}
+											currentUserId={session?.user?.id}
+											onDelete={handleDelete}
+											onEdit={handleEdit}
+										/>
+									))}
 									</div>
 								)}
 								{myHasMore && (
@@ -225,6 +241,13 @@ export default function PostsPageClient() {
 					)}
 				</>
 			)}
+
+			<EditPostModal
+				post={editingPost}
+				open={editingPost !== null}
+				onOpenChange={(open) => { if (!open) setEditingPost(null); }}
+				onSuccess={handleEditSuccess}
+			/>
 		</div>
 	);
 }

@@ -22,6 +22,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import PostCard from "@/components/PostCard";
+import EditPostModal from "@/components/EditPostModal";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
@@ -44,6 +45,7 @@ export default function ChannelPageClient({
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
 
   const {
     posts: publicPosts,
@@ -68,6 +70,17 @@ export default function ChannelPageClient({
   const handleDelete = useCallback((id: string) => {
     setPublicPosts((prev) => prev.filter((p) => p.id !== id));
     setMyPosts((prev) => prev.filter((p) => p.id !== id));
+  }, [setPublicPosts, setMyPosts]);
+
+  const handleEdit = useCallback((postId: string) => {
+    const found = [...publicPosts, ...myPosts].find((p) => p.id === postId);
+    if (found) setEditingPost(found);
+  }, [publicPosts, myPosts]);
+
+  const handleEditSuccess = useCallback((updatedPost: Post) => {
+    setPublicPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+    setMyPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+    setEditingPost(null);
   }, [setPublicPosts, setMyPosts]);
 
   async function handleRename() {
@@ -128,7 +141,7 @@ export default function ChannelPageClient({
       <div>
         <div className="space-y-4">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} currentUserId={isOwner ? session?.user?.id : undefined} onDelete={handleDelete} />
+            <PostCard key={post.id} post={post} currentUserId={isOwner ? session?.user?.id : undefined} onDelete={handleDelete} onEdit={isOwner ? handleEdit : undefined} />
           ))}
         </div>
         {hasMore && (
@@ -234,6 +247,12 @@ export default function ChannelPageClient({
           {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPublicPosts")}
         </>
       )}
+      <EditPostModal
+        post={editingPost}
+        open={editingPost !== null}
+        onOpenChange={(open) => { if (!open) setEditingPost(null); }}
+        onSuccess={handleEditSuccess}
+      />
     </div>
   );
 }

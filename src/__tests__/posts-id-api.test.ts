@@ -29,6 +29,7 @@ const basePost = {
   id: "post-1",
   content: "Hare Krishna!",
   isPublic: true,
+  language: "en",
   createdAt: new Date(),
   channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
   media: [],

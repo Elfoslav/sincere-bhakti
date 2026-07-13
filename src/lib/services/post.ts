@@ -43,6 +43,7 @@ export interface PostResponse {
   id: string;
   content: string | null;
   isPublic: boolean;
+  language: string;
   createdAt: Date;
   channel: PostChannel;
   media: PostMedia[];
@@ -81,6 +82,7 @@ export interface UpdatePostData {
   content?: string | null;
   isPublic?: boolean;
   media?: MediaInput[];
+  language?: string;
 }
 
 const postInclude = {

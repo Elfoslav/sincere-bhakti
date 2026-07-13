@@ -18,6 +18,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **No ambient types.** Do not rely on `.d.ts` files for types that are used as values or exported. Use explicit imports.
 <!-- END:code-organization -->
 
+<!-- BEGIN:env-secrets -->
+# Secrets & Environment Variables
+
+- **Never hardcode secrets, connection strings, API keys, or any sensitive value.** Every secret MUST be defined in `.env` (or `.env.local`) and accessed via `process.env.VARIABLE_NAME`. This includes database URLs, auth secrets, API tokens, and any per-environment configuration.
+- **Exception**: default/fallback values for non-secret configuration (e.g. `PORT` defaulting to `3000`) are acceptable as inline constants.
+- **Test files** must read env vars from `process.env`, not hardcode them. Use `dotenv/config` or a similar loader in config files that need env vars before the app boots.
+- **When you see a hardcoded secret, treat it as a bug.** Refactor it to `.env` immediately. Do not defer.
+<!-- END:env-secrets -->
+
 <!-- BEGIN:agent-checklist -->
 # Agent Checklist — Always Verify Before Writing Code
 
