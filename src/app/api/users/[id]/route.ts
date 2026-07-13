@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { updateNameSchema, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
-import { isNormalizedNameTaken } from "@/lib/services/channel";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+
+class NameTakenError extends Error {
+  name = "NameTakenError" as const;
+}
 
 export async function GET(
   request: NextRequest,
@@ -87,54 +90,51 @@ export async function PATCH(
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
-    // Check if the new name is already taken by any other channel (name is globally unique).
-    // Exclude only the caller's personal channel since that is the one being renamed.
+    // All name/slug checks and writes happen inside a single transaction so a
+    // concurrent rename cannot make the personal-channel snapshot or collision
+    // checks stale.
     const normalizedTarget = normalizeName(parsed.data.name);
-    const personalChannel = await prisma.channel.findFirst({
-      where: { ownerId: id, isPersonal: true },
-      select: { id: true, name: true, slug: true },
-    });
-    if (await isNormalizedNameTaken(normalizedTarget, personalChannel?.id)) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
-    }
-
-    // Validate slug collisions before committing the user update. If the new slug
-    // collides with another channel/history, return 409 before any writes.
-    if (personalChannel) {
-      const newSlug = slugifyName(parsed.data.name);
-      const oldSlug = personalChannel.slug;
-      if (oldSlug !== newSlug) {
-        const slugTaken = await prisma.channel.findFirst({
-          where: { slug: newSlug, id: { not: personalChannel.id } },
-          select: { id: true },
-        });
-        if (slugTaken) {
-          return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
-        }
-
-        const historySlugTaken = await prisma.channelSlugHistory.findFirst({
-          where: { oldSlug: newSlug, channelId: { not: personalChannel.id } },
-          select: { id: true },
-        });
-        if (historySlugTaken) {
-          return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
-        }
-      }
-    }
-
     const updated = await prisma.$transaction(async (tx) => {
+      const personalChannel = await tx.channel.findFirst({
+        where: { ownerId: id, isPersonal: true },
+        select: { id: true, name: true, slug: true },
+      });
+
+      // Check normalized-name collision inside the transaction (authoritative).
+      const nameCollision = await tx.channel.findFirst({
+        where: { normalizedName: normalizedTarget, id: personalChannel ? { not: personalChannel.id } : undefined },
+        select: { id: true },
+      });
+      if (nameCollision) throw new NameTakenError();
+      const nameHistoryCollision = await tx.channelSlugHistory.findFirst({
+        where: { oldNormalizedName: normalizedTarget, channelId: personalChannel ? { not: personalChannel.id } : undefined },
+        select: { id: true },
+      });
+      if (nameHistoryCollision) throw new NameTakenError();
+
       const user = await tx.user.update({
         where: { id },
         data: { name: parsed.data.name },
         select: { id: true, name: true, email: true, image: true, createdAt: true },
       });
 
-      // Sync the personal channel name to match the user's display name.
       if (personalChannel) {
         const newSlug = slugifyName(parsed.data.name);
         const oldSlug = personalChannel.slug;
 
         if (oldSlug !== newSlug) {
+          const slugTaken = await tx.channel.findFirst({
+            where: { slug: newSlug, id: { not: personalChannel.id } },
+            select: { id: true },
+          });
+          if (slugTaken) throw new NameTakenError();
+
+          const historySlugTaken = await tx.channelSlugHistory.findFirst({
+            where: { oldSlug: newSlug, channelId: { not: personalChannel.id } },
+            select: { id: true },
+          });
+          if (historySlugTaken) throw new NameTakenError();
+
           const oldInHistory = await tx.channelSlugHistory.findFirst({
             where: { oldSlug, channelId: personalChannel.id },
             select: { id: true },
@@ -157,6 +157,9 @@ export async function PATCH(
 
     return NextResponse.json(updated);
   } catch (error) {
+    if (error instanceof NameTakenError) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
     logServerError("PATCH /api/users/[id] failed", error);
     return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
   }

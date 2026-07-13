@@ -18,9 +18,11 @@ export async function ensureDefaultUser(): Promise<void> {
     return;
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
+
   try {
     const existing = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       select: { id: true, name: true },
     });
 
@@ -39,7 +41,7 @@ export async function ensureDefaultUser(): Promise<void> {
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword },
+      data: { name, email: normalizedEmail, password: hashedPassword },
       select: { id: true, name: true, email: true },
     });
     await createPersonalChannel(user.id, user.name);
