@@ -4,13 +4,14 @@ import type { ReactNode } from "react";
 type CardPadding = "none" | "sm" | "md" | "lg" | "xl";
 type CardVariant = "default" | "elevated" | "flat" | "hover" | "ghost" | "ghost-muted";
 
+/* Dawn Sādhana: warm gold-tinted shadows instead of neutral grey ones. */
 const variantClasses: Record<CardVariant, string> = {
-  default: "bg-white rounded-lg shadow-md border border-sand",
-  elevated: "bg-white rounded-lg shadow-xl border border-sand",
-  flat: "bg-white rounded-lg border border-sand",
-  hover: "bg-white hover:bg-sand/30 active:bg-sand/50 rounded-lg border border-sand transition-colors",
-  ghost: "bg-white rounded-lg border border-sand",
-  "ghost-muted": "bg-white/60 rounded-lg border border-sand",
+  default: "bg-white rounded-2xl shadow-[0_2px_10px_rgba(120,90,30,0.07)] border border-sand",
+  elevated: "bg-white rounded-2xl shadow-[0_6px_24px_rgba(120,90,30,0.12)] border border-sand",
+  flat: "bg-white rounded-2xl border border-sand",
+  hover: "bg-white hover:bg-sand/30 active:bg-sand/50 rounded-2xl border border-sand transition-colors",
+  ghost: "bg-white rounded-2xl border border-sand",
+  "ghost-muted": "bg-white/60 rounded-2xl border border-sand",
 };
 
 const paddingClasses: Record<CardPadding, string> = {

@@ -147,7 +147,7 @@ export default function ChannelPageClient({
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8">
       <Card variant="default" padding="lg" className="mb-8 text-center">
-        <div className="w-20 h-20 rounded-full bg-gold flex items-center justify-center text-deep text-3xl font-bold mx-auto mb-4">
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
           {channel.name[0]?.toUpperCase() || "?"}
         </div>
         <div className="flex items-center justify-center gap-2">
@@ -195,10 +195,10 @@ export default function ChannelPageClient({
                       errorMessage={nameError || undefined}
                     />
                     <div className="flex justify-end gap-2">
-                      <Button type="button" variant="outline" onClick={() => setRenameOpen(false)}>
+                      <Button type="button" variant="outline" className="min-w-24" onClick={() => setRenameOpen(false)}>
                         {t("cancel")}
                       </Button>
-                      <Button type="submit" disabled={saving || !newName.trim()}>
+                      <Button type="submit" className="min-w-24" disabled={saving || !newName.trim()}>
                         {saving ? t("saving") : t("save")}
                       </Button>
                     </div>

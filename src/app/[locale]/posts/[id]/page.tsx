@@ -45,7 +45,7 @@ export async function generateMetadata({
       description: ogDescription,
       type: "article",
       locale: locale === "en" ? "en_US" : locale === "cs" ? "cs_CZ" : "sk_SK",
-      url: `${siteUrl}/${locale}/post/${id}`,
+      url: `${siteUrl}/${locale}/posts/${id}`,
       images: ogImages,
     },
     twitter: {

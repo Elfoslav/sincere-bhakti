@@ -47,7 +47,7 @@ export default function PostCard({
   const otherMedia = useMemo(() => post.media.filter((m) => m.type !== "image"), [post.media]);
 
   const handleCopyLink = useCallback(() => {
-    const url = `${window.location.origin}/${locale}/post/${post.id}`;
+    const url = `${window.location.origin}/${locale}/posts/${post.id}`;
     navigator.clipboard.writeText(url);
     toast.success(t("linkCopied"));
   }, [locale, post.id, t]);
@@ -75,7 +75,7 @@ export default function PostCard({
   return (
     <Card>
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-gold flex items-center justify-center text-deep font-bold text-lg shrink-0">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white font-bold text-lg shrink-0">
           {post.channel.name?.[0]?.toUpperCase() || "?"}
         </div>
         <div className="flex-1 min-w-0">
@@ -86,7 +86,7 @@ export default function PostCard({
             {post.channel.name || t("anonymous")}
           </Link>
           <p className="text-xs text-deep/60">
-            <Link href={`/post/${post.id}`} className="hover:text-gold">
+            <Link href={`/posts/${post.id}`} className="hover:text-gold">
               {date}
             </Link>
           </p>
@@ -94,7 +94,7 @@ export default function PostCard({
         <div className="flex items-center gap-1 shrink-0">
           {currentUserId === post.channel.ownerId && !hideEdit && (
             <Link
-              href={`/post/${post.id}/edit`}
+              href={`/posts/${post.id}/edit`}
               className="text-deep/40 hover:text-gold transition-colors p-1"
               title={t("editPost")}
               aria-label={t("editPost")}
@@ -124,7 +124,7 @@ export default function PostCard({
             </button>
           ) : (
             <Link
-              href={`/post/${post.id}`}
+              href={`/posts/${post.id}`}
               className="text-deep/40 hover:text-gold transition-colors p-1"
               title={t("openPost")}
               aria-label={t("openPost")}

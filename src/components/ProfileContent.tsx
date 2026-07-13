@@ -167,7 +167,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 	return (
 		<div className="w-full max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
 			<Card variant="default" padding="lg" className="mb-8 text-center">
-				<div className="w-20 h-20 rounded-full bg-gold flex items-center justify-center text-deep text-3xl font-bold mx-auto mb-4">
+				<div className="w-20 h-20 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
 					{profile.name[0]?.toUpperCase() || "?"}
 				</div>
 				<div className="flex items-center justify-center gap-2">
@@ -205,10 +205,10 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 										errorMessage={nameError || undefined}
 									/>
 									<div className="flex justify-end gap-2">
-										<Button type="button" variant="outline" onClick={() => setOpen(false)}>
+										<Button type="button" variant="outline" className="min-w-24" onClick={() => setOpen(false)}>
 											{t("cancel")}
 										</Button>
-										<Button type="submit" disabled={saving || !newName.trim()}>
+										<Button type="submit" className="min-w-24" disabled={saving || !newName.trim()}>
 											{saving ? t("saving") : t("save")}
 										</Button>
 									</div>
@@ -255,6 +255,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 										<Button
 											type="button"
 											variant="outline"
+											className="min-w-24"
 											onClick={() => {
 												setChannelDialogOpen(false);
 												setChannelName("");
@@ -263,7 +264,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 										>
 											{t("cancel")}
 										</Button>
-										<Button type="submit" disabled={channelSaving || !channelName.trim()}>
+										<Button type="submit" className="min-w-24" disabled={channelSaving || !channelName.trim()}>
 											{channelSaving ? t("creating") : t("save")}
 										</Button>
 									</div>

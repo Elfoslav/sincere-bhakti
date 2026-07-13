@@ -77,8 +77,8 @@ export default function EditPostPage() {
           initialContent={post.content || ""}
           initialIsPublic={post.isPublic}
           initialMedia={post.media}
-          onSuccess={() => router.push(`/post/${id}`)}
-          onCancel={() => router.push(`/post/${id}`)}
+          onSuccess={() => router.push(`/posts/${id}`)}
+          onCancel={() => router.push(`/posts/${id}`)}
         />
       </Card>
 
