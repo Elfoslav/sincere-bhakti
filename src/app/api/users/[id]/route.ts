@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { updateNameSchema } from "@/lib/validation";
+import { updateNameSchema, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+
+class NameTakenError extends Error {
+  name = "NameTakenError" as const;
+}
 
 export async function GET(
   request: NextRequest,
@@ -22,18 +28,23 @@ export async function GET(
         name: true,
         image: true,
         createdAt: true,
+        channels: {
+          where: { ownerId: id },
+          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, isPersonal: true, _count: { select: { posts: { where: { isPublic: true } } } } },
+        },
         ...(session?.user?.id === id ? { email: true } : {}),
       },
     });
 
     if (!user) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
+      return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
-    return NextResponse.json(user);
+    const { channels, ...profile } = user;
+    return NextResponse.json({ ...profile, channels: channels.map(({ _count, ...ch }) => ({ ...ch, postCount: _count.posts })) });
   } catch (error) {
     logServerError("GET /api/users/[id] failed", error);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
   }
 }
 
@@ -43,21 +54,22 @@ export async function PATCH(
 ) {
   try {
     if (!validateOrigin(request)) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
     }
 
     const session = await auth();
     const { id } = await params;
 
     if (!session?.user?.id || session.user.id !== id) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
     }
 
     const { allowed } = await rateLimit(rateLimitKey("update-profile", id), RATE_LIMITS.updateProfile.limit, RATE_LIMITS.updateProfile.windowMs);
     if (!allowed) {
+      console.warn("rate_limited", { route: "update-profile", userId: id });
       return NextResponse.json(
-        { error: "too_many_requests" },
-        { status: 429 },
+        { error: ERROR_TOO_MANY_REQUESTS },
+        { status: HTTP_TOO_MANY_REQUESTS },
       );
     }
 
@@ -69,19 +81,86 @@ export async function PATCH(
       logValidationError("PATCH /api/users/[id]", issue, body);
       return NextResponse.json(
         { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: 400 }
+        { status: HTTP_BAD_REQUEST }
       );
     }
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: { name: parsed.data.name },
-      select: { id: true, name: true, email: true, image: true, createdAt: true },
+    // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
+    if (isBrandNameBlocked(parsed.data.name, session.user.email)) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
+
+    // All name/slug checks and writes happen inside a single transaction so a
+    // concurrent rename cannot make the personal-channel snapshot or collision
+    // checks stale.
+    const normalizedTarget = normalizeName(parsed.data.name);
+    const updated = await prisma.$transaction(async (tx) => {
+      const personalChannel = await tx.channel.findFirst({
+        where: { ownerId: id, isPersonal: true },
+        select: { id: true, name: true, slug: true },
+      });
+
+      // Check normalized-name collision inside the transaction (authoritative).
+      const nameCollision = await tx.channel.findFirst({
+        where: { normalizedName: normalizedTarget, id: personalChannel ? { not: personalChannel.id } : undefined },
+        select: { id: true },
+      });
+      if (nameCollision) throw new NameTakenError();
+      const nameHistoryCollision = await tx.channelSlugHistory.findFirst({
+        where: { oldNormalizedName: normalizedTarget, channelId: personalChannel ? { not: personalChannel.id } : undefined },
+        select: { id: true },
+      });
+      if (nameHistoryCollision) throw new NameTakenError();
+
+      const user = await tx.user.update({
+        where: { id },
+        data: { name: parsed.data.name },
+        select: { id: true, name: true, email: true, image: true, createdAt: true },
+      });
+
+      if (personalChannel) {
+        const newSlug = slugifyName(parsed.data.name);
+        const oldSlug = personalChannel.slug;
+
+        if (oldSlug !== newSlug) {
+          const slugTaken = await tx.channel.findFirst({
+            where: { slug: newSlug, id: { not: personalChannel.id } },
+            select: { id: true },
+          });
+          if (slugTaken) throw new NameTakenError();
+
+          const historySlugTaken = await tx.channelSlugHistory.findFirst({
+            where: { oldSlug: newSlug, channelId: { not: personalChannel.id } },
+            select: { id: true },
+          });
+          if (historySlugTaken) throw new NameTakenError();
+
+          const oldInHistory = await tx.channelSlugHistory.findFirst({
+            where: { oldSlug, channelId: personalChannel.id },
+            select: { id: true },
+          });
+          if (!oldInHistory) {
+            await tx.channelSlugHistory.create({
+              data: { oldSlug, oldNormalizedName: normalizeName(personalChannel.name), channelId: personalChannel.id },
+            });
+          }
+        }
+
+        await tx.channel.update({
+          where: { id: personalChannel.id },
+          data: { name: parsed.data.name, normalizedName: normalizeName(parsed.data.name), slug: newSlug },
+        });
+      }
+
+      return user;
     });
 
-    return NextResponse.json(user);
+    return NextResponse.json(updated);
   } catch (error) {
+    if (error instanceof NameTakenError) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
     logServerError("PATCH /api/users/[id] failed", error);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
   }
 }

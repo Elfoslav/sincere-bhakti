@@ -4,22 +4,26 @@ import { createUploadUrl } from "@/lib/services/upload";
 import { batchUploadUrlSchema, MAX_TOTAL_UPLOAD_SIZE_BYTES, maxUploadSizeForContentType } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
+import { prisma } from "@/lib/prisma";
 import { logServerError, logValidationError } from "@/lib/server-log";
+import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function POST(request: NextRequest) {
   if (!validateOrigin(request)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
   }
 
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
   }
 
   if (process.env.NODE_ENV === "production") {
     const { allowed } = await rateLimit(rateLimitKey("upload", session.user.id), RATE_LIMITS.upload.limit, RATE_LIMITS.upload.windowMs);
     if (!allowed) {
-      return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+      console.warn("rate_limited", { route: "upload-batch", userId: session.user.id });
+      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
   }
 
@@ -32,7 +36,7 @@ export async function POST(request: NextRequest) {
       logValidationError("POST /api/upload-url/batch", issue, body);
       return NextResponse.json(
         { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: 400 },
+        { status: HTTP_BAD_REQUEST },
       );
     }
 
@@ -42,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (totalSize > MAX_TOTAL_UPLOAD_SIZE_BYTES) {
       return NextResponse.json(
         { error: "validation_error:total_size:too_big" },
-        { status: 400 },
+        { status: HTTP_BAD_REQUEST },
       );
     }
 
@@ -50,7 +54,7 @@ export async function POST(request: NextRequest) {
       if (f.size > maxUploadSizeForContentType(f.contentType)) {
         return NextResponse.json(
           { error: `validation_error:files.size:too_big:${f.fileName}` },
-          { status: 400 },
+          { status: HTTP_BAD_REQUEST },
         );
       }
     }
@@ -59,9 +63,17 @@ export async function POST(request: NextRequest) {
       files.map((f) => createUploadUrl(f.fileName, f.contentType, postId, f.size)),
     );
 
+    const pendingData = results.map((r) => ({
+      key: r.key,
+      userId: session.user.id,
+      channelId: session.user.channelId,
+      expiresAt: new Date(Date.now() + 3600_000),
+    }));
+    await prisma.pendingUpload.createMany({ data: pendingData });
+
     return NextResponse.json({ urls: results });
   } catch (error) {
     logServerError("POST /api/upload-url/batch failed", error);
-    return NextResponse.json({ error: "failed_to_generate_upload_urls" }, { status: 500 });
+    return NextResponse.json({ error: "failed_to_generate_upload_urls" }, { status: HTTP_INTERNAL_SERVER_ERROR });
   }
 }

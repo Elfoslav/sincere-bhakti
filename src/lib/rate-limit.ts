@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 const memStore = new Map<string, { count: number; resetAt: number }>();
 
 export const RATE_LIMITS = {
-  // Registration: 5 attempts per hour per IP
-  register: { limit: 5, windowMs: 3_600_000 },
-  // Login: 10 attempts per 15 minutes per IP
-  login: { limit: 10, windowMs: 900_000 },
+  // Registration: 20 attempts per hour per IP
+  register: { limit: 20, windowMs: 3_600_000 },
+  // Login: 15 attempts per 15 minutes per IP
+  login: { limit: 15, windowMs: 900_000 },
   // Post creation: 20 per hour per user
   createPost: { limit: 20, windowMs: 3_600_000 },
   // Post update: 30 per hour per user
@@ -19,6 +19,16 @@ export const RATE_LIMITS = {
   uploadUrl: { limit: 20, windowMs: 3_600_000 },
   // Profile update: 10 per hour per user
   updateProfile: { limit: 10, windowMs: 3_600_000 },
+  // Read posts: 120 requests per 60s per IP (2 req/s average)
+  readPosts: { limit: 120, windowMs: 60_000 },
+  // Read channel by slug: 60 requests per 60s per IP
+  readChannel: { limit: 60, windowMs: 60_000 },
+  // Search channels: 30 requests per 60s per IP
+  searchChannels: { limit: 30, windowMs: 60_000 },
+  // Channel creation: 10 per hour per user
+  createChannel: { limit: 10, windowMs: 3_600_000 },
+  // Channel rename: 10 per hour per user
+  updateChannel: { limit: 10, windowMs: 3_600_000 },
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;

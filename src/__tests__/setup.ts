@@ -13,5 +13,8 @@ vi.mock("@/lib/rate-limit", () => ({
     upload: { limit: 60, windowMs: 3_600_000 },
     uploadUrl: { limit: 20, windowMs: 3_600_000 },
     updateProfile: { limit: 10, windowMs: 3_600_000 },
+    readPosts: { limit: 120, windowMs: 60_000 },
+    readChannel: { limit: 60, windowMs: 60_000 },
+    searchChannels: { limit: 30, windowMs: 60_000 },
   },
 }));

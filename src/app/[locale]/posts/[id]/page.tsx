@@ -45,7 +45,7 @@ export async function generateMetadata({
       description: ogDescription,
       type: "article",
       locale: locale === "en" ? "en_US" : locale === "cs" ? "cs_CZ" : "sk_SK",
-      url: `${siteUrl}/${locale}/post/${id}`,
+      url: `${siteUrl}/${locale}/posts/${id}`,
       images: ogImages,
     },
     twitter: {
@@ -67,7 +67,7 @@ export default async function PostPage({
   const [post, session] = await Promise.all([getPostById(id), auth()]);
 
   if (!post) notFound();
-  if (!post.isPublic && session?.user?.id !== post.author.id) notFound();
+  if (!post.isPublic && session?.user?.id !== post.channel.ownerId) notFound();
 
   const serialized: Post = {
     ...post,

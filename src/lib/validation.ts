@@ -3,6 +3,8 @@ import { locales } from "@/i18n/routing";
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const BCRYPT_SALT_ROUNDS = 12;
+export const NAME_MAX_LENGTH = 50;
+export const CHANNEL_NAME_MIN_LENGTH = 2;
 
 // Only http(s) URLs are allowed for user-supplied media. This blocks
 // dangerous schemes like `javascript:` and `data:` that would otherwise
@@ -98,7 +100,7 @@ export const registerSchema = z.object({
     .string()
     .trim()
     .min(1)
-    .max(50),
+    .max(NAME_MAX_LENGTH),
   email: z
     .string()
     .trim()
@@ -107,6 +109,7 @@ export const registerSchema = z.object({
     .max(255),
   password: z
     .string()
+    .trim()
     .min(PASSWORD_MIN_LENGTH)
     .max(128),
 });
@@ -126,9 +129,12 @@ export const mediaItemSchema = z.object({
 const contentField = z.string().trim().max(5000).optional();
 const mediaField = z.array(mediaItemSchema).max(10).optional();
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const createPostSchema = z.object({
-  id: z.string().min(1).max(36).optional(),
+  id: z.string().regex(uuidRegex).optional(),
   content: contentField,
+  channelId: z.string().optional(),
   media: mediaField.default([]),
   isPublic: z.boolean().default(true),
   language: z.enum(locales).default("en"),
@@ -154,14 +160,22 @@ export const updateNameSchema = z.object({
     .string()
     .trim()
     .min(1)
-    .max(50),
+    .max(NAME_MAX_LENGTH),
+});
+
+export const createChannelSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(CHANNEL_NAME_MIN_LENGTH)
+    .max(NAME_MAX_LENGTH),
 });
 
 export const paginationSchema = z.object({
   scope: z.enum(["public", "private"]).optional(),
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(10),
-  authorId: z.string().min(1).optional(),
+  channelId: z.string().min(1).optional(),
   language: z.enum(locales).optional(),
 });
 
@@ -173,6 +187,7 @@ export const uploadUrlSchema = z.object({
     .max(255)
     .refine(isAllowedUploadContentType),
   postId: z.string().min(1).max(36),
+  contentLength: z.number().int().positive().max(MAX_VIDEO_SIZE_BYTES).optional(),
 });
 
 export const batchUploadUrlSchema = z.object({
@@ -192,3 +207,48 @@ export const batchUploadUrlSchema = z.object({
 export const compressSchema = z.object({
   key: z.string().min(1).max(500),
 });
+
+// Strips diacritics and lowercases for fuzzy-unique name comparison.
+// "Taruṇa Govinda Dāsa" and "Taruna Govinda Dasa" both normalize to "taruna govinda dasa".
+export function normalizeName(name: string): string {
+  return name
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+// Converts a display name into a URL-safe slug by normalizing diacritics and
+// collapsing non-alphanumeric runs. Examples:
+//   "Tomáš Hromník (Taruna)" → "tomas-hromnik-taruna"
+//   "Hello World!" → "hello-world"
+export function slugifyName(name: string): string {
+  return normalizeName(name)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80) || "channel";
+}
+
+// Checks whether `name` contains all words from the brand name (case-insensitive).
+// Used to block registration/rename when someone tries to use the app's own brand.
+// The brand name is configurable via SINCERE_BHAKTI_NAME env var (default: "Sincere Bhakti").
+// Each word is matched as a substring, so "1sincere bhakti whatever" and "sincerebhakti"
+// both trigger the block.
+export function isBrandName(name: string, brandName?: string): boolean {
+  const words = (brandName ?? "Sincere Bhakti")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  if (words.length === 0) return false;
+  const lowerName = name.toLowerCase();
+  return words.every(word => lowerName.includes(word));
+}
+
+// Returns true when the name is a brand variant AND the caller is not the
+// SINCERE_BHAKTI_EMAIL owner. The owner is allowed to use the brand name.
+export function isBrandNameBlocked(name: string, callerEmail: string | null | undefined): boolean {
+  if (!process.env.SINCERE_BHAKTI_EMAIL || callerEmail !== process.env.SINCERE_BHAKTI_EMAIL) {
+    return isBrandName(name, process.env.SINCERE_BHAKTI_NAME);
+  }
+  return false;
+}

@@ -3,10 +3,12 @@
 import { useMemo, useCallback, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { Copy, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { localeFlags } from "@/i18n/routing";
+import { Link as LinkIcon, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { extractYouTubeContent } from "@/lib/video";
 import { replaceEmoticons } from "@/lib/emoticons";
+import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import ImageGallery from "@/components/ImageGallery";
 import type { Post } from "@/types/post";
@@ -17,12 +19,14 @@ export default function PostCard({
   hideEdit,
   hideExternalLink,
   onDelete,
+  onEdit,
 }: {
   post: Post;
   currentUserId?: string;
   hideEdit?: boolean;
   hideExternalLink?: boolean;
   onDelete?: (id: string) => void;
+  onEdit?: (postId: string) => void;
 }) {
   const locale = useLocale();
   const t = useTranslations("PostCard");
@@ -46,7 +50,7 @@ export default function PostCard({
   const otherMedia = useMemo(() => post.media.filter((m) => m.type !== "image"), [post.media]);
 
   const handleCopyLink = useCallback(() => {
-    const url = `${window.location.origin}/${locale}/post/${post.id}`;
+    const url = `${window.location.origin}/${locale}/posts/${post.id}`;
     navigator.clipboard.writeText(url);
     toast.success(t("linkCopied"));
   }, [locale, post.id, t]);
@@ -72,36 +76,39 @@ export default function PostCard({
   }, [post.id, t, onDelete]);
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-5 border border-sand">
+    <Card>
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-gold flex items-center justify-center text-deep font-bold text-lg shrink-0">
-          {post.author.name?.[0]?.toUpperCase() || "?"}
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white font-bold text-lg shrink-0">
+          {post.channel.name?.[0]?.toUpperCase() || "?"}
         </div>
         <div className="flex-1 min-w-0">
           <Link
-            href={`/profile/${post.author.id}`}
+            href={`/channels/${post.channel.slug}`}
             className="font-semibold text-deep hover:text-gold"
           >
-            {post.author.name || t("anonymous")}
+            {post.channel.name || t("anonymous")}
           </Link>
           <p className="text-xs text-deep/60">
-            <Link href={`/post/${post.id}`} className="hover:text-gold">
+            <span className="mr-1 text-sm text-deep" title={post.language}>
+              {localeFlags[post.language] || post.language}
+            </span>
+            <Link href={`/posts/${post.id}`} className="hover:text-gold">
               {date}
             </Link>
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {currentUserId === post.author.id && !hideEdit && (
-            <Link
-              href={`/post/${post.id}/edit`}
-              className="text-deep/40 hover:text-gold transition-colors p-1"
+          {currentUserId === post.channel.ownerId && !hideEdit && onEdit && (
+            <button
+              onClick={() => onEdit(post.id)}
+              className="text-deep/40 hover:text-gold transition-colors p-1 cursor-pointer"
               title={t("editPost")}
               aria-label={t("editPost")}
             >
               <Pencil className="w-4 h-4" />
-            </Link>
+            </button>
           )}
-          {currentUserId === post.author.id && onDelete && (
+          {currentUserId === post.channel.ownerId && onDelete && (
             <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={isDeleting}
@@ -119,11 +126,11 @@ export default function PostCard({
               title={t("copyLink")}
               aria-label={t("copyLink")}
             >
-              <Copy className="w-4 h-4" />
+              <LinkIcon className="w-4 h-4" />
             </button>
           ) : (
             <Link
-              href={`/post/${post.id}`}
+              href={`/posts/${post.id}`}
               className="text-deep/40 hover:text-gold transition-colors p-1"
               title={t("openPost")}
               aria-label={t("openPost")}
@@ -173,7 +180,7 @@ export default function PostCard({
         </div>
       ))}
 
-      {currentUserId === post.author.id && (
+      {currentUserId === post.channel.ownerId && (
         <div className="flex items-center gap-2 text-xs text-deep/50">
           {post.isPublic ? (
             <span className="bg-tulsi/20 text-tulsi px-2 py-0.5 rounded-full">
@@ -198,6 +205,6 @@ export default function PostCard({
         variant="destructive"
         loading={isDeleting}
       />
-    </div>
+    </Card>
   );
 }

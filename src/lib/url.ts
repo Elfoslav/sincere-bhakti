@@ -6,3 +6,8 @@ export function getSiteUrl(): string {
       : "http://localhost:3000")
   );
 }
+
+// Strips query/hash fragments for URL comparison
+export function canonicalizeUrl(url: string): string {
+  return url.split("?")[0].split("#")[0];
+}

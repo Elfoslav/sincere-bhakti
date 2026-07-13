@@ -1,7 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
+import { canonicalizeUrl } from "@/lib/url";
 import type { Prisma } from "@prisma/client";
-import type { PostAuthor } from "@/types/post";
+import type { PostChannel } from "@/types/post";
+
+async function deletePendingUploads(urls: string[]): Promise<void> {
+  const storageDomain = process.env.R2_PUBLIC_URL;
+  if (!storageDomain) return;
+  const keys = urls
+    .map((u) => extractKey(u, storageDomain))
+    .filter((k): k is string => k !== null);
+  if (keys.length > 0) {
+    await prisma.pendingUpload.deleteMany({ where: { key: { in: keys } } });
+  }
+}
 
 export class UnauthorizedError extends Error {
   name = "UnauthorizedError" as const;
@@ -14,6 +26,9 @@ export class ForbiddenError extends Error {
 }
 export class ValidationError extends Error {
   name = "ValidationError" as const;
+}
+export class ConflictError extends Error {
+  name = "ConflictError" as const;
 }
 
 export interface PostMedia {
@@ -28,8 +43,9 @@ export interface PostResponse {
   id: string;
   content: string | null;
   isPublic: boolean;
+  language: string;
   createdAt: Date;
-  author: PostAuthor;
+  channel: PostChannel;
   media: PostMedia[];
 }
 
@@ -37,7 +53,7 @@ export interface GetPostsParams {
   scope?: "public" | "private";
   cursor?: string;
   limit?: number;
-  authorId?: string;
+  channelId?: string;
   language?: string;
 }
 
@@ -59,16 +75,18 @@ export interface CreatePostData {
   media?: MediaInput[];
   isPublic?: boolean;
   language?: string;
+  channelId?: string;
 }
 
 export interface UpdatePostData {
   content?: string | null;
   isPublic?: boolean;
   media?: MediaInput[];
+  language?: string;
 }
 
 const postInclude = {
-  author: { select: { id: true, name: true, image: true } },
+  channel: { select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true } },
   media: { orderBy: { position: "asc" as const } },
 };
 
@@ -76,24 +94,63 @@ export async function getPosts(
   params: GetPostsParams,
   currentUserId?: string,
 ): Promise<GetPostsResult> {
-  const { scope, cursor, limit = 10, authorId, language } = params;
+  const { scope, cursor, limit = 10, channelId, language } = params;
 
   const where: Prisma.PostWhereInput = {};
   if (language) where.language = language;
 
   if (scope === "public") {
     where.isPublic = true;
-    if (authorId) where.authorId = authorId;
+    if (channelId) where.channelId = channelId;
+  } else if (scope === "private") {
+    if (!currentUserId) throw new UnauthorizedError();
+    if (channelId) {
+      // Only channel owner may view private posts
+      const channel = await prisma.channel.findUnique({
+        where: { id: channelId },
+        select: { ownerId: true },
+      });
+      if (!channel || channel.ownerId !== currentUserId) {
+        throw new UnauthorizedError();
+      }
+      where.channelId = channelId;
+    } else {
+      // No channelId: scope to user's own channels
+      const userChannels = await prisma.channel.findMany({
+        where: { ownerId: currentUserId },
+        select: { id: true },
+      });
+      if (userChannels.length > 0) {
+        where.channelId = { in: userChannels.map((c) => c.id) };
+      } else {
+        where.id = "none";
+      }
+    }
+    where.isPublic = false;
   } else {
     if (!currentUserId) throw new UnauthorizedError();
-    // Private scope: a user may only see their own posts (public + private).
-    // When requesting another user's posts, restrict to public ones so
-    // private posts never leak via an `authorId` query param.
-    if (authorId && authorId !== currentUserId) {
-      where.authorId = authorId;
-      where.isPublic = true;
+    if (channelId) {
+      // Non-owners may only see public posts of the channel
+      const channel = await prisma.channel.findUnique({
+        where: { id: channelId },
+        select: { ownerId: true },
+      });
+      if (!channel) throw new NotFoundError();
+      where.channelId = channelId;
+      if (channel.ownerId !== currentUserId) {
+        where.isPublic = true;
+      }
     } else {
-      where.authorId = currentUserId;
+      // No channelId: scope to user's own channels
+      const userChannels = await prisma.channel.findMany({
+        where: { ownerId: currentUserId },
+        select: { id: true },
+      });
+      if (userChannels.length > 0) {
+        where.channelId = { in: userChannels.map((c) => c.id) };
+      } else {
+        where.id = "none";
+      }
     }
   }
 
@@ -101,7 +158,7 @@ export async function getPosts(
     take: limit + 1,
     ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     where,
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     include: postInclude,
   });
 
@@ -118,10 +175,6 @@ export async function getPostById(id: string): Promise<PostResponse | null> {
   });
 
   return post;
-}
-
-function canonicalizeUrl(url: string): string {
-  return url.split("?")[0].split("#")[0];
 }
 
 async function validateMediaOwnership(
@@ -152,35 +205,76 @@ async function validateMediaOwnership(
       throw new ForbiddenError("media_not_owned");
     }
   }
+
+  // Check PendingUpload records for URLs not yet linked to a post
+  const keys = storageUrls.map((s) => s.key);
+  const pending = await prisma.pendingUpload.findMany({
+    where: { key: { in: keys } },
+    select: { key: true, userId: true },
+  });
+  const pendingMap = new Map(pending.map((p) => [p.key, p.userId]));
+  for (const { key } of storageUrls) {
+    const ownerId = pendingMap.get(key);
+    if (ownerId && ownerId !== userId) {
+      throw new ForbiddenError("media_not_owned");
+    }
+  }
 }
 
 export async function createPost(
   data: CreatePostData,
   userId: string,
 ): Promise<PostResponse> {
-  const { id, content, media = [], isPublic = true, language = "en" } = data;
+  const { id, content, media = [], isPublic = true, language = "en", channelId } = data;
   await validateMediaOwnership(media, userId);
 
-  const post = await prisma.post.create({
-    data: {
-      ...(id ? { id } : {}),
-      content: content || null,
-      isPublic,
-      language,
-      authorId: userId,
-      media: {
-        create: media.map((m, i) => ({
-          url: m.url,
-          type: m.type,
-          position: i,
-          width: m.width ?? null,
-          height: m.height ?? null,
-          userId,
-        })),
-      },
-    },
-    include: postInclude,
+  if (!channelId) throw new ValidationError("channel_required");
+
+  // Verify the caller owns or edits this channel.
+  const channel = await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { ownerId: true },
   });
+  if (!channel) throw new NotFoundError("channel_not_found");
+  if (channel.ownerId !== userId) {
+    const editor = await prisma.channelEditor.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+      select: { userId: true },
+    });
+    if (!editor) throw new ForbiddenError("not_channel_author");
+  }
+
+  let post: PostResponse;
+  try {
+    post = await prisma.post.create({
+      data: {
+        ...(id ? { id } : {}),
+        content: content || null,
+        isPublic,
+        language,
+        channelId,
+        media: {
+          create: media.map((m, i) => ({
+            url: m.url,
+            type: m.type,
+            position: i,
+            width: m.width ?? null,
+            height: m.height ?? null,
+            userId,
+          })),
+        },
+      },
+      include: postInclude,
+    });
+  } catch (error) {
+    if ((error as { code?: string })?.code === "P2002") {
+      throw new ConflictError("post_id_collision");
+    }
+    throw error;
+  }
+
+  // Remove PendingUpload records for the newly created media
+  await deletePendingUploads(media.map((m) => m.url));
 
   return post;
 }
@@ -191,20 +285,24 @@ export async function deletePost(
 ): Promise<void> {
   const post = await prisma.post.findUnique({
     where: { id },
-    include: { media: { select: { url: true } } },
+    include: { media: { select: { url: true } }, channel: { select: { ownerId: true } } },
   });
   if (!post) throw new NotFoundError();
-  if (post.authorId !== userId) throw new ForbiddenError();
+  if (post.channel.ownerId !== userId) throw new ForbiddenError();
 
   const urls = post.media.map((m) => canonicalizeUrl(m.url));
 
-  await prisma.post.deleteMany({ where: { id, authorId: userId } });
+  const orphaned = await prisma.$transaction(async (tx) => {
+    await tx.post.deleteMany({ where: { id, channel: { ownerId: userId } } });
+    const counts = await Promise.all(
+      urls.map((url) => tx.media.count({ where: { url } })),
+    );
+    return urls.filter((_, i) => counts[i] === 0);
+  });
 
-  const counts = await Promise.all(
-    urls.map((url) => prisma.media.count({ where: { url } })),
-  );
-  const orphaned = urls.filter((_, i) => counts[i] === 0);
-  await deleteMediaFiles(orphaned);
+  if (orphaned.length > 0) {
+    await deleteMediaFiles(orphaned);
+  }
 }
 
 export async function updatePost(
@@ -214,9 +312,10 @@ export async function updatePost(
 ): Promise<PostResponse> {
   const existing = await prisma.post.findUnique({
     where: { id },
-    include: { media: { select: { url: true } } },
+    include: { media: { select: { url: true } }, channel: { select: { ownerId: true } } },
   });
   if (!existing) throw new NotFoundError();
+  if (existing.channel.ownerId !== userId) throw new NotFoundError();
 
   const { media, ...postData } = data;
   if (media !== undefined) await validateMediaOwnership(media, userId);
@@ -240,7 +339,7 @@ export async function updatePost(
     }
 
     const { count } = await tx.post.updateMany({
-      where: { id, authorId: userId },
+      where: { id },
       data: postData,
     });
 
@@ -261,6 +360,9 @@ export async function updatePost(
   });
 
   if (media !== undefined) {
+    // Remove PendingUpload records for newly linked media URLs
+    await deletePendingUploads(media.map((m) => m.url));
+
     const removed = existing.media
       .filter(
         (old) => !media.some((m) => canonicalizeUrl(m.url) === canonicalizeUrl(old.url)),

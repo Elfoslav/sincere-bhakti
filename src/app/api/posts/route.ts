@@ -1,19 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPosts, createPost, UnauthorizedError } from "@/lib/services/post";
+import { getPosts, createPost, UnauthorizedError, ConflictError } from "@/lib/services/post";
 import { createPostSchema, paginationSchema, isTrustedMediaUrl } from "@/lib/validation";
 import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
+import { getPersonalChannel, createPersonalChannel } from "@/lib/services/channel";
+import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_CREATED, HTTP_CONFLICT, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 import { logServerError, logValidationError } from "@/lib/server-log";
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = request.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const { allowed } = await rateLimit(rateLimitKey("read-posts", ip), RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs);
+    if (!allowed) {
+      console.warn("rate_limited", { route: "read-posts", ip });
+      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
+    }
+
     const { searchParams } = new URL(request.url);
     const parsed = paginationSchema.safeParse({
       scope: searchParams.get("scope") ?? undefined,
       cursor: searchParams.get("cursor") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
-      authorId: searchParams.get("authorId") ?? undefined,
+      channelId: searchParams.get("channelId") ?? undefined,
       language: searchParams.get("language") ?? undefined,
     });
 
@@ -22,14 +32,14 @@ export async function GET(request: NextRequest) {
       logValidationError("GET /api/posts", issue, null);
       return NextResponse.json(
         { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: 400 }
+        { status: HTTP_BAD_REQUEST }
       );
     }
 
     if (parsed.data.scope !== "public") {
       const session = await auth();
       if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
       }
 
       const result = await getPosts(parsed.data, session.user.id);
@@ -40,28 +50,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof UnauthorizedError) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
     }
     logServerError("GET /api/posts failed", error);
-    return NextResponse.json({ error: "failed_to_fetch_posts" }, { status: 500 });
+    return NextResponse.json({ error: "failed_to_fetch_posts" }, { status: HTTP_INTERNAL_SERVER_ERROR });
   }
 }
 
 export async function POST(request: NextRequest) {
   if (!validateOrigin(request)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
   }
 
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
   }
 
   const { allowed } = await rateLimit(rateLimitKey("create-post", session.user.id), RATE_LIMITS.createPost.limit, RATE_LIMITS.createPost.windowMs);
   if (!allowed) {
+    console.warn("rate_limited", { route: "create-post", userId: session.user.id });
     return NextResponse.json(
-      { error: "too_many_requests" },
-      { status: 429 },
+      { error: ERROR_TOO_MANY_REQUESTS },
+      { status: HTTP_TOO_MANY_REQUESTS },
     );
   }
 
@@ -74,7 +85,7 @@ export async function POST(request: NextRequest) {
       logValidationError("POST /api/posts", issue, body);
       return NextResponse.json(
         { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: 400 }
+        { status: HTTP_BAD_REQUEST }
       );
     }
 
@@ -84,19 +95,33 @@ export async function POST(request: NextRequest) {
         if (!isTrustedMediaUrl(m.url, m.type, storageDomain)) {
           return NextResponse.json(
             { error: `validation_error:media:untrusted_url` },
-            { status: 400 },
+            { status: HTTP_BAD_REQUEST },
           );
         }
       }
     }
 
-    const post = await createPost(parsed.data, session.user.id);
-    return NextResponse.json(post, { status: 201 });
+    // Resolve channelId — prefer the one from the request if provided
+    const channelId = parsed.data.channelId
+      ?? session.user.channelId
+      ?? (await getPersonalChannel(session.user.id))?.id
+      ?? (await createPersonalChannel(session.user.id, session.user.name || "User")).id;
+
+    const post = await createPost({
+      ...parsed.data,
+      channelId,
+    }, session.user.id);
+    return NextResponse.json(post, { status: HTTP_CREATED });
   } catch (error) {
+    if (error instanceof ConflictError) {
+      return NextResponse.json({ error: "post_id_collision" }, { status: HTTP_CONFLICT });
+    }
     logServerError("POST /api/posts failed", error);
     return NextResponse.json(
       { error: "failed_to_create_post" },
-      { status: 500 }
+      { status: HTTP_INTERNAL_SERVER_ERROR }
     );
   }
 }
+
+

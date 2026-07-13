@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -35,25 +35,37 @@ interface MediaItem {
   height?: number;
 }
 
+export interface PostFormHandle {
+  getValues: () => {
+    content: string;
+    isPublic: boolean;
+    mediaPreviews: { url: string; type: string; width: number | null; height: number | null }[];
+  };
+}
+
 export interface PostFormProps {
   mode: "create" | "edit";
+  formId?: string;
   initialContent?: string;
   initialIsPublic?: boolean;
   initialMedia?: { url: string; type: string; width?: number | null; height?: number | null }[];
   postId?: string;
   onSuccess: (post: Post) => void;
   onCancel?: () => void;
+  onSubmittingChange?: (submitting: boolean) => void;
 }
 
-export default function PostForm({
+const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   mode,
+  formId,
   initialContent = "",
   initialIsPublic = true,
   initialMedia,
   postId,
   onSuccess,
   onCancel,
-}: PostFormProps) {
+  onSubmittingChange,
+}, ref) {
   const { data: session } = useSession();
   const locale = useLocale();
   const t = useTranslations("PostsPage");
@@ -77,6 +89,19 @@ export default function PostForm({
     () => mediaItems.reduce((sum, item) => sum + (item.file?.size ?? 0), 0),
     [mediaItems],
   );
+
+  useImperativeHandle(ref, () => ({
+    getValues: () => ({
+      content,
+      isPublic,
+      mediaPreviews: mediaItems.map((m) => ({
+        url: m.file ? m.previewUrl! : m.url!,
+        type: m.type,
+        width: m.width ?? null,
+        height: m.height ?? null,
+      })),
+    }),
+  }), [content, isPublic, mediaItems]);
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
@@ -126,7 +151,7 @@ export default function PostForm({
           id: genId(),
           file: f,
           previewUrl: URL.createObjectURL(f),
-          type: f.type,
+          type: f.type.startsWith("image/") ? "image" : f.type.startsWith("video/") ? "video" : "file",
           width: dims?.width,
           height: dims?.height,
         };
@@ -176,6 +201,7 @@ export default function PostForm({
     }
 
     setSubmitting(true);
+    onSubmittingChange?.(true);
 
     const youtubeUrl = getYouTubeEmbedUrl(trimmed);
     const postContent = youtubeUrl
@@ -266,6 +292,7 @@ export default function PostForm({
     }
 
     setSubmitting(false);
+    onSubmittingChange?.(false);
   }
 
   const detectedVideo = mediaItems.length === 0
@@ -273,7 +300,7 @@ export default function PostForm({
     : null;
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} id={formId}>
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -406,4 +433,6 @@ export default function PostForm({
       </div>
     </form>
   );
-}
+});
+
+export default PostForm;

@@ -4,6 +4,7 @@ import {
   createPostSchema,
   updatePostSchema,
   updateNameSchema,
+  createChannelSchema,
   paginationSchema,
   uploadUrlSchema,
   maxUploadSizeForContentType,
@@ -12,6 +13,9 @@ import {
   getAcceptString,
   ALLOWED_UPLOAD_CONTENT_TYPES,
   isTrustedMediaUrl,
+  normalizeName,
+  slugifyName,
+  isBrandName,
 } from "@/lib/validation";
 
 describe("registerSchema", () => {
@@ -257,6 +261,37 @@ describe("updateNameSchema", () => {
   });
 });
 
+describe("createChannelSchema", () => {
+  it("accepts valid channel name", () => {
+    const result = createChannelSchema.safeParse({ name: "My Devotees" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects name shorter than 2 chars", () => {
+    expect(createChannelSchema.safeParse({ name: "a" }).success).toBe(false);
+  });
+
+  it("accepts name with exactly 2 chars", () => {
+    expect(createChannelSchema.safeParse({ name: "ab" }).success).toBe(true);
+  });
+
+  it("rejects empty name", () => {
+    expect(createChannelSchema.safeParse({ name: "" }).success).toBe(false);
+  });
+
+  it("rejects whitespace-only name", () => {
+    expect(createChannelSchema.safeParse({ name: "   " }).success).toBe(false);
+  });
+
+  it("accepts name at max length", () => {
+    expect(createChannelSchema.safeParse({ name: "a".repeat(50) }).success).toBe(true);
+  });
+
+  it("rejects name exceeding max length", () => {
+    expect(createChannelSchema.safeParse({ name: "a".repeat(51) }).success).toBe(false);
+  });
+});
+
 describe("paginationSchema", () => {
   it("applies defaults", () => {
     const result = paginationSchema.safeParse({});
@@ -454,5 +489,158 @@ describe("isTrustedMediaUrl", () => {
 
   it("rejects javascript: URLs", () => {
     expect(isTrustedMediaUrl("javascript:alert(1)", "image", storageDomain)).toBe(false);
+  });
+});
+
+describe("normalizeName", () => {
+  it("strips diacritics from common Indic transliteration letters", () => {
+    expect(normalizeName("Taruṇa Govinda Dāsa")).toBe("taruna govinda dasa");
+  });
+
+  it("handles Czech diacritics", () => {
+    expect(normalizeName("Příliš žluťoučký kůň")).toBe("prilis zlutoucky kun");
+  });
+
+  it("handles French accents", () => {
+    expect(normalizeName("Café à la crème naïve")).toBe("cafe a la creme naive");
+  });
+
+  it("handles German umlauts (ä/ö/ü decompose, ß is not a combining mark)", () => {
+    expect(normalizeName("Müllerstraße")).toBe("mullerstraße");
+  });
+
+  it("handles Spanish accents and ñ", () => {
+    expect(normalizeName("José María González")).toBe("jose maria gonzalez");
+  });
+
+  it("lowercases ASCII input", () => {
+    expect(normalizeName("Hello World")).toBe("hello world");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(normalizeName("")).toBe("");
+  });
+
+  it("preserves ASCII characters unchanged (apart from casing)", () => {
+    expect(normalizeName("abc123")).toBe("abc123");
+  });
+
+  it("handles Devanagari characters (no change — no combining marks)", () => {
+    expect(normalizeName("कृष्ण")).toBe("कृष्ण");
+  });
+
+  it("handles Tibetan characters (no change)", () => {
+    expect(normalizeName("བོད་སྐད")).toBe("བོད་སྐད");
+  });
+
+  it("handles Czech name with parentheses for slug test", () => {
+    expect(normalizeName("Tomáš Hromník (Taruna)")).toBe("tomas hromnik (taruna)");
+  });
+
+  it("strips polish L-stroke if it decomposes (single char, no combining)", () => {
+    // ł in NFD stays as ł (single codepoint, not base+combining)
+    expect(normalizeName("ł")).toBe("ł");
+  });
+
+  it("handles Danish ø (single char, no decomposition)", () => {
+    expect(normalizeName("Rød")).toBe("rød");
+  });
+
+  it("does not crash on leading combining marks", () => {
+    expect(normalizeName("\u0300abc")).toBe("abc");
+  });
+
+  it("handles purely non-diacritic Unicode (Cyrillic)", () => {
+    expect(normalizeName("Привет")).toBe("привет");
+  });
+
+  it("preserves digits mixed with diacritics", () => {
+    expect(normalizeName("Frédéric 2ème")).toBe("frederic 2eme");
+  });
+
+  it("handles underscores in name", () => {
+    expect(normalizeName("Super_Devotee_123")).toBe("super_devotee_123");
+  });
+});
+
+describe("slugifyName", () => {
+  it("converts Czech name with diacritics and parentheses", () => {
+    expect(slugifyName("Tomáš Hromník (Taruna)")).toBe("tomas-hromnik-taruna");
+  });
+
+  it("handles Indic transliteration", () => {
+    expect(slugifyName("Taruṇa Govinda Dāsa")).toBe("taruna-govinda-dasa");
+  });
+
+  it("converts simple ASCII name", () => {
+    expect(slugifyName("Krishna Das")).toBe("krishna-das");
+  });
+
+  it("collapses multiple special chars into single dash", () => {
+    expect(slugifyName("Hello...World!!")).toBe("hello-world");
+  });
+
+  it("trims leading and trailing non-alphanumeric chars", () => {
+    expect(slugifyName("  --hello!!  ")).toBe("hello");
+  });
+
+  it("handles French accents", () => {
+    expect(slugifyName("Café à la crème")).toBe("cafe-a-la-creme");
+  });
+
+  it("returns 'channel' for string with no valid slug chars", () => {
+    expect(slugifyName("!!! +++")).toBe("channel");
+  });
+
+  it("truncates to 80 characters", () => {
+    const long = "a".repeat(100);
+    expect(slugifyName(long).length).toBeLessThanOrEqual(80);
+  });
+
+  it("treats dots and parentheses as separators", () => {
+    expect(slugifyName("Dr. Livingstone (I presume)")).toBe("dr-livingstone-i-presume");
+  });
+
+  it("handles empty string", () => {
+    expect(slugifyName("")).toBe("channel");
+  });
+});
+
+describe("isBrandName", () => {
+  it("detects brand name with default brand", () => {
+    expect(isBrandName("Sincere Bhakti")).toBe(true);
+  });
+
+  it("detects lowercase brand name", () => {
+    expect(isBrandName("sincere bhakti")).toBe(true);
+  });
+
+  it("detects concatenated words", () => {
+    expect(isBrandName("sincerebhakti")).toBe(true);
+  });
+
+  it("detects hyphenated words", () => {
+    expect(isBrandName("sincere-bhakti")).toBe(true);
+  });
+
+  it("detects brand with prefix and suffix", () => {
+    expect(isBrandName("1sincere bhakti whatever")).toBe(true);
+  });
+
+  it("detects brand with custom brand name", () => {
+    expect(isBrandName("My Radha Name", "Radha")).toBe(true);
+  });
+
+  it("allows names containing only one word of the brand", () => {
+    expect(isBrandName("sincere devotee")).toBe(false);
+    expect(isBrandName("pure bhakti")).toBe(false);
+  });
+
+  it("allows unrelated names", () => {
+    expect(isBrandName("Krishna Das")).toBe(false);
+  });
+
+  it("handles empty brand name gracefully", () => {
+    expect(isBrandName("anything", "")).toBe(false);
   });
 });

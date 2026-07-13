@@ -7,11 +7,19 @@ vi.mock("@/lib/csrf", () => ({
 vi.mock("@/lib/services/upload", () => ({
   createUploadUrl: vi.fn(),
 }));
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    pendingUpload: {
+      createMany: vi.fn(),
+    },
+  },
+}));
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
 import { createUploadUrl } from "@/lib/services/upload";
+import { prisma } from "@/lib/prisma";
 import { POST } from "@/app/api/upload-url/batch/route";
 
 function mockRequest(body: unknown) {
@@ -27,7 +35,7 @@ describe("POST /api/upload-url/batch", () => {
   });
 
   it("returns 401 when not authenticated", async () => {
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
 
     const res = await POST(
       mockRequest({ postId: "post-1", files: [{ fileName: "test.jpg", contentType: "image/jpeg", size: 1024 }] }),

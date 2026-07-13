@@ -17,9 +17,9 @@ export default function PostLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    <div className="w-full max-w-3xl mx-auto px-4 py-8 space-y-6">
       <Link
-        href={backHref ?? `/post/${postId}`}
+        href={backHref ?? `/posts/${postId}`}
         className="text-sm text-deep/50 hover:text-gold inline-block"
       >
         {backLabel}

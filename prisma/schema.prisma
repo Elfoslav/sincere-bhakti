@@ -6,6 +6,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ChannelRole {
+  owner
+  editor
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -13,8 +18,50 @@ model User {
   password  String
   image     String?
   createdAt DateTime @default(now())
+  channels       Channel[]       @relation("ChannelOwner")
+  editors        ChannelEditor[]
+  media          Media[]
+  pendingUploads PendingUpload[]
+}
+
+model Channel {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  normalizedName String   @default("")
+  slug           String   @unique
+  avatarUrl      String?
+  isPersonal     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  ownerId        String
+  owner     User          @relation("ChannelOwner", fields: [ownerId], references: [id])
   posts     Post[]
-  media     Media[]
+  editors   ChannelEditor[]
+  slugHistory ChannelSlugHistory[]
+
+  @@index([ownerId, isPersonal])
+  @@index([createdAt, id])
+}
+
+model ChannelSlugHistory {
+  id                String   @id @default(cuid())
+  oldSlug           String   @unique
+  oldNormalizedName String
+  channelId         String
+  channel           Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+
+  @@index([channelId])
+  @@index([oldNormalizedName])
+}
+
+model ChannelEditor {
+  channelId String
+  channel   Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      ChannelRole  @default(editor)
+
+  @@id([channelId, userId])
 }
 
 model Post {
@@ -23,13 +70,14 @@ model Post {
   isPublic  Boolean  @default(true)
   language  String   @default("en")
   createdAt DateTime @default(now())
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   media     Media[]
 
-  @@index([authorId])
+  @@index([channelId])
   @@index([isPublic, createdAt])
   @@index([language, isPublic, createdAt])
+  @@index([createdAt, id])
 }
 
 model RateLimit {
@@ -54,5 +102,19 @@ model Media {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([postId])
+  @@index([userId])
+}
+
+model PendingUpload {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  userId    String
+  channelId String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([key])
   @@index([userId])
 }

@@ -18,6 +18,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **No ambient types.** Do not rely on `.d.ts` files for types that are used as values or exported. Use explicit imports.
 <!-- END:code-organization -->
 
+<!-- BEGIN:env-secrets -->
+# Secrets & Environment Variables
+
+- **Never hardcode secrets, connection strings, API keys, or any sensitive value.** Every secret MUST be defined in `.env` (or `.env.local`) and accessed via `process.env.VARIABLE_NAME`. This includes database URLs, auth secrets, API tokens, and any per-environment configuration.
+- **Exception**: default/fallback values for non-secret configuration (e.g. `PORT` defaulting to `3000`) are acceptable as inline constants.
+- **Test files** must read env vars from `process.env`, not hardcode them. Use `dotenv/config` or a similar loader in config files that need env vars before the app boots.
+- **When you see a hardcoded secret, treat it as a bug.** Refactor it to `.env` immediately. Do not defer.
+<!-- END:env-secrets -->
+
 <!-- BEGIN:agent-checklist -->
 # Agent Checklist — Always Verify Before Writing Code
 
@@ -44,6 +53,8 @@ if (!allowed) return null;
 ```
 
 Always use `RATE_LIMITS.xxx.limit` / `RATE_LIMITS.xxx.windowMs` from `src/lib/rate-limit.ts` — never inline magic numbers. Add a new entry to the `RATE_LIMITS` object when adding a new rate-limited endpoint.
+
+Every `RATE_LIMITS` entry must have a human-readable comment describing the limit and window (e.g. `// Read posts: 120 requests per 60s per IP`). This keeps durations self-documenting and prevents confusion when revisiting later.
 
 Existing prefixes: `register` (by IP, 5/hour), `create-post` (by userId, 20/hour), `upload-url` (by userId, 20/hour), `delete-post` (by userId, 30/hour), `update-profile` (by userId, 10/hour), `login` (by IP, 10/15min), `upload` (by userId, 60/hour, production only — shared by upload and cleanup). For new endpoints, pick a reasonable limit that regular users won't hit but blocks abuse.
 
@@ -87,6 +98,8 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 - `console.error` is acceptable for caught errors in API routes. Replace with `Sentry.captureException(error)` if you want the error tracked in Sentry.
 - **CSRF protection**: Every mutation endpoint (POST/PATCH/DELETE) MUST call `validateOrigin(request)` from `@/lib/csrf` at the top of the handler. Return 403 if invalid. `validateOrigin` **fails closed** — a request with neither `Origin` nor `Referer` is rejected. Do not "relax" it to return `true` on missing headers.
 - **Error codes, not English strings**: API routes return error codes like `"validation_error:name:too_small"`, `"email_in_use"`, `"server_error"`, `"too_many_requests"`, `"not_found"`. Never return English sentences from API routes — clients map codes to translated messages.
+- **Use shared error message constants**: Always import error message strings from `@/lib/error-messages` (`ERROR_UNAUTHORIZED`, `ERROR_FORBIDDEN`, `ERROR_NOT_FOUND`, `ERROR_TOO_MANY_REQUESTS`, `ERROR_SERVER_ERROR`, `ERROR_EMAIL_IN_USE`) — never inline them. Add new constants to that file when adding a new error message. This keeps casing consistent (`"unauthorized"` not `"Unauthorized"`).
+- **Use shared HTTP status code constants**: Always import status codes from `@/lib/error-codes` (`HTTP_BAD_REQUEST`, `HTTP_UNAUTHORIZED`, `HTTP_FORBIDDEN`, `HTTP_NOT_FOUND`, `HTTP_CONFLICT`, `HTTP_TOO_MANY_REQUESTS`, `HTTP_INTERNAL_SERVER_ERROR`, `HTTP_CREATED`) — never inline raw numbers.
 - **Zod schemas**: Do NOT use custom error messages in Zod `.min()`, `.max()`, `.email()` calls. The API route converts validation errors to structured codes: `validation_error:{field}:{issue.code}`.
 - **Never leak server errors**: `catch` blocks must always return generic error codes, never the original error message.
 
@@ -160,4 +173,17 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 
 ## Auth / Session
 - Use `status === "authenticated"` (from `useSession()`) for conditional rendering of auth-gated UI (profile link, logout button). The `status` string is stable during client-side navigation and doesn't flash. Do NOT use `session &&` — the `session` object can briefly become `null` during re-renders triggered by locale navigation, causing visible flicker.
+## Trimming User Input
+- Every string field from user input (name, email, password, content, etc.) must be `.trim()`ed before being stored or used in comparisons.
+- In Zod schemas, always use `.trim()` on string fields — never rely on the caller to trim. The parsed output is already trimmed, so downstream code receives clean values.
+- The only place raw user input enters without Zod is the JWT callback in `auth.ts` — but there `user.name` comes from the database (already trimmed by the Zod schema on registration). Still, be defensive: if a future flow passes untrimmed data to `createPersonalChannel` or any DB write, trim it there.
+- Current coverage:
+  - `registerSchema.name` — `.trim()` ✅
+  - `registerSchema.email` — `.trim().toLowerCase()` ✅
+  - `updateNameSchema.name` — `.trim()` ✅
+  - `createPostSchema.content` (via `contentField`) — `.trim()` ✅
+  - `updatePostSchema.content` — `.trim()` ✅
+  - `paginationSchema.cursor` — `.trim()` ✅
+  - `normalizeName()` — calls `.trim()` internally ✅
+  - `registerSchema.password` — `.trim()` ✅ (client warns first if whitespace is detected, then server trims)
 <!-- END:agent-checklist -->

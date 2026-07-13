@@ -8,11 +8,12 @@
   --color-deep: #1a1a2e;
   --color-gold: #d4a843;
   --color-gold-light: #e8c36a;
-  --color-saffron: #c87c35;
-  --color-saffron-dark: #b06a2a;
+  --color-saffron: #e08a2e;
+  --color-saffron-dark: #c87427;
+  --color-brass: #b8862b;
   --color-warm: #f5f7fa;
   --color-sand: #e8dcc8;
-  --color-tulsi: #2e8b57;
+  --color-tulsi: #2e6b4f;
 }
 
 @layer base {
@@ -26,10 +27,20 @@
   html {
     @apply font-sans;
   }
+
+  /* Dawn Sādhana: headings speak in the display serif (Marcellus).
+     Marcellus is single-weight; disable weight synthesis so `font-bold` /
+     `font-semibold` utilities render at its true weight instead of a crude
+     faux-bold. */
+  h1, h2, h3 {
+    font-family: var(--font-heading);
+    letter-spacing: 0.01em;
+    font-synthesis-weight: none;
+  }
 }
 
 @theme inline {
-  --font-heading: var(--font-geist-sans);
+  --font-heading: var(--font-marcellus), "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --font-sans: var(--font-geist-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -78,11 +89,11 @@
   --card-foreground: #1a1a2e;
   --popover: #ffffff;
   --popover-foreground: #1a1a2e;
-  --primary: #c87c35;
+  --primary: #e08a2e;
   --primary-foreground: #ffffff;
   --secondary: #e8dcc8;
   --secondary-foreground: #1a1a2e;
-  --muted: #f5f7fa;
+  --muted: #eaeef4;
   --muted-foreground: #666;
   --accent: #d4a843;
   --accent-foreground: #1a1a2e;
