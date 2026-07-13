@@ -32,11 +32,30 @@ export async function createPersonalChannel(userId: string, userName: string): P
           return toPostChannel({ ...existing, slug: finalSlug, name: userName });
         } catch (err) {
           if ((err as { code?: string })?.code !== "P2002") throw err;
+          console.warn(
+            `[createPersonalChannel] fixup P2002: userId=${userId} userName="${userName}" ` +
+            `properSlug="${properSlug}" attempt=${i} finalSlug="${finalSlug}" ` +
+            `oldSlug="${existing.slug}"`
+          );
         }
       }
+      console.warn(
+        `[createPersonalChannel] fixup exhausted 10 attempts for userId=${userId} ` +
+        `userName="${userName}" properSlug="${properSlug}" oldSlug="${existing.slug}" — using UUID fallback`
+      );
+      // Last resort: random suffix guarantees the slug is never left as "user-".
+      const uuid = crypto.randomUUID().slice(0, 8);
+      await prisma.channel.update({
+        where: { id: existing.id },
+        data: { slug: `${properSlug}-${uuid}`, name: userName, normalizedName: normalizeName(userName) },
+      });
+      return toPostChannel({ ...existing, slug: `${properSlug}-${uuid}`, name: userName });
     }
     return toPostChannel(existing);
   }
+  console.warn(
+    `[createPersonalChannel] no existing personal channel for userId=${userId} userName="${userName}" — creating new`
+  );
 
   const slug = slugifyName(userName);
 
@@ -193,4 +212,62 @@ export async function createChannel(userId: string, channelName: string): Promis
     data: { name: `${channelName} (${uuid})`, normalizedName: normalizeName(`${channelName} (${uuid})`), slug: `${slug}-${uuid}`, ownerId: userId, isPersonal: false },
   });
   return { ...toPostChannel(channel), postCount: 0 };
+}
+
+const globalForBackfill = globalThis as unknown as { legacySlugsFixed?: boolean };
+
+// Backfill legacy "user-<cuid>" personal-channel slugs on deploy so every
+// existing user gets a proper name-based slug immediately, not just on
+// next login. Idempotent — safe to run on every server start.
+export async function fixLegacyPersonalChannelSlugs(): Promise<void> {
+  if (globalForBackfill.legacySlugsFixed) return;
+  globalForBackfill.legacySlugsFixed = true;
+
+  const legacy = await prisma.channel.findMany({
+    where: { isPersonal: true, slug: { startsWith: "user-" } },
+    include: { owner: { select: { name: true } } },
+  });
+
+  if (legacy.length === 0) return;
+  console.log(`[fixLegacySlugs] found ${legacy.length} channels with legacy slugs`);
+
+  for (const channel of legacy) {
+    const userName = channel.owner.name || channel.name;
+    const properSlug = slugifyName(userName);
+    let fixed = false;
+
+    for (let i = 1; i <= 10; i++) {
+      const finalSlug = i === 1 ? properSlug : `${properSlug}-${i}`;
+      try {
+        // Only update name if it won't collide with another channel's unique name.
+        const nameTaken = await prisma.channel.findFirst({
+          where: { name: userName, id: { not: channel.id } },
+          select: { id: true },
+        });
+
+        await prisma.channel.update({
+          where: { id: channel.id },
+          data: {
+            slug: finalSlug,
+            normalizedName: normalizeName(userName),
+            ...(!nameTaken && channel.name !== userName ? { name: userName } : {}),
+          },
+        });
+        console.log(`[fixLegacySlugs] fixed channel ${channel.id}: ${channel.slug} → ${finalSlug}`);
+        fixed = true;
+        break;
+      } catch (err) {
+        if ((err as { code?: string })?.code !== "P2002") throw err;
+      }
+    }
+
+    if (!fixed) {
+      const uuid = crypto.randomUUID().slice(0, 8);
+      await prisma.channel.update({
+        where: { id: channel.id },
+        data: { slug: `${properSlug}-${uuid}`, normalizedName: normalizeName(userName) },
+      });
+      console.log(`[fixLegacySlugs] fallback ${channel.id}: ${channel.slug} → ${properSlug}-${uuid}`);
+    }
+  }
 }

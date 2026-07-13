@@ -9,6 +9,13 @@ export async function register() {
     } catch (e) {
       console.error("[instrumentation] seed failed:", e);
     }
+
+    try {
+      const { fixLegacyPersonalChannelSlugs } = await import("./lib/services/channel");
+      await fixLegacyPersonalChannelSlugs();
+    } catch (e) {
+      console.error("[instrumentation] fixLegacySlugs failed:", e);
+    }
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {
