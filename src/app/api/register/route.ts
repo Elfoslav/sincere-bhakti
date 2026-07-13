@@ -13,6 +13,9 @@ type RegistrationTx = {
     findFirst: typeof prisma.channel.findFirst;
     create: typeof prisma.channel.create;
   };
+  channelSlugHistory: {
+    findFirst: typeof prisma.channelSlugHistory.findFirst;
+  };
   user: {
     create: typeof prisma.user.create;
   };
@@ -28,13 +31,20 @@ async function createPersonalChannelForRegistration(
   for (let i = 1; i <= 10; i++) {
     const finalSlug = i === 1 ? slug : `${slug}-${i}`;
     const name = i === 1 ? userName : `${userName} (${i})`;
+    const normalized = normalizeName(name);
 
     const slugTaken = await tx.channel.findFirst({ where: { slug: finalSlug }, select: { id: true } });
     if (slugTaken) continue;
 
+    const slugInHistory = await tx.channelSlugHistory.findFirst({ where: { oldSlug: finalSlug }, select: { id: true } });
+    if (slugInHistory) continue;
+
+    const nameInHistory = await tx.channelSlugHistory.findFirst({ where: { oldNormalizedName: normalized }, select: { id: true } });
+    if (nameInHistory) continue;
+
     try {
       await tx.channel.create({
-        data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId, isPersonal: true },
+        data: { name, normalizedName: normalized, slug: finalSlug, ownerId: userId, isPersonal: true },
       });
       return;
     } catch (error) {
@@ -90,10 +100,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
-    // Reject if name (or a diacritic variant) is already taken
+    // Reject if name (or a diacritic variant) is already taken by an active channel
+    // or a renamed channel's slug history — otherwise a new user could claim a slug
+    // that old links still point to, breaking the redirect.
     const normalizedTarget = normalizeName(name);
     const existing = await prisma.channel.findFirst({ where: { normalizedName: normalizedTarget }, select: { id: true } });
     if (existing) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
+    const historicalName = await prisma.channelSlugHistory.findFirst({
+      where: { oldNormalizedName: normalizedTarget },
+      select: { id: true },
+    });
+    if (historicalName) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 

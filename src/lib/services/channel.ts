@@ -45,13 +45,20 @@ export async function createPersonalChannel(userId: string, userName: string): P
   for (let i = 1; i <= 10; i++) {
     const finalSlug = i === 1 ? slug : `${slug}-${i}`;
     const name = i === 1 ? userName : `${userName} (${i})`;
+    const normalized = normalizeName(name);
 
     const slugTaken = await prisma.channel.findFirst({ where: { slug: finalSlug }, select: { id: true } });
     if (slugTaken) continue;
 
+    const slugInHistory = await prisma.channelSlugHistory.findFirst({ where: { oldSlug: finalSlug }, select: { id: true } });
+    if (slugInHistory) continue;
+
+    const nameInHistory = await prisma.channelSlugHistory.findFirst({ where: { oldNormalizedName: normalized }, select: { id: true } });
+    if (nameInHistory) continue;
+
     try {
       const channel = await prisma.channel.create({
-        data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId, isPersonal: true },
+        data: { name, normalizedName: normalized, slug: finalSlug, ownerId: userId, isPersonal: true },
       });
       return toPostChannel(channel);
     } catch (err) {

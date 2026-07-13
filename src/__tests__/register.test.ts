@@ -11,6 +11,9 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn(),
       update: vi.fn(),
     },
+    channelSlugHistory: {
+      findFirst: vi.fn(),
+    },
     $transaction: vi.fn((cb: (tx: any) => any) =>
       cb({
         user: {
@@ -20,6 +23,9 @@ vi.mock("@/lib/prisma", () => ({
           findFirst: (...args: any[]) => (prisma.channel.findFirst as any)(...args),
           create: (...args: any[]) => (prisma.channel.create as any)(...args),
           update: (...args: any[]) => (prisma.channel.update as any)(...args),
+        },
+        channelSlugHistory: {
+          findFirst: (...args: any[]) => (prisma.channelSlugHistory.findFirst as any)(...args),
         },
       }),
     ),
@@ -46,6 +52,7 @@ function mockRequest(body: unknown) {
 describe("POST /api/register", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
   });
 
   it("creates a new user", async () => {
