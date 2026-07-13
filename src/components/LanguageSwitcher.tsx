@@ -67,7 +67,7 @@ export default function LanguageSwitcher() {
         onClick={() => setOpen((p) => !p)}
         className="flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors px-3 py-2 rounded-md border border-white/10 hover:border-white/20 min-h-10"
       >
-        <span className="leading-none">{current.flag}</span>
+        <span className="text-base leading-none">{current.flag}</span>
         <span className="text-xs font-medium uppercase">{current.label}</span>
         <ChevronDown
           className={`w-3 h-3 transition-transform duration-200 ${
@@ -92,7 +92,7 @@ export default function LanguageSwitcher() {
                   : "text-deep hover:bg-sand/30"
               }`}
             >
-              <span className="leading-none">{l.flag}</span>
+              <span className="text-base leading-none">{l.flag}</span>
               <span>{l.label}</span>
               {locale === l.code && (
                 <span className="ml-auto text-gold">✓</span>
