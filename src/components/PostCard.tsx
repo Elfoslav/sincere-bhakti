@@ -1,21 +1,38 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { ExternalLink } from "lucide-react";
+import { localeFlags } from "@/i18n/routing";
+import { Link as LinkIcon, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { extractYouTubeContent } from "@/lib/video";
+import { replaceEmoticons } from "@/lib/emoticons";
+import { Card } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import ImageGallery from "@/components/ImageGallery";
 import type { Post } from "@/types/post";
 
 export default function PostCard({
   post,
   currentUserId,
+  hideEdit,
+  hideExternalLink,
+  onDelete,
+  onEdit,
 }: {
   post: Post;
   currentUserId?: string;
+  hideEdit?: boolean;
+  hideExternalLink?: boolean;
+  onDelete?: (id: string) => void;
+  onEdit?: (postId: string) => void;
 }) {
   const locale = useLocale();
   const t = useTranslations("PostCard");
+  const commonT = useTranslations("Common");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const date = new Date(post.createdAt).toLocaleDateString(locale === "en" ? "en-US" : locale, {
     year: "numeric",
     month: "long",
@@ -24,44 +41,113 @@ export default function PostCard({
     minute: "2-digit",
   });
 
-  const { cleanContent } = useMemo(
-    () => extractYouTubeContent(post.content),
-    [post.content],
-  );
+  const { cleanContent, displayContent } = useMemo(() => {
+    const { cleanContent } = extractYouTubeContent(post.content);
+    return { cleanContent, displayContent: replaceEmoticons(cleanContent) };
+  }, [post.content]);
+
+  const images = useMemo(() => post.media.filter((m) => m.type === "image"), [post.media]);
+  const otherMedia = useMemo(() => post.media.filter((m) => m.type !== "image"), [post.media]);
+
+  const handleCopyLink = useCallback(() => {
+    const url = `${window.location.origin}/${locale}/posts/${post.id}`;
+    navigator.clipboard.writeText(url);
+    toast.success(t("linkCopied"));
+  }, [locale, post.id, t]);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/posts/${post.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error(t("deleteFailed"));
+        setShowDeleteConfirm(false);
+        return;
+      }
+      toast.success(t("deleteSuccess"));
+      setShowDeleteConfirm(false);
+      onDelete?.(post.id);
+    } catch {
+      toast.error(t("deleteFailed"));
+      setShowDeleteConfirm(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [post.id, t, onDelete]);
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-5 border border-sand">
+    <Card>
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-gold flex items-center justify-center text-deep font-bold text-lg shrink-0">
-          {post.author.name?.[0]?.toUpperCase() || "?"}
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white font-bold text-lg shrink-0">
+          {post.channel.name?.[0]?.toUpperCase() || "?"}
         </div>
         <div className="flex-1 min-w-0">
           <Link
-            href={`/profile/${post.author.id}`}
+            href={`/channels/${post.channel.slug}`}
             className="font-semibold text-deep hover:text-gold"
           >
-            {post.author.name || t("anonymous")}
+            {post.channel.name || t("anonymous")}
           </Link>
-          <p className="text-xs text-deep/60">{date}</p>
+          <p className="text-xs text-deep/60">
+            <span className="mr-1 text-sm text-deep" title={post.language}>
+              {localeFlags[post.language] || post.language}
+            </span>
+            <Link href={`/posts/${post.id}`} className="hover:text-gold">
+              {date}
+            </Link>
+          </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Link
-            href={`/post/${post.id}`}
-            className="text-deep/40 hover:text-gold transition-colors p-1"
-            title={t("openPost")}
-            aria-label={t("openPost")}
-          >
-            <ExternalLink className="w-4 h-4" />
-          </Link>
-
+          {currentUserId === post.channel.ownerId && !hideEdit && onEdit && (
+            <button
+              onClick={() => onEdit(post.id)}
+              className="text-deep/40 hover:text-gold transition-colors p-1 cursor-pointer"
+              title={t("editPost")}
+              aria-label={t("editPost")}
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+          {currentUserId === post.channel.ownerId && onDelete && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isDeleting}
+              className="text-deep/40 hover:text-red-500 transition-colors p-1 cursor-pointer disabled:opacity-30"
+              title={t("delete")}
+              aria-label={t("delete")}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+          {hideExternalLink ? (
+            <button
+              onClick={handleCopyLink}
+              className="text-deep/40 hover:text-gold transition-colors p-1 cursor-pointer"
+              title={t("copyLink")}
+              aria-label={t("copyLink")}
+            >
+              <LinkIcon className="w-4 h-4" />
+            </button>
+          ) : (
+            <Link
+              href={`/posts/${post.id}`}
+              className="text-deep/40 hover:text-gold transition-colors p-1"
+              title={t("openPost")}
+              aria-label={t("openPost")}
+            >
+              <ExternalLink className="w-4 h-4" />
+            </Link>
+          )}
         </div>
       </div>
 
       {cleanContent && (
-        <p className="text-deep mb-3 whitespace-pre-wrap">{cleanContent}</p>
+        <p className="text-deep mb-3 whitespace-pre-wrap">{displayContent}</p>
       )}
 
-      {post.media.map((m) => (
+      <ImageGallery images={images} t={t} />
+
+      {otherMedia.map((m) => (
         <div key={m.url} className="rounded-lg overflow-hidden mb-2">
           {m.type === "youtube" ? (
             <div className="aspect-video">
@@ -80,12 +166,6 @@ export default function PostCard({
               controls
               className="w-full max-h-96 object-contain"
             />
-          ) : m.type === "image" ? (
-            <img
-              src={m.url}
-              alt={t("postMedia")}
-              className="w-full max-h-96 object-contain"
-            />
           ) : (
             <a
               href={m.url}
@@ -100,7 +180,7 @@ export default function PostCard({
         </div>
       ))}
 
-      {currentUserId === post.author.id && (
+      {currentUserId === post.channel.ownerId && (
         <div className="flex items-center gap-2 text-xs text-deep/50">
           {post.isPublic ? (
             <span className="bg-tulsi/20 text-tulsi px-2 py-0.5 rounded-full">
@@ -113,6 +193,18 @@ export default function PostCard({
           )}
         </div>
       )}
-    </div>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title={t("delete")}
+        description={t("deleteConfirm")}
+        confirmLabel={t("delete")}
+        cancelLabel={commonT("cancel")}
+        onConfirm={handleDeleteConfirm}
+        variant="destructive"
+        loading={isDeleting}
+      />
+    </Card>
   );
 }

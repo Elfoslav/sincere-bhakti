@@ -18,6 +18,9 @@ vi.mock("@/lib/services/post", () => {
     ForbiddenError: class ForbiddenError extends Error {
       name = "ForbiddenError" as const;
     },
+    ConflictError: class ConflictError extends Error {
+      name = "ConflictError" as const;
+    },
   };
 });
 vi.mock("@/lib/csrf", () => ({
@@ -50,7 +53,7 @@ describe("GET /api/posts", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(getPosts).mockResolvedValue({
       posts: [
-        { id: "post-1", content: "Hello", isPublic: true, createdAt: new Date(), author: { id: "user-1", name: "Devotee", image: null }, media: [] },
+        { id: "post-1", content: "Hello", isPublic: true, createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
       ],
       hasMore: false,
     });
@@ -61,26 +64,26 @@ describe("GET /api/posts", () => {
     expect(res.status).toBe(200);
     expect(json.posts).toHaveLength(1);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: undefined, cursor: undefined, limit: 10, authorId: undefined, language: undefined },
+      { scope: undefined, cursor: undefined, limit: 10, channelId: undefined, language: undefined },
       "user-1",
     );
   });
 
   it("returns 401 when no query params and not authenticated", async () => {
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
 
     const res = await GET(mockGetRequest());
     const json = await res.json();
 
     expect(res.status).toBe(401);
-    expect(json.error).toBe("Unauthorized");
+    expect(json.error).toBe("unauthorized");
     expect(getPosts).not.toHaveBeenCalled();
   });
 
   it("returns public posts with scope=public", async () => {
     vi.mocked(getPosts).mockResolvedValue({
       posts: [
-        { id: "post-1", content: "Public", isPublic: true, createdAt: new Date(), author: { id: "user-1", name: "Devotee", image: null }, media: [] },
+        { id: "post-1", content: "Public", isPublic: true, createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
       ],
       hasMore: false,
     });
@@ -91,14 +94,14 @@ describe("GET /api/posts", () => {
     expect(res.status).toBe(200);
     expect(json.posts).toHaveLength(1);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: undefined, limit: 10, authorId: undefined, language: undefined },
+      { scope: "public", cursor: undefined, limit: 10, channelId: undefined, language: undefined },
     );
     expect(auth).not.toHaveBeenCalled();
   });
 
   it("paginates with cursor", async () => {
     vi.mocked(getPosts).mockResolvedValue({
-      posts: [{ id: "post-3", content: "Next page", isPublic: true, createdAt: new Date(), author: { id: "user-2", name: "Disciple", image: null }, media: [] }],
+      posts: [{ id: "post-3", content: "Next page", isPublic: true, createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] }],
       hasMore: false,
     });
 
@@ -106,17 +109,17 @@ describe("GET /api/posts", () => {
 
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: "post-2", limit: 2, authorId: undefined, language: undefined },
+      { scope: "public", cursor: "post-2", limit: 2, channelId: undefined, language: undefined },
     );
   });
 
-  it("filters by authorId", async () => {
+  it("filters by channelId", async () => {
     vi.mocked(getPosts).mockResolvedValue({ posts: [], hasMore: false });
 
-    const res = await GET(mockGetRequest({ scope: "public", authorId: "user-1" }));
+    const res = await GET(mockGetRequest({ scope: "public", channelId: "channel-1" }));
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: undefined, limit: 10, authorId: "user-1", language: undefined },
+      { scope: "public", cursor: undefined, limit: 10, channelId: "channel-1", language: undefined },
     );
   });
 
@@ -143,20 +146,20 @@ describe("POST /api/posts", () => {
   });
 
   it("returns 401 when not authenticated", async () => {
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
 
     const res = await POST(mockPostRequest({ content: "Hello" }));
     expect(res.status).toBe(401);
   });
 
   it("creates a post with text only", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
     vi.mocked(createPost).mockResolvedValue({
       id: "post-1",
       content: "Hare Krishna!",
       isPublic: true,
       createdAt: new Date(),
-      author: { id: "user-1", name: "Devotee", image: null },
+      channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
       media: [],
     });
 
@@ -166,7 +169,7 @@ describe("POST /api/posts", () => {
     expect(res.status).toBe(201);
     expect(json.id).toBe("post-1");
     expect(createPost).toHaveBeenCalledWith(
-      { content: "Hare Krishna!", media: [], isPublic: true, language: "en" },
+      { content: "Hare Krishna!", media: [], isPublic: true, language: "en", channelId: "channel-1" },
       "user-1",
     );
   });
@@ -179,7 +182,7 @@ describe("POST /api/posts", () => {
   });
 
   it("returns 500 on service error", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
     vi.mocked(createPost).mockRejectedValue(new Error("DB down"));
 
     const res = await POST(mockPostRequest({ content: "Hello" }));

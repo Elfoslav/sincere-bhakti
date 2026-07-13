@@ -31,7 +31,7 @@ function Hamburger({ open }: { open: boolean }) {
 }
 
 export default function Navbar() {
-	const { data: session } = useSession();
+	const { status } = useSession();
 	const [open, setOpen] = useState(false);
 	const t = useTranslations("Navbar");
 
@@ -51,6 +51,7 @@ export default function Navbar() {
 								title={t("logoAlt")}
 								width={77}
 								height={52}
+								priority
 								className="shrink-0"
 								style={{ width: 77, height: 52 }}
 							/>
@@ -60,9 +61,12 @@ export default function Navbar() {
 							<Link href="/posts" className="hover:text-gold-light transition-colors">
 								{t("posts")}
 							</Link>
-							{session && (
+							<Link href="/channels" className="hover:text-gold-light transition-colors">
+								{t("channels")}
+							</Link>
+							{status === "authenticated" && (
 								<Link
-									href={`/profile/${session.user.id}`}
+									href="/profile"
 									className="hover:text-gold-light transition-colors"
 								>
 									{t("profile")}
@@ -85,7 +89,7 @@ export default function Navbar() {
 
 						<div className="hidden md:flex items-center gap-4">
 							<LanguageSwitcher />
-							{session ? (
+							{status === "authenticated" ? (
 								<Button onClick={() => signOut()} variant="default">
 									{t("logout")}
 								</Button>
@@ -108,13 +112,16 @@ export default function Navbar() {
 					<MobileLink href="/posts" onClick={close}>
 						{t("posts")}
 					</MobileLink>
-					{session && (
-						<MobileLink href={`/profile/${session.user.id}`} onClick={close}>
+					<MobileLink href="/channels" onClick={close}>
+						{t("channels")}
+					</MobileLink>
+					{status === "authenticated" && (
+						<MobileLink href="/profile" onClick={close}>
 							{t("profile")}
 						</MobileLink>
 					)}
 					<div className="flex items-center gap-2 pt-2">
-						{session ? (
+						{status === "authenticated" ? (
 							<Button
 								onClick={() => {
 									signOut();

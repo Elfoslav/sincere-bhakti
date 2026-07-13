@@ -2,12 +2,20 @@ import { describe, it, expect } from "vitest";
 import {
   registerSchema,
   createPostSchema,
+  updatePostSchema,
   updateNameSchema,
+  createChannelSchema,
   paginationSchema,
   uploadUrlSchema,
   maxUploadSizeForContentType,
   MAX_IMAGE_SIZE_BYTES,
   MAX_VIDEO_SIZE_BYTES,
+  getAcceptString,
+  ALLOWED_UPLOAD_CONTENT_TYPES,
+  isTrustedMediaUrl,
+  normalizeName,
+  slugifyName,
+  isBrandName,
 } from "@/lib/validation";
 
 describe("registerSchema", () => {
@@ -113,6 +121,30 @@ describe("createPostSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts optional media dimensions", () => {
+    const result = createPostSchema.safeParse({
+      media: [{ url: "https://example.com/i.jpg", type: "image", width: 1600, height: 900 }],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.media[0].width).toBe(1600);
+      expect(result.data.media[0].height).toBe(900);
+    }
+  });
+
+  it("rejects non-positive or non-integer dimensions", () => {
+    expect(
+      createPostSchema.safeParse({
+        media: [{ url: "https://example.com/i.jpg", type: "image", width: 0, height: 900 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      createPostSchema.safeParse({
+        media: [{ url: "https://example.com/i.jpg", type: "image", width: 12.5, height: 900 }],
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects javascript: media URL", () => {
     const result = createPostSchema.safeParse({
       media: [{ url: "javascript:alert(1)", type: "file" }],
@@ -173,6 +205,45 @@ describe("createPostSchema", () => {
   });
 });
 
+describe("updatePostSchema", () => {
+  it("accepts content-only update", () => {
+    const result = updatePostSchema.safeParse({ content: "Updated!" });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts media-only update", () => {
+    const result = updatePostSchema.safeParse({
+      media: [{ url: "https://example.com/img.jpg", type: "image" }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts clearing content while keeping media", () => {
+    const result = updatePostSchema.safeParse({ content: null });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts clearing media while keeping content", () => {
+    const result = updatePostSchema.safeParse({ media: [] });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects clearing both content and media simultaneously", () => {
+    const result = updatePostSchema.safeParse({ content: null, media: [] });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects clearing both with empty content string and empty media", () => {
+    const result = updatePostSchema.safeParse({ content: "", media: [] });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts changing visibility only", () => {
+    const result = updatePostSchema.safeParse({ isPublic: false });
+    expect(result.success).toBe(true);
+  });
+});
+
 describe("updateNameSchema", () => {
   it("accepts valid name", () => {
     const result = updateNameSchema.safeParse({ name: "New Name" });
@@ -187,6 +258,37 @@ describe("updateNameSchema", () => {
   it("rejects whitespace-only name", () => {
     const result = updateNameSchema.safeParse({ name: "   " });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("createChannelSchema", () => {
+  it("accepts valid channel name", () => {
+    const result = createChannelSchema.safeParse({ name: "My Devotees" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects name shorter than 2 chars", () => {
+    expect(createChannelSchema.safeParse({ name: "a" }).success).toBe(false);
+  });
+
+  it("accepts name with exactly 2 chars", () => {
+    expect(createChannelSchema.safeParse({ name: "ab" }).success).toBe(true);
+  });
+
+  it("rejects empty name", () => {
+    expect(createChannelSchema.safeParse({ name: "" }).success).toBe(false);
+  });
+
+  it("rejects whitespace-only name", () => {
+    expect(createChannelSchema.safeParse({ name: "   " }).success).toBe(false);
+  });
+
+  it("accepts name at max length", () => {
+    expect(createChannelSchema.safeParse({ name: "a".repeat(50) }).success).toBe(true);
+  });
+
+  it("rejects name exceeding max length", () => {
+    expect(createChannelSchema.safeParse({ name: "a".repeat(51) }).success).toBe(false);
   });
 });
 
@@ -218,8 +320,13 @@ describe("paginationSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects invalid scope", () => {
+  it("accepts private scope", () => {
     const result = paginationSchema.safeParse({ scope: "private" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid scope", () => {
+    const result = paginationSchema.safeParse({ scope: "invalid" });
     expect(result.success).toBe(false);
   });
 
@@ -242,17 +349,23 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "photo.jpg",
       contentType: "image/jpeg",
+      postId: "post-123",
     });
     expect(result.success).toBe(true);
   });
 
   it("rejects missing fileName", () => {
-    const result = uploadUrlSchema.safeParse({ contentType: "image/jpeg" });
+    const result = uploadUrlSchema.safeParse({ contentType: "image/jpeg", postId: "post-123" });
     expect(result.success).toBe(false);
   });
 
   it("rejects missing contentType", () => {
-    const result = uploadUrlSchema.safeParse({ fileName: "photo.jpg" });
+    const result = uploadUrlSchema.safeParse({ fileName: "photo.jpg", postId: "post-123" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing postId", () => {
+    const result = uploadUrlSchema.safeParse({ fileName: "photo.jpg", contentType: "image/jpeg" });
     expect(result.success).toBe(false);
   });
 
@@ -260,6 +373,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "",
       contentType: "image/jpeg",
+      postId: "post-123",
     });
     expect(result.success).toBe(false);
   });
@@ -268,6 +382,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "a".repeat(256),
       contentType: "image/jpeg",
+      postId: "post-123",
     });
     expect(result.success).toBe(false);
   });
@@ -276,6 +391,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "photo.jpg",
       contentType: "a".repeat(256),
+      postId: "post-123",
     });
     expect(result.success).toBe(false);
   });
@@ -284,6 +400,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "clip.mp4",
       contentType: "video/mp4",
+      postId: "post-123",
     });
     expect(result.success).toBe(true);
   });
@@ -292,8 +409,37 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "page.html",
       contentType: "text/html",
+      postId: "post-123",
     });
     expect(result.success).toBe(false);
+  });
+
+  it("rejects SVG uploads (stored XSS risk)", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "image.svg",
+      contentType: "image/svg+xml",
+      postId: "post-123",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts video/ogg", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "clip.ogv",
+      contentType: "video/ogg",
+      postId: "post-123",
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("getAcceptString", () => {
+  it("includes every allowed content type", () => {
+    const accept = getAcceptString();
+    for (const ct of ALLOWED_UPLOAD_CONTENT_TYPES) {
+      expect(accept).toContain(ct);
+    }
+    expect(accept.split(",")).toHaveLength(ALLOWED_UPLOAD_CONTENT_TYPES.length);
   });
 });
 
@@ -315,5 +461,186 @@ describe("maxUploadSizeForContentType", () => {
   it("caps videos at 200 MB and images at 10 MB", () => {
     expect(MAX_VIDEO_SIZE_BYTES).toBe(200 * 1024 * 1024);
     expect(MAX_IMAGE_SIZE_BYTES).toBe(10 * 1024 * 1024);
+  });
+});
+
+describe("isTrustedMediaUrl", () => {
+  const storageDomain = "https://cdn.example.com";
+
+  it("accepts storage domain URLs for images", () => {
+    expect(isTrustedMediaUrl("https://cdn.example.com/posts/abc.jpg", "image", storageDomain)).toBe(true);
+  });
+
+  it("accepts storage domain URLs for videos", () => {
+    expect(isTrustedMediaUrl("https://cdn.example.com/posts/vid.mp4", "video", storageDomain)).toBe(true);
+  });
+
+  it("accepts YouTube embed URLs", () => {
+    expect(isTrustedMediaUrl("https://www.youtube.com/embed/abc123defgh", "youtube", storageDomain)).toBe(true);
+  });
+
+  it("rejects external URLs for images", () => {
+    expect(isTrustedMediaUrl("https://evil.com/track.png", "image", storageDomain)).toBe(false);
+  });
+
+  it("rejects non-embed YouTube URLs", () => {
+    expect(isTrustedMediaUrl("https://www.youtube.com/watch?v=abc123", "youtube", storageDomain)).toBe(false);
+  });
+
+  it("rejects javascript: URLs", () => {
+    expect(isTrustedMediaUrl("javascript:alert(1)", "image", storageDomain)).toBe(false);
+  });
+});
+
+describe("normalizeName", () => {
+  it("strips diacritics from common Indic transliteration letters", () => {
+    expect(normalizeName("Taruṇa Govinda Dāsa")).toBe("taruna govinda dasa");
+  });
+
+  it("handles Czech diacritics", () => {
+    expect(normalizeName("Příliš žluťoučký kůň")).toBe("prilis zlutoucky kun");
+  });
+
+  it("handles French accents", () => {
+    expect(normalizeName("Café à la crème naïve")).toBe("cafe a la creme naive");
+  });
+
+  it("handles German umlauts (ä/ö/ü decompose, ß is not a combining mark)", () => {
+    expect(normalizeName("Müllerstraße")).toBe("mullerstraße");
+  });
+
+  it("handles Spanish accents and ñ", () => {
+    expect(normalizeName("José María González")).toBe("jose maria gonzalez");
+  });
+
+  it("lowercases ASCII input", () => {
+    expect(normalizeName("Hello World")).toBe("hello world");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(normalizeName("")).toBe("");
+  });
+
+  it("preserves ASCII characters unchanged (apart from casing)", () => {
+    expect(normalizeName("abc123")).toBe("abc123");
+  });
+
+  it("handles Devanagari characters (no change — no combining marks)", () => {
+    expect(normalizeName("कृष्ण")).toBe("कृष्ण");
+  });
+
+  it("handles Tibetan characters (no change)", () => {
+    expect(normalizeName("བོད་སྐད")).toBe("བོད་སྐད");
+  });
+
+  it("handles Czech name with parentheses for slug test", () => {
+    expect(normalizeName("Tomáš Hromník (Taruna)")).toBe("tomas hromnik (taruna)");
+  });
+
+  it("strips polish L-stroke if it decomposes (single char, no combining)", () => {
+    // ł in NFD stays as ł (single codepoint, not base+combining)
+    expect(normalizeName("ł")).toBe("ł");
+  });
+
+  it("handles Danish ø (single char, no decomposition)", () => {
+    expect(normalizeName("Rød")).toBe("rød");
+  });
+
+  it("does not crash on leading combining marks", () => {
+    expect(normalizeName("\u0300abc")).toBe("abc");
+  });
+
+  it("handles purely non-diacritic Unicode (Cyrillic)", () => {
+    expect(normalizeName("Привет")).toBe("привет");
+  });
+
+  it("preserves digits mixed with diacritics", () => {
+    expect(normalizeName("Frédéric 2ème")).toBe("frederic 2eme");
+  });
+
+  it("handles underscores in name", () => {
+    expect(normalizeName("Super_Devotee_123")).toBe("super_devotee_123");
+  });
+});
+
+describe("slugifyName", () => {
+  it("converts Czech name with diacritics and parentheses", () => {
+    expect(slugifyName("Tomáš Hromník (Taruna)")).toBe("tomas-hromnik-taruna");
+  });
+
+  it("handles Indic transliteration", () => {
+    expect(slugifyName("Taruṇa Govinda Dāsa")).toBe("taruna-govinda-dasa");
+  });
+
+  it("converts simple ASCII name", () => {
+    expect(slugifyName("Krishna Das")).toBe("krishna-das");
+  });
+
+  it("collapses multiple special chars into single dash", () => {
+    expect(slugifyName("Hello...World!!")).toBe("hello-world");
+  });
+
+  it("trims leading and trailing non-alphanumeric chars", () => {
+    expect(slugifyName("  --hello!!  ")).toBe("hello");
+  });
+
+  it("handles French accents", () => {
+    expect(slugifyName("Café à la crème")).toBe("cafe-a-la-creme");
+  });
+
+  it("returns 'channel' for string with no valid slug chars", () => {
+    expect(slugifyName("!!! +++")).toBe("channel");
+  });
+
+  it("truncates to 80 characters", () => {
+    const long = "a".repeat(100);
+    expect(slugifyName(long).length).toBeLessThanOrEqual(80);
+  });
+
+  it("treats dots and parentheses as separators", () => {
+    expect(slugifyName("Dr. Livingstone (I presume)")).toBe("dr-livingstone-i-presume");
+  });
+
+  it("handles empty string", () => {
+    expect(slugifyName("")).toBe("channel");
+  });
+});
+
+describe("isBrandName", () => {
+  it("detects brand name with default brand", () => {
+    expect(isBrandName("Sincere Bhakti")).toBe(true);
+  });
+
+  it("detects lowercase brand name", () => {
+    expect(isBrandName("sincere bhakti")).toBe(true);
+  });
+
+  it("detects concatenated words", () => {
+    expect(isBrandName("sincerebhakti")).toBe(true);
+  });
+
+  it("detects hyphenated words", () => {
+    expect(isBrandName("sincere-bhakti")).toBe(true);
+  });
+
+  it("detects brand with prefix and suffix", () => {
+    expect(isBrandName("1sincere bhakti whatever")).toBe(true);
+  });
+
+  it("detects brand with custom brand name", () => {
+    expect(isBrandName("My Radha Name", "Radha")).toBe(true);
+  });
+
+  it("allows names containing only one word of the brand", () => {
+    expect(isBrandName("sincere devotee")).toBe(false);
+    expect(isBrandName("pure bhakti")).toBe(false);
+  });
+
+  it("allows unrelated names", () => {
+    expect(isBrandName("Krishna Das")).toBe(false);
+  });
+
+  it("handles empty brand name gracefully", () => {
+    expect(isBrandName("anything", "")).toBe(false);
   });
 });

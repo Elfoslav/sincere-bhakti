@@ -4,12 +4,16 @@ export interface PostMedia {
   url: string;
   type: MediaType;
   position: number;
+  width: number | null;
+  height: number | null;
 }
 
-export interface PostAuthor {
+export interface PostChannel {
   id: string;
-  name: string | null;
-  image: string | null;
+  name: string;
+  slug: string;
+  avatarUrl: string | null;
+  ownerId: string;
 }
 
 export interface Post {
@@ -17,6 +21,7 @@ export interface Post {
   content: string | null;
   media: PostMedia[];
   isPublic: boolean;
+  language: string;
   createdAt: string;
-  author: PostAuthor;
+  channel: PostChannel;
 }
