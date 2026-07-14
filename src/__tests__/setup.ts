@@ -2,13 +2,14 @@ import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 
 vi.mock("@/lib/rate-limit", () => {
-  const rateLimit = vi.fn(() => ({ allowed: true, remaining: 29, resetIn: 3_600_000 }));
+  const rateLimit = vi.fn((_key: string, _limit: number, _windowMs: number) => ({ allowed: true, remaining: 29, resetIn: 3_600_000 }));
+  const rateLimitKey = vi.fn((p: string, id: string) => `${p}:${id}`);
   return {
     rateLimit,
-    rateLimitKey: vi.fn((p: string, id: string) => `${p}:${id}`),
+    rateLimitKey,
     getClientIp: vi.fn((headers: Headers) => headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"),
     checkRateLimit: vi.fn(async (prefix: string, identifier: string, limit: number, windowMs: number) => {
-      const { allowed } = await rateLimit(prefix, identifier, limit, windowMs);
+      const { allowed } = await rateLimit(rateLimitKey(prefix, identifier), limit, windowMs);
       if (!allowed) console.warn("rate_limited", { route: prefix, identifier });
       return allowed;
     }),
