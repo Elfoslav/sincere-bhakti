@@ -115,6 +115,14 @@ async function dbRateLimit(
   `;
   const row = rows[0];
 
+  // No row returned: the WHERE clause filtered the update out, meaning the
+  // key exists, its window hasn't expired, and it is already at the limit —
+  // denied. (resetIn is unknown without reading the row; windowMs is a safe
+  // upper bound and no caller consumes it.)
+  if (!row) {
+    return { allowed: false, remaining: 0, resetIn: windowMs };
+  }
+
   const allowed = row.count <= limit;
   return {
     allowed,
