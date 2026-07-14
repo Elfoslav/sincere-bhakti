@@ -45,13 +45,7 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await getPosts(parsed.data);
-    // Short CDN cache only — no stale serving: a user who deletes or hides a
-    // post expects it to disappear immediately, not linger for 2 minutes.
-    return NextResponse.json(result, {
-      headers: {
-        "Cache-Control": "public, s-maxage=30",
-      },
-    });
+    return NextResponse.json(result);
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
