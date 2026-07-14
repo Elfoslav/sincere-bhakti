@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getPostById } from "@/lib/services/post";
+import { getCachedPostById } from "@/lib/services/post";
 import { auth } from "@/lib/auth";
 import { selectOgImageUrl } from "@/lib/og";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
@@ -20,7 +20,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, id } = await params;
 
-  const post = await getPostById(id);
+  const post = await getCachedPostById(id);
   if (!post || !post.isPublic) return {};
 
   const ogTitle = post.content ? post.content.slice(0, 60) : undefined;
@@ -69,7 +69,7 @@ export default async function PostPage({
   const ip = getClientIp(await headers());
   if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) notFound();
 
-  const [post, session] = await Promise.all([getPostById(id), auth()]);
+  const [post, session] = await Promise.all([getCachedPostById(id), auth()]);
 
   if (!post) notFound();
   if (!post.isPublic && session?.user?.id !== post.channel.ownerId) notFound();

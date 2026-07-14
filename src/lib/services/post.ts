@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { canonicalizeUrl } from "@/lib/url";
@@ -162,6 +163,10 @@ export async function getPostById(id: string): Promise<PostResponse | null> {
 
   return post;
 }
+
+// `generateMetadata` and the page body both need the same post data. React's
+// cache memoizes the lookup within a request so we don't double-hit Prisma.
+export const getCachedPostById = cache(getPostById);
 
 async function validateMediaOwnership(
   media: MediaInput[],
