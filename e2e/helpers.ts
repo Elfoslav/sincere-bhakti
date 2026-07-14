@@ -30,7 +30,7 @@ export async function goToPostPage(page: Page, postId: string) {
 
 export async function switchToPreviewTab(dialog: Locator) {
   await dialog.locator("button:has-text('Preview')").click();
-  await dialog.locator('[role="tabpanel"]:not([hidden])').waitFor({ state: "visible", timeout: 3000 });
+  await dialog.locator('[role="tabpanel"]:not([inert])').waitFor({ state: "visible", timeout: 3000 });
 }
 
 export function editPostPreviewPanel(dialog: Locator) {

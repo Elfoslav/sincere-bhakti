@@ -1,8 +1,9 @@
-import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { resolveSlugRedirect } from "@/lib/services/channel";
+import { resolveSlugRedirect, getCachedChannelBySlug } from "@/lib/services/channel";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import ChannelPageClient from "./channel-page-client";
 
 type Props = {
@@ -13,10 +14,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
   const t = await getTranslations({ locale, namespace: "ChannelPage" });
 
-  const channel = await prisma.channel.findUnique({
-    where: { slug },
-    select: { name: true },
-  });
+  const channel = await getCachedChannelBySlug(slug);
 
   if (!channel) {
     return { title: t("notFound") };
@@ -43,19 +41,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ChannelPage({ params }: Props) {
   const { locale, slug } = await params;
 
-  const channel = await prisma.channel.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      avatarUrl: true,
-      createdAt: true,
-      ownerId: true,
-      isPersonal: true,
-      _count: { select: { posts: { where: { isPublic: true } } } },
-    },
-  });
+  const ip = getClientIp(await headers());
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.readChannel, ip, RATE_LIMITS.readChannel.limit, RATE_LIMITS.readChannel.windowMs)) notFound();
+
+  const channel = await getCachedChannelBySlug(slug);
 
   if (!channel) {
     const targetSlug = await resolveSlugRedirect(slug);
@@ -65,6 +54,5 @@ export default async function ChannelPage({ params }: Props) {
     notFound();
   }
 
-  const { _count, ...data } = channel;
-  return <ChannelPageClient channel={{ ...data, createdAt: data.createdAt.toISOString(), postCount: _count.posts }} />;
+  return <ChannelPageClient channel={{ ...channel, createdAt: channel.createdAt.toISOString() }} />;
 }

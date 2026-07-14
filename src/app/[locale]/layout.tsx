@@ -5,6 +5,7 @@ import { getSiteUrl } from "@/lib/url";
 import { Toaster } from "sonner";
 import Navbar from "@/components/Navbar";
 import LangSetter from "@/components/LangSetter";
+import { Link } from "@/i18n/navigation";
 
 const siteUrl = getSiteUrl();
 
@@ -35,6 +36,7 @@ export async function generateMetadata({ params }: Omit<Props, "children">) {
       siteName: "Sincere Bhakti",
       url: siteUrl,
       locale: locale === "en" ? "en_US" : locale === "cs" ? "cs_CZ" : "sk_SK",
+      images: [{ url: "/images/sincere-bhakti-logo.png", width: 603, height: 414 }],
     },
     twitter: {
       card: "summary_large_image" as const,
@@ -72,10 +74,18 @@ export default async function LocaleLayout({ children, params }: Props) {
         <Navbar />
         <main className="flex-1 flex flex-col">{children}</main>
         <Toaster position="bottom-right" richColors closeButton />
-        <footer className="bg-deep text-white/50 text-center text-sm py-4 border-t border-sand/20">
-          <div className="max-w-6xl mx-auto px-4">
-            <p>{commonT("footerLine1", { year: String(new Date().getFullYear()) })}</p>
-            <p>{commonT("footerLine2")}</p>
+        <footer className="bg-deep text-white/50 text-sm py-4 border-t border-sand/20">
+          <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+            <Link
+              href="/terms"
+              className="hover:text-gold-light transition-colors order-first sm:order-none shrink-0"
+            >
+              {commonT("terms")}
+            </Link>
+            <div className="flex-1 text-center">
+              <p>{commonT("footerLine1", { year: String(new Date().getFullYear()) })}</p>
+              <p>{commonT("footerLine2")}</p>
+            </div>
           </div>
         </footer>
       </NextIntlClientProvider>

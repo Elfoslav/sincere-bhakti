@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { getChannelBySlug, isNormalizedNameTaken } from "@/lib/services/channel";
-import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { createChannelSchema, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
@@ -14,10 +14,8 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const ip = request.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    const { allowed } = await rateLimit(rateLimitKey("read-channel", ip), RATE_LIMITS.readChannel.limit, RATE_LIMITS.readChannel.windowMs);
-    if (!allowed) {
-      console.warn("rate_limited", { route: "read-channel", ip });
+    const ip = getClientIp(request.headers);
+    if (!await checkRateLimit(RATE_LIMIT_PREFIX.readChannel, ip, RATE_LIMITS.readChannel.limit, RATE_LIMITS.readChannel.windowMs)) {
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
     const { slug } = await params;
@@ -49,9 +47,7 @@ export async function PATCH(
 
   const { slug } = await params;
 
-  const { allowed } = await rateLimit(rateLimitKey("update-channel", session.user.id), RATE_LIMITS.updateChannel.limit, RATE_LIMITS.updateChannel.windowMs);
-  if (!allowed) {
-    console.warn("rate_limited", { route: "update-channel", userId: session.user.id });
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.updateChannel, session.user.id, RATE_LIMITS.updateChannel.limit, RATE_LIMITS.updateChannel.windowMs)) {
     return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
   }
 

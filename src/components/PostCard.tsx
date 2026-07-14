@@ -161,9 +161,12 @@ export default function PostCard({
               />
             </div>
           ) : m.type === "video" ? (
+            /* preload="none": without it every video in the feed fetches
+               metadata/initial segments on page load. */
             <video
               src={m.url}
               controls
+              preload="none"
               className="w-full max-h-96 object-contain"
             />
           ) : (

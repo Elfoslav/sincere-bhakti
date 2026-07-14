@@ -13,7 +13,11 @@ import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
 import type { Post } from "@/types/post";
 
-export default function PostsPageClient() {
+export default function PostsPageClient({
+	initialPublic,
+}: {
+	initialPublic?: { posts: Post[]; hasMore: boolean };
+}) {
 	const { data: session } = useSession();
 	const locale = useLocale();
 	const t = useTranslations("PostsPage");
@@ -21,6 +25,7 @@ export default function PostsPageClient() {
 	const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef } = useInfinitePosts({
 		scope: "public",
 		language: locale,
+		initialData: initialPublic,
 	});
 	const {
 		posts: myPosts,

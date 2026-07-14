@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { slugifyName, normalizeName } from "@/lib/validation";
 import type { PostChannel } from "@/types/post";
@@ -135,6 +136,10 @@ export async function getChannelBySlug(slug: string): Promise<{
   };
 }
 
+// `generateMetadata` and the page body both need channel data. React's
+// cache ensures only one Prisma query within the same request.
+export const getCachedChannelBySlug = cache(getChannelBySlug);
+
 // Check if a normalizedName is taken by any active channel or slug history,
 // optionally excluding a specific channel (e.g. the one being renamed).
 export async function isNormalizedNameTaken(
@@ -214,60 +219,3 @@ export async function createChannel(userId: string, channelName: string): Promis
   return { ...toPostChannel(channel), postCount: 0 };
 }
 
-const globalForBackfill = globalThis as unknown as { legacySlugsFixed?: boolean };
-
-// Backfill legacy "user-<cuid>" personal-channel slugs on deploy so every
-// existing user gets a proper name-based slug immediately, not just on
-// next login. Idempotent — safe to run on every server start.
-export async function fixLegacyPersonalChannelSlugs(): Promise<void> {
-  if (globalForBackfill.legacySlugsFixed) return;
-  globalForBackfill.legacySlugsFixed = true;
-
-  const legacy = await prisma.channel.findMany({
-    where: { isPersonal: true, slug: { startsWith: "user-" } },
-    include: { owner: { select: { name: true } } },
-  });
-
-  if (legacy.length === 0) return;
-  console.log(`[fixLegacySlugs] found ${legacy.length} channels with legacy slugs`);
-
-  for (const channel of legacy) {
-    const userName = channel.owner.name || channel.name;
-    const properSlug = slugifyName(userName);
-    let fixed = false;
-
-    for (let i = 1; i <= 10; i++) {
-      const finalSlug = i === 1 ? properSlug : `${properSlug}-${i}`;
-      try {
-        // Only update name if it won't collide with another channel's unique name.
-        const nameTaken = await prisma.channel.findFirst({
-          where: { name: userName, id: { not: channel.id } },
-          select: { id: true },
-        });
-
-        await prisma.channel.update({
-          where: { id: channel.id },
-          data: {
-            slug: finalSlug,
-            normalizedName: normalizeName(userName),
-            ...(!nameTaken && channel.name !== userName ? { name: userName } : {}),
-          },
-        });
-        console.log(`[fixLegacySlugs] fixed channel ${channel.id}: ${channel.slug} → ${finalSlug}`);
-        fixed = true;
-        break;
-      } catch (err) {
-        if ((err as { code?: string })?.code !== "P2002") throw err;
-      }
-    }
-
-    if (!fixed) {
-      const uuid = crypto.randomUUID().slice(0, 8);
-      await prisma.channel.update({
-        where: { id: channel.id },
-        data: { slug: `${properSlug}-${uuid}`, normalizedName: normalizeName(userName) },
-      });
-      console.log(`[fixLegacySlugs] fallback ${channel.id}: ${channel.slug} → ${properSlug}-${uuid}`);
-    }
-  }
-}

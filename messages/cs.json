@@ -17,14 +17,14 @@
 	"HomePage": {
 		"logoAlt": "Sincere Bhakti",
 		"metaTitle": "Sincere Bhakti",
-		"metaDescription": "Posvátný prostor pro oddané Gaudiya vaišnavismu. Sdílej oddané realizace, kirtany a postřehy se saṅgou.",
+		"metaDescription": "Posvátný prostor pro oddané Gaudiya vaišnavismu. Sdílej realizace, kirtany a postřehy se saṅgou.",
 		"subtitle": "Jednoduchý život, vznešené myšlení",
-		"description": "Posvátný prostor pro oddané Gaudiya vaišnavismu. Sdílej své realizace, kirtany, realizace a oddaná média se saṅgou.",
+		"description": "Posvátný prostor pro oddané Gaudiya vaišnavismu. Sdílej své realizace, kirtany, postřehy z písem a oddaná média se saṅgou.",
 		"ctaJoin": "Připoj se k saṅze",
-		"ctaPosts": "Mrkni příspěvky",
+		"ctaPosts": "Číst příspěvky",
 		"cardBhaktiTitle": "Sdílej Bhakti",
 		"cardBhaktiDesc": "Přispívej svými realizacemi, odkazy na kirtany a oddanými postřehy.",
-		"cardMediaTitle": "Posvátná Média",
+		"cardMediaTitle": "Posvátná média",
 		"cardMediaDesc": "Sdílej obrázky a videa ze své duchovní cesty.",
 		"cardSangaTitle": "Oddaná Saṅga",
 		"cardSangaDesc": "Spoj se s dalšími oddanými v respektující komunitě."
@@ -33,7 +33,7 @@
 		"title": "Příspěvky",
 		"subtitle": "Oddané příspěvky z globální saṅgy",
 		"metaTitle": "Příspěvky — Sincere Bhakti",
-		"metaDescription": "Oddané příspěvky z globální saṅgy — realizace, kirtany a písemná realizace.",
+		"metaDescription": "Oddané příspěvky z globální saṅgy — realizace, kirtany a postřehy z písem.",
 		"composePlaceholder": "Sdílej svou realizaci, verš, YouTube odkaz nebo myšlenku...",
 		"publicTab": "Veřejné příspěvky",
 		"myPublicTab": "Moje veřejné příspěvky",
@@ -105,7 +105,9 @@
 			"emailTooLong": "Email je příliš dlouhý",
 			"passwordRequired": "Heslo je povinné",
 			"registrationFailed": "Registrace se nezdařila. Pokud již máte účet, přihlaste se.",
-			"networkError": "Chyba sítě. Zkontrolujte připojení."
+			"networkError": "Chyba sítě. Zkontrolujte připojení.",
+			"termsAgreement": "Souhlasím s <link>podmínkami používání</link>",
+			"termsRequired": "Musíte souhlasit s podmínkami používání"
 		}
 	},
 	"ProfilePage": {
@@ -190,7 +192,8 @@
 	"Common": {
 		"cancel": "Zrušit",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
-		"footerLine2": "Věnováno učení Śrīly Prabhupādy"
+		"footerLine2": "Věnováno učení Śrīly Prabhupādy",
+		"terms": "Podmínky používání"
 	},
 	"ErrorPages": {
 		"backToPosts": "← Zpět na příspěvky",
@@ -211,5 +214,70 @@
 		"joke5Punchline": "Pohřeb se konal na Ghátu 404. Obětuj na její památku prasādam.",
 		"joke6Headline": "Tato stránka drží mauna-vratu.",
 		"joke6Punchline": "Teď s nikým nemluví. Stav se po maṅgala-ārāti."
+	},
+	"Terms": {
+		"metaTitle": "Podmínky používání",
+		"metaDescription": "Komunitní pravidla a podmínky používání Sincere Bhakti — co lze sdílet a jak dbáme na standardy oddanosti.",
+		"title": "Podmínky používání",
+		"lastUpdated": "Účinné od 14. července 2026",
+		"intro": "Sincere Bhakti je oddaná komunita pro praktikující a příznivce gaudíja-vaišnavismu. Vytvořením účtu nebo přidáním příspěvku souhlasíš s těmito podmínkami. Přečti si je prosím pozorně — účast je výsada nabízená v duchu bhakti.",
+		"sections": [
+			{
+				"heading": "1. Duch této komunity",
+				"body": "Toto je posvátný prostor zasvěcený službě Kṛṣṇovi a Jeho oddaným, v náladě pokory, úcty a oddanosti, jak ji učil Śrīla Prabhupāda a gaudíjští áčárjové. Vše, co zde sdílíš, by mělo tuto náladu odrážet. Máš-li pochybnosti, polož si otázku: potěší tento příspěvek oddané a oslaví svaté jméno?"
+			},
+			{
+				"heading": "2. Co tu můžeš sdílet",
+				"body": "V souladu s posláním saṅgy zde můžeš sdílet:",
+				"items": [
+					"Realizace, modlitby a úvahy vycházející z oddané praxe",
+					"Verše ze śāster a ze spisů áčárjů s řádným uvedením zdroje",
+					"Nahrávky kírtanů a bhadžanů, přednášky a odkazy na věrohodná oddaná média",
+					"Uctivé obrázky a videa z festivalů, chrámů, prasādam a tvé duchovní cesty",
+					"Upřímné otázky a povzbudivou diskusi o sādhaně a vaišnavském životě"
+				]
+			},
+			{
+				"heading": "3. Obsah, který je přísně zakázán",
+				"body": "Abychom chránili oddané a ctili usměrňující zásady, následující obsah není nikdy povolen a bude odstraněn. Tento výčet je ilustrativní, nikoli úplný:",
+				"items": [
+					"Přestupky vůči svatému jménu, guruovi, sādhuovi či śāstře nebo vůči kterémukoli vaišnavovi (vaiṣṇava-aparādha) a znevažování jakékoli věrohodné duchovní tradice",
+					"Propagace konzumace masa či týrání zvířat, omamných látek, hazardu nebo nedovoleného sexu",
+					"Sexuálně explicitní, sugestivní nebo obscénní materiál, nahota a pornografie",
+					"Nenávistné projevy, obtěžování, výhrůžky, diskriminace, šikana nebo podněcování k násilí",
+					"Vulgární, urážlivý nebo ponižující jazyk",
+					"Sektářské útoky na jiné oddané, posloupnosti nebo instituce",
+					"Reklama, spam, nevyžádané nabídky, podvodná schémata, podvody nebo komerční propagace",
+					"Politická propaganda nebo obsah nesouvisející s duchovním zaměřením této komunity",
+					"Dezinformace vydávané za písmo a vydávání se za gurua, autoritu či oddaného",
+					"Nezákonný obsah, porušování autorských práv, malware nebo sdílení soukromých údajů druhých"
+				]
+			},
+			{
+				"heading": "4. Moderování a odstranění",
+				"body": "Kterýkoli obsah můžeme odstranit a kterýkoli účet pozastavit či zrušit podle vlastního uvážení, kdykoli a bez předchozího upozornění, aniž bychom museli uvádět důvod — považujeme-li to za nutné k ochraně komunity nebo k dodržení standardů oddanosti. Nezaručujeme, že jakýkoli obsah zůstane uchován, zálohován či obnovitelný. Opakované nebo závažné porušení může vést k trvalému vyloučení z komunity."
+			},
+			{
+				"heading": "5. Tvoje odpovědnost",
+				"body": "Neseš odpovědnost za vše, co zveřejníš. Potvrzuješ, že daný obsah vlastníš nebo máš právo jej sdílet, a uděluješ Sincere Bhakti nevýhradní licenci k jeho zobrazování v rámci platformy. Přispívej pravdivě, slova áčárjů uváděj poctivě a ke každému oddanému se chovej s úctou."
+			},
+			{
+				"heading": "6. Tvůj účet a data",
+				"body": "Zodpovídáš za zabezpečení svého účtu. Ukládáme jen to, co je nezbytné k provozu služby — údaje o tvém účtu a obsah, který přidáš. O smazání účtu můžeš kdykoli požádat; některé záznamy mohou po omezenou dobu zůstat v zálohách."
+			},
+			{
+				"heading": "7. Bez záruky",
+				"body": "Sincere Bhakti je poskytována „tak, jak je“, jako dobrovolná služba saṅze, bez jakýchkoli záruk. Názory členů jsou jejich vlastní a nepředstavují oficiální pokyny. V nejširším rozsahu, který zákon dovoluje, neneseme odpovědnost za obsah zveřejněný uživateli ani za jakoukoli škodu vzniklou používáním platformy."
+			},
+			{
+				"heading": "8. Změny těchto podmínek",
+				"body": "Tyto podmínky můžeme čas od času aktualizovat. Budeš-li Sincere Bhakti používat i po zveřejnění změn, vyjadřuješ tím souhlas s upraveným zněním."
+			},
+			{
+				"heading": "9. Závěrečné slovo",
+				"body": "Tato komunita existuje jen proto, aby sloužila Kṛṣṇovi a Jeho oddaným. Prosíme tě, zapojuj se ve stejné náladě — s trpělivostí, pokorou a ohledem k druhým. Hare Kṛṣṇa."
+			}
+		],
+		"backHome": "Zpět na úvod"
 	}
 }

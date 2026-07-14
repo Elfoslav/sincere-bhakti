@@ -9,12 +9,15 @@ Sentry.init({
 
   enabled: process.env.NODE_ENV === "production",
 
-  tracesSampleRate: 1,
+  // Sample 10% of transactions — tracing everything (1.0) adds overhead to
+  // every client navigation and burns quota. Matches the server/edge configs.
+  tracesSampleRate: 0.1,
 
   enableLogs: true,
 
+  // Do not attach user IP/headers to events by default (privacy + payload size).
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
-  sendDefaultPii: true,
+  sendDefaultPii: false,
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
