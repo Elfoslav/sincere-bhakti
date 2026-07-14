@@ -59,6 +59,7 @@ export default function ImageGallery({
                   sizes="(max-width: 768px) 100vw, 640px"
                   className="w-full object-cover"
                   style={{ width: "100%", height: "auto", maxHeight: 440 }}
+                  unoptimized
                 />
               ) : dims || !single ? (
                 // Grid cell (fixed-height container) — fill + cover.
@@ -68,6 +69,7 @@ export default function ImageGallery({
                   fill
                   sizes="(max-width: 768px) 50vw, 320px"
                   className="object-cover"
+                  unoptimized
                 />
               ) : (
                 // Legacy single image without stored dimensions: plain lazy img.

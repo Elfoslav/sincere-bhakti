@@ -11,8 +11,8 @@ type Props = {
 };
 
 // Render per-request: the first feed page is fetched live from the DB, so this
-// must not be statically prerendered at build time.
-export const dynamic = "force-dynamic";
+// must not be statically prerendered at build time. Using headers() in the page
+// component already opts into dynamic rendering automatically.
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params;
