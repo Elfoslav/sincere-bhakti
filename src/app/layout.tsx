@@ -1,4 +1,5 @@
-import { Geist, Marcellus } from "next/font/google";
+import { Geist } from "next/font/google";
+import localFont from "next/font/local";
 import type { Viewport, Metadata } from "next";
 import Providers from "@/components/Providers";
 import "./globals.css";
@@ -8,15 +9,17 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-// Display serif for headings — the "Dawn Sādhana" voice. Self-hosted by
-// next/font, so no external font request (CSP-safe). Marcellus is a
-// single-weight (400) face; heading weight synthesis is disabled in
-// globals.css so it always renders at its true weight. It lacks IAST dotted
-// consonants (ṅ ṇ ṛ …), which fall back to the serif stack in --font-heading.
-const marcellus = Marcellus({
-  variable: "--font-marcellus",
-  subsets: ["latin"],
+// Display serif for headings — the "Dawn Sādhana" voice. This is Marcellus
+// patched with the Sanskrit/IAST dotted glyphs it lacked (ṅ ṇ ṛ ṣ ṭ ḍ ṁ ṃ ḥ
+// ḷ + capitals), composed from its own base letters and dot, and renamed
+// "Sincere Bhakti" per the OFL Reserved Font Name clause. Regenerate via
+// scripts/heading-font/. Single weight (400) — heading weight synthesis is
+// disabled in globals.css so `font-bold` utilities render at true weight.
+const headingFont = localFont({
+  src: "./fonts/SincereBhakti-Regular.woff2",
+  variable: "--font-heading-face",
   weight: "400",
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -36,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${marcellus.variable} h-full`}>
+    <html lang="en" className={`${geistSans.variable} ${headingFont.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
       </body>

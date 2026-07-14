@@ -3,7 +3,7 @@ import { setRequestLocale, getTranslations } from "next-intl/server";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { LotusMotif, MalaMotif, TulsiMotif } from "@/components/motifs";
+import { Heart, Image as ImageIcon, Users } from "lucide-react";
 
 type Props = {
 	params: Promise<{ locale: string }>;
@@ -70,17 +70,17 @@ export default async function Home({ params }: Props) {
 
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
 					<Card variant="flat">
-						<MalaMotif className="mb-3" />
+						<Heart className="mb-3 text-deep" size={28} aria-hidden="true" />
 						<h3 className="text-lg font-semibold text-deep mb-2">{t("cardBhaktiTitle")}</h3>
 						<p className="text-sm text-deep/60">{t("cardBhaktiDesc")}</p>
 					</Card>
 					<Card variant="flat">
-						<LotusMotif className="mb-3" />
+						<ImageIcon className="mb-3 text-deep" size={28} aria-hidden="true" />
 						<h3 className="text-lg font-semibold text-deep mb-2">{t("cardMediaTitle")}</h3>
 						<p className="text-sm text-deep/60">{t("cardMediaDesc")}</p>
 					</Card>
 					<Card variant="flat">
-						<TulsiMotif className="mb-3" />
+						<Users className="mb-3 text-deep" size={28} aria-hidden="true" />
 						<h3 className="text-lg font-semibold text-deep mb-2">{t("cardSangaTitle")}</h3>
 						<p className="text-sm text-deep/60">{t("cardSangaDesc")}</p>
 					</Card>
