@@ -29,6 +29,10 @@ export const RATE_LIMITS = {
   createChannel: { limit: 10, windowMs: 3_600_000 },
   // Channel rename: 10 per hour per user
   updateChannel: { limit: 10, windowMs: 3_600_000 },
+  // Read single post by id: 120 requests per 60s per IP
+  readPostDetail: { limit: 120, windowMs: 60_000 },
+  // Read user profile: 60 requests per 60s per IP
+  readProfile: { limit: 60, windowMs: 60_000 },
 } as const;
 
 // Rate-limit key prefixes — shared across API routes and SSR pages so every
@@ -48,6 +52,8 @@ export const RATE_LIMIT_PREFIX = {
   searchChannels: "search-channels",
   createChannel: "create-channel",
   updateChannel: "update-channel",
+  readPostDetail: "read-post-detail",
+  readProfile: "read-profile",
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;

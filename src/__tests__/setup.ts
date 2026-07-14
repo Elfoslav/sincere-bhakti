@@ -22,6 +22,8 @@ vi.mock("@/lib/rate-limit", () => {
       upload: "upload",
       uploadUrl: "upload-url",
       updateProfile: "update-profile",
+      readPostDetail: "read-post-detail",
+      readProfile: "read-profile",
     },
     RATE_LIMITS: {
       register: { limit: 5, windowMs: 3_600_000 },
@@ -35,6 +37,8 @@ vi.mock("@/lib/rate-limit", () => {
       readPosts: { limit: 120, windowMs: 60_000 },
       readChannel: { limit: 60, windowMs: 60_000 },
       searchChannels: { limit: 30, windowMs: 60_000 },
+      readPostDetail: { limit: 120, windowMs: 60_000 },
+      readProfile: { limit: 60, windowMs: 60_000 },
     },
   };
 });
