@@ -36,6 +36,7 @@ export async function generateMetadata({ params }: Omit<Props, "children">) {
       siteName: "Sincere Bhakti",
       url: siteUrl,
       locale: locale === "en" ? "en_US" : locale === "cs" ? "cs_CZ" : "sk_SK",
+      images: [{ url: "/images/sincere-bhakti-logo.png", width: 603, height: 414 }],
     },
     twitter: {
       card: "summary_large_image" as const,
