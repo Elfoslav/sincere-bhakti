@@ -105,7 +105,9 @@
 			"emailTooLong": "Email is too long",
 			"passwordRequired": "Password is required",
 			"registrationFailed": "Registration failed. If you already have an account, please sign in.",
-			"networkError": "Network error. Please check your connection."
+			"networkError": "Network error. Please check your connection.",
+			"termsAgreement": "I agree with <link>Terms & Conditions</link>",
+			"termsRequired": "You must agree to the Terms & Conditions"
 		}
 	},
 	"ProfilePage": {

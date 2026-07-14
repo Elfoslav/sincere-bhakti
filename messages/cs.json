@@ -105,7 +105,9 @@
 			"emailTooLong": "Email je příliš dlouhý",
 			"passwordRequired": "Heslo je povinné",
 			"registrationFailed": "Registrace se nezdařila. Pokud již máte účet, přihlaste se.",
-			"networkError": "Chyba sítě. Zkontrolujte připojení."
+			"networkError": "Chyba sítě. Zkontrolujte připojení.",
+			"termsAgreement": "Souhlasím s <link>podmínkami používání</link>",
+			"termsRequired": "Musíte souhlasit s podmínkami používání"
 		}
 	},
 	"ProfilePage": {
