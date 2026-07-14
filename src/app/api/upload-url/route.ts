@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createUploadUrl, contentTypeToMediaType } from "@/lib/services/upload";
 import { uploadUrlSchema } from "@/lib/validation";
-import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { logServerError, logValidationError } from "@/lib/server-log";
@@ -19,13 +19,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
   }
 
-  const { allowed } = await rateLimit(rateLimitKey("upload-url", session.user.id), RATE_LIMITS.uploadUrl.limit, RATE_LIMITS.uploadUrl.windowMs);
-  if (!allowed) {
-    console.warn("rate_limited", { route: "upload-url", userId: session.user.id });
-    return NextResponse.json(
-      { error: ERROR_TOO_MANY_REQUESTS },
-      { status: HTTP_TOO_MANY_REQUESTS },
-    );
+  if (!await checkRateLimit("upload-url", session.user.id, RATE_LIMITS.uploadUrl.limit, RATE_LIMITS.uploadUrl.windowMs)) {
+    return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
   }
 
   try {

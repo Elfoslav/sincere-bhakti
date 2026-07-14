@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getPostById } from "@/lib/services/post";
 import { auth } from "@/lib/auth";
 import { selectOgImageUrl } from "@/lib/og";
-import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
 import PostDetailClient from "./post-detail-client";
 import { getSiteUrl } from "@/lib/url";
 import type { Post, MediaType } from "@/types/post";
@@ -20,10 +20,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, id } = await params;
 
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const { allowed } = await rateLimit(rateLimitKey("read-posts", ip), RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs);
-  if (!allowed) return {};
+  const ip = getClientIp(await headers());
+  if (!await checkRateLimit("read-posts", ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) return {};
 
   const post = await getPostById(id);
   if (!post || !post.isPublic) return {};
@@ -71,10 +69,8 @@ export default async function PostPage({
 }) {
   const { id } = await params;
 
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const { allowed } = await rateLimit(rateLimitKey("read-posts", ip), RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs);
-  if (!allowed) notFound();
+  const ip = getClientIp(await headers());
+  if (!await checkRateLimit("read-posts", ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) notFound();
 
   const [post, session] = await Promise.all([getPostById(id), auth()]);
 

@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { compressR2Object } from "@/lib/services/upload";
 import { compressSchema } from "@/lib/validation";
 import { prisma } from "@/lib/prisma";
-import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
@@ -20,9 +20,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (process.env.NODE_ENV === "production") {
-    const { allowed } = await rateLimit(rateLimitKey("upload", session.user.id), RATE_LIMITS.upload.limit, RATE_LIMITS.upload.windowMs);
-    if (!allowed) {
-      console.warn("rate_limited", { route: "compress", userId: session.user.id });
+    if (!await checkRateLimit("upload", session.user.id, RATE_LIMITS.upload.limit, RATE_LIMITS.upload.windowMs)) {
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
   }

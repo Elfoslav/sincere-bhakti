@@ -174,7 +174,7 @@ describe("PATCH /api/users/[id]", () => {
 
     expect(res.status).toBe(429);
     expect(json.error).toBe("too_many_requests");
-    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "update-profile", userId: "user-1" });
+    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "update-profile", identifier: "user-1" });
     warnSpy.mockRestore();
   });
 

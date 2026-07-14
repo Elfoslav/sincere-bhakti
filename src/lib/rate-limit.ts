@@ -109,3 +109,30 @@ export async function rateLimit(
 export function rateLimitKey(prefix: string, identifier: string): string {
   return `${prefix}:${identifier}`;
 }
+
+/**
+ * Extract the client IP from a Headers object (from a NextRequest or
+ * next/headers()). Falls back to "unknown" when the header is absent.
+ */
+export function getClientIp(headers: Headers): string {
+  return headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+}
+
+/**
+ * Check whether the caller identified by `identifier` (typically an IP or
+ * user ID) is allowed through the rate limit configured by `prefix` +
+ * `RATE_LIMITS[key]`.  Logs a warning on rejection.  Returns `true` when
+ * the request is within the limit, `false` when it should be blocked.
+ */
+export async function checkRateLimit(
+  prefix: string,
+  identifier: string,
+  limit: number,
+  windowMs: number,
+): Promise<boolean> {
+  const { allowed } = await rateLimit(rateLimitKey(prefix, identifier), limit, windowMs);
+  if (!allowed) {
+    console.warn("rate_limited", { route: prefix, identifier });
+  }
+  return allowed;
+}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { updateNameSchema, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
-import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR } from "@/lib/error-messages";
@@ -64,13 +64,8 @@ export async function PATCH(
       return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
     }
 
-    const { allowed } = await rateLimit(rateLimitKey("update-profile", id), RATE_LIMITS.updateProfile.limit, RATE_LIMITS.updateProfile.windowMs);
-    if (!allowed) {
-      console.warn("rate_limited", { route: "update-profile", userId: id });
-      return NextResponse.json(
-        { error: ERROR_TOO_MANY_REQUESTS },
-        { status: HTTP_TOO_MANY_REQUESTS },
-      );
+    if (!await checkRateLimit("update-profile", id, RATE_LIMITS.updateProfile.limit, RATE_LIMITS.updateProfile.windowMs)) {
+      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
 
     const body = await request.json();

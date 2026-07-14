@@ -25,6 +25,12 @@ vi.mock("@/lib/rate-limit", () => {
     RATE_LIMITS,
     rateLimitKey: (prefix: string, id: string) => `${prefix}:${id}`,
     rateLimit: mockRateLimit,
+    getClientIp: (headers: Headers) => headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown",
+    checkRateLimit: vi.fn(async (_prefix: string, _id: string, _limit: number, _windowMs: number) => {
+      const { allowed } = await mockRateLimit(_prefix, _id, _limit, _windowMs);
+      if (!allowed) console.warn("rate_limited", { route: _prefix, identifier: _id });
+      return allowed;
+    }),
     __esModule: true,
   };
 });
@@ -151,7 +157,7 @@ describe("POST /api/channels", () => {
 
     expect(res.status).toBe(429);
     expect(json.error).toBe("too_many_requests");
-    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "create-channel", userId: "user-1" });
+    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "create-channel", identifier: "user-1" });
     warnSpy.mockRestore();
   });
 
@@ -323,7 +329,7 @@ describe("PATCH /api/channels/[slug]", () => {
 
     expect(res.status).toBe(429);
     expect(json.error).toBe("too_many_requests");
-    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "update-channel", userId: "user-1" });
+    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "update-channel", identifier: "user-1" });
     warnSpy.mockRestore();
   });
 
