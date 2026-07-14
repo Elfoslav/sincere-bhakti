@@ -113,7 +113,7 @@ export const registerSchema = z.object({
     .min(PASSWORD_MIN_LENGTH)
     .max(128),
   terms: z
-    .literal(true, { errorMap: () => ({ message: "terms_required" }) }),
+    .literal(true, { message: "terms_required" }),
 });
 
 // Intrinsic pixel dimensions are optional metadata detected client-side. They
