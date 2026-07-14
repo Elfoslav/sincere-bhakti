@@ -343,7 +343,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
                   )
                 )}
               </div>
-              <span className="text-xs text-deep/60 truncate flex-1">
+              <span className="text-xs text-deep/60 truncate flex-1 min-w-0 hidden md:block">
                 {item.file ? item.file.name : item.url?.split("/").pop()}
               </span>
               {item.file && (
@@ -354,7 +354,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
               <button
                 type="button"
                 onClick={() => removeMedia(item.id)}
-                className="text-deep/30 hover:text-red-500 transition-colors p-1"
+                className="text-deep/30 hover:text-red-500 transition-colors p-1 ml-auto"
               >
                 ✕
               </button>
