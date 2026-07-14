@@ -57,10 +57,10 @@ function memRateLimit(
     return { allowed: true, remaining: limit - 1, resetIn: windowMs };
   }
 
-  entry.count++;
-  if (entry.count > limit) {
+  if (entry.count >= limit) {
     return { allowed: false, remaining: 0, resetIn: entry.resetAt - now };
   }
+  entry.count++;
 
   return { allowed: true, remaining: limit - entry.count, resetIn: entry.resetAt - now };
 }
@@ -80,7 +80,7 @@ async function dbRateLimit(
     INSERT INTO "RateLimit" ("key", "count", "expiresAt")
     VALUES (${key}, 1, ${expiresAt})
     ON CONFLICT ("key") DO UPDATE SET
-      "count" = CASE WHEN "RateLimit"."expiresAt" <= ${now} THEN 1 ELSE "RateLimit"."count" + 1 END,
+      "count" = CASE WHEN "RateLimit"."expiresAt" <= ${now} THEN 1 ELSE LEAST("RateLimit"."count" + 1, ${limit + 1}) END,
       "expiresAt" = CASE WHEN "RateLimit"."expiresAt" <= ${now} THEN ${expiresAt} ELSE "RateLimit"."expiresAt" END
     RETURNING "count", "expiresAt"
   `;
