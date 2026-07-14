@@ -47,12 +47,11 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await getPosts(parsed.data);
-    // Public feed is identical for all anonymous visitors — let the CDN serve
-    // it for 30s (and stale for 2min while revalidating) so most reads never
-    // reach the lambda or database. Contains no per-user data.
+    // Short CDN cache only — no stale serving: a user who deletes or hides a
+    // post expects it to disappear immediately, not linger for 2 minutes.
     return NextResponse.json(result, {
       headers: {
-        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
+        "Cache-Control": "public, s-maxage=30",
       },
     });
   } catch (error) {
