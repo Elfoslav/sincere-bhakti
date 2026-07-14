@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { resolveSlugRedirect } from "@/lib/services/channel";
+import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 import ChannelPageClient from "./channel-page-client";
 
 type Props = {
@@ -12,6 +14,11 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
   const t = await getTranslations({ locale, namespace: "ChannelPage" });
+
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const { allowed } = await rateLimit(rateLimitKey("read-channel", ip), RATE_LIMITS.readChannel.limit, RATE_LIMITS.readChannel.windowMs);
+  if (!allowed) return { title: t("notFound") };
 
   const channel = await prisma.channel.findUnique({
     where: { slug },
@@ -42,6 +49,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ChannelPage({ params }: Props) {
   const { locale, slug } = await params;
+
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const { allowed } = await rateLimit(rateLimitKey("read-channel", ip), RATE_LIMITS.readChannel.limit, RATE_LIMITS.readChannel.windowMs);
+  if (!allowed) notFound();
 
   const channel = await prisma.channel.findUnique({
     where: { slug },
