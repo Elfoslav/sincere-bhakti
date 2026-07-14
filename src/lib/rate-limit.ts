@@ -101,12 +101,16 @@ async function dbRateLimit(
   // Single atomic upsert instead of a read-then-write transaction: rate
   // limiting runs on every request, so this halves the DB round trips per
   // request. An expired window resets the counter; otherwise it increments.
+  // Once the limit is exceeded, the WHERE clause prevents further writes
+  // (the row is read-only until the window expires), keeping hot keys from
+  // repeatedly locking and rewriting the same row under abusive traffic.
   const rows = await prisma.$queryRaw<{ count: number; expiresAt: Date }[]>`
     INSERT INTO "RateLimit" ("key", "count", "expiresAt")
     VALUES (${key}, 1, ${expiresAt})
     ON CONFLICT ("key") DO UPDATE SET
-      "count" = CASE WHEN "RateLimit"."expiresAt" <= ${now} THEN 1 ELSE LEAST("RateLimit"."count" + 1, ${limit + 1}) END,
+      "count" = CASE WHEN "RateLimit"."expiresAt" <= ${now} THEN 1 ELSE "RateLimit"."count" + 1 END,
       "expiresAt" = CASE WHEN "RateLimit"."expiresAt" <= ${now} THEN ${expiresAt} ELSE "RateLimit"."expiresAt" END
+    WHERE "RateLimit"."expiresAt" <= ${now} OR "RateLimit"."count" < ${limit}
     RETURNING "count", "expiresAt"
   `;
   const row = rows[0];
