@@ -190,7 +190,8 @@
 	"Common": {
 		"cancel": "Cancel",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
-		"footerLine2": "Dedicated to the teachings of Śrīla Prabhupāda"
+		"footerLine2": "Dedicated to the teachings of Śrīla Prabhupāda",
+		"terms": "Terms & Conditions"
 	},
 	"ErrorPages": {
 		"backToPosts": "← Back to posts",
@@ -211,5 +212,70 @@
 		"joke5Punchline": "The funeral was held at the 404 Ghat. Offer some prasādam in its memory.",
 		"joke6Headline": "This page is on mauna-vrata.",
 		"joke6Punchline": "It's not speaking to anyone right now. Come back after maṅgala-ārāti."
+	},
+	"Terms": {
+		"metaTitle": "Terms & Conditions",
+		"metaDescription": "The community standards and terms of use for Sincere Bhakti — what may be shared, and how devotional standards are upheld.",
+		"title": "Terms & Conditions",
+		"lastUpdated": "Effective 14 July 2026",
+		"intro": "Sincere Bhakti is a devotional community for practitioners and well-wishers of Gauḍīya Vaiṣṇavism. By creating an account or posting here, you agree to these terms. Please read them carefully — participation is a privilege offered in the spirit of bhakti.",
+		"sections": [
+			{
+				"heading": "1. The spirit of this community",
+				"body": "This is a sacred space dedicated to the service of Kṛṣṇa and His devotees, in the mood of humility, respect, and devotion taught by Śrīla Prabhupāda and the Gauḍīya ācāryas. Everything you share should reflect that mood. When in doubt, ask yourself: does this offering please the devotees and glorify the Holy Name?"
+			},
+			{
+				"heading": "2. Content you are welcome to share",
+				"body": "In keeping with the purpose of the saṅga, you may share:",
+				"items": [
+					"Realizations, prayers, and reflections rooted in devotional practice",
+					"Verses from śāstra and the writings of the ācāryas, with proper attribution",
+					"Kirtan and bhajan recordings, lectures, and links to bona fide devotional media",
+					"Respectful images and video from festivals, temples, prasādam, and your spiritual journey",
+					"Sincere questions and encouraging discussion about sādhana and Vaiṣṇava life"
+				]
+			},
+			{
+				"heading": "3. Content that is strictly prohibited",
+				"body": "To protect the devotees and uphold the regulative principles, the following is never permitted and will be removed. This list is illustrative, not exhaustive:",
+				"items": [
+					"Offenses to the Holy Name, to guru, sādhu, or śāstra, or to any Vaiṣṇava (vaiṣṇava-aparādha), and blasphemy of any bona fide spiritual tradition",
+					"Promotion of meat-eating or animal cruelty, intoxication, gambling, or illicit sex",
+					"Sexually explicit, suggestive, or obscene material, nudity, or pornography",
+					"Hate speech, harassment, threats, discrimination, bullying, or incitement to violence",
+					"Profane, abusive, or degrading language",
+					"Sectarian attacks on other devotees, lineages, or institutions",
+					"Advertising, spam, solicitation, schemes, fraud, or commercial promotion",
+					"Political propaganda or material unrelated to the devotional purpose of this community",
+					"Misinformation presented as scripture, or impersonation of any guru, authority, or devotee",
+					"Illegal content, copyright infringement, malware, or the sharing of others' private information"
+				]
+			},
+			{
+				"heading": "4. Moderation and removal",
+				"body": "We may remove any content and suspend or terminate any account at our sole discretion, at any time, without prior notice and without any obligation to provide a reason, whenever we judge it necessary to protect the community or uphold devotional standards. We do not guarantee that any content will be retained, backed up, or recoverable. Repeated or serious violations may lead to permanent removal from the community."
+			},
+			{
+				"heading": "5. Your responsibilities",
+				"body": "You are responsible for everything you post. You confirm that you own or have the right to share it, and you grant Sincere Bhakti a non-exclusive license to display it within the platform. Post truthfully, attribute the words of the ācāryas honestly, and treat every devotee with respect."
+			},
+			{
+				"heading": "6. Your account and data",
+				"body": "You are responsible for keeping your account secure. We store only what is needed to run the service — your account details and the content you post. You may request deletion of your account; some records may remain in backups for a limited time."
+			},
+			{
+				"heading": "7. No warranty",
+				"body": "Sincere Bhakti is offered “as is”, as a voluntary service to the saṅga, without warranties of any kind. Views expressed by members are their own and are not official instruction. To the fullest extent permitted by law, we are not liable for content posted by users or for any loss arising from use of the platform."
+			},
+			{
+				"heading": "8. Changes to these terms",
+				"body": "We may update these terms from time to time. Continued use of Sincere Bhakti after changes are posted means you accept the revised terms."
+			},
+			{
+				"heading": "9. A closing word",
+				"body": "This community exists only to serve Kṛṣṇa and His devotees. We ask you to participate in that same mood — with patience, humility, and care for others. Hare Kṛṣṇa."
+			}
+		],
+		"backHome": "Back to home"
 	}
 }
