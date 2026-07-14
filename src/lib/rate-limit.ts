@@ -73,28 +73,18 @@ async function dbRateLimit(
   const now = new Date();
   const expiresAt = new Date(now.getTime() + windowMs);
 
-  const row = await prisma.$transaction(async (tx) => {
-    const existing = await tx.rateLimit.findUnique({ where: { key } });
-
-    if (!existing || existing.expiresAt <= now) {
-      await tx.rateLimit.upsert({
-        where: { key },
-        create: { key, count: 1, expiresAt },
-        update: { count: 1, expiresAt },
-      });
-      return { count: 1, expiresAt };
-    }
-
-    if (existing.count >= limit) {
-      return existing;
-    }
-
-    const updated = await tx.rateLimit.update({
-      where: { key },
-      data: { count: { increment: 1 } },
-    });
-    return updated;
-  });
+  // Single atomic upsert instead of a read-then-write transaction: rate
+  // limiting runs on every request, so this halves the DB round trips per
+  // request. An expired window resets the counter; otherwise it increments.
+  const rows = await prisma.$queryRaw<{ count: number; expiresAt: Date }[]>`
+    INSERT INTO "RateLimit" ("key", "count", "expiresAt")
+    VALUES (${key}, 1, ${expiresAt})
+    ON CONFLICT ("key") DO UPDATE SET
+      "count" = CASE WHEN "RateLimit"."expiresAt" <= ${now} THEN 1 ELSE "RateLimit"."count" + 1 END,
+      "expiresAt" = CASE WHEN "RateLimit"."expiresAt" <= ${now} THEN ${expiresAt} ELSE "RateLimit"."expiresAt" END
+    RETURNING "count", "expiresAt"
+  `;
+  const row = rows[0];
 
   const allowed = row.count <= limit;
   return {

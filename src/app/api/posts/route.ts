@@ -47,7 +47,14 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await getPosts(parsed.data);
-    return NextResponse.json(result);
+    // Public feed is identical for all anonymous visitors — let the CDN serve
+    // it for 30s (and stale for 2min while revalidating) so most reads never
+    // reach the lambda or database. Contains no per-user data.
+    return NextResponse.json(result, {
+      headers: {
+        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
+      },
+    });
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
