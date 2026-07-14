@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createUploadUrl } from "@/lib/services/upload";
 import { batchUploadUrlSchema, MAX_TOTAL_UPLOAD_SIZE_BYTES, maxUploadSizeForContentType } from "@/lib/validation";
-import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { logServerError, logValidationError } from "@/lib/server-log";
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (process.env.NODE_ENV === "production") {
-    if (!await checkRateLimit("upload", session.user.id, RATE_LIMITS.upload.limit, RATE_LIMITS.upload.windowMs)) {
+    if (!await checkRateLimit(RATE_LIMIT_PREFIX.upload, session.user.id, RATE_LIMITS.upload.limit, RATE_LIMITS.upload.windowMs)) {
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
   }

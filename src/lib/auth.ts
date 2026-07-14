@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
-import { checkRateLimit, getClientIp, RATE_LIMITS } from "./rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "./rate-limit";
 import { createPersonalChannel, getPersonalChannel } from "@/lib/services/channel";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -17,7 +17,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null;
 
         const ip = req?.headers ? getClientIp(req.headers) : "unknown";
-        if (!await checkRateLimit("login", ip, RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs)) return null;
+        if (!await checkRateLimit(RATE_LIMIT_PREFIX.login, ip, RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs)) return null;
 
         const email = (credentials.email as string).trim().toLowerCase();
         const user = await prisma.user.findUnique({

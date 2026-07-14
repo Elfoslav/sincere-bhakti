@@ -12,6 +12,17 @@ vi.mock("@/lib/rate-limit", () => {
       if (!allowed) console.warn("rate_limited", { route: prefix, identifier });
       return allowed;
     }),
+    RATE_LIMIT_PREFIX: {
+      register: "register",
+      login: "login",
+      readPosts: "read-posts",
+      createPost: "create-post",
+      updatePost: "update-post",
+      deletePost: "delete-post",
+      upload: "upload",
+      uploadUrl: "upload-url",
+      updateProfile: "update-profile",
+    },
     RATE_LIMITS: {
       register: { limit: 5, windowMs: 3_600_000 },
       login: { limit: 10, windowMs: 900_000 },

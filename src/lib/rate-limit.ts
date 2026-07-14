@@ -31,6 +31,25 @@ export const RATE_LIMITS = {
   updateChannel: { limit: 10, windowMs: 3_600_000 },
 } as const;
 
+// Rate-limit key prefixes — shared across API routes and SSR pages so every
+// caller uses the same string.  These double as the `route` value in the
+// rate_limited warning log.
+export const RATE_LIMIT_PREFIX = {
+  register: "register",
+  login: "login",
+  readPosts: "read-posts",
+  createPost: "create-post",
+  updatePost: "update-post",
+  deletePost: "delete-post",
+  upload: "upload",
+  uploadUrl: "upload-url",
+  updateProfile: "update-profile",
+  readChannel: "read-channel",
+  searchChannels: "search-channels",
+  createChannel: "create-channel",
+  updateChannel: "update-channel",
+} as const;
+
 const CLEANUP_INTERVAL = 60_000;
 let lastCleanup = Date.now();
 

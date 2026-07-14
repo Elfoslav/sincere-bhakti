@@ -22,6 +22,12 @@ vi.mock("@/lib/rate-limit", () => {
   const mockRateLimit = vi.fn(() => ({ allowed: true, remaining: 9, resetIn: 3_600_000 }));
   const RATE_LIMITS = { createChannel: { limit: 10, windowMs: 3_600_000 }, updateChannel: { limit: 10, windowMs: 3_600_000 } };
   return {
+    RATE_LIMIT_PREFIX: {
+      readChannel: "read-channel",
+      searchChannels: "search-channels",
+      createChannel: "create-channel",
+      updateChannel: "update-channel",
+    },
     RATE_LIMITS,
     rateLimitKey: (prefix: string, id: string) => `${prefix}:${id}`,
     rateLimit: mockRateLimit,

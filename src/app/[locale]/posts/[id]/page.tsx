@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getPostById } from "@/lib/services/post";
 import { auth } from "@/lib/auth";
 import { selectOgImageUrl } from "@/lib/og";
-import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import PostDetailClient from "./post-detail-client";
 import { getSiteUrl } from "@/lib/url";
 import type { Post, MediaType } from "@/types/post";
@@ -19,9 +19,6 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { locale, id } = await params;
-
-  const ip = getClientIp(await headers());
-  if (!await checkRateLimit("read-posts", ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) return {};
 
   const post = await getPostById(id);
   if (!post || !post.isPublic) return {};
@@ -70,7 +67,7 @@ export default async function PostPage({
   const { id } = await params;
 
   const ip = getClientIp(await headers());
-  if (!await checkRateLimit("read-posts", ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) notFound();
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) notFound();
 
   const [post, session] = await Promise.all([getPostById(id), auth()]);
 

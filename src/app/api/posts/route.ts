@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPosts, createPost, UnauthorizedError, ConflictError } from "@/lib/services/post";
 import { createPostSchema, paginationSchema, isTrustedMediaUrl } from "@/lib/validation";
-import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { getPersonalChannel, createPersonalChannel } from "@/lib/services/channel";
 import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
@@ -12,7 +12,7 @@ import { logServerError, logValidationError } from "@/lib/server-log";
 export async function GET(request: NextRequest) {
   try {
     const ip = getClientIp(request.headers);
-    if (!await checkRateLimit("read-posts", ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) {
+    if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) {
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
   }
 
-  if (!await checkRateLimit("create-post", session.user.id, RATE_LIMITS.createPost.limit, RATE_LIMITS.createPost.windowMs)) {
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.createPost, session.user.id, RATE_LIMITS.createPost.limit, RATE_LIMITS.createPost.windowMs)) {
     return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
   }
 

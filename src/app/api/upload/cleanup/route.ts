@@ -4,7 +4,7 @@ import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { prisma } from "@/lib/prisma";
 import { canonicalizeUrl } from "@/lib/url";
 import { validateOrigin } from "@/lib/csrf";
-import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-log";
 import { isSafeHttpUrl } from "@/lib/validation";
 import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (process.env.NODE_ENV === "production") {
-    if (!await checkRateLimit("upload", session.user.id, RATE_LIMITS.upload.limit, RATE_LIMITS.upload.windowMs)) {
+    if (!await checkRateLimit(RATE_LIMIT_PREFIX.upload, session.user.id, RATE_LIMITS.upload.limit, RATE_LIMITS.upload.windowMs)) {
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
   }

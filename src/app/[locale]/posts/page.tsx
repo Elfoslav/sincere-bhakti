@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getPosts } from "@/lib/services/post";
-import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import type { Post } from "@/types/post";
 import PostsPageClient from "./posts-page-client";
 
@@ -44,7 +44,7 @@ export default async function PostsPage({ params }: Props) {
   // /posts doesn't hammer Prisma directly (the client-side fallback
   // goes through the API route which has its own rate limit).
   const ip = getClientIp(await headers());
-  const allowed = await checkRateLimit("read-posts", ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs);
+  const allowed = await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs);
 
   // Fetch the first page of the public feed on the server so it's in the HTML —
   // no hydrate→fetch→render waterfall. JSON round-trip mirrors the API response
