@@ -24,6 +24,7 @@ describe("registerSchema", () => {
       name: "Krishna Das",
       email: "kdas@example.com",
       password: "secret123",
+      terms: true,
     });
     expect(result.success).toBe(true);
   });
@@ -50,6 +51,7 @@ describe("registerSchema", () => {
       name: "Krishna",
       email: "KriShna@ExamplE.Com",
       password: "secret123",
+      terms: true,
     });
     expect(result.success).toBe(true);
     if (result.success) {

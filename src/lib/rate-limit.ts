@@ -29,6 +29,31 @@ export const RATE_LIMITS = {
   createChannel: { limit: 10, windowMs: 3_600_000 },
   // Channel rename: 10 per hour per user
   updateChannel: { limit: 10, windowMs: 3_600_000 },
+  // Read single post by id: 120 requests per 60s per IP
+  readPostDetail: { limit: 120, windowMs: 60_000 },
+  // Read user profile: 60 requests per 60s per IP
+  readProfile: { limit: 60, windowMs: 60_000 },
+} as const;
+
+// Rate-limit key prefixes — shared across API routes and SSR pages so every
+// caller uses the same string.  These double as the `route` value in the
+// rate_limited warning log.
+export const RATE_LIMIT_PREFIX = {
+  register: "register",
+  login: "login",
+  readPosts: "read-posts",
+  createPost: "create-post",
+  updatePost: "update-post",
+  deletePost: "delete-post",
+  upload: "upload",
+  uploadUrl: "upload-url",
+  updateProfile: "update-profile",
+  readChannel: "read-channel",
+  searchChannels: "search-channels",
+  createChannel: "create-channel",
+  updateChannel: "update-channel",
+  readPostDetail: "read-post-detail",
+  readProfile: "read-profile",
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;
@@ -57,10 +82,10 @@ function memRateLimit(
     return { allowed: true, remaining: limit - 1, resetIn: windowMs };
   }
 
-  entry.count++;
-  if (entry.count > limit) {
+  if (entry.count >= limit) {
     return { allowed: false, remaining: 0, resetIn: entry.resetAt - now };
   }
+  entry.count++;
 
   return { allowed: true, remaining: limit - entry.count, resetIn: entry.resetAt - now };
 }
@@ -73,28 +98,30 @@ async function dbRateLimit(
   const now = new Date();
   const expiresAt = new Date(now.getTime() + windowMs);
 
-  const row = await prisma.$transaction(async (tx) => {
-    const existing = await tx.rateLimit.findUnique({ where: { key } });
+  // Single atomic upsert instead of a read-then-write transaction: rate
+  // limiting runs on every request, so this halves the DB round trips per
+  // request. An expired window resets the counter; otherwise it increments.
+  // Once the limit is exceeded, the WHERE clause prevents further writes
+  // (the row is read-only until the window expires), keeping hot keys from
+  // repeatedly locking and rewriting the same row under abusive traffic.
+  const rows = await prisma.$queryRaw<{ count: number; expiresAt: Date }[]>`
+    INSERT INTO "RateLimit" ("key", "count", "expiresAt")
+    VALUES (${key}, 1, ${expiresAt})
+    ON CONFLICT ("key") DO UPDATE SET
+      "count" = CASE WHEN "RateLimit"."expiresAt" <= ${now} THEN 1 ELSE "RateLimit"."count" + 1 END,
+      "expiresAt" = CASE WHEN "RateLimit"."expiresAt" <= ${now} THEN ${expiresAt} ELSE "RateLimit"."expiresAt" END
+    WHERE "RateLimit"."expiresAt" <= ${now} OR "RateLimit"."count" < ${limit}
+    RETURNING "count", "expiresAt"
+  `;
+  const row = rows[0];
 
-    if (!existing || existing.expiresAt <= now) {
-      await tx.rateLimit.upsert({
-        where: { key },
-        create: { key, count: 1, expiresAt },
-        update: { count: 1, expiresAt },
-      });
-      return { count: 1, expiresAt };
-    }
-
-    if (existing.count >= limit) {
-      return existing;
-    }
-
-    const updated = await tx.rateLimit.update({
-      where: { key },
-      data: { count: { increment: 1 } },
-    });
-    return updated;
-  });
+  // No row returned: the WHERE clause filtered the update out, meaning the
+  // key exists, its window hasn't expired, and it is already at the limit —
+  // denied. (resetIn is unknown without reading the row; windowMs is a safe
+  // upper bound and no caller consumes it.)
+  if (!row) {
+    return { allowed: false, remaining: 0, resetIn: windowMs };
+  }
 
   const allowed = row.count <= limit;
   return {
@@ -118,4 +145,31 @@ export async function rateLimit(
 
 export function rateLimitKey(prefix: string, identifier: string): string {
   return `${prefix}:${identifier}`;
+}
+
+/**
+ * Extract the client IP from a Headers object (from a NextRequest or
+ * next/headers()). Falls back to "unknown" when the header is absent.
+ */
+export function getClientIp(headers: Headers): string {
+  return headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+}
+
+/**
+ * Check whether the caller identified by `identifier` (typically an IP or
+ * user ID) is allowed through the rate limit configured by `prefix` +
+ * `RATE_LIMITS[key]`.  Logs a warning on rejection.  Returns `true` when
+ * the request is within the limit, `false` when it should be blocked.
+ */
+export async function checkRateLimit(
+  prefix: string,
+  identifier: string,
+  limit: number,
+  windowMs: number,
+): Promise<boolean> {
+  const { allowed } = await rateLimit(rateLimitKey(prefix, identifier), limit, windowMs);
+  if (!allowed) {
+    console.warn("rate_limited", { route: prefix, identifier });
+  }
+  return allowed;
 }

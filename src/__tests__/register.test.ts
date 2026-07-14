@@ -73,6 +73,7 @@ describe("POST /api/register", () => {
       name: "Krishna Das",
       email: "kdas@example.com",
       password: "secret123",
+      terms: true,
     }));
     const json = await res.json();
 
@@ -95,6 +96,7 @@ describe("POST /api/register", () => {
       name: "New User",
       email: "used@example.com",
       password: "secret123",
+      terms: true,
     }));
     const json = await res.json();
 
@@ -117,7 +119,7 @@ describe("POST /api/register", () => {
     vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 3_600_000 } as any);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const res = await POST(mockRequest({ name: "A", email: "spam@b.com", password: "secret123" }));
+    const res = await POST(mockRequest({ name: "A", email: "spam@b.com", password: "secret123", terms: true }));
     const json = await res.json();
 
     expect(res.status).toBe(429);
@@ -135,6 +137,7 @@ describe("POST /api/register", () => {
       name: "Krishna",
       email: "k@example.com",
       password: "secret123",
+      terms: true,
     }));
     const json = await res.json();
 
@@ -147,6 +150,7 @@ describe("POST /api/register", () => {
       name: "Sincere Bhakti",
       email: "spam@example.com",
       password: "secret123",
+      terms: true,
     }));
     const json = await res.json();
 
@@ -171,6 +175,7 @@ describe("POST /api/register", () => {
         name: "Sincere Bhakti",
         email: "owner@sincerebhakti.com",
         password: "secret123",
+        terms: true,
       }));
       const json = await res.json();
 

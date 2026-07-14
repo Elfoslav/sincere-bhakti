@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { canonicalizeUrl } from "@/lib/url";
@@ -115,16 +116,9 @@ export async function getPosts(
       }
       where.channelId = channelId;
     } else {
-      // No channelId: scope to user's own channels
-      const userChannels = await prisma.channel.findMany({
-        where: { ownerId: currentUserId },
-        select: { id: true },
-      });
-      if (userChannels.length > 0) {
-        where.channelId = { in: userChannels.map((c) => c.id) };
-      } else {
-        where.id = "none";
-      }
+      // No channelId: scope to the user's own channels via the relation —
+      // avoids a separate channel-IDs query before the main one.
+      where.channel = { ownerId: currentUserId };
     }
     where.isPublic = false;
   } else {
@@ -141,16 +135,9 @@ export async function getPosts(
         where.isPublic = true;
       }
     } else {
-      // No channelId: scope to user's own channels
-      const userChannels = await prisma.channel.findMany({
-        where: { ownerId: currentUserId },
-        select: { id: true },
-      });
-      if (userChannels.length > 0) {
-        where.channelId = { in: userChannels.map((c) => c.id) };
-      } else {
-        where.id = "none";
-      }
+      // No channelId: scope to the user's own channels via the relation —
+      // avoids a separate channel-IDs query before the main one.
+      where.channel = { ownerId: currentUserId };
     }
   }
 
@@ -176,6 +163,10 @@ export async function getPostById(id: string): Promise<PostResponse | null> {
 
   return post;
 }
+
+// `generateMetadata` and the page body both need the same post data. React's
+// cache memoizes the lookup within a request so we don't double-hit Prisma.
+export const getCachedPostById = cache(getPostById);
 
 async function validateMediaOwnership(
   media: MediaInput[],
@@ -294,10 +285,15 @@ export async function deletePost(
 
   const orphaned = await prisma.$transaction(async (tx) => {
     await tx.post.deleteMany({ where: { id, channel: { ownerId: userId } } });
-    const counts = await Promise.all(
-      urls.map((url) => tx.media.count({ where: { url } })),
-    );
-    return urls.filter((_, i) => counts[i] === 0);
+    // One query instead of one count per URL: any URL still present in Media
+    // is referenced by another post and must not be deleted from storage.
+    const stillReferenced = await tx.media.findMany({
+      where: { url: { in: urls } },
+      select: { url: true },
+      distinct: ["url"],
+    });
+    const referenced = new Set(stillReferenced.map((m) => m.url));
+    return urls.filter((url) => !referenced.has(url));
   });
 
   if (orphaned.length > 0) {
@@ -368,10 +364,14 @@ export async function updatePost(
         (old) => !media.some((m) => canonicalizeUrl(m.url) === canonicalizeUrl(old.url)),
       )
       .map((m) => canonicalizeUrl(m.url));
-    const counts = await Promise.all(
-      removed.map((url) => prisma.media.count({ where: { url } })),
-    );
-    const orphaned = removed.filter((_, i) => counts[i] === 0);
+    // One query instead of one count per URL (see deletePost).
+    const stillReferenced = await prisma.media.findMany({
+      where: { url: { in: removed } },
+      select: { url: true },
+      distinct: ["url"],
+    });
+    const referenced = new Set(stillReferenced.map((m) => m.url));
+    const orphaned = removed.filter((url) => !referenced.has(url));
     await deleteMediaFiles(orphaned);
   }
 

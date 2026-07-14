@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
-import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR } from "@/lib/error-messages";
@@ -70,14 +70,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
   }
 
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const { allowed } = await rateLimit(rateLimitKey("register", ip), RATE_LIMITS.register.limit, RATE_LIMITS.register.windowMs);
-  if (!allowed) {
-    console.warn("rate_limited", { route: "register", ip });
-    return NextResponse.json(
-      { error: ERROR_TOO_MANY_REQUESTS },
-      { status: HTTP_TOO_MANY_REQUESTS },
-    );
+  const ip = getClientIp(request.headers);
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.register, ip, RATE_LIMITS.register.limit, RATE_LIMITS.register.windowMs)) {
+    return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
   }
 
   try {

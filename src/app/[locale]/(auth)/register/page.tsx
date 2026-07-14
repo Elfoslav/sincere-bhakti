@@ -36,9 +36,10 @@ type FieldErrors = {
   name: string | null;
   email: string | null;
   password: string | null;
+  terms: string | null;
 };
 
-const initialErrors: FieldErrors = { name: null, email: null, password: null };
+const initialErrors: FieldErrors = { name: null, email: null, password: null, terms: null };
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -46,6 +47,7 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<FieldErrors>(initialErrors);
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const { stored, save, clear, loaded } = useFormPersist<{ name: string; email: string }>("register", ["password"]);
 
@@ -86,9 +88,10 @@ export default function RegisterPage() {
     const nameErr = validators.name(name);
     const emailErr = validators.email(email);
     const passwordErr = validators.password(password);
-    setErrors({ name: nameErr, email: emailErr, password: passwordErr });
+    const termsErr = termsAgreed ? null : t("termsRequired");
+    setErrors({ name: nameErr, email: emailErr, password: passwordErr, terms: termsErr });
 
-    if (nameErr || emailErr || passwordErr) return;
+    if (nameErr || emailErr || passwordErr || termsErr) return;
 
     setLoading(true);
 
@@ -96,7 +99,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, terms: true }),
       });
 
       if (!res.ok) {
@@ -179,6 +182,25 @@ export default function RegisterPage() {
             />
             {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
           </div>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={termsAgreed}
+              onChange={(e) => { setTermsAgreed(e.target.checked); if (errors.terms) setErrors((prev) => ({ ...prev, terms: null })); }}
+              className="mt-0.5 h-4 w-4 rounded border-deep/30 text-gold focus:ring-gold"
+            />
+            <span className="text-sm text-deep/70">
+              {t.rich("termsAgreement", {
+                link: (chunks) => (
+                  <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-gold hover:underline font-medium">
+                    {chunks}
+                  </Link>
+                ),
+              })}
+            </span>
+          </label>
+          {errors.terms && <p className="text-red-500 text-xs -mt-2">{errors.terms}</p>}
 
           {serverError && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{serverError}</p>}
 

@@ -19,12 +19,25 @@ vi.mock("@/lib/csrf", () => ({
   validateOrigin: vi.fn(() => true),
 }));
 vi.mock("@/lib/rate-limit", () => {
-  const mockRateLimit = vi.fn(() => ({ allowed: true, remaining: 9, resetIn: 3_600_000 }));
+  const mockRateLimit = vi.fn((_key: string, _limit: number, _windowMs: number) => ({ allowed: true, remaining: 9, resetIn: 3_600_000 }));
   const RATE_LIMITS = { createChannel: { limit: 10, windowMs: 3_600_000 }, updateChannel: { limit: 10, windowMs: 3_600_000 } };
+  const rateLimitKey = (prefix: string, id: string) => `${prefix}:${id}`;
   return {
+    RATE_LIMIT_PREFIX: {
+      readChannel: "read-channel",
+      searchChannels: "search-channels",
+      createChannel: "create-channel",
+      updateChannel: "update-channel",
+    },
     RATE_LIMITS,
-    rateLimitKey: (prefix: string, id: string) => `${prefix}:${id}`,
+    rateLimitKey,
     rateLimit: mockRateLimit,
+    getClientIp: (headers: Headers) => headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown",
+    checkRateLimit: vi.fn(async (_prefix: string, _id: string, _limit: number, _windowMs: number) => {
+      const { allowed } = await mockRateLimit(rateLimitKey(_prefix, _id), _limit, _windowMs);
+      if (!allowed) console.warn("rate_limited", { route: _prefix, identifier: _id });
+      return allowed;
+    }),
     __esModule: true,
   };
 });
@@ -151,7 +164,7 @@ describe("POST /api/channels", () => {
 
     expect(res.status).toBe(429);
     expect(json.error).toBe("too_many_requests");
-    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "create-channel", userId: "user-1" });
+    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "create-channel", identifier: "user-1" });
     warnSpy.mockRestore();
   });
 
@@ -323,7 +336,7 @@ describe("PATCH /api/channels/[slug]", () => {
 
     expect(res.status).toBe(429);
     expect(json.error).toBe("too_many_requests");
-    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "update-channel", userId: "user-1" });
+    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "update-channel", identifier: "user-1" });
     warnSpy.mockRestore();
   });
 

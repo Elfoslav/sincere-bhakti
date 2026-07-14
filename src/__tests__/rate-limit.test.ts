@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 
 // Use in-memory path even on Vercel (NODE_ENV=production + DATABASE_URL set)
 const origDbUrl = process.env.DATABASE_URL;
@@ -6,7 +6,9 @@ beforeAll(() => { process.env.DATABASE_URL = ""; });
 afterAll(() => { process.env.DATABASE_URL = origDbUrl; });
 
 vi.unmock("@/lib/rate-limit");
+vi.mock("@/lib/prisma", () => ({ prisma: { $queryRaw: vi.fn() } }));
 
+import { prisma } from "@/lib/prisma";
 import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 
 describe("rateLimitKey", () => {
@@ -62,5 +64,47 @@ describe("rateLimit (in-memory fallback)", () => {
     const result = await rateLimit("reset-in-key", 5, 10_000);
     expect(result.resetIn).toBeGreaterThan(0);
     expect(result.resetIn).toBeLessThanOrEqual(10_000);
+  });
+});
+
+describe("rateLimit (database path)", () => {
+  beforeEach(() => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DATABASE_URL", "postgres://test");
+    vi.mocked(prisma.$queryRaw).mockReset();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("allows when the upsert returns a row within the limit", async () => {
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([
+      { count: 2, expiresAt: new Date(Date.now() + 30_000) },
+    ]);
+
+    const result = await rateLimit("db-key", 5, 60_000);
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(3);
+  });
+
+  it("denies when the upsert returns a row over the limit", async () => {
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([
+      { count: 6, expiresAt: new Date(Date.now() + 30_000) },
+    ]);
+
+    const result = await rateLimit("db-key", 5, 60_000);
+    expect(result.allowed).toBe(false);
+  });
+
+  it("denies (does not crash) when the guarded upsert returns no rows", async () => {
+    // The DO UPDATE ... WHERE clause skips writes for keys already at their
+    // limit, so RETURNING yields zero rows — that must read as "denied",
+    // not a TypeError that turns 429s into 500s.
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([]);
+
+    const result = await rateLimit("hot-key", 5, 60_000);
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
+    expect(result.resetIn).toBeGreaterThan(0);
   });
 });

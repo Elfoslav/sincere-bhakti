@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { slugifyName, normalizeName } from "@/lib/validation";
 import type { PostChannel } from "@/types/post";
@@ -134,6 +135,10 @@ export async function getChannelBySlug(slug: string): Promise<{
     isPersonal: channel.isPersonal,
   };
 }
+
+// `generateMetadata` and the page body both need channel data. React's
+// cache ensures only one Prisma query within the same request.
+export const getCachedChannelBySlug = cache(getChannelBySlug);
 
 // Check if a normalizedName is taken by any active channel or slug history,
 // optionally excluding a specific channel (e.g. the one being renamed).

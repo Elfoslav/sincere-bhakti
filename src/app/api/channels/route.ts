@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/validation";
@@ -11,10 +11,8 @@ import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT
 
 export async function GET(request: NextRequest) {
   try {
-    const ip = request.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    const { allowed } = await rateLimit(rateLimitKey("search-channels", ip), RATE_LIMITS.searchChannels.limit, RATE_LIMITS.searchChannels.windowMs);
-    if (!allowed) {
-      console.warn("rate_limited", { route: "search-channels", ip });
+    const ip = getClientIp(request.headers);
+    if (!await checkRateLimit(RATE_LIMIT_PREFIX.searchChannels, ip, RATE_LIMITS.searchChannels.limit, RATE_LIMITS.searchChannels.windowMs)) {
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
     const { searchParams } = new URL(request.url);
@@ -94,9 +92,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
   }
 
-  const { allowed } = await rateLimit(rateLimitKey("create-channel", session.user.id), RATE_LIMITS.createChannel.limit, RATE_LIMITS.createChannel.windowMs);
-  if (!allowed) {
-    console.warn("rate_limited", { route: "create-channel", userId: session.user.id });
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.createChannel, session.user.id, RATE_LIMITS.createChannel.limit, RATE_LIMITS.createChannel.windowMs)) {
     return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
   }
 

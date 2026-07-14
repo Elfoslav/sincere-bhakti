@@ -9,15 +9,21 @@ type ApiParams = {
   disabled?: boolean;
   pageSize?: number;
   language?: string;
+  // Server-rendered first page. When provided, the hook seeds state from it and
+  // skips the initial client fetch — removing the hydrate→fetch→render waterfall.
+  initialData?: { posts: Post[]; hasMore: boolean };
 };
 
 export function useInfinitePosts(params?: ApiParams) {
-  const { scope, channelId, disabled, pageSize = PAGE_SIZE, language } = params ?? {};
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(!disabled);
+  const { scope, channelId, disabled, pageSize = PAGE_SIZE, language, initialData } = params ?? {};
+  const [posts, setPosts] = useState<Post[]>(initialData?.posts ?? []);
+  const [loading, setLoading] = useState(!disabled && !initialData);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(initialData?.hasMore ?? true);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  // True until the first fetch effect runs once; lets us skip the initial fetch
+  // when server-provided initialData already populated state.
+  const skipInitialFetch = useRef(Boolean(initialData));
 
   const fetchPosts = useCallback(
     async (cursor?: string) => {
@@ -42,9 +48,13 @@ export function useInfinitePosts(params?: ApiParams) {
 
   useEffect(() => {
     if (disabled) return;
+    // First run with server-provided data already in state: don't refetch.
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
     let mounted = true;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setPosts([]);
     setHasMore(true);

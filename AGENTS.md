@@ -31,32 +31,61 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # Agent Checklist — Always Verify Before Writing Code
 
 ## Rate Limiting
-Every mutation API endpoint MUST have rate limiting. On Vercel (production) rate limiting uses the existing PostgreSQL database via Prisma. Locally/tests use an in-memory Map. Use the shared utility:
+Every API endpoint (including read endpoints) and every SSR page MUST have rate limiting. On Vercel (production) rate limiting uses the existing PostgreSQL database via Prisma. Locally/tests use an in-memory Map. Use the shared helpers:
 
 ```ts
-import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 
-const { allowed } = await rateLimit(rateLimitKey("unique-prefix", userIdOrIp), RATE_LIMITS.xxx.limit, RATE_LIMITS.xxx.windowMs);
-if (!allowed) {
-  return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+const ip = getClientIp(request.headers);
+if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) {
+  return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
 }
 ```
 
-Return error codes (not English strings) from API routes so clients can map to translations.
+- `getClientIp(headers)` — extracts the client IP from `x-forwarded-for`, falls back to `"unknown"`.
+- `checkRateLimit(prefix, identifier, limit, windowMs)` — checks the limit, logs a `rate_limited` warning on rejection, returns `boolean`.
+- `RATE_LIMIT_PREFIX.xxx` — shared prefix constants (never inline strings like `"read-posts"`).
+- `RATE_LIMITS.xxx.limit` / `RATE_LIMITS.xxx.windowMs` — shared limit config (never inline magic numbers).
+
+Every new rate-limited endpoint must add entries to BOTH `RATE_LIMITS` and `RATE_LIMIT_PREFIX` in `src/lib/rate-limit.ts`. Every `RATE_LIMITS` entry must have a human-readable comment describing the limit and window (e.g. `// Read posts: 120 requests per 60s per IP`).
+
+Return error codes from API routes (import `ERROR_TOO_MANY_REQUESTS` from `@/lib/error-messages`, `HTTP_TOO_MANY_REQUESTS` from `@/lib/error-codes`) — never inline strings or raw numbers.
 
 Also add rate limiting to the login flow in `src/lib/auth.ts` — the `authorize` callback receives `req` as second param:
 
 ```ts
-const ip = req?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-const { allowed } = await rateLimit(rateLimitKey("login", ip), RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs);
-if (!allowed) return null;
+const ip = req?.headers ? getClientIp(req.headers) : "unknown";
+if (!await checkRateLimit(RATE_LIMIT_PREFIX.login, ip, RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs)) return null;
 ```
 
-Always use `RATE_LIMITS.xxx.limit` / `RATE_LIMITS.xxx.windowMs` from `src/lib/rate-limit.ts` — never inline magic numbers. Add a new entry to the `RATE_LIMITS` object when adding a new rate-limited endpoint.
+**SSR pages**: Add `checkRateLimit` to the page component only — do NOT add it to `generateMetadata`. Adding it to metadata double-charges each page view (two quota units per request) and can cause false 404s under shared-IP or crawler traffic.
 
-Every `RATE_LIMITS` entry must have a human-readable comment describing the limit and window (e.g. `// Read posts: 120 requests per 60s per IP`). This keeps durations self-documenting and prevents confusion when revisiting later.
+```ts
+// In the page component only, not in generateMetadata:
+const ip = getClientIp(await headers());
+if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) notFound();
+```
 
-Existing prefixes: `register` (by IP, 5/hour), `create-post` (by userId, 20/hour), `upload-url` (by userId, 20/hour), `delete-post` (by userId, 30/hour), `update-profile` (by userId, 10/hour), `login` (by IP, 10/15min), `upload` (by userId, 60/hour, production only — shared by upload and cleanup). For new endpoints, pick a reasonable limit that regular users won't hit but blocks abuse.
+Existing rate-limit entries (all defined in `src/lib/rate-limit.ts`):
+| Key | Identifier | Limit | Window | Scope |
+|---|---|---|---|---|
+| `register` | IP | 20 | 1 hour | Registration |
+| `login` | IP | 15 | 15 min | Auth login |
+| `readPosts` | IP | 120 | 60 s | Post feed & detail SSR + API |
+| `readPostDetail` | IP | 120 | 60 s | Single post API |
+| `readChannel` | IP | 60 | 60 s | Channel detail SSR + API |
+| `readProfile` | IP | 60 | 60 s | User profile API |
+| `searchChannels` | IP | 30 | 60 s | Channel search API |
+| `createPost` | userId | 20 | 1 hour | Post creation |
+| `updatePost` | userId | 30 | 1 hour | Post update |
+| `deletePost` | userId | 30 | 1 hour | Post deletion |
+| `upload` | userId | 60 | 1 hour | Upload, cleanup, compress (production only) |
+| `uploadUrl` | userId | 20 | 1 hour | Presigned URL generation |
+| `updateProfile` | userId | 10 | 1 hour | Profile rename |
+| `createChannel` | userId | 10 | 1 hour | Channel creation |
+| `updateChannel` | userId | 10 | 1 hour | Channel rename |
+
+For new endpoints, pick a reasonable limit that regular users won't hit but blocks abuse.
 
 ## Shared Constants for Validation
 Never hardcode validation thresholds. Define them in `src/lib/validation.ts` and export them:

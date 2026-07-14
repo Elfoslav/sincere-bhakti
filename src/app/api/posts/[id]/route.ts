@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError, ValidationError } from "@/lib/services/post";
-import { rateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { isTrustedMediaUrl, updatePostSchema } from "@/lib/validation";
 import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
@@ -14,6 +14,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ip = getClientIp(request.headers);
+    if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPostDetail, ip, RATE_LIMITS.readPostDetail.limit, RATE_LIMITS.readPostDetail.windowMs)) {
+      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
+    }
+
     const { id } = await params;
 
     const post = await getPostById(id);
@@ -49,9 +54,7 @@ export async function PATCH(
       return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
     }
 
-    const { allowed } = await rateLimit(rateLimitKey("update-post", session.user.id), RATE_LIMITS.updatePost.limit, RATE_LIMITS.updatePost.windowMs);
-    if (!allowed) {
-      console.warn("rate_limited", { route: "update-post", userId: session.user.id });
+    if (!await checkRateLimit(RATE_LIMIT_PREFIX.updatePost, session.user.id, RATE_LIMITS.updatePost.limit, RATE_LIMITS.updatePost.windowMs)) {
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
 
@@ -118,13 +121,8 @@ export async function DELETE(
       return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
     }
 
-    const { allowed } = await rateLimit(rateLimitKey("delete-post", session.user.id), RATE_LIMITS.deletePost.limit, RATE_LIMITS.deletePost.windowMs);
-    if (!allowed) {
-      console.warn("rate_limited", { route: "delete-post", userId: session.user.id });
-      return NextResponse.json(
-        { error: ERROR_TOO_MANY_REQUESTS },
-        { status: HTTP_TOO_MANY_REQUESTS },
-      );
+    if (!await checkRateLimit(RATE_LIMIT_PREFIX.deletePost, session.user.id, RATE_LIMITS.deletePost.limit, RATE_LIMITS.deletePost.windowMs)) {
+      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
 
     const { id } = await params;

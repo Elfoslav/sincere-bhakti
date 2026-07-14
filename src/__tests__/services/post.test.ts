@@ -14,6 +14,8 @@ vi.mock("@/lib/prisma", () => ({
     media: {
       deleteMany: vi.fn(),
       createMany: vi.fn(),
+      // Orphan detection: defaults to "nothing else references these URLs".
+      findMany: vi.fn(() => Promise.resolve([])),
     },
     channel: {
       findUnique: vi.fn(),
@@ -113,19 +115,16 @@ describe("getPosts", () => {
   });
 
   it("returns own posts when no scope", async () => {
-    vi.mocked(prisma.channel.findMany).mockResolvedValue([{ id: "channel-1", ownerId: "user-1" } as any]);
     vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
 
     const result = await getPosts({}, "user-1");
 
     expect(result.posts).toHaveLength(1);
-    expect(prisma.channel.findMany).toHaveBeenCalledWith({
-      where: { ownerId: "user-1" },
-      select: { id: true },
-    });
+    // Scoped to the user's channels via the relation — no separate channel query.
+    expect(prisma.channel.findMany).not.toHaveBeenCalled();
     expect(prisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { channelId: { in: ["channel-1"] } },
+        where: { channel: { ownerId: "user-1" } },
       }),
     );
   });
