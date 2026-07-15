@@ -165,6 +165,7 @@ export default function RegisterPage() {
               placeholder={t("namePlaceholder")}
               onBlur={handleBlur("name")}
               onChange={handleChange("name")}
+              maxLength={50}
             />
             {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
           </div>

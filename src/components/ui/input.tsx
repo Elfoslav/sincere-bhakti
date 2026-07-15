@@ -5,9 +5,24 @@ import { cn } from "@/lib/utils"
 
 interface InputProps extends React.ComponentProps<"input"> {
   errorMessage?: string;
+  maxLength?: number;
 }
 
-function Input({ className, type, errorMessage, ...props }: InputProps) {
+function Input({ className, type, errorMessage, maxLength, onChange, defaultValue, ...props }: InputProps) {
+  const [internalValue, setInternalValue] = React.useState(
+    defaultValue?.toString() ?? ""
+  );
+
+  const value = props.value !== undefined ? props.value : internalValue;
+  const currentLength = String(value).length;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (props.value === undefined) {
+      setInternalValue(e.target.value);
+    }
+    onChange?.(e);
+  };
+
   return (
     <div>
       <InputPrimitive
@@ -17,9 +32,15 @@ function Input({ className, type, errorMessage, ...props }: InputProps) {
           "h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3.5 py-2 text-base transition-colors outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-[#999] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
           className
         )}
+        maxLength={maxLength}
+        defaultValue={defaultValue}
+        onChange={handleChange}
         {...props}
       />
       {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+      {maxLength !== undefined && (
+        <p className="text-deep/50 text-xs mt-1 tabular-nums">{currentLength} / {maxLength}</p>
+      )}
     </div>
   )
 }
