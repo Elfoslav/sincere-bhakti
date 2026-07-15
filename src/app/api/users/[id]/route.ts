@@ -106,12 +106,11 @@ export async function PATCH(
     // concurrent rename cannot make the personal-channel snapshot or collision
     // checks stale.
     const updated = await prisma.$transaction(async (tx) => {
-      const userCurrent = await tx.user.findUnique({
-        where: { id },
-        select: { renameCount: true },
+      const renameResult = await tx.user.updateMany({
+        where: { id, renameCount: { lt: MAX_RENAME_COUNT } },
+        data: { name: parsed.data.name, renameCount: { increment: 1 } },
       });
-      if (!userCurrent) throw new Error("internal_user_not_found");
-      if (userCurrent.renameCount >= MAX_RENAME_COUNT) {
+      if (renameResult.count === 0) {
         throw new Error("rename_limit_reached");
       }
 
@@ -132,9 +131,8 @@ export async function PATCH(
       });
       if (nameHistoryCollision) throw new NameTakenError();
 
-      const user = await tx.user.update({
+      const user = await tx.user.findUnique({
         where: { id },
-        data: { name: parsed.data.name, renameCount: { increment: 1 } },
         select: { id: true, name: true, email: true, image: true, createdAt: true, renameCount: true },
       });
 
