@@ -269,6 +269,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 										autoFocus
 										errorMessage={channelError || undefined}
 										maxLength={NAME_MAX_LENGTH}
+										minLengthHint={CHANNEL_NAME_MIN_LENGTH}
 									/>
 									<div className="flex justify-end gap-2">
 										<Button

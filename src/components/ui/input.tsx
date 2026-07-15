@@ -6,15 +6,18 @@ import { cn } from "@/lib/utils"
 interface InputProps extends React.ComponentProps<"input"> {
   errorMessage?: string;
   maxLength?: number;
+  minLengthHint?: number;
 }
 
-function Input({ className, type, errorMessage, maxLength, onChange, defaultValue, ...props }: InputProps) {
+function Input({ className, type, errorMessage, maxLength, minLengthHint, onChange, defaultValue, minLength, ...props }: InputProps) {
   const [internalValue, setInternalValue] = React.useState(
     defaultValue?.toString() ?? ""
   );
 
   const value = props.value !== undefined ? props.value : internalValue;
   const currentLength = String(value).length;
+
+  const isBelowMin = minLengthHint !== undefined && currentLength > 0 && currentLength < minLengthHint;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (props.value === undefined) {
@@ -33,14 +36,18 @@ function Input({ className, type, errorMessage, maxLength, onChange, defaultValu
           className
         )}
         maxLength={maxLength}
+        minLength={minLength}
         defaultValue={defaultValue}
         onChange={handleChange}
         {...props}
       />
-      {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
       {maxLength !== undefined && (
-        <p className="text-deep/50 text-xs mt-1 tabular-nums">{currentLength} / {maxLength}</p>
+        <p className={cn("text-xs mt-1 tabular-nums", isBelowMin ? "text-amber-600" : "text-deep/50")}>
+          {currentLength} / {maxLength}
+          {minLengthHint !== undefined && <> (min {minLengthHint})</>}
+        </p>
       )}
+      {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
     </div>
   )
 }

@@ -215,6 +215,7 @@ export default function ChannelPageClient({
                       autoFocus
                       errorMessage={nameError || undefined}
                       maxLength={NAME_MAX_LENGTH}
+                      minLengthHint={CHANNEL_NAME_MIN_LENGTH}
                     />
                     <div className="flex items-center justify-between text-xs text-deep/50">
                       <span>{common("renameCountInfo")}</span>
