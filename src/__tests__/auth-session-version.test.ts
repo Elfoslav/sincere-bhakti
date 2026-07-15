@@ -53,14 +53,15 @@ describe("auth session version", () => {
       user: { id: "user-1", email: "devotee@example.com", name: "Devotee", sessionVersion: 3 } as any,
     } as any);
 
-    expect(token.id).toBe("user-1");
-    expect(token.email).toBe("devotee@example.com");
-    expect(token.channelId).toBe("channel-1");
-    expect(token.sessionVersion).toBe(3);
+    expect(token).not.toBeNull();
+    expect(token?.id).toBe("user-1");
+    expect(token?.email).toBe("devotee@example.com");
+    expect(token?.channelId).toBe("channel-1");
+    expect(token?.sessionVersion).toBe(3);
     expect(createPersonalChannel).not.toHaveBeenCalled();
   });
 
-  it("clears stale JWT claims after the password changes", async () => {
+  it("returns null for stale JWTs after the password changes", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({ sessionVersion: 1 } as any);
 
     const token = await authConfig.callbacks!.jwt!({
@@ -72,18 +73,6 @@ describe("auth session version", () => {
       },
     } as any);
 
-    expect(token.id).toBeUndefined();
-    expect(token.email).toBeUndefined();
-    expect(token.channelId).toBeUndefined();
-    expect(token.sessionVersion).toBeUndefined();
-  });
-
-  it("returns null for stale sessions", async () => {
-    const session = await authConfig.callbacks!.session!({
-      session: { user: {} } as any,
-      token: {},
-    } as any);
-
-    expect(session).toBeNull();
+    expect(token).toBeNull();
   });
 });

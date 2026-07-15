@@ -1,21 +1,9 @@
-import NextAuth from "next-auth";
+import NextAuth, { type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import type { JWT } from "next-auth/jwt";
 import { prisma } from "./prisma";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "./rate-limit";
 import { createPersonalChannel, getPersonalChannel } from "@/lib/services/channel";
-
-function clearStaleAuthToken(token: JWT): JWT {
-  delete token.id;
-  delete token.email;
-  delete token.channelId;
-  delete token.sessionVersion;
-  delete token.sub;
-  delete token.name;
-  delete token.picture;
-  return token;
-}
 
 export const authConfig = {
   providers: [
@@ -80,21 +68,17 @@ export const authConfig = {
       }
 
       const current = await prisma.user.findUnique({
-        where: { id: token.id },
+        where: { id: token.id as string },
         select: { sessionVersion: true },
       });
 
       if (!current || token.sessionVersion !== current.sessionVersion) {
-        return clearStaleAuthToken(token);
+        return null;
       }
 
       return token;
     },
     async session({ session, token }) {
-      if (!token.id) {
-        return null;
-      }
-
       if (session.user) {
         session.user.id = token.id as string;
         session.user.email = token.email as string;
@@ -103,6 +87,6 @@ export const authConfig = {
       return session;
     },
   },
-} as const;
+} satisfies NextAuthConfig;
 
 export const { handlers, signIn, signOut, auth } = NextAuth(authConfig);

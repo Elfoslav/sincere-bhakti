@@ -46,6 +46,8 @@ const baseUser = {
   password: "hashed-pw",
   image: null,
   createdAt: new Date("2026-01-01"),
+  renameCount: 0,
+  sessionVersion: 0,
   channels: [{ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1", _count: { posts: 5 } }],
 };
 
@@ -114,13 +116,13 @@ describe("PATCH /api/users/[id]", () => {
 
   it("updates own name", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ name: "Devotee", renameCount: 0, email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01") } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ name: "Devotee", renameCount: 0, sessionVersion: 0, email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01") } as any);
     vi.mocked(prisma.channel.findFirst)
       .mockResolvedValueOnce({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1", isPersonal: true } as any)
       .mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
-    vi.mocked(prisma.user.update).mockResolvedValue({ id: "user-1", name: "New Name", email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01") } as any);
+    vi.mocked(prisma.user.update).mockResolvedValue({ id: "user-1", name: "New Name", email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01"), renameCount: 1, sessionVersion: 0 } as any);
     vi.mocked(prisma.channel.update).mockResolvedValue({ id: "channel-1", name: "New Name", slug: "new-name" } as any);
 
     const res = await PATCH(mockRequest({ name: "New Name" }), { params: Promise.resolve({ id: "user-1" }) });

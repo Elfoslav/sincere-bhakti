@@ -54,7 +54,7 @@ describe("post opengraph image", () => {
 
     expect(getCachedPostById).not.toHaveBeenCalled();
     expect(response).toBeInstanceOf(ImageResponseMock);
-    expect((response as InstanceType<typeof ImageResponseMock>).init).toMatchObject({
+    expect((response as unknown as InstanceType<typeof ImageResponseMock>).init).toMatchObject({
       width: 1200,
       height: 630,
     });

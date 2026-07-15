@@ -54,7 +54,7 @@ export async function PATCH(
   try {
     const channel = await prisma.channel.findUnique({
       where: { slug },
-      select: { id: true, name: true, ownerId: true, isPersonal: true, slug: true, renameCount: true },
+      select: { id: true, name: true, ownerId: true, isPersonal: true, slug: true, avatarUrl: true, renameCount: true },
     });
 
     if (!channel) {

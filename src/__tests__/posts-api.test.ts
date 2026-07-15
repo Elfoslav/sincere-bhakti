@@ -56,7 +56,7 @@ describe("GET /api/posts", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(getPosts).mockResolvedValue({
       posts: [
-        { id: "post-1", content: "Hello", isPublic: true, createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
+        { id: "post-1", content: "Hello", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
       ],
       hasMore: false,
     });
@@ -86,7 +86,7 @@ describe("GET /api/posts", () => {
   it("returns public posts with scope=public", async () => {
     vi.mocked(getPosts).mockResolvedValue({
       posts: [
-        { id: "post-1", content: "Public", isPublic: true, createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
+        { id: "post-1", content: "Public", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
       ],
       hasMore: false,
     });
@@ -104,7 +104,7 @@ describe("GET /api/posts", () => {
 
   it("paginates with cursor", async () => {
     vi.mocked(getPosts).mockResolvedValue({
-      posts: [{ id: "post-3", content: "Next page", isPublic: true, createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] }],
+      posts: [{ id: "post-3", content: "Next page", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] }],
       hasMore: false,
     });
 
@@ -161,6 +161,7 @@ describe("POST /api/posts", () => {
       id: "post-1",
       content: "Hare Krishna!",
       isPublic: true,
+      language: "en",
       createdAt: new Date(),
       channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
       media: [],
