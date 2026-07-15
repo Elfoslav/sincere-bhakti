@@ -9,12 +9,12 @@ export const runtime = "nodejs";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-async function fetchImageAsPngBase64(url: string): Promise<string | null> {
+export async function fetchImageAsPngBase64(url: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
     if (!res.ok) return null;
     const buffer = Buffer.from(await res.arrayBuffer());
     const ct = res.headers.get("content-type") || "";
@@ -26,6 +26,8 @@ async function fetchImageAsPngBase64(url: string): Promise<string | null> {
     return `data:${ct};base64,${buffer.toString("base64")}`;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

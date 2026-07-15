@@ -40,7 +40,7 @@ vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { getCachedPostById } from "@/lib/services/post";
 import { checkRateLimit } from "@/lib/rate-limit";
-import Image from "@/app/[locale]/posts/[id]/opengraph-image";
+import Image, { fetchImageAsPngBase64 } from "@/app/[locale]/posts/[id]/opengraph-image";
 
 describe("post opengraph image", () => {
   beforeEach(() => {
@@ -68,5 +68,35 @@ describe("post opengraph image", () => {
 
     expect(getCachedPostById).toHaveBeenCalledWith("post-1");
     expect(response).toBeInstanceOf(ImageResponseMock);
+  });
+
+  it("keeps the abort timeout active until the image body is read", async () => {
+    let resolveBody: ((value: ArrayBuffer) => void) | null = null;
+    const bodyPromise = new Promise<ArrayBuffer>((resolve) => {
+      resolveBody = resolve;
+    });
+
+    const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      headers: new Headers({ "content-type": "image/png" }),
+      arrayBuffer: () => bodyPromise,
+    } as any);
+
+    const imagePromise = fetchImageAsPngBase64("https://cdn.example.com/image.png");
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://cdn.example.com/image.png",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+
+    expect(clearTimeoutSpy).not.toHaveBeenCalled();
+
+    if (!resolveBody) throw new Error("body resolver missing");
+    (resolveBody as (value: ArrayBuffer) => void)(new Uint8Array([137, 80, 78, 71]).buffer);
+    const response = await imagePromise;
+
+    expect(response).toBe("data:image/png;base64,iVBORw==");
+    expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
+    clearTimeoutSpy.mockRestore();
   });
 });
