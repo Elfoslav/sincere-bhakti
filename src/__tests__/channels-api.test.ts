@@ -189,7 +189,7 @@ describe("PATCH /api/channels/[slug]", () => {
 
   it("renames a channel", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old Name", ownerId: "user-1", isPersonal: false, slug: "old-name" } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old Name", ownerId: "user-1", isPersonal: false, slug: "old-name", renameCount: 0 } as any);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channel.update).mockResolvedValue({
       id: "ch-1", name: "New Name", slug: "new-name", avatarUrl: null, ownerId: "user-1",
@@ -203,7 +203,7 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(json.name).toBe("New Name");
     expect(json.slug).toBe("new-name");
     expect(prisma.channel.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "ch-1" }, data: { name: "New Name", normalizedName: "new name", slug: "new-name" } }),
+      expect.objectContaining({ where: { id: "ch-1" }, data: { name: "New Name", normalizedName: "new name", slug: "new-name", renameCount: { increment: 1 } } }),
     );
     expect(prisma.channelSlugHistory.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: { oldSlug: "old-name", oldNormalizedName: "old name", channelId: "ch-1" } }),

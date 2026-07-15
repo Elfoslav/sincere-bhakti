@@ -14,5 +14,6 @@ export interface UserProfile {
   email: string;
   image: string | null;
   createdAt: string;
+  renameCount: number;
   channels: ChannelInfo[];
 }

@@ -17,6 +17,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { MAX_RENAME_COUNT } from "@/lib/validation";
 import type { UserProfile } from "@/types/user";
 
 export default function ProfileContent({ authorId }: { authorId: string }) {
@@ -72,6 +73,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 						? {
 								...prev,
 								name: updated.name,
+								renameCount: updated.renameCount,
 								channels: prev.channels.map((ch) =>
 									ch.isPersonal ? { ...ch, name: updated.name } : ch,
 								),
@@ -83,6 +85,8 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 				const data = await res.json().catch(() => ({}));
 				if (data.error === "name_taken") {
 					setNameError(t("nameTaken"));
+				} else if (data.error === "rename_limit_reached") {
+					setNameError(t("saveError"));
 				} else {
 					setNameError(t("saveError"));
 				}
@@ -204,11 +208,14 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 										autoFocus
 										errorMessage={nameError || undefined}
 									/>
+									<p className="text-xs text-deep/50 text-center">
+										{profile.renameCount} / {MAX_RENAME_COUNT}
+									</p>
 									<div className="flex justify-end gap-2">
 										<Button type="button" variant="outline" className="min-w-24" onClick={() => setOpen(false)}>
 											{t("cancel")}
 										</Button>
-										<Button type="submit" className="min-w-24" disabled={saving || !newName.trim()}>
+										<Button type="submit" className="min-w-24" disabled={saving || !newName.trim() || profile.renameCount >= MAX_RENAME_COUNT}>
 											{saving ? t("saving") : t("save")}
 										</Button>
 									</div>

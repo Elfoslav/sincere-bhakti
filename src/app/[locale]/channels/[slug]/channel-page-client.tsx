@@ -26,6 +26,7 @@ import EditPostModal from "@/components/EditPostModal";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
+import { MAX_RENAME_COUNT } from "@/lib/validation";
 import type { Post } from "@/types/post";
 import type { ChannelWithPostCount } from "@/types/channel";
 
@@ -95,13 +96,15 @@ export default function ChannelPageClient({
       });
       if (res.ok) {
         const updated = await res.json();
-        setChannel((prev) => ({ ...prev, name: updated.name, slug: updated.slug }));
+        setChannel((prev) => ({ ...prev, name: updated.name, slug: updated.slug, renameCount: updated.renameCount }));
         setRenameOpen(false);
         router.replace(`/channels/${updated.slug}`);
       } else {
         const data = await res.json().catch(() => ({}));
         if (data.error === "name_taken") {
           setNameError(t("nameTaken"));
+        } else if (data.error === "rename_limit_reached") {
+          setNameError(t("saveError"));
         } else {
           setNameError(t("saveError"));
         }
@@ -207,11 +210,14 @@ export default function ChannelPageClient({
                       autoFocus
                       errorMessage={nameError || undefined}
                     />
+                    <p className="text-xs text-deep/50 text-center">
+                      {channel.renameCount} / {MAX_RENAME_COUNT}
+                    </p>
                     <div className="flex justify-end gap-2">
                       <Button type="button" variant="outline" className="min-w-24" onClick={() => setRenameOpen(false)}>
                         {t("cancel")}
                       </Button>
-                      <Button type="submit" className="min-w-24" disabled={saving || !newName.trim()}>
+                      <Button type="submit" className="min-w-24" disabled={saving || !newName.trim() || channel.renameCount >= MAX_RENAME_COUNT}>
                         {saving ? t("saving") : t("save")}
                       </Button>
                     </div>

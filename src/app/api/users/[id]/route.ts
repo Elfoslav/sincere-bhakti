@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { updateNameSchema, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
+import { updateNameSchema, normalizeName, isBrandNameBlocked, slugifyName, MAX_RENAME_COUNT } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR } from "@/lib/error-messages";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_RENAME_LIMIT } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 class NameTakenError extends Error {
@@ -33,6 +33,7 @@ export async function GET(
         name: true,
         image: true,
         createdAt: true,
+        renameCount: true,
         channels: {
           where: { ownerId: id },
           select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, isPersonal: true, _count: { select: { posts: { where: { isPublic: true } } } } },
@@ -95,6 +96,15 @@ export async function PATCH(
     // checks stale.
     const normalizedTarget = normalizeName(parsed.data.name);
     const updated = await prisma.$transaction(async (tx) => {
+      const userCurrent = await tx.user.findUnique({
+        where: { id },
+        select: { renameCount: true },
+      });
+      if (!userCurrent) throw new Error("internal_user_not_found");
+      if (userCurrent.renameCount >= MAX_RENAME_COUNT) {
+        throw new Error("rename_limit_reached");
+      }
+
       const personalChannel = await tx.channel.findFirst({
         where: { ownerId: id, isPersonal: true },
         select: { id: true, name: true, slug: true },
@@ -114,8 +124,8 @@ export async function PATCH(
 
       const user = await tx.user.update({
         where: { id },
-        data: { name: parsed.data.name },
-        select: { id: true, name: true, email: true, image: true, createdAt: true },
+        data: { name: parsed.data.name, renameCount: { increment: 1 } },
+        select: { id: true, name: true, email: true, image: true, createdAt: true, renameCount: true },
       });
 
       if (personalChannel) {
@@ -159,6 +169,9 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof NameTakenError) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
+    if (error instanceof Error && error.message === "rename_limit_reached") {
+      return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
     logServerError("PATCH /api/users/[id] failed", error);
     return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });

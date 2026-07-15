@@ -113,6 +113,7 @@ export async function getChannelBySlug(slug: string): Promise<{
   ownerImage: string | null;
   postCount: number;
   isPersonal: boolean;
+  renameCount: number;
 } | null> {
   const channel = await prisma.channel.findUnique({
     where: { slug },
@@ -122,18 +123,19 @@ export async function getChannelBySlug(slug: string): Promise<{
     },
   });
   if (!channel) return null;
-  return {
-    id: channel.id,
-    name: channel.name,
-    slug: channel.slug,
-    avatarUrl: channel.avatarUrl,
-    createdAt: channel.createdAt,
-    ownerId: channel.ownerId,
-    ownerName: channel.owner.name,
-    ownerImage: channel.owner.image,
-    postCount: channel._count.posts,
-    isPersonal: channel.isPersonal,
-  };
+    return {
+      id: channel.id,
+      name: channel.name,
+      slug: channel.slug,
+      avatarUrl: channel.avatarUrl,
+      createdAt: channel.createdAt,
+      ownerId: channel.ownerId,
+      ownerName: channel.owner.name,
+      ownerImage: channel.owner.image,
+      postCount: channel._count.posts,
+      isPersonal: channel.isPersonal,
+      renameCount: channel.renameCount,
+    };
 }
 
 // `generateMetadata` and the page body both need channel data. React's

@@ -5,6 +5,7 @@ export const PASSWORD_MIN_LENGTH = 8;
 export const BCRYPT_SALT_ROUNDS = 12;
 export const NAME_MAX_LENGTH = 50;
 export const CHANNEL_NAME_MIN_LENGTH = 2;
+export const MAX_RENAME_COUNT = 3;
 
 // Only http(s) URLs are allowed for user-supplied media. This blocks
 // dangerous schemes like `javascript:` and `data:` that would otherwise
