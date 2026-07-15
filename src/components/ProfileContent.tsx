@@ -21,10 +21,11 @@ import { MAX_RENAME_COUNT } from "@/lib/validation";
 import type { UserProfile } from "@/types/user";
 
 export default function ProfileContent({ authorId }: { authorId: string }) {
-	const { data: session } = useSession();
-	const locale = useLocale();
-	const t = useTranslations("ProfilePage");
-	const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { data: session } = useSession();
+  const locale = useLocale();
+  const t = useTranslations("ProfilePage");
+  const common = useTranslations("Common");
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 	const [profileLoading, setProfileLoading] = useState(true);
 	const [open, setOpen] = useState(false);
 	const [newName, setNewName] = useState("");
@@ -209,7 +210,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 										errorMessage={nameError || undefined}
 									/>
 									<p className="text-xs text-deep/50 text-center">
-										{profile.renameCount} / {MAX_RENAME_COUNT}
+										{common("renameCount", { count: profile.renameCount, max: MAX_RENAME_COUNT })}
 									</p>
 									<div className="flex justify-end gap-2">
 										<Button type="button" variant="outline" className="min-w-24" onClick={() => setOpen(false)}>

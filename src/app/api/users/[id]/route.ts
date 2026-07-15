@@ -91,10 +91,20 @@ export async function PATCH(
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
+    const normalizedTarget = normalizeName(parsed.data.name);
+
+    // Renaming to the same name is a no-op — don't count or write history
+    const currentUser = await prisma.user.findUnique({
+      where: { id },
+      select: { name: true, renameCount: true, email: true, image: true, createdAt: true },
+    });
+    if (currentUser && normalizeName(currentUser.name) === normalizedTarget) {
+      return NextResponse.json({ ...currentUser, id });
+    }
+
     // All name/slug checks and writes happen inside a single transaction so a
     // concurrent rename cannot make the personal-channel snapshot or collision
     // checks stale.
-    const normalizedTarget = normalizeName(parsed.data.name);
     const updated = await prisma.$transaction(async (tx) => {
       const userCurrent = await tx.user.findUnique({
         where: { id },

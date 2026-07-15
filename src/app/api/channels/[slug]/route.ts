@@ -92,8 +92,17 @@ export async function PATCH(
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
-    // Check if the new name is already taken by another channel
     const normalizedTarget = normalizeName(name);
+
+    // Renaming to the same name is a no-op — don't count or write history
+    if (normalizedTarget === normalizeName(channel.name)) {
+      return NextResponse.json({
+        id: channel.id, name: channel.name, slug: channel.slug,
+        avatarUrl: null, ownerId: channel.ownerId, renameCount: channel.renameCount,
+      });
+    }
+
+    // Check if the new name is already taken by another channel
     if (await isNormalizedNameTaken(normalizedTarget, channel.id)) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }

@@ -193,7 +193,8 @@
 		"cancel": "Zrušiť",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
 		"footerLine2": "Venované učeniu Śrīlu Prabhupādu",
-		"terms": "Podmienky používania"
+		"terms": "Podmienky používania",
+		"renameCount": "Premenovania: {count} / {max}"
 	},
 	"ErrorPages": {
 		"backToPosts": "← Späť na príspevky",

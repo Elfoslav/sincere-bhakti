@@ -39,6 +39,7 @@ export default function ChannelPageClient({
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("ChannelPage");
+  const common = useTranslations("Common");
   const isOwner = session?.user?.id === initialChannel.ownerId;
 
   const [channel, setChannel] = useState(initialChannel);
@@ -211,7 +212,7 @@ export default function ChannelPageClient({
                       errorMessage={nameError || undefined}
                     />
                     <p className="text-xs text-deep/50 text-center">
-                      {channel.renameCount} / {MAX_RENAME_COUNT}
+                      {common("renameCount", { count: channel.renameCount, max: MAX_RENAME_COUNT })}
                     </p>
                     <div className="flex justify-end gap-2">
                       <Button type="button" variant="outline" className="min-w-24" onClick={() => setRenameOpen(false)}>

@@ -13,7 +13,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
-import { createPersonalChannel, createChannel } from "@/lib/services/channel";
+import { createPersonalChannel, createChannel, NameTakenError } from "@/lib/services/channel";
 
 const baseChannel = {
   id: "",
@@ -104,23 +104,17 @@ describe("createChannel", () => {
     });
   });
 
-  it("appends suffix when normalizedName is taken", async () => {
+  it("throws NameTakenError when normalizedName is taken by an active channel", async () => {
     vi.mocked(prisma.channel.findFirst)
-      .mockResolvedValueOnce({ id: "taken" } as any) // i=1: normalizedName collision
-      .mockResolvedValueOnce(null);                  // i=2: slot free
+      .mockResolvedValueOnce({ id: "taken" } as any);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channel.create).mockResolvedValue({
-      id: "ch-2", name: "My Devotees (2)", normalizedName: "my devotees (2)", slug: "my-devotees-2", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
-    } as any);
 
-    const result = await createChannel("user-1", "My Devotees");
-
-    expect(result.slug).toBe("my-devotees-2");
-    expect(result.name).toBe("My Devotees (2)");
+    await expect(createChannel("user-1", "My Devotees")).rejects.toThrow(NameTakenError);
   });
 
   it("appends suffix when slug is taken", async () => {
     vi.mocked(prisma.channel.findFirst)
+      .mockResolvedValueOnce(null)                  // i=1: normalizedName free
       .mockResolvedValueOnce({ id: "taken" } as any) // i=1: slug collision for my-devotees
       .mockResolvedValueOnce(null);                  // i=2: slot free
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
@@ -136,7 +130,8 @@ describe("createChannel", () => {
 
   it("falls back to UUID suffix when retries are exhausted", async () => {
     vi.mocked(prisma.channel.findFirst)
-      .mockResolvedValue({ id: "taken" } as any); // all slug/normalizedName checks return taken
+      .mockResolvedValueOnce(null)           // normalizedName free
+      .mockResolvedValue({ id: "taken" } as any); // all slug collisions
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channel.create).mockResolvedValue({
       id: "ch-99", name: "Test (abc12345)", normalizedName: "test (abc12345)", slug: "test-abc12345", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),

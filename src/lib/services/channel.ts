@@ -6,6 +6,9 @@ import type { PostChannel } from "@/types/post";
 export class NotFoundError extends Error {
   name = "NotFoundError" as const;
 }
+export class NameTakenError extends Error {
+  name = "NameTakenError" as const;
+}
 
 function toPostChannel(channel: { id: string; name: string; slug: string; avatarUrl: string | null; ownerId: string }): PostChannel {
   return {
@@ -179,23 +182,30 @@ export async function isChannelEditor(channelId: string, userId: string): Promis
 
 export async function createChannel(userId: string, channelName: string): Promise<PostChannel & { postCount: number }> {
   const slug = slugifyName(channelName);
+  const normalized = normalizeName(channelName);
+
+  // Fail if an active channel already has this name
+  const nameTaken = await prisma.channel.findFirst({
+    where: { normalizedName: normalized },
+    select: { id: true },
+  });
+  if (nameTaken) throw new NameTakenError();
+
+  const historyNameTaken = await prisma.channelSlugHistory.findFirst({
+    where: { oldNormalizedName: normalized },
+    select: { id: true },
+  });
+  if (historyNameTaken) throw new NameTakenError();
 
   for (let i = 1; i <= 10; i++) {
     const finalSlug = i === 1 ? slug : `${slug}-${i}`;
     const name = i === 1 ? channelName : `${channelName} (${i})`;
-    const normalized = normalizeName(name);
 
-    const existing = await prisma.channel.findFirst({
-      where: { OR: [{ slug: finalSlug }, { normalizedName: normalized }] },
+    const slugTaken = await prisma.channel.findFirst({
+      where: { slug: finalSlug },
       select: { id: true },
     });
-    if (existing) continue;
-
-    const historyNameTaken = await prisma.channelSlugHistory.findFirst({
-      where: { oldNormalizedName: normalized },
-      select: { id: true },
-    });
-    if (historyNameTaken) continue;
+    if (slugTaken) continue;
 
     const historySlugTaken = await prisma.channelSlugHistory.findFirst({
       where: { oldSlug: finalSlug },
@@ -205,7 +215,7 @@ export async function createChannel(userId: string, channelName: string): Promis
 
     try {
       const channel = await prisma.channel.create({
-        data: { name, normalizedName: normalized, slug: finalSlug, ownerId: userId, isPersonal: false },
+        data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId, isPersonal: false },
       });
       return { ...toPostChannel(channel), postCount: 0 };
     } catch (err) {

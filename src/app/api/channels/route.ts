@@ -5,7 +5,7 @@ import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/l
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/validation";
-import { createChannel } from "@/lib/services/channel";
+import { createChannel, NameTakenError } from "@/lib/services/channel";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
@@ -120,6 +120,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(channel, { status: HTTP_CREATED });
   } catch (error) {
+    if (error instanceof NameTakenError) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
     if ((error as { code?: string })?.code === "P2002") {
       logServerError("POST /api/channels P2002 collision", error);
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
