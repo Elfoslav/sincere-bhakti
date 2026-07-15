@@ -105,6 +105,19 @@ export default function RegisterPage() {
       if (!res.ok) {
         if (res.status === 409) {
           setErrors((prev) => ({ ...prev, name: t("nameTaken") }));
+        } else if (res.status === 400) {
+          const data = await res.json().catch(() => ({}));
+          if (data.error === "validation_error:name:too_big") {
+            setErrors((prev) => ({ ...prev, name: t("nameTooLong", { max: 50 }) }));
+          } else if (data.error === "validation_error:name:too_small") {
+            setErrors((prev) => ({ ...prev, name: t("nameRequired") }));
+          } else if (data.error === "validation_error:email:invalid_string") {
+            setErrors((prev) => ({ ...prev, email: t("emailInvalid") }));
+          } else if (data.error?.startsWith("validation_error:")) {
+            handleServerError(t("registrationFailed"));
+          } else {
+            handleServerError(t("registrationFailed"));
+          }
         } else {
           handleServerError(t("registrationFailed"));
         }

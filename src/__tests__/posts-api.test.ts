@@ -21,6 +21,9 @@ vi.mock("@/lib/services/post", () => {
     ConflictError: class ConflictError extends Error {
       name = "ConflictError" as const;
     },
+    ValidationError: class ValidationError extends Error {
+      name = "ValidationError" as const;
+    },
   };
 });
 vi.mock("@/lib/csrf", () => ({

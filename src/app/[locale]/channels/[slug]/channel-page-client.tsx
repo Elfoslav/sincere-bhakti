@@ -26,7 +26,7 @@ import EditPostModal from "@/components/EditPostModal";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
-import { MAX_RENAME_COUNT } from "@/lib/validation";
+import { NAME_MAX_LENGTH, CHANNEL_NAME_MIN_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
 import type { Post } from "@/types/post";
 import type { ChannelWithPostCount } from "@/types/channel";
 
@@ -106,6 +106,10 @@ export default function ChannelPageClient({
           setNameError(t("nameTaken"));
         } else if (data.error === "rename_limit_reached") {
           setNameError(t("saveError"));
+        } else if (data.error === "validation_error:name:too_big") {
+          setNameError(t("nameTooLong", { max: NAME_MAX_LENGTH }));
+        } else if (data.error === "validation_error:name:too_small") {
+          setNameError(t("nameTooShort", { min: CHANNEL_NAME_MIN_LENGTH }));
         } else {
           setNameError(t("saveError"));
         }

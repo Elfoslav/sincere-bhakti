@@ -127,6 +127,8 @@
 		"viewChannel": "View channel",
 		"postCount": "{count} posts",
 		"nameTaken": "This name has already been taken.",
+		"nameTooLong": "Name cannot exceed {max} characters",
+		"nameTooShort": "Name must be at least {min} characters",
 		"saveError": "Failed to save",
 		"createChannel": "Create channel",
 		"createChannelTitle": "Create Channel",
@@ -187,6 +189,8 @@
 		"saving": "Saving...",
 		"saveError": "Something went wrong",
 		"nameTaken": "This name has already been taken.",
+		"nameTooLong": "Name cannot exceed {max} characters",
+		"nameTooShort": "Channel name must be at least {min} characters",
 		"changeNameInProfile": "Change your name in profile settings"
 	},
 	"Common": {

@@ -127,6 +127,8 @@
 		"viewChannel": "Zobraziť kanál",
 		"postCount": "{count} príspevkov",
 		"nameTaken": "Toto meno už bolo obsadené",
+		"nameTooLong": "Meno nesmie presiahnuť {max} znakov",
+		"nameTooShort": "Meno musí mať aspoň {min} znaky",
 		"saveError": "Nepodarilo sa uložiť",
 		"createChannel": "Vytvoriť kanál",
 		"createChannelTitle": "Vytvoriť kanál",
@@ -187,6 +189,8 @@
 		"saving": "Ukladám...",
 		"saveError": "Niečo sa pokazilo",
 		"nameTaken": "Tento názov už bol obsadený",
+		"nameTooLong": "Názov nesmie presiahnuť {max} znakov",
+		"nameTooShort": "Názov kanála musí mať aspoň {min} znaky",
 		"changeNameInProfile": "Zmeňte svoje meno v nastaveniach profilu"
 	},
 	"Common": {

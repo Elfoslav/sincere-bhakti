@@ -17,7 +17,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { MAX_RENAME_COUNT } from "@/lib/validation";
+import { NAME_MAX_LENGTH, CHANNEL_NAME_MIN_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
 import type { UserProfile } from "@/types/user";
 
 export default function ProfileContent({ authorId }: { authorId: string }) {
@@ -88,6 +88,10 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 					setNameError(t("nameTaken"));
 				} else if (data.error === "rename_limit_reached") {
 					setNameError(t("saveError"));
+				} else if (data.error === "validation_error:name:too_big") {
+					setNameError(t("nameTooLong", { max: NAME_MAX_LENGTH }));
+				} else if (data.error === "validation_error:name:too_small") {
+					setNameError(t("nameTooShort", { min: 1 }));
 				} else {
 					setNameError(t("saveError"));
 				}
@@ -118,6 +122,10 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 				const data = await res.json().catch(() => ({}));
 				if (data.error === "name_taken") {
 					setChannelError(t("nameTaken"));
+				} else if (data.error === "validation_error:name:too_big") {
+					setChannelError(t("nameTooLong", { max: NAME_MAX_LENGTH }));
+				} else if (data.error === "validation_error:name:too_small") {
+					setChannelError(t("nameTooShort", { min: CHANNEL_NAME_MIN_LENGTH }));
 				} else {
 					setChannelError(t("saveError"));
 				}
