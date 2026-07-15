@@ -37,12 +37,15 @@ export default function SettingsPage() {
     setError("");
     setSuccess(false);
 
-    if (newPassword !== confirmPassword) {
+    const normalizedNewPassword = newPassword.trim();
+    const normalizedConfirmPassword = confirmPassword.trim();
+
+    if (normalizedNewPassword !== normalizedConfirmPassword) {
       setError(t("passwordMismatch"));
       return;
     }
 
-    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+    if (normalizedNewPassword.length < PASSWORD_MIN_LENGTH) {
       setError(t("passwordTooShort", { min: PASSWORD_MIN_LENGTH }));
       return;
     }
@@ -54,7 +57,7 @@ export default function SettingsPage() {
       const res = await fetch(`/api/users/${session.user.id}/password`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword, newPassword }),
+        body: JSON.stringify({ currentPassword, newPassword: normalizedNewPassword }),
       });
 
       if (res.ok) {
@@ -66,7 +69,7 @@ export default function SettingsPage() {
 
         const reauth = await signIn("credentials", {
           email,
-          password: newPassword,
+          password: normalizedNewPassword,
           redirect: false,
         });
 

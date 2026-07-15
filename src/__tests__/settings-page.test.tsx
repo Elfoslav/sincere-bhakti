@@ -107,4 +107,36 @@ describe("SettingsPage", () => {
       expect(screen.getByRole("status")).toHaveTextContent("Password changed successfully");
     });
   });
+
+  it("trims whitespace before saving and reauthenticating", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock as any);
+
+    render(<SettingsPage />);
+
+    fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "old-secret" } });
+    fireEvent.change(screen.getByLabelText("New password"), { target: { value: " new-secret123 " } });
+    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: " new-secret123 " } });
+    fireEvent.click(screen.getByRole("button", { name: "Change password" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/users/user-1/password",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ currentPassword: "old-secret", newPassword: "new-secret123" }),
+        }),
+      );
+      expect(signIn).toHaveBeenCalledWith("credentials", {
+        email: "devotee@example.com",
+        password: "new-secret123",
+        redirect: false,
+      });
+    });
+  });
 });
