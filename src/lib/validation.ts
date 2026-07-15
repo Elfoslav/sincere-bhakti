@@ -4,7 +4,6 @@ import { locales } from "@/i18n/routing";
 export const PASSWORD_MIN_LENGTH = 8;
 export const BCRYPT_SALT_ROUNDS = 12;
 export const NAME_MAX_LENGTH = 50;
-export const CHANNEL_NAME_MIN_LENGTH = 2;
 export const MAX_RENAME_COUNT = 3;
 
 // Only http(s) URLs are allowed for user-supplied media. This blocks
@@ -100,7 +99,7 @@ export const registerSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(2)
+    .min(1)
     .max(NAME_MAX_LENGTH),
   email: z
     .string()
@@ -162,7 +161,7 @@ export const updateNameSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(2)
+    .min(1)
     .max(NAME_MAX_LENGTH),
 });
 
@@ -170,7 +169,7 @@ export const createChannelSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(CHANNEL_NAME_MIN_LENGTH)
+    .min(1)
     .max(NAME_MAX_LENGTH),
 });
 

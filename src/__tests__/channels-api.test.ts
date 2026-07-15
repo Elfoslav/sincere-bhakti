@@ -122,7 +122,7 @@ describe("POST /api/channels", () => {
   it("returns 400 on invalid name", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
 
-    const res = await POST(mockRequest({ name: "a" }));
+    const res = await POST(mockRequest({ name: "" }));
     const json = await res.json();
 
     expect(res.status).toBe(400);
@@ -344,7 +344,7 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1", isPersonal: false, slug: "my-channel" } as any);
 
-    const res = await PATCH(mockRequest({ name: "a" }), params);
+    const res = await PATCH(mockRequest({ name: "" }), params);
     const json = await res.json();
 
     expect(res.status).toBe(400);

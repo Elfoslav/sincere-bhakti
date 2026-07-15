@@ -269,12 +269,12 @@ describe("createChannelSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects name shorter than 2 chars", () => {
-    expect(createChannelSchema.safeParse({ name: "a" }).success).toBe(false);
+  it("rejects name shorter than 1 char", () => {
+    expect(createChannelSchema.safeParse({ name: "" }).success).toBe(false);
   });
 
-  it("accepts name with exactly 2 chars", () => {
-    expect(createChannelSchema.safeParse({ name: "ab" }).success).toBe(true);
+  it("accepts name with exactly 1 char", () => {
+    expect(createChannelSchema.safeParse({ name: "a" }).success).toBe(true);
   });
 
   it("rejects empty name", () => {

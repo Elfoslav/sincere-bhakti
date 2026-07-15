@@ -99,7 +99,6 @@
 			"passwordWhitespace": "Password starts or ends with a space. Remove it and try again.",
 			"nameRequired": "Name is required",
 			"nameTooLong": "Name cannot exceed {max} characters",
-			"nameTooShort": "Name must be at least {min} characters",
 			"nameTaken": "This name is already taken by another devotee",
 			"emailRequired": "Email is required",
 			"emailInvalid": "Invalid email address",
@@ -129,7 +128,6 @@
 		"postCount": "{count} posts",
 		"nameTaken": "This name has already been taken.",
 		"nameTooLong": "Name cannot exceed {max} characters",
-		"nameTooShort": "Name must be at least {min} characters",
 		"saveError": "Failed to save",
 		"createChannel": "Create channel",
 		"createChannelTitle": "Create Channel",
@@ -191,7 +189,6 @@
 		"saveError": "Something went wrong",
 		"nameTaken": "This name has already been taken.",
 		"nameTooLong": "Name cannot exceed {max} characters",
-		"nameTooShort": "Channel name must be at least {min} characters",
 		"changeNameInProfile": "Change your name in profile settings"
 	},
 	"Common": {

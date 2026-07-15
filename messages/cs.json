@@ -99,7 +99,6 @@
 			"passwordWhitespace": "Heslo začíná nebo končí mezerou. Odstraňte ji a zkuste to znovu.",
 			"nameRequired": "Jméno je povinné",
 			"nameTooLong": "Jméno nesmí přesáhnout {max} znaků",
-			"nameTooShort": "Jméno musí mít alespoň {min} znaky",
 			"nameTaken": "Toto jméno již používá jiný oddaný",
 			"emailRequired": "Email je povinný",
 			"emailInvalid": "Neplatný formát emailu",
@@ -129,7 +128,6 @@
 		"postCount": "{count} příspěvků",
 		"nameTaken": "Toto jméno již bylo obsazeno",
 		"nameTooLong": "Jméno nesmí přesáhnout {max} znaků",
-		"nameTooShort": "Jméno musí mít alespoň {min} znaky",
 		"saveError": "Nepodařilo se uložit",
 		"createChannel": "Vytvořit kanál",
 		"createChannelTitle": "Vytvořit kanál",
@@ -191,7 +189,6 @@
 		"saveError": "Něco se pokazilo",
 		"nameTaken": "Tento název již byl obsazen",
 		"nameTooLong": "Název nesmí přesáhnout {max} znaků",
-		"nameTooShort": "Název kanálu musí mít alespoň {min} znaky",
 		"changeNameInProfile": "Změňte své jméno v nastavení profilu"
 	},
 	"Common": {
