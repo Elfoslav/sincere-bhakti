@@ -40,13 +40,15 @@ function Alert({
   children,
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
+  const iconVariant = variant ?? "info";
+
   return (
     <div
-      role={variant === "destructive" ? "alert" : "status"}
-      className={cn(alertVariants({ variant }), className)}
+      role={iconVariant === "destructive" ? "alert" : "status"}
+      className={cn(alertVariants({ variant: iconVariant }), className)}
       {...props}
     >
-      <AlertIcon variant={variant} />
+      <AlertIcon variant={iconVariant} />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
