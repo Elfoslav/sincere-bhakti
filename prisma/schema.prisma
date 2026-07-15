@@ -19,6 +19,7 @@ model User {
   image        String?
   createdAt    DateTime @default(now())
   renameCount  Int      @default(0)
+  sessionVersion Int    @default(0)
   channels       Channel[]       @relation("ChannelOwner")
   editors        ChannelEditor[]
   media          Media[]

@@ -33,6 +33,8 @@ export const RATE_LIMITS = {
   readPostDetail: { limit: 120, windowMs: 60_000 },
   // Read user profile: 60 requests per 60s per IP
   readProfile: { limit: 60, windowMs: 60_000 },
+  // Password change: 5 per hour per user
+  changePassword: { limit: 5, windowMs: 3_600_000 },
 } as const;
 
 // Rate-limit key prefixes — shared across API routes and SSR pages so every
@@ -54,6 +56,7 @@ export const RATE_LIMIT_PREFIX = {
   updateChannel: "update-channel",
   readPostDetail: "read-post-detail",
   readProfile: "read-profile",
+  changePassword: "change-password",
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;

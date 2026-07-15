@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
-import { Pencil, Hash, FileText, Plus } from "lucide-react";
+import { Pencil, Hash, FileText, Plus, Settings } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -175,14 +175,27 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 
 	return (
 		<div className="w-full max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
-			<Card variant="default" padding="lg" className="mb-8 text-center">
+			<Card variant="default" padding="lg" className="relative mb-8 text-center">
+				{isOwnProfile && (
+					<Button
+						href="/profile/settings"
+						variant="ghost"
+						size="icon-sm"
+						className="absolute right-3 top-3 sm:right-4 sm:top-4 text-deep/40 hover:text-gold-light"
+						title={t("settings")}
+						aria-label={t("settings")}
+					>
+						<Settings className="w-[18px] h-[18px]" />
+					</Button>
+				)}
 				<div className="w-20 h-20 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
 					{profile.name[0]?.toUpperCase() || "?"}
 				</div>
 				<div className="flex items-center justify-center gap-2">
 					<h1 className="text-2xl font-bold text-deep">{profile.name}</h1>
 					{isOwnProfile && (
-						<Dialog open={open} onOpenChange={setOpen}>
+						<>
+							<Dialog open={open} onOpenChange={setOpen}>
 							<DialogTrigger
 								className="text-gold hover:text-gold-light transition-colors cursor-pointer"
 								title={t("editName")}
@@ -229,6 +242,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 								</form>
 							</DialogContent>
 						</Dialog>
+						</>
 					)}
 				</div>
 				<p className="text-deep/50 text-sm mt-1">{t("joined", { date })}</p>
