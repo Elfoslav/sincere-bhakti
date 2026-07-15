@@ -72,7 +72,16 @@ export const authConfig = {
         select: { sessionVersion: true },
       });
 
-      if (!current || token.sessionVersion !== current.sessionVersion) {
+      if (!current) {
+        return null;
+      }
+
+      if (token.sessionVersion == null) {
+        token.sessionVersion = current.sessionVersion;
+        return token;
+      }
+
+      if (token.sessionVersion !== current.sessionVersion) {
         return null;
       }
 
