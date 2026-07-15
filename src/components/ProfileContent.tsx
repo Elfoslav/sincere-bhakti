@@ -11,12 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
+import { isApiErrorCode } from "@/lib/api-error";
+import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { NAME_MAX_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
 import type { UserProfile } from "@/types/user";
 
@@ -67,7 +69,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name: newName.trim() }),
 			});
-			if (res.ok) {
+				if (res.ok) {
 				const updated = await res.json();
 				setProfile((prev) =>
 					prev
@@ -82,12 +84,14 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 						: prev,
 				);
 				setOpen(false);
-			} else {
-				const data = await res.json().catch(() => ({}));
-				if (data.error === "name_taken") {
-					setNameError(t("nameTaken"));
-				} else if (data.error === "rename_limit_reached") {
-					setNameError(t("saveError"));
+				} else {
+					const data = await res.json().catch(() => ({}));
+					if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
+						setNameError(common("tooManyRequests"));
+					} else if (data.error === "name_taken") {
+						setNameError(t("nameTaken"));
+					} else if (data.error === "rename_limit_reached") {
+						setNameError(t("saveError"));
 				} else if (data.error === "validation_error:name:too_big") {
 					setNameError(t("nameTooLong", { max: NAME_MAX_LENGTH }));
 				} else {
@@ -111,17 +115,19 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name: channelName.trim() }),
 			});
-			if (res.ok) {
+				if (res.ok) {
 				const channel = await res.json();
 				setProfile((prev) => (prev ? { ...prev, channels: [...prev.channels, channel] } : prev));
 				setChannelDialogOpen(false);
 				setChannelName("");
-			} else {
-				const data = await res.json().catch(() => ({}));
-				if (data.error === "name_taken") {
-					setChannelError(t("nameTaken"));
-				} else if (data.error === "validation_error:name:too_big") {
-					setChannelError(t("nameTooLong", { max: NAME_MAX_LENGTH }));
+				} else {
+					const data = await res.json().catch(() => ({}));
+					if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
+						setChannelError(common("tooManyRequests"));
+					} else if (data.error === "name_taken") {
+						setChannelError(t("nameTaken"));
+					} else if (data.error === "validation_error:name:too_big") {
+						setChannelError(t("nameTooLong", { max: NAME_MAX_LENGTH }));
 				} else {
 					setChannelError(t("saveError"));
 				}

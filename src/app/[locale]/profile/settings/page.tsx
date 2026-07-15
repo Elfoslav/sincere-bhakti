@@ -12,12 +12,15 @@ import { Heading } from "@/components/ui/heading";
 import { Alert } from "@/components/ui/alert";
 import { Link } from "@/i18n/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isApiErrorCode } from "@/lib/api-error";
+import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { PASSWORD_MIN_LENGTH } from "@/lib/validation";
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const t = useTranslations("SettingsPage");
+  const common = useTranslations("Common");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -85,7 +88,9 @@ export default function SettingsPage() {
         setConfirmPassword("");
       } else {
         const data = await res.json().catch(() => ({}));
-        if (data.error === "invalid_password") {
+        if (res.status === 429 || isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
+          setError(common("tooManyRequests"));
+        } else if (data.error === "invalid_password") {
           setError(t("wrongPassword"));
         } else if (data.error?.startsWith("validation_error:")) {
           setError(t("passwordTooShort", { min: PASSWORD_MIN_LENGTH }));

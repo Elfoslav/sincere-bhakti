@@ -216,6 +216,7 @@
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
 		"footerLine2": "Venované učeniu Śrīlu Prabhupādu",
 		"terms": "Podmienky používania",
+		"tooManyRequests": "Robíte to príliš rýchlo. Počkajte prosím chvíľu a skúste to znova.",
 		"renameCountInfo": "Počet premenovaní je obmedzený:",
 		"renameCount": "{count} / {max}"
 	},

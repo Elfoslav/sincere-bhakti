@@ -20,7 +20,7 @@ vi.mock("@/lib/csrf", () => ({
 }));
 vi.mock("@/lib/rate-limit", () => {
   const mockRateLimit = vi.fn((_key: string, _limit: number, _windowMs: number) => ({ allowed: true, remaining: 9, resetIn: 3_600_000 }));
-  const RATE_LIMITS = { createChannel: { limit: 10, windowMs: 3_600_000 }, updateChannel: { limit: 10, windowMs: 3_600_000 } };
+  const RATE_LIMITS = { createChannel: { limit: 20, windowMs: 3_600_000 }, updateChannel: { limit: 20, windowMs: 3_600_000 } };
   const rateLimitKey = (prefix: string, id: string) => `${prefix}:${id}`;
   return {
     RATE_LIMIT_PREFIX: {

@@ -7,6 +7,8 @@ import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isApiErrorCode } from "@/lib/api-error";
+import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { PASSWORD_MIN_LENGTH } from "@/lib/validation";
 import { useFormPersist } from "@/lib/hooks/useFormPersist";
 
@@ -44,6 +46,7 @@ const initialErrors: FieldErrors = { name: null, email: null, password: null, te
 export default function RegisterPage() {
   const router = useRouter();
   const t = useTranslations("Auth.register");
+  const common = useTranslations("Common");
   const [errors, setErrors] = useState<FieldErrors>(initialErrors);
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -103,7 +106,9 @@ export default function RegisterPage() {
       });
 
       if (!res.ok) {
-        if (res.status === 409) {
+        if (res.status === 429) {
+          handleServerError(common("tooManyRequests"));
+        } else if (res.status === 409) {
           setErrors((prev) => ({ ...prev, name: t("nameTaken") }));
         } else if (res.status === 400) {
           const data = await res.json().catch(() => ({}));
@@ -119,7 +124,12 @@ export default function RegisterPage() {
             handleServerError(t("registrationFailed"));
           }
         } else {
-          handleServerError(t("registrationFailed"));
+          const data = await res.json().catch(() => ({}));
+          if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
+            handleServerError(common("tooManyRequests"));
+          } else {
+            handleServerError(t("registrationFailed"));
+          }
         }
         setLoading(false);
         return;

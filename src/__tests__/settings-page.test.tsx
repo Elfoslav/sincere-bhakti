@@ -27,9 +27,9 @@ vi.mock("@/i18n/navigation", () => ({
 vi.mock("next-intl", () => ({
   useTranslations: vi.fn((namespace: string) => {
     const messages: Record<string, Record<string, string>> = {
-      SettingsPage: {
-        title: "Settings",
-        description: "Change the password you use to sign in.",
+    SettingsPage: {
+      title: "Settings",
+      description: "Change the password you use to sign in.",
         backToProfile: "← Back to profile",
         changePassword: "Change password",
         currentPasswordLabel: "Current password",
@@ -42,10 +42,13 @@ vi.mock("next-intl", () => ({
         passwordMismatch: "Passwords do not match",
         wrongPassword: "Current password is incorrect",
         passwordTooShort: "Password must be at least 8 characters",
-        saveError: "Failed to change password",
-        saving: "Saving...",
-      },
-    };
+      saveError: "Failed to change password",
+      saving: "Saving...",
+    },
+    Common: {
+      tooManyRequests: "You're doing that too quickly. Please wait a moment and try again.",
+    },
+  };
     return (key: string, values?: Record<string, string | number>) => {
       const value = messages[namespace]?.[key] ?? key;
       if (!values) return value;
@@ -137,6 +140,30 @@ describe("SettingsPage", () => {
         password: "new-secret123",
         redirect: false,
       });
+    });
+  });
+
+  it("shows a rate limit message when the password change is throttled", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ error: "too_many_requests" }), {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ) as any,
+    );
+
+    render(<SettingsPage />);
+
+    fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "old-secret" } });
+    fireEvent.change(screen.getByLabelText("New password"), { target: { value: "new-secret123" } });
+    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "new-secret123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Change password" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("You're doing that too quickly. Please wait a moment and try again.");
+      expect(signIn).not.toHaveBeenCalled();
     });
   });
 });

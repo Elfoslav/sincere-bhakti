@@ -7,28 +7,28 @@ export const RATE_LIMITS = {
   register: { limit: 20, windowMs: 3_600_000 },
   // Login: 15 attempts per 15 minutes per IP
   login: { limit: 15, windowMs: 900_000 },
-  // Post creation: 20 per hour per user
-  createPost: { limit: 20, windowMs: 3_600_000 },
-  // Post update: 30 per hour per user
-  updatePost: { limit: 30, windowMs: 3_600_000 },
-  // Post deletion: 30 per hour per user
-  deletePost: { limit: 30, windowMs: 3_600_000 },
+  // Post creation: 30 per hour per user
+  createPost: { limit: 30, windowMs: 3_600_000 },
+  // Post update: 60 per hour per user
+  updatePost: { limit: 60, windowMs: 3_600_000 },
+  // Post deletion: 40 per hour per user
+  deletePost: { limit: 40, windowMs: 3_600_000 },
   // File upload (and cleanup): 60 per hour per user (production only)
   upload: { limit: 60, windowMs: 3_600_000 },
-  // Presigned upload URL generation: 20 per hour per user
-  uploadUrl: { limit: 20, windowMs: 3_600_000 },
-  // Profile update: 10 per hour per user
-  updateProfile: { limit: 10, windowMs: 3_600_000 },
+  // Presigned upload URL generation: 40 per hour per user
+  uploadUrl: { limit: 40, windowMs: 3_600_000 },
+  // Profile update: 20 per hour per user
+  updateProfile: { limit: 20, windowMs: 3_600_000 },
   // Read posts: 120 requests per 60s per IP (2 req/s average)
   readPosts: { limit: 120, windowMs: 60_000 },
   // Read channel by slug: 60 requests per 60s per IP
   readChannel: { limit: 60, windowMs: 60_000 },
   // Search channels: 30 requests per 60s per IP
   searchChannels: { limit: 30, windowMs: 60_000 },
-  // Channel creation: 10 per hour per user
-  createChannel: { limit: 10, windowMs: 3_600_000 },
-  // Channel rename: 10 per hour per user
-  updateChannel: { limit: 10, windowMs: 3_600_000 },
+  // Channel creation: 20 per hour per user
+  createChannel: { limit: 20, windowMs: 3_600_000 },
+  // Channel rename: 20 per hour per user
+  updateChannel: { limit: 20, windowMs: 3_600_000 },
   // Read single post by id: 120 requests per 60s per IP
   readPostDetail: { limit: 120, windowMs: 60_000 },
   // Read user profile: 60 requests per 60s per IP

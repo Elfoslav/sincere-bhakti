@@ -13,6 +13,8 @@ import { formatBytes } from "@/lib/format";
 import { genId } from "@/lib/id";
 import { getImageDimensions } from "@/lib/client-media";
 import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
+import { isApiErrorCode } from "@/lib/api-error";
+import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import type { Post } from "@/types/post";
 import type { MediaInput } from "@/lib/services/post";
 import {
@@ -69,6 +71,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   const { data: session } = useSession();
   const locale = useLocale();
   const t = useTranslations("PostsPage");
+  const common = useTranslations("Common");
   const [content, setContent] = useState(initialContent);
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>(
@@ -273,6 +276,8 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
         const err = body?.error ?? "";
         if (err === "validation_error:input:custom") {
           toast.error(t("nothingToPost"));
+        } else if (res.status === 429 || isApiErrorCode(body, ERROR_TOO_MANY_REQUESTS)) {
+          toast.error(common("tooManyRequests"));
         } else {
           toast.error(mode === "edit" ? t("updatePostFailed") : t("createPostFailed"));
         }

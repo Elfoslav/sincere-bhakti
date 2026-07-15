@@ -25,6 +25,8 @@ import PostCard from "@/components/PostCard";
 import EditPostModal from "@/components/EditPostModal";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
+import { isApiErrorCode } from "@/lib/api-error";
+import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
 import { NAME_MAX_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
 import type { Post } from "@/types/post";
@@ -102,7 +104,9 @@ export default function ChannelPageClient({
         router.replace(`/channels/${updated.slug}`);
       } else {
         const data = await res.json().catch(() => ({}));
-        if (data.error === "name_taken") {
+        if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
+          setNameError(common("tooManyRequests"));
+        } else if (data.error === "name_taken") {
           setNameError(t("nameTaken"));
         } else if (data.error === "rename_limit_reached") {
           setNameError(t("saveError"));
