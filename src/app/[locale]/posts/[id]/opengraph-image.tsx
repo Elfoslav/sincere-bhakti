@@ -1,7 +1,9 @@
 import { ImageResponse } from "next/og";
+import { headers } from "next/headers";
 import sharp from "sharp";
 import { getCachedPostById } from "@/lib/services/post";
 import { getSiteUrl } from "@/lib/url";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const size = { width: 1200, height: 630 };
@@ -60,9 +62,14 @@ export default async function Image({
   params: Promise<{ locale: string; id: string }>;
 }) {
   const { id } = await params;
-  const post = await getCachedPostById(id);
-
   const siteUrl = getSiteUrl();
+  const ip = getClientIp(await headers());
+
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) {
+    return logoFallback(siteUrl);
+  }
+
+  const post = await getCachedPostById(id);
 
   // Post image available: show it full-bleed with nothing layered on top.
   // Otherwise (no post, private, no image, or fetch failed): logo fallback.
