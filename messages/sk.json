@@ -99,6 +99,7 @@
 			"passwordWhitespace": "Heslo začína alebo končí medzerou. Odstráňte ju a skúste to znova.",
 			"nameRequired": "Meno je povinné",
 			"nameTooLong": "Meno nesmie presiahnuť {max} znakov",
+			"nameTooShort": "Meno musí mať aspoň {min} znaky",
 			"nameTaken": "Toto meno už používa iný oddaný",
 			"emailRequired": "Email je povinný",
 			"emailInvalid": "Neplatný formát emailu",

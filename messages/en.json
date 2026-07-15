@@ -99,6 +99,7 @@
 			"passwordWhitespace": "Password starts or ends with a space. Remove it and try again.",
 			"nameRequired": "Name is required",
 			"nameTooLong": "Name cannot exceed {max} characters",
+			"nameTooShort": "Name must be at least {min} characters",
 			"nameTaken": "This name is already taken by another devotee",
 			"emailRequired": "Email is required",
 			"emailInvalid": "Invalid email address",

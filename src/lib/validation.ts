@@ -100,7 +100,7 @@ export const registerSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1)
+    .min(2)
     .max(NAME_MAX_LENGTH),
   email: z
     .string()
@@ -162,7 +162,7 @@ export const updateNameSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1)
+    .min(2)
     .max(NAME_MAX_LENGTH),
 });
 

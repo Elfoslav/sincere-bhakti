@@ -217,6 +217,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 										autoFocus
 										errorMessage={nameError || undefined}
 										maxLength={NAME_MAX_LENGTH}
+										minLengthHint={2}
 									/>
 									<div className="flex items-center justify-between text-xs text-deep/50">
 										<span>{common("renameCountInfo")}</span>

@@ -13,6 +13,7 @@ import { useFormPersist } from "@/lib/hooks/useFormPersist";
 function validateName(val: string, t: (key: string, vars?: Record<string, number>) => string): string | null {
   const trimmed = val.trim();
   if (!trimmed) return t("nameRequired");
+  if (trimmed.length < 2) return t("nameTooShort", { min: 2 });
   if (trimmed.length > 50) return t("nameTooLong", { max: 50 });
   return null;
 }
@@ -166,6 +167,7 @@ export default function RegisterPage() {
               onBlur={handleBlur("name")}
               onChange={handleChange("name")}
               maxLength={50}
+              minLengthHint={2}
             />
             {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
           </div>
