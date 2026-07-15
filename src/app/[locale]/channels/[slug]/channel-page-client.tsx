@@ -211,9 +211,10 @@ export default function ChannelPageClient({
                       autoFocus
                       errorMessage={nameError || undefined}
                     />
-                    <p className="text-xs text-deep/50 text-center">
-                      {common("renameCount", { count: channel.renameCount, max: MAX_RENAME_COUNT })}
-                    </p>
+                    <div className="flex items-center justify-between text-xs text-deep/50">
+                      <span>{common("renameCountInfo")}</span>
+                      <span>{common("renameCount", { count: channel.renameCount, max: MAX_RENAME_COUNT })}</span>
+                    </div>
                     <div className="flex justify-end gap-2">
                       <Button type="button" variant="outline" className="min-w-24" onClick={() => setRenameOpen(false)}>
                         {t("cancel")}

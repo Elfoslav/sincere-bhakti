@@ -194,7 +194,8 @@
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
 		"footerLine2": "Dedicated to the teachings of Śrīla Prabhupāda",
 		"terms": "Terms & Conditions",
-		"renameCount": "Renames: {count} / {max}"
+		"renameCountInfo": "Number of renames is limited:",
+		"renameCount": "{count} / {max}"
 	},
 	"ErrorPages": {
 		"backToPosts": "← Back to posts",
