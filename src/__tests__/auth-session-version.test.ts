@@ -77,4 +77,13 @@ describe("auth session version", () => {
     expect(token.channelId).toBeUndefined();
     expect(token.sessionVersion).toBeUndefined();
   });
+
+  it("returns null for stale sessions", async () => {
+    const session = await authConfig.callbacks!.session!({
+      session: { user: {} } as any,
+      token: {},
+    } as any);
+
+    expect(session).toBeNull();
+  });
 });

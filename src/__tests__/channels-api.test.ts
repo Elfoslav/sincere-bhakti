@@ -209,7 +209,7 @@ describe("PATCH /api/channels/[slug]", () => {
 
   it("returns 200 without incrementing count when renaming to the same name", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old Name", ownerId: "user-1", isPersonal: false, slug: "old-name", renameCount: 2 } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old Name", ownerId: "user-1", isPersonal: false, slug: "old-name", avatarUrl: "https://example.com/avatar.png", renameCount: 2 } as any);
 
     const res = await PATCH(mockRequest({ name: "Old Name" }), params);
     const json = await res.json();
@@ -217,6 +217,7 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("Old Name");
     expect(json.slug).toBe("old-name");
+    expect(json.avatarUrl).toBe("https://example.com/avatar.png");
     expect(json.renameCount).toBe(2);
     expect(prisma.channel.update).not.toHaveBeenCalled();
     expect(prisma.channelSlugHistory.create).not.toHaveBeenCalled();

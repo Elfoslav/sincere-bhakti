@@ -97,8 +97,12 @@ export async function PATCH(
     // Renaming to the same name is a no-op — don't count or write history
     if (normalizedTarget === normalizeName(channel.name)) {
       return NextResponse.json({
-        id: channel.id, name: channel.name, slug: channel.slug,
-        avatarUrl: null, ownerId: channel.ownerId, renameCount: channel.renameCount,
+        id: channel.id,
+        name: channel.name,
+        slug: channel.slug,
+        avatarUrl: channel.avatarUrl,
+        ownerId: channel.ownerId,
+        renameCount: channel.renameCount,
       });
     }
 
