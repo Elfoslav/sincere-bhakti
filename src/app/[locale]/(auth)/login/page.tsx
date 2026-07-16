@@ -9,6 +9,7 @@ import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AUTH_EMAIL_PERSIST_KEY } from "@/lib/form-persist-keys";
 import { useFormPersist } from "@/lib/hooks/useFormPersist";
 
 export default function LoginPage() {
@@ -19,7 +20,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const { stored, save, clear, loaded } = useFormPersist<{ email: string }>("login", ["password"]);
+  const { stored, save, clear, loaded } = useFormPersist<{ email: string }>(AUTH_EMAIL_PERSIST_KEY, ["password"]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,6 +30,7 @@ export default function LoginPage() {
     const form = new FormData(e.currentTarget);
     const email = form.get("email") as string;
     const password = form.get("password") as string;
+    save({ email });
 
     try {
       const result = await signIn("credentials", {

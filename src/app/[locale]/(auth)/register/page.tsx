@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { AUTH_EMAIL_PERSIST_KEY } from "@/lib/form-persist-keys";
 import { PASSWORD_MIN_LENGTH } from "@/lib/validation";
 import { useFormPersist } from "@/lib/hooks/useFormPersist";
 
@@ -52,7 +53,17 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const { stored, save, clear, loaded } = useFormPersist<{ name: string; email: string }>("register", ["password"]);
+  const {
+    stored: storedName,
+    save: saveName,
+    clear: clearName,
+    loaded: nameLoaded,
+  } = useFormPersist<{ name: string }>("register", ["password"]);
+  const {
+    stored: storedEmail,
+    save: saveEmail,
+    loaded: emailLoaded,
+  } = useFormPersist<{ email: string }>(AUTH_EMAIL_PERSIST_KEY);
 
   const validators = useMemo(() => ({
     name: (val: string) => validateName(val, t),
@@ -65,7 +76,8 @@ export default function RegisterPage() {
       const val = e.target.value;
       const err = validators[field](val);
       setErrors((prev) => ({ ...prev, [field]: err }));
-      if (!err) save({ [field]: val });
+      if (!err && field === "name") saveName({ name: val });
+      if (!err && field === "email") saveEmail({ email: val });
     };
   }
 
@@ -96,6 +108,8 @@ export default function RegisterPage() {
 
     if (nameErr || emailErr || passwordErr || termsErr) return;
 
+    saveName({ name });
+    saveEmail({ email });
     setLoading(true);
 
     try {
@@ -140,19 +154,19 @@ export default function RegisterPage() {
       return;
     }
 
-    clear();
+    clearName();
     router.push("/login?registered=true");
   }
 
   // Restore persisted values after mount
   useEffect(() => {
-    if (!loaded || !stored || !formRef.current) return;
+    if (!nameLoaded || !emailLoaded || !formRef.current) return;
     const form = formRef.current;
     const nameInput = form.elements.namedItem("name") as HTMLInputElement | null;
     const emailInput = form.elements.namedItem("email") as HTMLInputElement | null;
-    if (nameInput && stored.name) nameInput.value = stored.name;
-    if (emailInput && stored.email) emailInput.value = stored.email;
-  }, [loaded, stored]);
+    if (nameInput && storedName?.name) nameInput.value = storedName.name;
+    if (emailInput && storedEmail?.email) emailInput.value = storedEmail.email;
+  }, [emailLoaded, nameLoaded, storedEmail, storedName]);
 
   return (
     <div className="w-full max-w-md">
