@@ -132,10 +132,14 @@ describe("PATCH /api/users/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(json.name).toBe("New Name");
+    expect(json.personalChannel).toEqual({ id: "channel-1", name: "New Name", slug: "new-name" });
     expect(prisma.channel.findFirst).toHaveBeenCalledWith({
       where: { ownerId: "user-1", isPersonal: true },
       select: { id: true, name: true, slug: true },
     });
+    expect(prisma.channel.update).toHaveBeenCalledWith(
+      expect.objectContaining({ select: { id: true, name: true, slug: true } }),
+    );
   });
 
   it("returns 403 when not the owner", async () => {

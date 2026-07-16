@@ -135,6 +135,7 @@ export async function PATCH(
         where: { id },
         select: { id: true, name: true, email: true, image: true, createdAt: true, renameCount: true },
       });
+      let updatedPersonalChannel: { id: string; name: string; slug: string } | null = null;
 
       if (personalChannel) {
         const newSlug = slugifyName(parsed.data.name);
@@ -164,13 +165,14 @@ export async function PATCH(
           }
         }
 
-        await tx.channel.update({
+        updatedPersonalChannel = await tx.channel.update({
           where: { id: personalChannel.id },
           data: { name: parsed.data.name, normalizedName: normalizeName(parsed.data.name), slug: newSlug },
+          select: { id: true, name: true, slug: true },
         });
       }
 
-      return user;
+      return { ...user, personalChannel: updatedPersonalChannel };
     });
 
     return NextResponse.json(updated);
