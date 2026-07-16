@@ -138,7 +138,18 @@ export async function PATCH(
         if (historySlugTaken) {
           return "name_taken";
         }
+      }
 
+      const result = await tx.channel.updateMany({
+        where: { id: channel.id, ownerId: session.user.id, renameCount: { lt: MAX_RENAME_COUNT } },
+        data: { name, normalizedName: normalizedTarget, slug: newSlug, renameCount: { increment: 1 } },
+      });
+
+      if (result.count === 0) {
+        return "limit_reached";
+      }
+
+      if (newSlug !== oldSlug) {
         // Avoid P2002 if oldSlug is already in history (e.g. rename A→B→A→C).
         const oldInHistory = await tx.channelSlugHistory.findFirst({
           where: { oldSlug, channelId: channel.id },
@@ -149,15 +160,6 @@ export async function PATCH(
             data: { oldSlug, oldNormalizedName: normalizeName(channel.name), channelId: channel.id },
           });
         }
-      }
-
-      const result = await tx.channel.updateMany({
-        where: { id: channel.id, ownerId: session.user.id, renameCount: { lt: MAX_RENAME_COUNT } },
-        data: { name, normalizedName: normalizedTarget, slug: newSlug, renameCount: { increment: 1 } },
-      });
-
-      if (result.count === 0) {
-        return "limit_reached";
       }
 
       return tx.channel.findUnique({

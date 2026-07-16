@@ -250,6 +250,7 @@ describe("PATCH /api/channels/[slug]", () => {
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("rename_limit_reached");
+    expect(prisma.channelSlugHistory.create).not.toHaveBeenCalled();
   });
 
   it("returns 200 without incrementing count when name differs only by case", async () => {
