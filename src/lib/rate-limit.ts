@@ -35,6 +35,10 @@ export const RATE_LIMITS = {
   readProfile: { limit: 60, windowMs: 60_000 },
   // Password change: 5 per hour per user
   changePassword: { limit: 5, windowMs: 3_600_000 },
+  // Read active identity: 120 requests per 60s per user
+  readIdentity: { limit: 120, windowMs: 60_000 },
+  // Switch active identity: 60 requests per hour per user
+  updateIdentity: { limit: 60, windowMs: 3_600_000 },
 } as const;
 
 // Rate-limit key prefixes — shared across API routes and SSR pages so every
@@ -57,6 +61,8 @@ export const RATE_LIMIT_PREFIX = {
   readPostDetail: "read-post-detail",
   readProfile: "read-profile",
   changePassword: "change-password",
+  readIdentity: "read-identity",
+  updateIdentity: "update-identity",
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;

@@ -26,6 +26,8 @@ vi.mock("@/lib/rate-limit", () => {
       readPostDetail: "read-post-detail",
       readProfile: "read-profile",
       changePassword: "change-password",
+      readIdentity: "read-identity",
+      updateIdentity: "update-identity",
     },
     RATE_LIMITS: {
       register: { limit: 5, windowMs: 3_600_000 },
@@ -42,6 +44,8 @@ vi.mock("@/lib/rate-limit", () => {
       readPostDetail: { limit: 120, windowMs: 60_000 },
       readProfile: { limit: 60, windowMs: 60_000 },
       changePassword: { limit: 5, windowMs: 3_600_000 },
+      readIdentity: { limit: 120, windowMs: 60_000 },
+      updateIdentity: { limit: 60, windowMs: 3_600_000 },
     },
   };
 });

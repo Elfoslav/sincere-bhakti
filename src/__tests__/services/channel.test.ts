@@ -4,7 +4,13 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     channel: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
       create: vi.fn(),
+    },
+    channelEditor: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
     },
     channelSlugHistory: {
       findFirst: vi.fn(),
@@ -13,7 +19,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
-import { createPersonalChannel, createChannel, NameTakenError } from "@/lib/services/channel";
+import { createPersonalChannel, createChannel, NameTakenError, getAuthorableChannels, canAuthorChannel, resolveAuthorableChannelId } from "@/lib/services/channel";
 
 const baseChannel = {
   id: "",
@@ -79,6 +85,115 @@ describe("createPersonalChannel", () => {
     const result = await createPersonalChannel("user-99", "Test");
 
     expect(result.slug).toBe(fallbackSlug);
+  });
+});
+
+describe("getAuthorableChannels", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns owned channels and editable channels without duplicates", async () => {
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+      { id: "ch-1", name: "Personal", slug: "personal", avatarUrl: null, ownerId: "user-1", isPersonal: true },
+      { id: "ch-2", name: "Owned", slug: "owned", avatarUrl: null, ownerId: "user-1", isPersonal: false },
+    ] as any);
+    vi.mocked(prisma.channelEditor.findMany).mockResolvedValue([
+      {
+        channelId: "ch-2",
+        userId: "user-1",
+        role: "editor",
+        channel: { id: "ch-2", name: "Owned", slug: "owned", avatarUrl: null, ownerId: "user-1", isPersonal: false },
+      },
+      {
+        channelId: "ch-3",
+        userId: "user-1",
+        role: "editor",
+        channel: { id: "ch-3", name: "Editable", slug: "editable", avatarUrl: null, ownerId: "user-2", isPersonal: false },
+      },
+    ] as any);
+
+    const result = await getAuthorableChannels("user-1");
+
+    expect(result).toEqual([
+      { id: "ch-1", name: "Personal", slug: "personal", avatarUrl: null, ownerId: "user-1", isPersonal: true, role: "owner" },
+      { id: "ch-2", name: "Owned", slug: "owned", avatarUrl: null, ownerId: "user-1", isPersonal: false, role: "owner" },
+      { id: "ch-3", name: "Editable", slug: "editable", avatarUrl: null, ownerId: "user-2", isPersonal: false, role: "editor" },
+    ]);
+  });
+});
+
+describe("canAuthorChannel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("allows channel owner", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
+
+    await expect(canAuthorChannel("ch-1", "user-1")).resolves.toBe(true);
+    expect(prisma.channelEditor.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("allows channel editor", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-2" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-1" } as any);
+
+    await expect(canAuthorChannel("ch-1", "user-1")).resolves.toBe(true);
+  });
+
+  it("rejects non-author", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-2" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
+
+    await expect(canAuthorChannel("ch-1", "user-1")).resolves.toBe(false);
+  });
+});
+
+describe("resolveAuthorableChannelId", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("accepts explicit authorable channel", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
+
+    const result = await resolveAuthorableChannelId({
+      explicitChannelId: "ch-1",
+      preferredChannelId: "stale",
+      fallbackChannelId: "personal",
+      userId: "user-1",
+    });
+
+    expect(result).toEqual({ channelId: "ch-1", shouldRefreshPreference: false, explicitForbidden: false });
+  });
+
+  it("forbids explicit non-authorable channel", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-2" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
+
+    const result = await resolveAuthorableChannelId({
+      explicitChannelId: "ch-1",
+      fallbackChannelId: "personal",
+      userId: "user-1",
+    });
+
+    expect(result).toEqual({ channelId: undefined, shouldRefreshPreference: false, explicitForbidden: true });
+  });
+
+  it("falls back from stale preferred channel and asks caller to refresh preference", async () => {
+    vi.mocked(prisma.channel.findUnique)
+      .mockResolvedValueOnce({ ownerId: "user-2" } as any)
+      .mockResolvedValueOnce({ ownerId: "user-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
+
+    const result = await resolveAuthorableChannelId({
+      preferredChannelId: "stale",
+      fallbackChannelId: "personal",
+      userId: "user-1",
+    });
+
+    expect(result).toEqual({ channelId: "personal", shouldRefreshPreference: true, explicitForbidden: false });
   });
 });
 

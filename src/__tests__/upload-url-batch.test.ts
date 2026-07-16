@@ -7,6 +7,9 @@ vi.mock("@/lib/csrf", () => ({
 vi.mock("@/lib/services/upload", () => ({
   createUploadUrl: vi.fn(),
 }));
+vi.mock("@/lib/services/channel", () => ({
+  resolveAuthorableChannelId: vi.fn(),
+}));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     pendingUpload: {
@@ -19,6 +22,7 @@ vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
 import { createUploadUrl } from "@/lib/services/upload";
+import { resolveAuthorableChannelId } from "@/lib/services/channel";
 import { prisma } from "@/lib/prisma";
 import { POST } from "@/app/api/upload-url/batch/route";
 
@@ -32,6 +36,7 @@ function mockRequest(body: unknown) {
 describe("POST /api/upload-url/batch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: undefined, shouldRefreshPreference: false, explicitForbidden: false });
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -48,6 +53,7 @@ describe("POST /api/upload-url/batch", () => {
 
   it("returns 400 when postId is missing", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-1", shouldRefreshPreference: false, explicitForbidden: false });
 
     const res = await POST(mockRequest({ files: [{ fileName: "test.jpg", contentType: "image/jpeg", size: 1024 }] }));
     const json = await res.json();
@@ -98,6 +104,7 @@ describe("POST /api/upload-url/batch", () => {
 
   it("returns upload URLs for all files", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-2", shouldRefreshPreference: false, explicitForbidden: false });
     vi.mocked(createUploadUrl)
       .mockResolvedValueOnce({
         uploadUrl: "https://r2.example.com/upload-1",
@@ -113,6 +120,7 @@ describe("POST /api/upload-url/batch", () => {
     const res = await POST(
       mockRequest({
         postId: "post-1",
+        channelId: "channel-2",
         files: [
           { fileName: "file1.jpg", contentType: "image/jpeg", size: 1024 },
           { fileName: "file2.png", contentType: "image/png", size: 2048 },
@@ -128,6 +136,29 @@ describe("POST /api/upload-url/batch", () => {
     expect(createUploadUrl).toHaveBeenCalledTimes(2);
     expect(createUploadUrl).toHaveBeenCalledWith("file1.jpg", "image/jpeg", "post-1", 1024);
     expect(createUploadUrl).toHaveBeenCalledWith("file2.png", "image/png", "post-1", 2048);
+    expect(resolveAuthorableChannelId).toHaveBeenCalledWith({
+      explicitChannelId: "channel-2",
+      preferredChannelId: undefined,
+      fallbackChannelId: undefined,
+      userId: "user-1",
+    });
+    expect(prisma.pendingUpload.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ channelId: "channel-2" }),
+      ]),
+    });
+  });
+
+  it("returns 403 when channel identity is not authorable", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: undefined, shouldRefreshPreference: false, explicitForbidden: true });
+
+    const res = await POST(
+      mockRequest({ postId: "post-1", channelId: "channel-2", files: [{ fileName: "test.jpg", contentType: "image/jpeg", size: 1024 }] }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(createUploadUrl).not.toHaveBeenCalled();
   });
 
   it("returns 500 on server error", async () => {

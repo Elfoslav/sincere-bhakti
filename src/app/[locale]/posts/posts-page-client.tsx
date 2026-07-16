@@ -11,6 +11,7 @@ import EditPostModal from "@/components/EditPostModal";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
+import { useIdentity } from "@/components/IdentityProvider";
 import type { Post } from "@/types/post";
 
 export default function PostsPageClient({
@@ -19,6 +20,7 @@ export default function PostsPageClient({
 	initialPublic?: { posts: Post[]; hasMore: boolean };
 }) {
 	const { data: session } = useSession();
+	const { activeChannelId, identities } = useIdentity();
 	const locale = useLocale();
 	const t = useTranslations("PostsPage");
 	const [editingPost, setEditingPost] = useState<Post | null>(null);
@@ -35,13 +37,14 @@ export default function PostsPageClient({
 		hasMore: myHasMore,
 		sentinelRef: mySentinelRef,
 	} = useInfinitePosts({
-		channelId: session?.user?.channelId,
-		disabled: !session,
+		channelId: activeChannelId ?? undefined,
+		disabled: !session || !activeChannelId,
 		language: locale,
 	});
 
 	const myPublicPosts = useMemo(() => myPosts.filter((p) => p.isPublic), [myPosts]);
 	const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);
+	const manageableChannelIds = useMemo(() => identities.map((identity) => identity.id), [identities]);
 
 	function handleCreateSuccess(post: Post) {
 		setMyPosts((prev) => [post, ...prev]);
@@ -118,6 +121,7 @@ export default function PostsPageClient({
 										key={post.id}
 										post={post}
 										currentUserId={session?.user?.id}
+										manageableChannelIds={manageableChannelIds}
 										onDelete={handleDelete}
 										onEdit={handleEdit}
 									/>
@@ -156,6 +160,7 @@ export default function PostsPageClient({
 											key={post.id}
 											post={post}
 											currentUserId={session?.user?.id}
+											manageableChannelIds={manageableChannelIds}
 											onDelete={handleDelete}
 											onEdit={handleEdit}
 										/>
@@ -195,6 +200,7 @@ export default function PostsPageClient({
 											key={post.id}
 											post={post}
 											currentUserId={session?.user?.id}
+											manageableChannelIds={manageableChannelIds}
 											onDelete={handleDelete}
 											onEdit={handleEdit}
 										/>

@@ -189,11 +189,13 @@ export const uploadUrlSchema = z.object({
     .max(255)
     .refine(isAllowedUploadContentType),
   postId: z.string().min(1).max(36),
+  channelId: z.string().min(1).optional(),
   contentLength: z.number().int().positive().max(MAX_VIDEO_SIZE_BYTES).optional(),
 });
 
 export const batchUploadUrlSchema = z.object({
   postId: z.string().min(1).max(36),
+  channelId: z.string().min(1).optional(),
   files: z
     .array(
       z.object({
@@ -204,6 +206,10 @@ export const batchUploadUrlSchema = z.object({
     )
     .min(1)
     .max(10),
+});
+
+export const updateActiveIdentitySchema = z.object({
+  channelId: z.string().min(1),
 });
 
 export const compressSchema = z.object({

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 import PostCard from "@/components/PostCard";
 import EditPostModal from "@/components/EditPostModal";
+import { useIdentity } from "@/components/IdentityProvider";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { isApiErrorCode } from "@/lib/api-error";
@@ -38,11 +39,14 @@ export default function ChannelPageClient({
   channel: ChannelWithPostCount;
 }) {
   const { data: session } = useSession();
+  const { identities } = useIdentity();
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("ChannelPage");
   const common = useTranslations("Common");
   const isOwner = session?.user?.id === initialChannel.ownerId;
+  const manageableChannelIds = useMemo(() => identities.map((identity) => identity.id), [identities]);
+  const canAuthorChannel = isOwner || manageableChannelIds.includes(initialChannel.id);
 
   const [channel, setChannel] = useState(initialChannel);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -67,7 +71,7 @@ export default function ChannelPageClient({
     loadingMore: myPostsLoadingMore,
     hasMore: myPostsHasMore,
     sentinelRef: myPostsSentinelRef,
-  } = useInfinitePosts({ channelId: channel.id, scope: "private", disabled: !isOwner, language: locale });
+  } = useInfinitePosts({ channelId: channel.id, scope: "private", disabled: !canAuthorChannel, language: locale });
 
   const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);
 
@@ -151,7 +155,14 @@ export default function ChannelPageClient({
       <div>
         <div className="space-y-4">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} currentUserId={isOwner ? session?.user?.id : undefined} onDelete={handleDelete} onEdit={isOwner ? handleEdit : undefined} />
+            <PostCard
+              key={post.id}
+              post={post}
+              currentUserId={session?.user?.id}
+              manageableChannelIds={manageableChannelIds}
+              onDelete={canAuthorChannel ? handleDelete : undefined}
+              onEdit={canAuthorChannel ? handleEdit : undefined}
+            />
           ))}
         </div>
         {hasMore && (
@@ -241,7 +252,7 @@ export default function ChannelPageClient({
         </p>
       </Card>
 
-      {isOwner ? (
+      {canAuthorChannel ? (
         <TabsRoot defaultValue="public">
           <TabsList>
             <TabsTab value="public">{t("publicPosts", { count: publicPosts.length })}</TabsTab>

@@ -18,6 +18,7 @@ export default function PostCard({
   currentUserId,
   hideEdit,
   hideExternalLink,
+  manageableChannelIds,
   onDelete,
   onEdit,
 }: {
@@ -25,6 +26,7 @@ export default function PostCard({
   currentUserId?: string;
   hideEdit?: boolean;
   hideExternalLink?: boolean;
+  manageableChannelIds?: string[];
   onDelete?: (id: string) => void;
   onEdit?: (postId: string) => void;
 }) {
@@ -48,6 +50,7 @@ export default function PostCard({
 
   const images = useMemo(() => post.media.filter((m) => m.type === "image"), [post.media]);
   const otherMedia = useMemo(() => post.media.filter((m) => m.type !== "image"), [post.media]);
+  const canManage = currentUserId === post.channel.ownerId || manageableChannelIds?.includes(post.channel.id);
 
   const handleCopyLink = useCallback(() => {
     const url = `${window.location.origin}/${locale}/posts/${post.id}`;
@@ -98,7 +101,7 @@ export default function PostCard({
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {currentUserId === post.channel.ownerId && !hideEdit && onEdit && (
+          {canManage && !hideEdit && onEdit && (
             <button
               onClick={() => onEdit(post.id)}
               className="text-deep/40 hover:text-gold transition-colors p-1 cursor-pointer"
@@ -108,7 +111,7 @@ export default function PostCard({
               <Pencil className="w-4 h-4" />
             </button>
           )}
-          {currentUserId === post.channel.ownerId && onDelete && (
+          {canManage && onDelete && (
             <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={isDeleting}
@@ -183,7 +186,7 @@ export default function PostCard({
         </div>
       ))}
 
-      {currentUserId === post.channel.ownerId && (
+      {canManage && (
         <div className="flex items-center gap-2 text-xs text-deep/50">
           {post.isPublic ? (
             <span className="bg-tulsi/20 text-tulsi px-2 py-0.5 rounded-full">

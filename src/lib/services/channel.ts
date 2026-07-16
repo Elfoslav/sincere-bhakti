@@ -2,6 +2,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { slugifyName, normalizeName } from "@/lib/validation";
 import type { PostChannel } from "@/types/post";
+import type { AuthorableIdentity } from "@/types/identity";
 
 export class NotFoundError extends Error {
   name = "NotFoundError" as const;
@@ -180,6 +181,90 @@ export async function isChannelEditor(channelId: string, userId: string): Promis
   return !!editor;
 }
 
+export async function getAuthorableChannels(userId: string): Promise<AuthorableIdentity[]> {
+  const [owned, editable] = await Promise.all([
+    prisma.channel.findMany({
+      where: { ownerId: userId },
+      orderBy: [{ isPersonal: "desc" }, { createdAt: "asc" }, { id: "asc" }],
+      select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, isPersonal: true },
+    }),
+    prisma.channelEditor.findMany({
+      where: { userId },
+      include: {
+        channel: {
+          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, isPersonal: true },
+        },
+      },
+      orderBy: [{ channelId: "asc" }],
+    }),
+  ]);
+
+  const identities = new Map<string, AuthorableIdentity>();
+  for (const channel of owned) {
+    identities.set(channel.id, { ...channel, role: "owner" });
+  }
+  for (const editor of editable) {
+    if (!identities.has(editor.channel.id)) {
+      identities.set(editor.channel.id, { ...editor.channel, role: "editor" });
+    }
+  }
+
+  return Array.from(identities.values());
+}
+
+export async function canAuthorChannel(channelId: string, userId: string): Promise<boolean> {
+  const channel = await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { ownerId: true },
+  });
+  if (!channel) return false;
+  if (channel.ownerId === userId) return true;
+  return isChannelEditor(channelId, userId);
+}
+
+export async function resolveAuthorableChannelId({
+  explicitChannelId,
+  preferredChannelId,
+  fallbackChannelId,
+  userId,
+}: {
+  explicitChannelId?: string;
+  preferredChannelId?: string;
+  fallbackChannelId?: string;
+  userId: string;
+}): Promise<{ channelId?: string; shouldRefreshPreference: boolean; explicitForbidden: boolean }> {
+  if (explicitChannelId) {
+    const allowed = await canAuthorChannel(explicitChannelId, userId);
+    return {
+      channelId: allowed ? explicitChannelId : undefined,
+      shouldRefreshPreference: false,
+      explicitForbidden: !allowed,
+    };
+  }
+
+  if (preferredChannelId && await canAuthorChannel(preferredChannelId, userId)) {
+    return {
+      channelId: preferredChannelId,
+      shouldRefreshPreference: false,
+      explicitForbidden: false,
+    };
+  }
+
+  if (fallbackChannelId && await canAuthorChannel(fallbackChannelId, userId)) {
+    return {
+      channelId: fallbackChannelId,
+      shouldRefreshPreference: preferredChannelId !== undefined && preferredChannelId !== fallbackChannelId,
+      explicitForbidden: false,
+    };
+  }
+
+  return {
+    channelId: undefined,
+    shouldRefreshPreference: preferredChannelId !== undefined,
+    explicitForbidden: false,
+  };
+}
+
 export async function createChannel(userId: string, channelName: string): Promise<PostChannel & { postCount: number }> {
   const slug = slugifyName(channelName);
   const normalized = normalizeName(channelName);
@@ -230,4 +315,3 @@ export async function createChannel(userId: string, channelName: string): Promis
   });
   return { ...toPostChannel(channel), postCount: 0 };
 }
-

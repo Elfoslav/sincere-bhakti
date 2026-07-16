@@ -14,6 +14,15 @@
 		"toggleMenu": "Prepnúť menu",
 		"logoAlt": "Sincere Bhakti"
 	},
+	"Identity": {
+		"activeLabel": "Aktívna identita",
+		"switchLabel": "Prepnúť identitu",
+		"closeSwitcher": "Zavrieť prepínač identity",
+		"personal": "Osobný",
+		"owner": "Vlastník",
+		"editor": "Editor",
+		"manage": "Spravovať kanály"
+	},
 	"HomePage": {
 		"logoAlt": "Sincere Bhakti",
 		"metaTitle": "Sincere Bhakti",
@@ -35,6 +44,7 @@
 		"metaTitle": "Príspevky — Sincere Bhakti",
 		"metaDescription": "Oddané príspevky z globálnej saṅgy — realizácie, kirtany a postrehy z písiem.",
 		"composePlaceholder": "Zdieľaj svoju realizáciu, verš, YouTube odkaz alebo myšlienku...",
+		"postingAs": "Publikuješ ako",
 		"publicTab": "Verejné príspevky",
 		"myPublicTab": "Moje verejné príspevky",
 		"myPrivateTab": "Moje súkromné príspevky",

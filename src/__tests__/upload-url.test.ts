@@ -8,6 +8,9 @@ vi.mock("@/lib/services/upload", () => ({
   createUploadUrl: vi.fn(),
   contentTypeToMediaType: vi.fn(),
 }));
+vi.mock("@/lib/services/channel", () => ({
+  resolveAuthorableChannelId: vi.fn(),
+}));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     pendingUpload: {
@@ -20,6 +23,7 @@ vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
 import { createUploadUrl, contentTypeToMediaType } from "@/lib/services/upload";
+import { resolveAuthorableChannelId } from "@/lib/services/channel";
 import { prisma } from "@/lib/prisma";
 import { POST } from "@/app/api/upload-url/route";
 
@@ -33,6 +37,7 @@ function mockRequest(body: unknown) {
 describe("POST /api/upload-url", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: undefined, shouldRefreshPreference: false, explicitForbidden: false });
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -47,6 +52,7 @@ describe("POST /api/upload-url", () => {
 
   it("returns upload URL for authenticated user", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-2", shouldRefreshPreference: false, explicitForbidden: false });
     vi.mocked(prisma.pendingUpload.create).mockResolvedValue({} as any);
     vi.mocked(createUploadUrl).mockResolvedValue({
       uploadUrl: "https://r2.example.com/upload-url",
@@ -55,7 +61,7 @@ describe("POST /api/upload-url", () => {
     });
     vi.mocked(contentTypeToMediaType).mockReturnValue("image");
 
-    const res = await POST(mockRequest({ fileName: "test.jpg", contentType: "image/jpeg", postId: "post-1" }));
+    const res = await POST(mockRequest({ fileName: "test.jpg", contentType: "image/jpeg", postId: "post-1", channelId: "channel-2" }));
     const json = await res.json();
 
     expect(res.status).toBe(200);
@@ -63,6 +69,45 @@ describe("POST /api/upload-url", () => {
     expect(json.publicUrl).toBe("https://pub.r2.dev/posts/uuid-test.jpg");
     expect(json.mediaType).toBe("image");
     expect(createUploadUrl).toHaveBeenCalledWith("test.jpg", "image/jpeg", "post-1", undefined);
+    expect(resolveAuthorableChannelId).toHaveBeenCalledWith({
+      explicitChannelId: "channel-2",
+      preferredChannelId: undefined,
+      fallbackChannelId: undefined,
+      userId: "user-1",
+    });
+    expect(prisma.pendingUpload.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ channelId: "channel-2" }),
+    }));
+  });
+
+  it("returns 403 when channel identity is not authorable", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: undefined, shouldRefreshPreference: false, explicitForbidden: true });
+
+    const res = await POST(mockRequest({ fileName: "test.jpg", contentType: "image/jpeg", postId: "post-1", channelId: "channel-2" }));
+
+    expect(res.status).toBe(403);
+    expect(createUploadUrl).not.toHaveBeenCalled();
+  });
+
+  it("falls back from stale cookie identity and refreshes cookie", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-1", shouldRefreshPreference: true, explicitForbidden: false });
+    vi.mocked(prisma.pendingUpload.create).mockResolvedValue({} as any);
+    vi.mocked(createUploadUrl).mockResolvedValue({
+      uploadUrl: "https://r2.example.com/upload-url",
+      publicUrl: "https://pub.r2.dev/posts/uuid-test.jpg",
+      key: "posts/uuid-test.jpg",
+    });
+    vi.mocked(contentTypeToMediaType).mockReturnValue("image");
+
+    const res = await POST({
+      ...mockRequest({ fileName: "test.jpg", contentType: "image/jpeg", postId: "post-1" }),
+      cookies: { get: () => ({ value: "stale-channel" }) },
+    } as any);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie")).toContain("sb_active_channel_id=channel-1");
   });
 
   it("returns 400 when fileName is missing", async () => {

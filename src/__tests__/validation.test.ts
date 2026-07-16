@@ -7,6 +7,8 @@ import {
   createChannelSchema,
   paginationSchema,
   uploadUrlSchema,
+  batchUploadUrlSchema,
+  updateActiveIdentitySchema,
   maxUploadSizeForContentType,
   MAX_IMAGE_SIZE_BYTES,
   MAX_VIDEO_SIZE_BYTES,
@@ -352,6 +354,7 @@ describe("uploadUrlSchema", () => {
       fileName: "photo.jpg",
       contentType: "image/jpeg",
       postId: "post-123",
+      channelId: "channel-1",
     });
     expect(result.success).toBe(true);
   });
@@ -432,6 +435,30 @@ describe("uploadUrlSchema", () => {
       postId: "post-123",
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe("batchUploadUrlSchema", () => {
+  it("accepts selected channel identity", () => {
+    const result = batchUploadUrlSchema.safeParse({
+      postId: "post-123",
+      channelId: "channel-1",
+      files: [{ fileName: "photo.jpg", contentType: "image/jpeg", size: 1024 }],
+    });
+
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("updateActiveIdentitySchema", () => {
+  it("accepts channelId", () => {
+    const result = updateActiveIdentitySchema.safeParse({ channelId: "channel-1" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects blank channelId", () => {
+    const result = updateActiveIdentitySchema.safeParse({ channelId: "" });
+    expect(result.success).toBe(false);
   });
 });
 

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import { useRouter } from "@/i18n/navigation";
 import PostCard from "@/components/PostCard";
 import PostLayout from "@/components/PostLayout";
 import EditPostModal from "@/components/EditPostModal";
+import { useIdentity } from "@/components/IdentityProvider";
 import type { Post } from "@/types/post";
 
 export default function PostDetailClient({
@@ -15,6 +16,7 @@ export default function PostDetailClient({
   post: Post | null;
 }) {
   const { data: session } = useSession();
+  const { identities } = useIdentity();
   const router = useRouter();
   const t = useTranslations("SinglePost");
   const [editedPost, setEditedPost] = useState<Post | null>(null);
@@ -34,6 +36,7 @@ export default function PostDetailClient({
     setEditedPost(updatedPost);
     setEditingPost(null);
   }, []);
+  const manageableChannelIds = useMemo(() => identities.map((identity) => identity.id), [identities]);
 
   if (!displayedPost) {
     return (
@@ -49,7 +52,14 @@ export default function PostDetailClient({
 
   return (
     <PostLayout postId={displayedPost.id} title={t("title")} backHref="/posts" backLabel={t("backLink")}>
-      <PostCard post={displayedPost} currentUserId={session?.user?.id} hideExternalLink onDelete={handleDelete} onEdit={handleEdit} />
+      <PostCard
+        post={displayedPost}
+        currentUserId={session?.user?.id}
+        manageableChannelIds={manageableChannelIds}
+        hideExternalLink
+        onDelete={handleDelete}
+        onEdit={handleEdit}
+      />
       <EditPostModal
         post={editingPost}
         open={editingPost !== null}

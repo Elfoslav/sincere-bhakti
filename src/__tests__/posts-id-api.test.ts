@@ -15,10 +15,14 @@ vi.mock("@/lib/services/post", () => {
 vi.mock("@/lib/csrf", () => ({
   validateOrigin: vi.fn(() => true),
 }));
+vi.mock("@/lib/services/channel", () => ({
+  canAuthorChannel: vi.fn(),
+}));
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
 import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError } from "@/lib/services/post";
+import { canAuthorChannel } from "@/lib/services/channel";
 import { GET, DELETE, PATCH } from "@/app/api/posts/[id]/route";
 
 function mockRequest(): any {
@@ -67,9 +71,25 @@ describe("GET /api/posts/[id]", () => {
       channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
     });
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(canAuthorChannel).mockResolvedValue(true);
 
     const res = await GET(mockRequest(), { params: Promise.resolve({ id: "post-1" }) });
     expect(res.status).toBe(200);
+  });
+
+  it("allows channel editor to view private post", async () => {
+    vi.mocked(getPostById).mockResolvedValue({
+      ...basePost,
+      isPublic: false,
+      channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
+    });
+    vi.mocked(auth).mockResolvedValue({ user: { id: "editor-1" } } as any);
+    vi.mocked(canAuthorChannel).mockResolvedValue(true);
+
+    const res = await GET(mockRequest(), { params: Promise.resolve({ id: "post-1" }) });
+
+    expect(res.status).toBe(200);
+    expect(canAuthorChannel).toHaveBeenCalledWith("channel-1", "editor-1");
   });
 
   it("hides private post from non-owner as 404", async () => {
@@ -79,6 +99,7 @@ describe("GET /api/posts/[id]", () => {
       channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
     });
     vi.mocked(auth).mockResolvedValue({ user: { id: "other-user" } } as any);
+    vi.mocked(canAuthorChannel).mockResolvedValue(false);
 
     const res = await GET(mockRequest(), { params: Promise.resolve({ id: "post-1" }) });
     const json = await res.json();
