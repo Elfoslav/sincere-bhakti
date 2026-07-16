@@ -90,4 +90,18 @@ describe("auth session version", () => {
     expect(token).not.toBeNull();
     expect(token?.sessionVersion).toBe(0);
   });
+
+  it("returns null for legacy JWTs after the password changes", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ sessionVersion: 1 } as any);
+
+    const token = await authConfig.callbacks!.jwt!({
+      token: {
+        id: "user-1",
+        email: "devotee@example.com",
+        channelId: "channel-1",
+      },
+    } as any);
+
+    expect(token).toBeNull();
+  });
 });
