@@ -6,6 +6,7 @@ vi.mock("@/lib/prisma", () => ({
       findFirst: vi.fn(),
       findMany: vi.fn(),
       findUnique: vi.fn(),
+      count: vi.fn(),
       create: vi.fn(),
     },
     channelEditor: {
@@ -19,7 +20,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
-import { createPersonalChannel, createChannel, NameTakenError, getAuthorableChannels, canAuthorChannel, resolveAuthorableChannelId } from "@/lib/services/channel";
+import { createPersonalChannel, createChannel, NameTakenError, ChannelLimitError, getAuthorableChannels, canAuthorChannel, resolveAuthorableChannelId } from "@/lib/services/channel";
 
 const baseChannel = {
   id: "",
@@ -38,9 +39,11 @@ function mockChannel(id: string, name: string, slug: string) {
 describe("createPersonalChannel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
   });
 
   it("creates a channel with the user's name when no conflicts", async () => {
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channel.create).mockResolvedValue(mockChannel("ch-1", "Krishna Das", "krishna-das") as any);
 
@@ -54,6 +57,7 @@ describe("createPersonalChannel", () => {
   });
 
   it("returns existing channel if user already has one", async () => {
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
     const existing = mockChannel("ch-1", "Devotee", "devotee");
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(existing as any);
 
@@ -64,6 +68,7 @@ describe("createPersonalChannel", () => {
   });
 
   it("appends suffix when slug is taken", async () => {
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
     vi.mocked(prisma.channel.findFirst)
       .mockResolvedValueOnce(null)           // owner check
       .mockResolvedValueOnce({ id: "taken" } as any) // slugTaken for krishna-das
@@ -76,6 +81,7 @@ describe("createPersonalChannel", () => {
   });
 
   it("falls back to UUID suffix when retries are exhausted", async () => {
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
     vi.mocked(prisma.channel.findFirst)
       .mockResolvedValueOnce(null)           // existing check
       .mockResolvedValue({ id: "taken" } as any); // all slugTaken return taken
@@ -91,6 +97,7 @@ describe("createPersonalChannel", () => {
 describe("getAuthorableChannels", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
   });
 
   it("returns owned channels and editable channels without duplicates", async () => {
@@ -126,6 +133,7 @@ describe("getAuthorableChannels", () => {
 describe("canAuthorChannel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
   });
 
   it("allows channel owner", async () => {
@@ -153,6 +161,7 @@ describe("canAuthorChannel", () => {
 describe("resolveAuthorableChannelId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
   });
 
   it("accepts explicit authorable channel", async () => {
@@ -200,9 +209,11 @@ describe("resolveAuthorableChannelId", () => {
 describe("createChannel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
   });
 
   it("creates a non-personal channel with the given name", async () => {
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channel.create).mockResolvedValue({
@@ -220,6 +231,7 @@ describe("createChannel", () => {
   });
 
   it("throws NameTakenError when normalizedName is taken by an active channel", async () => {
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
     vi.mocked(prisma.channel.findFirst)
       .mockResolvedValueOnce({ id: "taken" } as any);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
@@ -228,6 +240,7 @@ describe("createChannel", () => {
   });
 
   it("appends suffix when slug is taken", async () => {
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
     vi.mocked(prisma.channel.findFirst)
       .mockResolvedValueOnce(null)                  // i=1: normalizedName free
       .mockResolvedValueOnce({ id: "taken" } as any) // i=1: slug collision for my-devotees
@@ -244,6 +257,7 @@ describe("createChannel", () => {
   });
 
   it("falls back to UUID suffix when retries are exhausted", async () => {
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
     vi.mocked(prisma.channel.findFirst)
       .mockResolvedValueOnce(null)           // normalizedName free
       .mockResolvedValue({ id: "taken" } as any); // all slug collisions
@@ -256,5 +270,17 @@ describe("createChannel", () => {
 
     expect(result.slug).toBe("test-abc12345");
     expect(result.name).toBe("Test (abc12345)");
+  });
+
+  it("throws ChannelLimitError when the user has too many additional channels", async () => {
+    const previous = process.env.MAX_CHANNELS_PER_USER;
+    try {
+      process.env.MAX_CHANNELS_PER_USER = "1";
+      vi.mocked(prisma.channel.count).mockResolvedValue(1);
+
+      await expect(createChannel("user-1", "Test")).rejects.toBeInstanceOf(ChannelLimitError);
+    } finally {
+      process.env.MAX_CHANNELS_PER_USER = previous;
+    }
   });
 });

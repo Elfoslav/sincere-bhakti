@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import type { AuthorableIdentity } from "@/types/identity";
+import type { AuthorableIdentity, InitialIdentityState } from "@/types/identity";
 
 interface IdentityContextValue {
   identities: AuthorableIdentity[];
@@ -20,11 +20,17 @@ interface IdentityResponse {
   identities: AuthorableIdentity[];
 }
 
-export function IdentityProvider({ children }: { children: React.ReactNode }) {
+export function IdentityProvider({
+  children,
+  initialState = null,
+}: {
+  children: React.ReactNode;
+  initialState?: InitialIdentityState | null;
+}) {
   const { data: session, status } = useSession();
-  const [identities, setIdentities] = useState<AuthorableIdentity[]>([]);
-  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
-  const [fetchedUserId, setFetchedUserId] = useState<string | null>(null);
+  const [identities, setIdentities] = useState<AuthorableIdentity[]>(initialState?.identities ?? []);
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(initialState?.activeChannelId ?? null);
+  const [fetchedUserId, setFetchedUserId] = useState<string | null>(initialState?.userId ?? null);
   const [switching, setSwitching] = useState(false);
 
   const applyResponse = useCallback((data: IdentityResponse, userId: string) => {

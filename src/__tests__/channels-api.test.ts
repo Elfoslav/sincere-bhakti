@@ -8,6 +8,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
+      count: vi.fn(),
     },
     channelSlugHistory: {
       create: vi.fn(),
@@ -73,6 +74,7 @@ function mockRequest(body?: unknown): any {
 describe("POST /api/channels", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
   });
 
   it("creates a new channel", async () => {
@@ -188,6 +190,23 @@ describe("POST /api/channels", () => {
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("server_error");
+  });
+
+  it("returns 409 when the user reaches the channel creation limit", async () => {
+    const previous = process.env.MAX_CHANNELS_PER_USER;
+    try {
+      process.env.MAX_CHANNELS_PER_USER = "1";
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+      vi.mocked(prisma.channel.count).mockResolvedValue(1);
+
+      const res = await POST(mockRequest({ name: "Another Channel" }));
+      const json = await res.json();
+
+      expect(res.status).toBe(409);
+      expect(json.error).toBe("channel_limit_reached");
+    } finally {
+      process.env.MAX_CHANNELS_PER_USER = previous;
+    }
   });
 });
 

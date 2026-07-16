@@ -143,7 +143,11 @@
 		"createChannel": "Create channel",
 		"createChannelTitle": "Create Channel",
 		"channelNamePlaceholder": "Channel name",
-		"creating": "Creating..."
+		"creating": "Creating...",
+		"channelLimitInfo": "Additional channels: {count}/{max}",
+		"channelLimitNote": "Your personal channel does not count toward this limit.",
+		"channelLimitReached": "You have reached the channel limit of {max} additional channels.",
+		"channelLimitReachedError": "You have reached the channel limit of {max} additional channels."
 	},
 	"SettingsPage": {
 		"title": "Settings",

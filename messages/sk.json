@@ -143,7 +143,11 @@
 		"createChannel": "Vytvoriť kanál",
 		"createChannelTitle": "Vytvoriť kanál",
 		"channelNamePlaceholder": "Názov kanálu",
-		"creating": "Vytváram..."
+		"creating": "Vytváram...",
+		"channelLimitInfo": "Ďalšie kanály: {count}/{max}",
+		"channelLimitNote": "Tvoj osobný kanál sa do tohto limitu nepočíta.",
+		"channelLimitReached": "Dosiahli ste limit {max} ďalších kanálov.",
+		"channelLimitReachedError": "Dosiahli ste limit {max} ďalších kanálov."
 	},
 	"SettingsPage": {
 		"title": "Nastavenia",

@@ -15,5 +15,7 @@ export interface UserProfile {
   image: string | null;
   createdAt: string;
   renameCount: number;
+  additionalChannelCount: number;
+  channelLimit: number;
   channels: ChannelInfo[];
 }

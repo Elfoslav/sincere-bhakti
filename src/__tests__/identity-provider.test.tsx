@@ -31,8 +31,11 @@ const identities = [
   },
 ] as const;
 
-function wrapper({ children }: { children: React.ReactNode }) {
-  return <IdentityProvider>{children}</IdentityProvider>;
+function createWrapper(initialState: React.ComponentProps<typeof IdentityProvider>["initialState"] = null) {
+  function wrapper({ children }: { children: React.ReactNode }) {
+    return <IdentityProvider initialState={initialState}>{children}</IdentityProvider>;
+  }
+  return wrapper;
 }
 
 describe("IdentityProvider", () => {
@@ -53,7 +56,7 @@ describe("IdentityProvider", () => {
       .mockRejectedValueOnce(new Error("network_error"));
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useIdentity(), { wrapper });
+    const { result } = renderHook(() => useIdentity(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.activeChannelId).toBe("channel-1");
@@ -71,5 +74,25 @@ describe("IdentityProvider", () => {
     expect(thrown).toBeInstanceOf(Error);
     expect(result.current.activeChannelId).toBe("channel-1");
     expect(result.current.activeIdentity?.id).toBe("channel-1");
+  });
+
+  it("uses server-provided identity state on first render", () => {
+    vi.stubGlobal("fetch", vi.fn(async () =>
+      new Response(JSON.stringify({
+        activeChannelId: "channel-2",
+        identities,
+      }), { status: 200, headers: { "Content-Type": "application/json" } }),
+    ));
+
+    const { result } = renderHook(() => useIdentity(), {
+      wrapper: createWrapper({
+        userId: "user-1",
+        activeChannelId: "channel-2",
+        identities: [...identities],
+      }),
+    });
+
+    expect(result.current.activeChannelId).toBe("channel-2");
+    expect(result.current.activeIdentity?.name).toBe("Kirtan");
   });
 });

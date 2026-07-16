@@ -7,6 +7,7 @@ import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_RENAME_LIMIT } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { getMaxChannelsPerUser } from "@/lib/channel-limit";
 
 class NameTakenError extends Error {
   name = "NameTakenError" as const;
@@ -47,7 +48,13 @@ export async function GET(
     }
 
     const { channels, ...profile } = user;
-    return NextResponse.json({ ...profile, channels: channels.map(({ _count, ...ch }) => ({ ...ch, postCount: _count.posts })) });
+    const additionalChannelCount = channels.filter((channel) => !channel.isPersonal).length;
+    return NextResponse.json({
+      ...profile,
+      additionalChannelCount,
+      channelLimit: getMaxChannelsPerUser(),
+      channels: channels.map(({ _count, ...ch }) => ({ ...ch, postCount: _count.posts })),
+    });
   } catch (error) {
     logServerError("GET /api/users/[id] failed", error);
     return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });

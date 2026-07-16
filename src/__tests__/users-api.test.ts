@@ -48,7 +48,7 @@ const baseUser = {
   createdAt: new Date("2026-01-01"),
   renameCount: 0,
   sessionVersion: 0,
-  channels: [{ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1", _count: { posts: 5 } }],
+  channels: [{ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1", isPersonal: true, _count: { posts: 5 } }],
 };
 
 describe("GET /api/users/[id]", () => {
@@ -66,6 +66,8 @@ describe("GET /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("Devotee");
     expect(json.email).toBe("devotee@example.com");
+    expect(json.additionalChannelCount).toBe(0);
+    expect(json.channelLimit).toBe(10);
     expect(json.channels).toHaveLength(1);
     expect(json.channels[0]).toMatchObject({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1" });
     expect(json.channels[0].postCount).toBe(5);
@@ -104,6 +106,8 @@ describe("GET /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("Devotee");
     expect(json.email).toBeUndefined();
+    expect(json.additionalChannelCount).toBe(0);
+    expect(json.channelLimit).toBe(10);
     expect(json.channels).toHaveLength(1);
     expect(json.channels[0].id).toBe("channel-1");
   });

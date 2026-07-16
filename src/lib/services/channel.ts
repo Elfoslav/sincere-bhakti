@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { slugifyName, normalizeName } from "@/lib/validation";
+import { getMaxChannelsPerUser } from "@/lib/channel-limit";
 import type { PostChannel } from "@/types/post";
 import type { AuthorableIdentity } from "@/types/identity";
 
@@ -9,6 +10,9 @@ export class NotFoundError extends Error {
 }
 export class NameTakenError extends Error {
   name = "NameTakenError" as const;
+}
+export class ChannelLimitError extends Error {
+  name = "ChannelLimitError" as const;
 }
 
 function toPostChannel(channel: { id: string; name: string; slug: string; avatarUrl: string | null; ownerId: string }): PostChannel {
@@ -268,6 +272,14 @@ export async function resolveAuthorableChannelId({
 export async function createChannel(userId: string, channelName: string): Promise<PostChannel & { postCount: number }> {
   const slug = slugifyName(channelName);
   const normalized = normalizeName(channelName);
+  const maxChannelsPerUser = getMaxChannelsPerUser();
+
+  const additionalChannelCount = await prisma.channel.count({
+    where: { ownerId: userId, isPersonal: false },
+  });
+  if (additionalChannelCount >= maxChannelsPerUser) {
+    throw new ChannelLimitError();
+  }
 
   // Fail if an active channel already has this name
   const nameTaken = await prisma.channel.findFirst({

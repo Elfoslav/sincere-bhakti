@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getAuthorableChannels } from "@/lib/services/channel";
 import { getActiveIdentityCookie, setActiveIdentityCookie } from "@/lib/active-identity";
+import { resolveActiveIdentityState } from "@/lib/identity";
 import { updateActiveIdentitySchema } from "@/lib/validation";
 import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
@@ -22,17 +23,19 @@ export async function GET(request: NextRequest) {
   try {
     const identities = await getAuthorableChannels(session.user.id);
     const cookieChannelId = getActiveIdentityCookie(request);
-    const activeIdentity = identities.find((identity) => identity.id === cookieChannelId)
-      ?? identities.find((identity) => identity.id === session.user.channelId)
-      ?? identities[0]
-      ?? null;
+    const identityState = resolveActiveIdentityState({
+      userId: session.user.id,
+      identities,
+      preferredChannelId: cookieChannelId,
+      fallbackChannelId: session.user.channelId,
+    });
 
     const response = NextResponse.json({
-      activeChannelId: activeIdentity?.id ?? null,
+      activeChannelId: identityState.activeChannelId,
       identities,
     });
-    if (activeIdentity && activeIdentity.id !== cookieChannelId) {
-      setActiveIdentityCookie(response, activeIdentity.id);
+    if (identityState.activeChannelId && identityState.activeChannelId !== cookieChannelId) {
+      setActiveIdentityCookie(response, identityState.activeChannelId);
     }
     return response;
   } catch (error) {

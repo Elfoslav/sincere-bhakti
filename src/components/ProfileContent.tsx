@@ -10,6 +10,7 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,8 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 	const [channelError, setChannelError] = useState("");
 
 	const isOwnProfile = session?.user?.id === authorId;
+	const additionalChannelCount = profile ? profile.channels.filter((channel) => !channel.isPersonal).length : 0;
+	const channelLimitReached = profile ? additionalChannelCount >= profile.channelLimit : false;
 
 	useEffect(() => {
 		if (!authorId) return;
@@ -132,6 +135,8 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 					const data = await res.json().catch(() => ({}));
 					if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
 						setChannelError(common("tooManyRequests"));
+					} else if (data.error === "channel_limit_reached") {
+						setChannelError(t("channelLimitReachedError", { max: profile.channelLimit }));
 					} else if (data.error === "name_taken") {
 						setChannelError(t("nameTaken"));
 					} else if (data.error === "validation_error:name:too_big") {
@@ -263,57 +268,76 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 			</Card>
 
 			<section>
-				<div className="flex items-center justify-between mb-4">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-4">
 					<Heading as="h2">{t("channels")}</Heading>
 					{isOwnProfile && (
-						<Dialog open={channelDialogOpen} onOpenChange={(open) => { setChannelDialogOpen(open); if (open) { setChannelName(""); setChannelError(""); } }}>
-							<DialogTrigger render={<Button variant="outline" />}>
-								<Plus className="w-4 h-4 mr-1" />
-								{t("createChannel")}
-							</DialogTrigger>
-							<DialogContent className="sm:max-w-md">
-								<DialogHeader>
-									<DialogTitle>{t("createChannelTitle")}</DialogTitle>
-								</DialogHeader>
-								<form
-									onSubmit={(e) => {
-										e.preventDefault();
-										handleCreateChannel();
-									}}
-									className="space-y-4 pt-2"
-								>
-									<Input
-										name="channelName"
-										value={channelName}
-										onChange={(e) => {
-											setChannelName(e.target.value);
-											setChannelError("");
+						<div className="flex flex-col items-start gap-2 sm:items-end">
+							<div className="text-xs text-deep/50 sm:text-right">
+								<p className={cn(channelLimitReached ? "text-red-500" : "text-deep/50")}>
+									{channelLimitReached
+										? t("channelLimitReached", { max: profile.channelLimit })
+										: t("channelLimitInfo", { count: additionalChannelCount, max: profile.channelLimit })}
+								</p>
+								<p>{t("channelLimitNote")}</p>
+							</div>
+							<Dialog
+								open={channelDialogOpen}
+								onOpenChange={(open) => {
+									setChannelDialogOpen(open);
+									if (open) {
+										setChannelName("");
+										setChannelError("");
+									}
+								}}
+							>
+								<DialogTrigger render={<Button variant="outline" disabled={channelLimitReached} />}>
+									<Plus className="w-4 h-4 mr-1" />
+									{t("createChannel")}
+								</DialogTrigger>
+								<DialogContent className="sm:max-w-md">
+									<DialogHeader>
+										<DialogTitle>{t("createChannelTitle")}</DialogTitle>
+									</DialogHeader>
+									<form
+										onSubmit={(e) => {
+											e.preventDefault();
+											handleCreateChannel();
 										}}
-										placeholder={t("channelNamePlaceholder")}
-										autoFocus
-										errorMessage={channelError || undefined}
-										maxLength={NAME_MAX_LENGTH}
-									/>
-									<div className="flex justify-end gap-2">
-										<Button
-											type="button"
-											variant="outline"
-											className="min-w-24"
-											onClick={() => {
-												setChannelDialogOpen(false);
-												setChannelName("");
+										className="space-y-4 pt-2"
+									>
+										<Input
+											name="channelName"
+											value={channelName}
+											onChange={(e) => {
+												setChannelName(e.target.value);
 												setChannelError("");
 											}}
-										>
-											{t("cancel")}
-										</Button>
-										<Button type="submit" className="min-w-24" disabled={channelSaving || !channelName.trim()}>
-											{channelSaving ? t("creating") : t("save")}
-										</Button>
-									</div>
-								</form>
-							</DialogContent>
-						</Dialog>
+											placeholder={t("channelNamePlaceholder")}
+											autoFocus
+											errorMessage={channelError || undefined}
+											maxLength={NAME_MAX_LENGTH}
+										/>
+										<div className="flex justify-end gap-2">
+											<Button
+												type="button"
+												variant="outline"
+												className="min-w-24"
+												onClick={() => {
+													setChannelDialogOpen(false);
+													setChannelName("");
+													setChannelError("");
+												}}
+											>
+												{t("cancel")}
+											</Button>
+											<Button type="submit" className="min-w-24" disabled={channelSaving || channelLimitReached || !channelName.trim()}>
+												{channelSaving ? t("creating") : t("save")}
+											</Button>
+										</div>
+									</form>
+								</DialogContent>
+							</Dialog>
+						</div>
 					)}
 				</div>
 				{profile.channels.length === 0 ? (

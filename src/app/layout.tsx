@@ -1,7 +1,13 @@
 import { Geist } from "next/font/google";
 import localFont from "next/font/local";
 import type { Viewport, Metadata } from "next";
+import { cookies } from "next/headers";
 import Providers from "@/components/Providers";
+import { auth } from "@/lib/auth";
+import { ACTIVE_IDENTITY_COOKIE } from "@/lib/active-identity";
+import { resolveActiveIdentityState } from "@/lib/identity";
+import { getAuthorableChannels } from "@/lib/services/channel";
+import type { InitialIdentityState } from "@/types/identity";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -33,15 +39,39 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.ico" },
 };
 
-export default function RootLayout({
+async function getInitialIdentityState(userId: string, fallbackChannelId?: string): Promise<InitialIdentityState | null> {
+  try {
+    const [cookieStore, identities] = await Promise.all([
+      cookies(),
+      getAuthorableChannels(userId),
+    ]);
+
+    return resolveActiveIdentityState({
+      userId,
+      identities,
+      preferredChannelId: cookieStore.get(ACTIVE_IDENTITY_COOKIE)?.value,
+      fallbackChannelId,
+    });
+  } catch (error) {
+    console.error("Failed to load initial identity state", error);
+    return null;
+  }
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+  const initialIdentityState = session?.user?.id
+    ? await getInitialIdentityState(session.user.id, session.user.channelId)
+    : null;
+
   return (
     <html lang="en" className={`${geistSans.variable} ${headingFont.variable} h-full`}>
       <body className="min-h-full flex flex-col">
-        <Providers>{children}</Providers>
+        <Providers session={session} initialIdentityState={initialIdentityState}>{children}</Providers>
       </body>
     </html>
   );

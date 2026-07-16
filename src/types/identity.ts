@@ -9,3 +9,9 @@ export interface AuthorableIdentity {
   isPersonal: boolean;
   role: IdentityRole;
 }
+
+export interface InitialIdentityState {
+  userId: string;
+  activeChannelId: string | null;
+  identities: AuthorableIdentity[];
+}
