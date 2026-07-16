@@ -77,6 +77,9 @@ export function IdentityProvider({ children }: { children: React.ReactNode }) {
         throw new Error("identity_switch_failed");
       }
       applyResponse(await res.json(), userId);
+    } catch (error) {
+      setActiveChannelId(previous);
+      throw error;
     } finally {
       setSwitching(false);
     }
