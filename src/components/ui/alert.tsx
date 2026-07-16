@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const alertVariants = cva(
-  "flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-sm",
+  "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-sm",
   {
     variants: {
       variant: {
@@ -21,7 +21,7 @@ const alertVariants = cva(
 );
 
 function AlertIcon({ variant }: { variant: NonNullable<VariantProps<typeof alertVariants>["variant"]> }) {
-  const iconClassName = "mt-0.5 size-4 shrink-0";
+  const iconClassName = "size-4 shrink-0 self-center";
 
   if (variant === "success") {
     return <CircleCheckBig className={cn(iconClassName, "text-emerald-600")} />;
