@@ -209,6 +209,7 @@
 		"publicPosts": "Public Posts ({count})",
 		"privatePosts": "Private Posts ({count})",
 		"noPublicPosts": "No public posts in English yet. Be the first to share!",
+		"noPublicPostsVisitor": "No public posts in English yet.",
 		"noPrivatePosts": "No private posts in English yet.",
 		"loadingMore": "Loading more...",
 		"notFound": "Channel not found",

@@ -22,6 +22,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import PostCard from "@/components/PostCard";
+import PostForm from "@/components/PostForm";
 import EditPostModal from "@/components/EditPostModal";
 import { useIdentity } from "@/components/IdentityProvider";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
@@ -79,6 +80,17 @@ export default function ChannelPageClient({
     setPublicPosts((prev) => prev.filter((p) => p.id !== id));
     setMyPosts((prev) => prev.filter((p) => p.id !== id));
   }, [setPublicPosts, setMyPosts]);
+
+  const handleCreateSuccess = useCallback((post: Post) => {
+    if (post.isPublic) {
+      setChannel((prev) => ({ ...prev, postCount: prev.postCount + 1 }));
+    }
+    if (post.isPublic) {
+      setPublicPosts((prev) => [post, ...prev]);
+    } else {
+      setMyPosts((prev) => [post, ...prev]);
+    }
+  }, [setMyPosts, setPublicPosts]);
 
   const handleEdit = useCallback((postId: string) => {
     const found = [...publicPosts, ...myPosts].find((p) => p.id === postId);
@@ -253,6 +265,16 @@ export default function ChannelPageClient({
         </p>
       </Card>
 
+      {canAuthorChannel && (
+        <Card variant="default" padding="lg" className="mb-8">
+          <PostForm
+            mode="create"
+            onSuccess={handleCreateSuccess}
+            postingChannel={{ id: channel.id, name: channel.name, avatarUrl: channel.avatarUrl }}
+          />
+        </Card>
+      )}
+
       {canAuthorChannel ? (
         <TabsRoot defaultValue="public">
           <TabsList>
@@ -271,7 +293,7 @@ export default function ChannelPageClient({
       ) : (
         <>
           <Heading as="h2" className="mb-4">{t("publicPosts", { count: publicPosts.length })}</Heading>
-          {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPublicPosts")}
+          {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPublicPostsVisitor")}
         </>
       )}
       <EditPostModal

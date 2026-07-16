@@ -56,6 +56,11 @@ export interface PostFormProps {
   onSuccess: (post: Post) => void;
   onCancel?: () => void;
   onSubmittingChange?: (submitting: boolean) => void;
+  postingChannel?: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+  };
 }
 
 const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
@@ -68,6 +73,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   onSuccess,
   onCancel,
   onSubmittingChange,
+  postingChannel,
 }, ref) {
   const { data: session } = useSession();
   const { activeIdentity, activeChannelId } = useIdentity();
@@ -89,6 +95,8 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragItemId = useRef<string | null>(null);
+  const postingIdentity = postingChannel ?? activeIdentity;
+  const postingChannelId = postingChannel?.id ?? activeChannelId;
 
   const totalUploadSize = useMemo(
     () => mediaItems.reduce((sum, item) => sum + (item.file?.size ?? 0), 0),
@@ -219,7 +227,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
       const { media: uploaded, error: uploadError } = await uploadMediaFiles(
         targetPostId,
         mediaItems.filter((m) => m.file).map((m) => ({ file: m.file!, width: m.width, height: m.height })),
-        mode === "create" ? activeChannelId ?? undefined : undefined,
+        mode === "create" ? postingChannelId ?? undefined : undefined,
       );
       if (uploadError) {
         await cleanupUploadedMedia(uploaded.map((m) => m.url));
@@ -254,7 +262,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
         content: mode === "edit" ? (postContent || null) : (postContent || undefined),
         isPublic,
         language: mode === "create" ? locale : undefined,
-        channelId: mode === "create" ? activeChannelId ?? undefined : undefined,
+        channelId: mode === "create" ? postingChannelId ?? undefined : undefined,
         media: mode === "edit" ? media : (media.length > 0 ? media : undefined),
       };
 
@@ -310,18 +318,18 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
 
   return (
     <form onSubmit={handleSubmit} id={formId}>
-      {mode === "create" && activeIdentity && (
+      {mode === "create" && postingIdentity && (
         <div className="mb-3 flex items-center gap-2 text-sm text-deep/60">
           <span>{t("postingAs")}</span>
           <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-deep/5 px-3 py-1 font-medium text-deep">
-            {activeIdentity.avatarUrl ? (
-              <img src={activeIdentity.avatarUrl} alt="" className="size-5 rounded-full object-cover" />
+            {postingIdentity.avatarUrl ? (
+              <img src={postingIdentity.avatarUrl} alt="" className="size-5 rounded-full object-cover" />
             ) : (
               <span className="flex size-5 items-center justify-center rounded-full bg-gold/20 text-xs text-gold">
-                {activeIdentity.name?.[0]?.toUpperCase() || "?"}
+                {postingIdentity.name?.[0]?.toUpperCase() || "?"}
               </span>
             )}
-            <span className="truncate">{activeIdentity.name}</span>
+            <span className="truncate">{postingIdentity.name}</span>
           </span>
         </div>
       )}
