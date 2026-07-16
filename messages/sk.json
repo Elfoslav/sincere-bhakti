@@ -14,6 +14,15 @@
 		"toggleMenu": "Prepnúť menu",
 		"logoAlt": "Sincere Bhakti"
 	},
+	"Identity": {
+		"activeLabel": "Aktívna identita",
+		"switchLabel": "Prepnúť identitu",
+		"closeSwitcher": "Zavrieť prepínač identity",
+		"personal": "Osobný",
+		"owner": "Vlastník",
+		"editor": "Editor",
+		"manage": "Spravovať kanály"
+	},
 	"HomePage": {
 		"logoAlt": "Sincere Bhakti",
 		"metaTitle": "Sincere Bhakti",
@@ -35,6 +44,7 @@
 		"metaTitle": "Príspevky — Sincere Bhakti",
 		"metaDescription": "Oddané príspevky z globálnej saṅgy — realizácie, kirtany a postrehy z písiem.",
 		"composePlaceholder": "Zdieľaj svoju realizáciu, verš, YouTube odkaz alebo myšlienku...",
+		"postingAs": "Publikuješ ako",
 		"publicTab": "Verejné príspevky",
 		"myPublicTab": "Moje verejné príspevky",
 		"myPrivateTab": "Moje súkromné príspevky",
@@ -127,11 +137,34 @@
 		"viewChannel": "Zobraziť kanál",
 		"postCount": "{count} príspevkov",
 		"nameTaken": "Toto meno už bolo obsadené",
+		"nameTooLong": "Meno nesmie presiahnuť {max} znakov",
 		"saveError": "Nepodarilo sa uložiť",
+		"settings": "Nastavenia",
 		"createChannel": "Vytvoriť kanál",
 		"createChannelTitle": "Vytvoriť kanál",
 		"channelNamePlaceholder": "Názov kanálu",
-		"creating": "Vytváram..."
+		"creating": "Vytváram...",
+		"channelLimitModalInfo": "Môžete vytvoriť až {max} kanálov.",
+		"channelLimitReachedError": "Dosiahli ste limit {max} ďalších kanálov."
+	},
+	"SettingsPage": {
+		"title": "Nastavenia",
+		"backToProfile": "← Späť na profil",
+		"description": "Zmeňte heslo, ktoré používate na prihlásenie.",
+		"changePassword": "Zmeniť heslo",
+		"currentPasswordLabel": "Súčasné heslo",
+		"currentPasswordPlaceholder": "Zadajte súčasné heslo",
+		"newPasswordLabel": "Nové heslo",
+		"newPasswordPlaceholder": "Zadajte nové heslo",
+		"confirmPasswordLabel": "Potvrdiť nové heslo",
+		"confirmPasswordPlaceholder": "Zopakujte nové heslo",
+		"passwordChanged": "Heslo bolo úspešne zmenené",
+		"reauthFailed": "Heslo bolo zmenené, ale nepodarilo sa obnoviť vašu reláciu. Prihláste sa prosím znova.",
+		"passwordMismatch": "Heslá sa nezhodujú",
+		"wrongPassword": "Súčasné heslo je nesprávne",
+		"passwordTooShort": "Heslo musí mať aspoň {min} znakov",
+		"saveError": "Nepodarilo sa zmeniť heslo",
+		"saving": "Ukladám..."
 	},
 	"PostCard": {
 		"public": "Verejné",
@@ -176,6 +209,7 @@
 		"publicPosts": "Verejné príspevky ({count})",
 		"privatePosts": "Súkromné príspevky ({count})",
 		"noPublicPosts": "Zatiaľ žiadne verejné príspevky v slovenčine. Buď prvý, kto pridá!",
+		"noPublicPostsVisitor": "No public posts in English yet.",
 		"noPrivatePosts": "Zatiaľ žiadne súkromné príspevky v slovenčine.",
 		"loadingMore": "Načítavam ďalšie...",
 		"notFound": "Kanál nenájdený",
@@ -187,13 +221,17 @@
 		"saving": "Ukladám...",
 		"saveError": "Niečo sa pokazilo",
 		"nameTaken": "Tento názov už bol obsadený",
+		"nameTooLong": "Názov nesmie presiahnuť {max} znakov",
 		"changeNameInProfile": "Zmeňte svoje meno v nastaveniach profilu"
 	},
 	"Common": {
 		"cancel": "Zrušiť",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
 		"footerLine2": "Venované učeniu Śrīlu Prabhupādu",
-		"terms": "Podmienky používania"
+		"terms": "Podmienky používania",
+		"tooManyRequests": "Robíte to príliš rýchlo. Počkajte prosím chvíľu a skúste to znova.",
+		"renameCountInfo": "Počet premenovaní je obmedzený:",
+		"renameCount": "{count} / {max}"
 	},
 	"ErrorPages": {
 		"backToPosts": "← Späť na príspevky",

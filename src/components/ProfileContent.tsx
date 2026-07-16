@@ -5,25 +5,32 @@ import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
-import { Pencil, Hash, FileText, Plus } from "lucide-react";
+import { Pencil, Hash, FileText, Plus, Settings } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
+import { isApiErrorCode } from "@/lib/api-error";
+import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { NAME_MAX_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
+import { useIdentity } from "@/components/IdentityProvider";
 import type { UserProfile } from "@/types/user";
 
 export default function ProfileContent({ authorId }: { authorId: string }) {
-	const { data: session } = useSession();
-	const locale = useLocale();
-	const t = useTranslations("ProfilePage");
-	const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { data: session } = useSession();
+  const { refreshIdentities } = useIdentity();
+  const locale = useLocale();
+  const t = useTranslations("ProfilePage");
+  const common = useTranslations("Common");
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 	const [profileLoading, setProfileLoading] = useState(true);
 	const [open, setOpen] = useState(false);
 	const [newName, setNewName] = useState("");
@@ -35,6 +42,8 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 	const [channelError, setChannelError] = useState("");
 
 	const isOwnProfile = session?.user?.id === authorId;
+	const additionalChannelCount = profile ? profile.channels.filter((channel) => !channel.isPersonal).length : 0;
+	const channelLimitReached = profile ? additionalChannelCount >= profile.channelLimit : false;
 
 	useEffect(() => {
 		if (!authorId) return;
@@ -65,24 +74,36 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name: newName.trim() }),
 			});
-			if (res.ok) {
+				if (res.ok) {
 				const updated = await res.json();
 				setProfile((prev) =>
 					prev
 						? {
 								...prev,
 								name: updated.name,
+								renameCount: updated.renameCount,
 								channels: prev.channels.map((ch) =>
-									ch.isPersonal ? { ...ch, name: updated.name } : ch,
+									updated.personalChannel && ch.id === updated.personalChannel.id
+										? { ...ch, name: updated.personalChannel.name, slug: updated.personalChannel.slug }
+										: ch.isPersonal
+											? { ...ch, name: updated.name }
+											: ch,
 								),
 							}
 						: prev,
 				);
 				setOpen(false);
-			} else {
-				const data = await res.json().catch(() => ({}));
-				if (data.error === "name_taken") {
-					setNameError(t("nameTaken"));
+				refreshIdentities().catch(() => {});
+				} else {
+					const data = await res.json().catch(() => ({}));
+					if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
+						setNameError(common("tooManyRequests"));
+					} else if (data.error === "name_taken") {
+						setNameError(t("nameTaken"));
+					} else if (data.error === "rename_limit_reached") {
+						setNameError(t("saveError"));
+				} else if (data.error === "validation_error:name:too_big") {
+					setNameError(t("nameTooLong", { max: NAME_MAX_LENGTH }));
 				} else {
 					setNameError(t("saveError"));
 				}
@@ -104,15 +125,22 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name: channelName.trim() }),
 			});
-			if (res.ok) {
+				if (res.ok) {
 				const channel = await res.json();
 				setProfile((prev) => (prev ? { ...prev, channels: [...prev.channels, channel] } : prev));
 				setChannelDialogOpen(false);
 				setChannelName("");
-			} else {
-				const data = await res.json().catch(() => ({}));
-				if (data.error === "name_taken") {
-					setChannelError(t("nameTaken"));
+				refreshIdentities().catch(() => {});
+				} else {
+					const data = await res.json().catch(() => ({}));
+					if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
+						setChannelError(common("tooManyRequests"));
+					} else if (data.error === "channel_limit_reached") {
+						setChannelError(t("channelLimitReachedError", { max: profile.channelLimit }));
+					} else if (data.error === "name_taken") {
+						setChannelError(t("nameTaken"));
+					} else if (data.error === "validation_error:name:too_big") {
+						setChannelError(t("nameTooLong", { max: NAME_MAX_LENGTH }));
 				} else {
 					setChannelError(t("saveError"));
 				}
@@ -166,14 +194,27 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 
 	return (
 		<div className="w-full max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
-			<Card variant="default" padding="lg" className="mb-8 text-center">
+			<Card variant="default" padding="lg" className="relative mb-8 text-center">
+				{isOwnProfile && (
+					<Button
+						href="/profile/settings"
+						variant="ghost"
+						size="icon-sm"
+						className="absolute right-3 top-3 sm:right-4 sm:top-4 text-deep/40 hover:text-gold-light"
+						title={t("settings")}
+						aria-label={t("settings")}
+					>
+						<Settings className="w-[18px] h-[18px]" />
+					</Button>
+				)}
 				<div className="w-20 h-20 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
 					{profile.name[0]?.toUpperCase() || "?"}
 				</div>
 				<div className="flex items-center justify-center gap-2">
 					<h1 className="text-2xl font-bold text-deep">{profile.name}</h1>
 					{isOwnProfile && (
-						<Dialog open={open} onOpenChange={setOpen}>
+						<>
+							<Dialog open={open} onOpenChange={setOpen}>
 							<DialogTrigger
 								className="text-gold hover:text-gold-light transition-colors cursor-pointer"
 								title={t("editName")}
@@ -203,74 +244,100 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 										autoComplete="name"
 										autoFocus
 										errorMessage={nameError || undefined}
+										maxLength={NAME_MAX_LENGTH}
 									/>
+									<div className="flex items-center justify-between text-xs text-deep/50">
+										<span>{common("renameCountInfo")}</span>
+										<span>{common("renameCount", { count: profile.renameCount, max: MAX_RENAME_COUNT })}</span>
+									</div>
 									<div className="flex justify-end gap-2">
 										<Button type="button" variant="outline" className="min-w-24" onClick={() => setOpen(false)}>
 											{t("cancel")}
 										</Button>
-										<Button type="submit" className="min-w-24" disabled={saving || !newName.trim()}>
+										<Button type="submit" className="min-w-24" disabled={saving || !newName.trim() || profile.renameCount >= MAX_RENAME_COUNT}>
 											{saving ? t("saving") : t("save")}
 										</Button>
 									</div>
 								</form>
 							</DialogContent>
 						</Dialog>
+						</>
 					)}
 				</div>
 				<p className="text-deep/50 text-sm mt-1">{t("joined", { date })}</p>
 			</Card>
 
 			<section>
-				<div className="flex items-center justify-between mb-4">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-4">
 					<Heading as="h2">{t("channels")}</Heading>
 					{isOwnProfile && (
-						<Dialog open={channelDialogOpen} onOpenChange={(open) => { setChannelDialogOpen(open); if (open) { setChannelName(""); setChannelError(""); } }}>
-							<DialogTrigger render={<Button variant="outline" />}>
-								<Plus className="w-4 h-4 mr-1" />
-								{t("createChannel")}
-							</DialogTrigger>
-							<DialogContent className="sm:max-w-md">
-								<DialogHeader>
-									<DialogTitle>{t("createChannelTitle")}</DialogTitle>
-								</DialogHeader>
-								<form
-									onSubmit={(e) => {
-										e.preventDefault();
-										handleCreateChannel();
-									}}
-									className="space-y-4 pt-2"
-								>
-									<Input
-										name="channelName"
-										value={channelName}
-										onChange={(e) => {
-											setChannelName(e.target.value);
-											setChannelError("");
+						<div className="flex flex-col items-start gap-2 sm:items-end">
+							<Dialog
+								open={channelDialogOpen}
+								onOpenChange={(open) => {
+									setChannelDialogOpen(open);
+									if (open) {
+										setChannelName("");
+										setChannelError("");
+									}
+								}}
+							>
+								<DialogTrigger render={<Button variant="outline" className="w-full justify-center sm:w-auto" />}>
+									<Plus className="w-4 h-4 mr-1" />
+									{t("createChannel")}
+								</DialogTrigger>
+								<DialogContent className="sm:max-w-md">
+									<DialogHeader>
+										<DialogTitle>{t("createChannelTitle")}</DialogTitle>
+									</DialogHeader>
+									<form
+										onSubmit={(e) => {
+											e.preventDefault();
+											handleCreateChannel();
 										}}
-										placeholder={t("channelNamePlaceholder")}
-										autoFocus
-										errorMessage={channelError || undefined}
-									/>
-									<div className="flex justify-end gap-2">
-										<Button
-											type="button"
-											variant="outline"
-											className="min-w-24"
-											onClick={() => {
-												setChannelDialogOpen(false);
-												setChannelName("");
+										className="space-y-4 pt-2"
+									>
+										<Input
+											name="channelName"
+											value={channelName}
+											onChange={(e) => {
+												setChannelName(e.target.value);
 												setChannelError("");
 											}}
-										>
-											{t("cancel")}
-										</Button>
-										<Button type="submit" className="min-w-24" disabled={channelSaving || !channelName.trim()}>
-											{channelSaving ? t("creating") : t("save")}
-										</Button>
-									</div>
-								</form>
-							</DialogContent>
-						</Dialog>
+											placeholder={t("channelNamePlaceholder")}
+											autoFocus
+											errorMessage={channelError || undefined}
+											maxLength={NAME_MAX_LENGTH}
+										/>
+										<Alert variant={channelLimitReached ? "destructive" : "info"} className="py-2.5">
+											<div className="flex w-full items-center justify-between gap-3 text-xs">
+												<span>{t("channelLimitModalInfo", { max: profile.channelLimit })}</span>
+												<span className="shrink-0 tabular-nums">
+													({additionalChannelCount}/{profile.channelLimit})
+												</span>
+											</div>
+										</Alert>
+										<div className="flex justify-end gap-2">
+											<Button
+												type="button"
+												variant="outline"
+												className="min-w-24"
+												onClick={() => {
+													setChannelDialogOpen(false);
+													setChannelName("");
+													setChannelError("");
+												}}
+											>
+												{t("cancel")}
+											</Button>
+											<Button type="submit" className="min-w-24" disabled={channelSaving || channelLimitReached || !channelName.trim()}>
+												{channelSaving ? t("creating") : t("save")}
+											</Button>
+										</div>
+									</form>
+								</DialogContent>
+							</Dialog>
+						</div>
 					)}
 				</div>
 				{profile.channels.length === 0 ? (

@@ -4,7 +4,7 @@ import { locales } from "@/i18n/routing";
 export const PASSWORD_MIN_LENGTH = 8;
 export const BCRYPT_SALT_ROUNDS = 12;
 export const NAME_MAX_LENGTH = 50;
-export const CHANNEL_NAME_MIN_LENGTH = 2;
+export const MAX_RENAME_COUNT = 3;
 
 // Only http(s) URLs are allowed for user-supplied media. This blocks
 // dangerous schemes like `javascript:` and `data:` that would otherwise
@@ -169,7 +169,7 @@ export const createChannelSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(CHANNEL_NAME_MIN_LENGTH)
+    .min(1)
     .max(NAME_MAX_LENGTH),
 });
 
@@ -189,11 +189,13 @@ export const uploadUrlSchema = z.object({
     .max(255)
     .refine(isAllowedUploadContentType),
   postId: z.string().min(1).max(36),
+  channelId: z.string().min(1).optional(),
   contentLength: z.number().int().positive().max(MAX_VIDEO_SIZE_BYTES).optional(),
 });
 
 export const batchUploadUrlSchema = z.object({
   postId: z.string().min(1).max(36),
+  channelId: z.string().min(1).optional(),
   files: z
     .array(
       z.object({
@@ -204,6 +206,10 @@ export const batchUploadUrlSchema = z.object({
     )
     .min(1)
     .max(10),
+});
+
+export const updateActiveIdentitySchema = z.object({
+  channelId: z.string().min(1),
 });
 
 export const compressSchema = z.object({

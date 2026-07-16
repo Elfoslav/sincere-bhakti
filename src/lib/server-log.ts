@@ -1,6 +1,14 @@
 import * as Sentry from "@sentry/nextjs";
 
-const SENSITIVE_FIELDS = new Set(["password", "passwordConfirm", "token", "secret", "creditCard"]);
+const SENSITIVE_FIELDS = new Set([
+  "password",
+  "passwordConfirm",
+  "currentPassword",
+  "newPassword",
+  "token",
+  "secret",
+  "creditCard",
+]);
 
 function redact(obj: unknown): unknown {
   if (!obj || typeof obj !== "object") return obj;

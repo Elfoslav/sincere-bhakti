@@ -2,6 +2,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { canonicalizeUrl } from "@/lib/url";
+import { isChannelEditor } from "@/lib/services/channel";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
 
@@ -106,19 +107,19 @@ export async function getPosts(
   } else if (scope === "private") {
     if (!currentUserId) throw new UnauthorizedError();
     if (channelId) {
-      // Only channel owner may view private posts
       const channel = await prisma.channel.findUnique({
         where: { id: channelId },
         select: { ownerId: true },
       });
-      if (!channel || channel.ownerId !== currentUserId) {
+      if (!channel || (channel.ownerId !== currentUserId && !await isChannelEditor(channelId, currentUserId))) {
         throw new UnauthorizedError();
       }
       where.channelId = channelId;
     } else {
-      // No channelId: scope to the user's own channels via the relation —
-      // avoids a separate channel-IDs query before the main one.
-      where.channel = { ownerId: currentUserId };
+      where.OR = [
+        { channel: { ownerId: currentUserId } },
+        { channel: { editors: { some: { userId: currentUserId } } } },
+      ];
     }
     where.isPublic = false;
   } else {
@@ -131,13 +132,14 @@ export async function getPosts(
       });
       if (!channel) throw new NotFoundError();
       where.channelId = channelId;
-      if (channel.ownerId !== currentUserId) {
+      if (channel.ownerId !== currentUserId && !await isChannelEditor(channelId, currentUserId)) {
         where.isPublic = true;
       }
     } else {
-      // No channelId: scope to the user's own channels via the relation —
-      // avoids a separate channel-IDs query before the main one.
-      where.channel = { ownerId: currentUserId };
+      where.OR = [
+        { channel: { ownerId: currentUserId } },
+        { channel: { editors: { some: { userId: currentUserId } } } },
+      ];
     }
   }
 
@@ -171,6 +173,7 @@ export const getCachedPostById = cache(getPostById);
 async function validateMediaOwnership(
   media: MediaInput[],
   userId: string,
+  allowedUrls: string[] = [],
 ): Promise<void> {
   const storageDomain = process.env.R2_PUBLIC_URL;
   if (!storageDomain) return;
@@ -184,6 +187,7 @@ async function validateMediaOwnership(
   if (storageUrls.length === 0) return;
 
   // Check existing media in DB — if a record exists with a different userId, reject
+  const allowed = new Set(allowedUrls.map(canonicalizeUrl));
   const existing = await prisma.media.findMany({
     where: { url: { in: storageUrls.map((s) => canonicalizeUrl(s.item.url)) } },
     select: { url: true, userId: true },
@@ -191,6 +195,7 @@ async function validateMediaOwnership(
 
   for (const { item } of storageUrls) {
     const url = canonicalizeUrl(item.url);
+    if (allowed.has(url)) continue;
     const record = existing.find((r) => canonicalizeUrl(r.url) === url);
     if (record && record.userId !== userId) {
       throw new ForbiddenError("media_not_owned");
@@ -204,7 +209,8 @@ async function validateMediaOwnership(
     select: { key: true, userId: true },
   });
   const pendingMap = new Map(pending.map((p) => [p.key, p.userId]));
-  for (const { key } of storageUrls) {
+  for (const { item, key } of storageUrls) {
+    if (allowed.has(canonicalizeUrl(item.url))) continue;
     const ownerId = pendingMap.get(key);
     if (ownerId && ownerId !== userId) {
       throw new ForbiddenError("media_not_owned");
@@ -276,15 +282,25 @@ export async function deletePost(
 ): Promise<void> {
   const post = await prisma.post.findUnique({
     where: { id },
-    include: { media: { select: { url: true } }, channel: { select: { ownerId: true } } },
+    include: { media: { select: { url: true } }, channel: { select: { id: true, ownerId: true } } },
   });
   if (!post) throw new NotFoundError();
-  if (post.channel.ownerId !== userId) throw new ForbiddenError();
+  if (post.channel.ownerId !== userId && !await isChannelEditor(post.channel.id, userId)) {
+    throw new ForbiddenError();
+  }
 
   const urls = post.media.map((m) => canonicalizeUrl(m.url));
 
   const orphaned = await prisma.$transaction(async (tx) => {
-    await tx.post.deleteMany({ where: { id, channel: { ownerId: userId } } });
+    await tx.post.deleteMany({
+      where: {
+        id,
+        OR: [
+          { channel: { ownerId: userId } },
+          { channel: { editors: { some: { userId } } } },
+        ],
+      },
+    });
     // One query instead of one count per URL: any URL still present in Media
     // is referenced by another post and must not be deleted from storage.
     const stillReferenced = await tx.media.findMany({
@@ -308,13 +324,17 @@ export async function updatePost(
 ): Promise<PostResponse> {
   const existing = await prisma.post.findUnique({
     where: { id },
-    include: { media: { select: { url: true } }, channel: { select: { ownerId: true } } },
+    include: { media: { select: { url: true } }, channel: { select: { id: true, ownerId: true } } },
   });
   if (!existing) throw new NotFoundError();
-  if (existing.channel.ownerId !== userId) throw new NotFoundError();
+  if (existing.channel.ownerId !== userId && !await isChannelEditor(existing.channel.id, userId)) {
+    throw new NotFoundError();
+  }
 
   const { media, ...postData } = data;
-  if (media !== undefined) await validateMediaOwnership(media, userId);
+  if (media !== undefined) {
+    await validateMediaOwnership(media, userId, existing.media.map((m) => m.url));
+  }
 
   const post = await prisma.$transaction(async (tx) => {
     if (media !== undefined) {
@@ -335,7 +355,13 @@ export async function updatePost(
     }
 
     const { count } = await tx.post.updateMany({
-      where: { id },
+      where: {
+        id,
+        OR: [
+          { channel: { ownerId: userId } },
+          { channel: { editors: { some: { userId } } } },
+        ],
+      },
       data: postData,
     });
 

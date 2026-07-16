@@ -14,6 +14,15 @@
 		"toggleMenu": "Toggle menu",
 		"logoAlt": "Sincere Bhakti"
 	},
+	"Identity": {
+		"activeLabel": "Active identity",
+		"switchLabel": "Switch identity",
+		"closeSwitcher": "Close identity switcher",
+		"personal": "Personal",
+		"owner": "Owner",
+		"editor": "Editor",
+		"manage": "Manage channels"
+	},
 	"HomePage": {
 		"logoAlt": "Sincere Bhakti",
 		"metaTitle": "Sincere Bhakti",
@@ -35,6 +44,7 @@
 		"metaTitle": "Posts — Sincere Bhakti",
 		"metaDescription": "Devotional posts from the global saṅga — realizations, kirtans, and scriptural insights.",
 		"composePlaceholder": "Share your realization, a verse, a YouTube link, or a thought...",
+		"postingAs": "Posting as",
 		"publicTab": "Public posts",
 		"myPublicTab": "My public posts",
 		"myPrivateTab": "My private posts",
@@ -127,11 +137,34 @@
 		"viewChannel": "View channel",
 		"postCount": "{count} posts",
 		"nameTaken": "This name has already been taken.",
+		"nameTooLong": "Name cannot exceed {max} characters",
 		"saveError": "Failed to save",
+		"settings": "Settings",
 		"createChannel": "Create channel",
 		"createChannelTitle": "Create Channel",
 		"channelNamePlaceholder": "Channel name",
-		"creating": "Creating..."
+		"creating": "Creating...",
+		"channelLimitModalInfo": "You can create up to {max} channels.",
+		"channelLimitReachedError": "You have reached the channel limit of {max} additional channels."
+	},
+	"SettingsPage": {
+		"title": "Settings",
+		"backToProfile": "← Back to profile",
+		"description": "Change the password you use to sign in.",
+		"changePassword": "Change password",
+		"currentPasswordLabel": "Current password",
+		"currentPasswordPlaceholder": "Enter your current password",
+		"newPasswordLabel": "New password",
+		"newPasswordPlaceholder": "Enter a new password",
+		"confirmPasswordLabel": "Confirm new password",
+		"confirmPasswordPlaceholder": "Repeat the new password",
+		"passwordChanged": "Password changed successfully",
+		"reauthFailed": "Password changed, but we could not refresh your session. Please sign in again.",
+		"passwordMismatch": "Passwords do not match",
+		"wrongPassword": "Current password is incorrect",
+		"passwordTooShort": "Password must be at least {min} characters",
+		"saveError": "Failed to change password",
+		"saving": "Saving..."
 	},
 	"PostCard": {
 		"public": "Public",
@@ -176,6 +209,7 @@
 		"publicPosts": "Public Posts ({count})",
 		"privatePosts": "Private Posts ({count})",
 		"noPublicPosts": "No public posts in English yet. Be the first to share!",
+		"noPublicPostsVisitor": "No public posts in English yet.",
 		"noPrivatePosts": "No private posts in English yet.",
 		"loadingMore": "Loading more...",
 		"notFound": "Channel not found",
@@ -187,13 +221,17 @@
 		"saving": "Saving...",
 		"saveError": "Something went wrong",
 		"nameTaken": "This name has already been taken.",
+		"nameTooLong": "Name cannot exceed {max} characters",
 		"changeNameInProfile": "Change your name in profile settings"
 	},
 	"Common": {
 		"cancel": "Cancel",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
 		"footerLine2": "Dedicated to the teachings of Śrīla Prabhupāda",
-		"terms": "Terms & Conditions"
+		"terms": "Terms & Conditions",
+		"tooManyRequests": "You're doing that too quickly. Please wait a moment and try again.",
+		"renameCountInfo": "Number of renames is limited:",
+		"renameCount": "{count} / {max}"
 	},
 	"ErrorPages": {
 		"backToPosts": "← Back to posts",

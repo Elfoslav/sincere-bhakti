@@ -46,6 +46,7 @@ export async function maybeResizeImage(
 export async function uploadMediaFiles(
   postId: string,
   items: UploadItem[],
+  channelId?: string,
 ): Promise<{ media: MediaInput[]; error: string | null }> {
   if (items.length === 0) return { media: [], error: null };
 
@@ -61,6 +62,7 @@ export async function uploadMediaFiles(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       postId,
+      channelId,
       files: preprocessed.map((p) => ({
         fileName: p.file.name,
         contentType: p.file.type,

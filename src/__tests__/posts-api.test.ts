@@ -21,15 +21,24 @@ vi.mock("@/lib/services/post", () => {
     ConflictError: class ConflictError extends Error {
       name = "ConflictError" as const;
     },
+    ValidationError: class ValidationError extends Error {
+      name = "ValidationError" as const;
+    },
   };
 });
 vi.mock("@/lib/csrf", () => ({
   validateOrigin: vi.fn(() => true),
 }));
+vi.mock("@/lib/services/channel", () => ({
+  createPersonalChannel: vi.fn(),
+  getPersonalChannel: vi.fn(),
+  resolveAuthorableChannelId: vi.fn(),
+}));
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
 import { getPosts, createPost } from "@/lib/services/post";
+import { resolveAuthorableChannelId } from "@/lib/services/channel";
 import { GET, POST } from "@/app/api/posts/route";
 
 function mockGetRequest(params: Record<string, string> = {}): NextRequest {
@@ -40,8 +49,16 @@ function mockGetRequest(params: Record<string, string> = {}): NextRequest {
   return { url: url.toString() } as unknown as NextRequest;
 }
 
-function mockPostRequest(body: unknown): NextRequest {
-  return { json: () => Promise.resolve(body), headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }) } as unknown as NextRequest;
+function mockPostRequest(body: unknown, activeChannelId?: string): NextRequest {
+  return {
+    json: () => Promise.resolve(body),
+    headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }),
+    cookies: {
+      get: (name: string) => name === "sb_active_channel_id" && activeChannelId
+        ? { value: activeChannelId }
+        : undefined,
+    },
+  } as unknown as NextRequest;
 }
 
 describe("GET /api/posts", () => {
@@ -53,7 +70,7 @@ describe("GET /api/posts", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(getPosts).mockResolvedValue({
       posts: [
-        { id: "post-1", content: "Hello", isPublic: true, createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
+        { id: "post-1", content: "Hello", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
       ],
       hasMore: false,
     });
@@ -83,7 +100,7 @@ describe("GET /api/posts", () => {
   it("returns public posts with scope=public", async () => {
     vi.mocked(getPosts).mockResolvedValue({
       posts: [
-        { id: "post-1", content: "Public", isPublic: true, createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
+        { id: "post-1", content: "Public", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
       ],
       hasMore: false,
     });
@@ -101,7 +118,7 @@ describe("GET /api/posts", () => {
 
   it("paginates with cursor", async () => {
     vi.mocked(getPosts).mockResolvedValue({
-      posts: [{ id: "post-3", content: "Next page", isPublic: true, createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] }],
+      posts: [{ id: "post-3", content: "Next page", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] }],
       hasMore: false,
     });
 
@@ -154,10 +171,12 @@ describe("POST /api/posts", () => {
 
   it("creates a post with text only", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-1", shouldRefreshPreference: false, explicitForbidden: false });
     vi.mocked(createPost).mockResolvedValue({
       id: "post-1",
       content: "Hare Krishna!",
       isPublic: true,
+      language: "en",
       createdAt: new Date(),
       channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
       media: [],
@@ -174,6 +193,61 @@ describe("POST /api/posts", () => {
     );
   });
 
+  it("creates a post with the active identity cookie channel", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-2", shouldRefreshPreference: false, explicitForbidden: false });
+    vi.mocked(createPost).mockResolvedValue({
+      id: "post-2",
+      content: "From channel",
+      isPublic: true,
+      language: "en",
+      createdAt: new Date(),
+      channel: { id: "channel-2", name: "Kirtan Notes", slug: "kirtan-notes", avatarUrl: null, ownerId: "user-1" },
+      media: [],
+    });
+
+    const res = await POST(mockPostRequest({ content: "From channel" }, "channel-2"));
+
+    expect(res.status).toBe(201);
+    expect(createPost).toHaveBeenCalledWith(
+      { content: "From channel", media: [], isPublic: true, language: "en", channelId: "channel-2" },
+      "user-1",
+    );
+  });
+
+  it("falls back and refreshes stale active identity cookie", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-1", shouldRefreshPreference: true, explicitForbidden: false });
+    vi.mocked(createPost).mockResolvedValue({
+      id: "post-3",
+      content: "Fallback",
+      isPublic: true,
+      language: "en",
+      createdAt: new Date(),
+      channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
+      media: [],
+    });
+
+    const res = await POST(mockPostRequest({ content: "Fallback" }, "stale-channel"));
+
+    expect(res.status).toBe(201);
+    expect(createPost).toHaveBeenCalledWith(
+      { content: "Fallback", media: [], isPublic: true, language: "en", channelId: "channel-1" },
+      "user-1",
+    );
+    expect(res.headers.get("set-cookie")).toContain("sb_active_channel_id=channel-1");
+  });
+
+  it("returns 403 for explicit non-authorable channel", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: undefined, shouldRefreshPreference: false, explicitForbidden: true });
+
+    const res = await POST(mockPostRequest({ content: "Nope", channelId: "channel-2" }));
+
+    expect(res.status).toBe(403);
+    expect(createPost).not.toHaveBeenCalled();
+  });
+
   it("rejects empty content", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
 
@@ -183,6 +257,7 @@ describe("POST /api/posts", () => {
 
   it("returns 500 on service error", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
+    vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-1", shouldRefreshPreference: false, explicitForbidden: false });
     vi.mocked(createPost).mockRejectedValue(new Error("DB down"));
 
     const res = await POST(mockPostRequest({ content: "Hello" }));

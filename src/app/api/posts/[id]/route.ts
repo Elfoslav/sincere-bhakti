@@ -4,6 +4,7 @@ import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError, Val
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { isTrustedMediaUrl, updatePostSchema } from "@/lib/validation";
+import { canAuthorChannel } from "@/lib/services/channel";
 import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 import type { MediaInput } from "@/lib/services/post";
@@ -28,7 +29,7 @@ export async function GET(
 
     if (!post.isPublic) {
       const session = await auth();
-      if (!session?.user?.id || session.user.id !== post.channel.ownerId) {
+      if (!session?.user?.id || !await canAuthorChannel(post.channel.id, session.user.id)) {
         return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
       }
     }

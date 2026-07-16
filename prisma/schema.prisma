@@ -12,12 +12,14 @@ enum ChannelRole {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  image     String?
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  password     String
+  image        String?
+  createdAt    DateTime @default(now())
+  renameCount  Int      @default(0)
+  sessionVersion Int    @default(0)
   channels       Channel[]       @relation("ChannelOwner")
   editors        ChannelEditor[]
   media          Media[]
@@ -31,6 +33,7 @@ model Channel {
   slug           String   @unique
   avatarUrl      String?
   isPersonal     Boolean  @default(false)
+  renameCount    Int      @default(0)
   createdAt      DateTime @default(now())
   ownerId        String
   owner     User          @relation("ChannelOwner", fields: [ownerId], references: [id])

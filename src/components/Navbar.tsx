@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import IdentitySwitcher from "@/components/IdentitySwitcher";
 
 function Hamburger({ open }: { open: boolean }) {
 	return (
@@ -90,9 +91,12 @@ export default function Navbar() {
 						<div className="hidden md:flex items-center gap-4">
 							<LanguageSwitcher />
 							{status === "authenticated" ? (
-								<Button onClick={() => signOut()} variant="default">
-									{t("logout")}
-								</Button>
+								<>
+									<IdentitySwitcher />
+									<Button onClick={() => signOut()} variant="default">
+										{t("logout")}
+									</Button>
+								</>
 							) : (
 								<Button href="/login" variant="default" size="default">
 									{t("getIn")}
@@ -116,9 +120,14 @@ export default function Navbar() {
 						{t("channels")}
 					</MobileLink>
 					{status === "authenticated" && (
-						<MobileLink href="/profile" onClick={close}>
-							{t("profile")}
-						</MobileLink>
+						<>
+							<div className="px-4 py-2">
+								<IdentitySwitcher compact onSelect={close} />
+							</div>
+							<MobileLink href="/profile" onClick={close}>
+								{t("profile")}
+							</MobileLink>
+						</>
 					)}
 					<div className="flex items-center gap-2 pt-2">
 						{status === "authenticated" ? (

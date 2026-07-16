@@ -1,11 +1,11 @@
-import NextAuth from "next-auth";
+import NextAuth, { type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "./rate-limit";
 import { createPersonalChannel, getPersonalChannel } from "@/lib/services/channel";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const authConfig = {
   providers: [
     Credentials({
       name: "credentials",
@@ -22,6 +22,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const email = (credentials.email as string).trim().toLowerCase();
         const user = await prisma.user.findUnique({
           where: { email },
+          select: { id: true, name: true, email: true, image: true, password: true, sessionVersion: true },
         });
 
         if (!user) return null;
@@ -38,6 +39,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: user.name,
           email: user.email,
           image: user.image,
+          sessionVersion: user.sessionVersion,
         };
       },
     }),
@@ -51,13 +53,42 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id!;
         token.email = user.email!;
+        token.sessionVersion = user.sessionVersion ?? 0;
 
         let channel = await getPersonalChannel(user.id!);
         if (!channel) {
           channel = await createPersonalChannel(user.id!, user.name ?? "User");
         }
         token.channelId = channel.id;
+        return token;
       }
+
+      if (!token.id) {
+        return token;
+      }
+
+      const current = await prisma.user.findUnique({
+        where: { id: token.id as string },
+        select: { sessionVersion: true },
+      });
+
+      if (!current) {
+        return null;
+      }
+
+      if (token.sessionVersion == null) {
+        if (current.sessionVersion !== 0) {
+          return null;
+        }
+
+        token.sessionVersion = current.sessionVersion;
+        return token;
+      }
+
+      if (token.sessionVersion !== current.sessionVersion) {
+        return null;
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -69,4 +100,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-});
+} satisfies NextAuthConfig;
+
+export const { handlers, signIn, signOut, auth } = NextAuth(authConfig);

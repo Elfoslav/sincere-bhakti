@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => {
   const user = {
     findUnique: vi.fn(),
-    update: vi.fn(),
+    updateMany: vi.fn(),
   };
   const channel = {
     findFirst: vi.fn(),
@@ -46,7 +46,9 @@ const baseUser = {
   password: "hashed-pw",
   image: null,
   createdAt: new Date("2026-01-01"),
-  channels: [{ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1", _count: { posts: 5 } }],
+  renameCount: 0,
+  sessionVersion: 0,
+  channels: [{ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1", isPersonal: true, _count: { posts: 5 } }],
 };
 
 describe("GET /api/users/[id]", () => {
@@ -64,6 +66,8 @@ describe("GET /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("Devotee");
     expect(json.email).toBe("devotee@example.com");
+    expect(json.additionalChannelCount).toBe(0);
+    expect(json.channelLimit).toBe(10);
     expect(json.channels).toHaveLength(1);
     expect(json.channels[0]).toMatchObject({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1" });
     expect(json.channels[0].postCount).toBe(5);
@@ -102,6 +106,8 @@ describe("GET /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("Devotee");
     expect(json.email).toBeUndefined();
+    expect(json.additionalChannelCount).toBe(0);
+    expect(json.channelLimit).toBe(10);
     expect(json.channels).toHaveLength(1);
     expect(json.channels[0].id).toBe("channel-1");
   });
@@ -114,12 +120,15 @@ describe("PATCH /api/users/[id]", () => {
 
   it("updates own name", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce({ name: "Devotee", renameCount: 0, sessionVersion: 0, email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01") } as any)
+      .mockResolvedValueOnce({ id: "user-1", name: "New Name", email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01"), renameCount: 1, sessionVersion: 0 } as any);
     vi.mocked(prisma.channel.findFirst)
       .mockResolvedValueOnce({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1", isPersonal: true } as any)
       .mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
-    vi.mocked(prisma.user.update).mockResolvedValue({ id: "user-1", name: "New Name", email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01") } as any);
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as any);
     vi.mocked(prisma.channel.update).mockResolvedValue({ id: "channel-1", name: "New Name", slug: "new-name" } as any);
 
     const res = await PATCH(mockRequest({ name: "New Name" }), { params: Promise.resolve({ id: "user-1" }) });
@@ -127,10 +136,14 @@ describe("PATCH /api/users/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(json.name).toBe("New Name");
+    expect(json.personalChannel).toEqual({ id: "channel-1", name: "New Name", slug: "new-name" });
     expect(prisma.channel.findFirst).toHaveBeenCalledWith({
       where: { ownerId: "user-1", isPersonal: true },
       select: { id: true, name: true, slug: true },
     });
+    expect(prisma.channel.update).toHaveBeenCalledWith(
+      expect.objectContaining({ select: { id: true, name: true, slug: true } }),
+    );
   });
 
   it("returns 403 when not the owner", async () => {
@@ -180,6 +193,7 @@ describe("PATCH /api/users/[id]", () => {
 
   it("returns 409 when channel name is taken (including diacritic variants)", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ name: "Devotee", renameCount: 0 } as any);
     vi.mocked(prisma.channel.findFirst)
       .mockResolvedValueOnce({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1", isPersonal: true } as any)
       .mockResolvedValueOnce({ id: "taken" } as any);
@@ -206,13 +220,17 @@ describe("PATCH /api/users/[id]", () => {
     try {
       process.env.SINCERE_BHAKTI_EMAIL = "devotee@example.com";
       vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "devotee@example.com" } } as any);
-      vi.mocked(prisma.channel.findFirst)
-        .mockResolvedValueOnce({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1", isPersonal: true } as any)
-        .mockResolvedValue(null);
-      vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
-      vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
-      vi.mocked(prisma.user.update).mockResolvedValue({ id: "user-1", name: "Sincere Bhakti", email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01") } as any);
-      vi.mocked(prisma.channel.update).mockResolvedValue({ id: "channel-1", name: "Sincere Bhakti", slug: "sincere-bhakti" } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ name: "Devotee", renameCount: 0 } as any);
+    vi.mocked(prisma.channel.findFirst)
+      .mockResolvedValueOnce({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1", isPersonal: true } as any)
+      .mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce({ name: "Devotee", renameCount: 0 } as any)
+      .mockResolvedValueOnce({ id: "user-1", name: "Sincere Bhakti", email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01"), renameCount: 1 } as any);
+    vi.mocked(prisma.channel.update).mockResolvedValue({ id: "channel-1", name: "Sincere Bhakti", slug: "sincere-bhakti" } as any);
 
       const res = await PATCH(mockRequest({ name: "Sincere Bhakti" }), { params: Promise.resolve({ id: "user-1" }) });
       const json = await res.json();
@@ -226,16 +244,57 @@ describe("PATCH /api/users/[id]", () => {
 
   it("returns 500 on server error", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ name: "Devotee", renameCount: 0 } as any);
     vi.mocked(prisma.channel.findFirst)
       .mockResolvedValueOnce({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1", isPersonal: true } as any)
       .mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.user.update).mockRejectedValue(new Error("DB down"));
+    vi.mocked(prisma.user.updateMany).mockRejectedValue(new Error("DB down"));
 
     const res = await PATCH(mockRequest({ name: "New" }), { params: Promise.resolve({ id: "user-1" }) });
     const json = await res.json();
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("server_error");
+  });
+
+  it("returns 200 without incrementing count when renaming to the same name", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ name: "Devotee", renameCount: 2, email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01") } as any);
+
+    const res = await PATCH(mockRequest({ name: "Devotee" }), { params: Promise.resolve({ id: "user-1" }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.name).toBe("Devotee");
+    expect(json.renameCount).toBe(2);
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    expect(prisma.channel.update).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 without incrementing count when name differs only by case", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ name: "Devotee", renameCount: 1, email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01") } as any);
+
+    const res = await PATCH(mockRequest({ name: "devotee" }), { params: Promise.resolve({ id: "user-1" }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.name).toBe("Devotee");
+    expect(json.renameCount).toBe(1);
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    expect(prisma.channel.update).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the rename cap is reached during the write", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ name: "Devotee", renameCount: 2 } as any);
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 0 } as any);
+
+    const res = await PATCH(mockRequest({ name: "New Name" }), { params: Promise.resolve({ id: "user-1" }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("rename_limit_reached");
   });
 });

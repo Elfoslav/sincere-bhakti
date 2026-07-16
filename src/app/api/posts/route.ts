@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPosts, createPost, UnauthorizedError, ConflictError } from "@/lib/services/post";
+import { getPosts, createPost, UnauthorizedError, ConflictError, NotFoundError, ForbiddenError, ValidationError } from "@/lib/services/post";
 import { createPostSchema, paginationSchema, isTrustedMediaUrl } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
-import { getPersonalChannel, createPersonalChannel } from "@/lib/services/channel";
-import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
-import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_CREATED, HTTP_CONFLICT, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { getPersonalChannel, createPersonalChannel, resolveAuthorableChannelId } from "@/lib/services/channel";
+import { getActiveIdentityCookie, setActiveIdentityCookie } from "@/lib/active-identity";
+import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_NOT_FOUND } from "@/lib/error-messages";
+import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_CREATED, HTTP_CONFLICT, HTTP_NOT_FOUND, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 import { logServerError, logValidationError } from "@/lib/server-log";
 
 export async function GET(request: NextRequest) {
@@ -94,9 +95,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Resolve channelId — prefer the one from the request if provided
-    const channelId = parsed.data.channelId
-      ?? session.user.channelId
+    const resolved = await resolveAuthorableChannelId({
+      explicitChannelId: parsed.data.channelId,
+      preferredChannelId: getActiveIdentityCookie(request),
+      fallbackChannelId: session.user.channelId,
+      userId: session.user.id,
+    });
+    if (resolved.explicitForbidden) {
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+    }
+
+    const channelId = resolved.channelId
       ?? (await getPersonalChannel(session.user.id))?.id
       ?? (await createPersonalChannel(session.user.id, session.user.name || "User")).id;
 
@@ -104,10 +113,23 @@ export async function POST(request: NextRequest) {
       ...parsed.data,
       channelId,
     }, session.user.id);
-    return NextResponse.json(post, { status: HTTP_CREATED });
+    const response = NextResponse.json(post, { status: HTTP_CREATED });
+    if (resolved.shouldRefreshPreference) {
+      setActiveIdentityCookie(response, channelId);
+    }
+    return response;
   } catch (error) {
     if (error instanceof ConflictError) {
       return NextResponse.json({ error: "post_id_collision" }, { status: HTTP_CONFLICT });
+    }
+    if (error instanceof NotFoundError) {
+      return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+    }
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ error: error.message }, { status: HTTP_BAD_REQUEST });
     }
     logServerError("POST /api/posts failed", error);
     return NextResponse.json(
@@ -116,5 +138,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-

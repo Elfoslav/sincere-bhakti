@@ -5,8 +5,8 @@ import { getChannelBySlug, isNormalizedNameTaken } from "@/lib/services/channel"
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
-import { createChannelSchema, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { createChannelSchema, normalizeName, isBrandNameBlocked, slugifyName, MAX_RENAME_COUNT } from "@/lib/validation";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_RENAME_LIMIT } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function GET(
@@ -54,7 +54,7 @@ export async function PATCH(
   try {
     const channel = await prisma.channel.findUnique({
       where: { slug },
-      select: { id: true, name: true, ownerId: true, isPersonal: true, slug: true },
+      select: { id: true, name: true, ownerId: true, isPersonal: true, slug: true, avatarUrl: true, renameCount: true },
     });
 
     if (!channel) {
@@ -67,6 +67,10 @@ export async function PATCH(
 
     if (channel.isPersonal) {
       return NextResponse.json({ error: "cannot_rename_personal_channel" }, { status: 400 });
+    }
+
+    if (channel.renameCount >= MAX_RENAME_COUNT) {
+      return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
 
     const body = await request.json();
@@ -88,8 +92,21 @@ export async function PATCH(
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
-    // Check if the new name is already taken by another channel
     const normalizedTarget = normalizeName(name);
+
+    // Renaming to the same name is a no-op — don't count or write history
+    if (normalizedTarget === normalizeName(channel.name)) {
+      return NextResponse.json({
+        id: channel.id,
+        name: channel.name,
+        slug: channel.slug,
+        avatarUrl: channel.avatarUrl,
+        ownerId: channel.ownerId,
+        renameCount: channel.renameCount,
+      });
+    }
+
+    // Check if the new name is already taken by another channel
     if (await isNormalizedNameTaken(normalizedTarget, channel.id)) {
       return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
@@ -97,40 +114,67 @@ export async function PATCH(
     const newSlug = slugifyName(name);
     const oldSlug = channel.slug;
 
-    if (newSlug !== oldSlug) {
-      const slugTaken = await prisma.channel.findFirst({
-        where: { slug: newSlug, id: { not: channel.id } },
-        select: { id: true },
-      });
-      if (slugTaken) {
-        return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
-      }
-
-      const historySlugTaken = await prisma.channelSlugHistory.findFirst({
-        where: { oldSlug: newSlug, channelId: { not: channel.id } },
-        select: { id: true },
-      });
-      if (historySlugTaken) {
-        return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
-      }
-
-      // Avoid P2002 if oldSlug is already in history (e.g. rename A→B→A→C).
-      const oldInHistory = await prisma.channelSlugHistory.findFirst({
-        where: { oldSlug, channelId: channel.id },
-        select: { id: true },
-      });
-      if (!oldInHistory) {
-        await prisma.channelSlugHistory.create({
-          data: { oldSlug, oldNormalizedName: normalizeName(channel.name), channelId: channel.id },
+    const updated = await prisma.$transaction(async (tx): Promise<"name_taken" | "limit_reached" | {
+      id: string;
+      name: string;
+      slug: string;
+      avatarUrl: string | null;
+      ownerId: string;
+      renameCount: number;
+    } | null> => {
+      if (newSlug !== oldSlug) {
+        const slugTaken = await tx.channel.findFirst({
+          where: { slug: newSlug, id: { not: channel.id } },
+          select: { id: true },
         });
+        if (slugTaken) {
+          return "name_taken";
+        }
+
+        const historySlugTaken = await tx.channelSlugHistory.findFirst({
+          where: { oldSlug: newSlug, channelId: { not: channel.id } },
+          select: { id: true },
+        });
+        if (historySlugTaken) {
+          return "name_taken";
+        }
       }
+
+      const result = await tx.channel.updateMany({
+        where: { id: channel.id, ownerId: session.user.id, renameCount: { lt: MAX_RENAME_COUNT } },
+        data: { name, normalizedName: normalizedTarget, slug: newSlug, renameCount: { increment: 1 } },
+      });
+
+      if (result.count === 0) {
+        return "limit_reached";
+      }
+
+      if (newSlug !== oldSlug) {
+        // Avoid P2002 if oldSlug is already in history (e.g. rename A→B→A→C).
+        const oldInHistory = await tx.channelSlugHistory.findFirst({
+          where: { oldSlug, channelId: channel.id },
+          select: { id: true },
+        });
+        if (!oldInHistory) {
+          await tx.channelSlugHistory.create({
+            data: { oldSlug, oldNormalizedName: normalizeName(channel.name), channelId: channel.id },
+          });
+        }
+      }
+
+      return tx.channel.findUnique({
+        where: { id: channel.id },
+        select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, renameCount: true },
+      });
+    });
+
+    if (updated === "name_taken") {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
-    const updated = await prisma.channel.update({
-      where: { id: channel.id },
-      data: { name, normalizedName: normalizedTarget, slug: newSlug },
-      select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true },
-    });
+    if (!updated || updated === "limit_reached") {
+      return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

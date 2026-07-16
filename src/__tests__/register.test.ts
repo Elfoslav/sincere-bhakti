@@ -67,6 +67,8 @@ describe("POST /api/register", () => {
       password: "hashed-password",
       image: null,
       createdAt: new Date(),
+      renameCount: 0,
+      sessionVersion: 0,
     });
 
     const res = await POST(mockRequest({
