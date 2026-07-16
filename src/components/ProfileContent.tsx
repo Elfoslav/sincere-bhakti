@@ -8,9 +8,9 @@ import { Heading } from "@/components/ui/heading";
 import { Pencil, Hash, FileText, Plus, Settings } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -272,14 +272,6 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 					<Heading as="h2">{t("channels")}</Heading>
 					{isOwnProfile && (
 						<div className="flex flex-col items-start gap-2 sm:items-end">
-							<div className="text-xs text-deep/50 sm:text-right">
-								<p className={cn(channelLimitReached ? "text-red-500" : "text-deep/50")}>
-									{channelLimitReached
-										? t("channelLimitReached", { max: profile.channelLimit })
-										: t("channelLimitInfo", { count: additionalChannelCount, max: profile.channelLimit })}
-								</p>
-								<p>{t("channelLimitNote")}</p>
-							</div>
 							<Dialog
 								open={channelDialogOpen}
 								onOpenChange={(open) => {
@@ -290,7 +282,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 									}
 								}}
 							>
-								<DialogTrigger render={<Button variant="outline" disabled={channelLimitReached} />}>
+								<DialogTrigger render={<Button variant="outline" className="w-full justify-center sm:w-auto" />}>
 									<Plus className="w-4 h-4 mr-1" />
 									{t("createChannel")}
 								</DialogTrigger>
@@ -317,6 +309,14 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 											errorMessage={channelError || undefined}
 											maxLength={NAME_MAX_LENGTH}
 										/>
+										<Alert variant={channelLimitReached ? "destructive" : "info"} className="py-2.5">
+											<div className="flex w-full items-center justify-between gap-3 text-xs">
+												<span>{t("channelLimitModalInfo", { max: profile.channelLimit })}</span>
+												<span className="shrink-0 tabular-nums">
+													({additionalChannelCount}/{profile.channelLimit})
+												</span>
+											</div>
+										</Alert>
 										<div className="flex justify-end gap-2">
 											<Button
 												type="button"
