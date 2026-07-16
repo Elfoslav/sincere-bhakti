@@ -39,7 +39,7 @@ export default function ChannelPageClient({
   channel: ChannelWithPostCount;
 }) {
   const { data: session } = useSession();
-  const { identities } = useIdentity();
+  const { identities, refreshIdentities } = useIdentity();
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("ChannelPage");
@@ -105,6 +105,7 @@ export default function ChannelPageClient({
         const updated = await res.json();
         setChannel((prev) => ({ ...prev, name: updated.name, slug: updated.slug, renameCount: updated.renameCount }));
         setRenameOpen(false);
+        refreshIdentities().catch(() => {});
         router.replace(`/channels/${updated.slug}`);
       } else {
         const data = await res.json().catch(() => ({}));

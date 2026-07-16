@@ -173,6 +173,7 @@ export const getCachedPostById = cache(getPostById);
 async function validateMediaOwnership(
   media: MediaInput[],
   userId: string,
+  allowedUrls: string[] = [],
 ): Promise<void> {
   const storageDomain = process.env.R2_PUBLIC_URL;
   if (!storageDomain) return;
@@ -186,6 +187,7 @@ async function validateMediaOwnership(
   if (storageUrls.length === 0) return;
 
   // Check existing media in DB — if a record exists with a different userId, reject
+  const allowed = new Set(allowedUrls.map(canonicalizeUrl));
   const existing = await prisma.media.findMany({
     where: { url: { in: storageUrls.map((s) => canonicalizeUrl(s.item.url)) } },
     select: { url: true, userId: true },
@@ -193,6 +195,7 @@ async function validateMediaOwnership(
 
   for (const { item } of storageUrls) {
     const url = canonicalizeUrl(item.url);
+    if (allowed.has(url)) continue;
     const record = existing.find((r) => canonicalizeUrl(r.url) === url);
     if (record && record.userId !== userId) {
       throw new ForbiddenError("media_not_owned");
@@ -206,7 +209,8 @@ async function validateMediaOwnership(
     select: { key: true, userId: true },
   });
   const pendingMap = new Map(pending.map((p) => [p.key, p.userId]));
-  for (const { key } of storageUrls) {
+  for (const { item, key } of storageUrls) {
+    if (allowed.has(canonicalizeUrl(item.url))) continue;
     const ownerId = pendingMap.get(key);
     if (ownerId && ownerId !== userId) {
       throw new ForbiddenError("media_not_owned");
@@ -328,7 +332,9 @@ export async function updatePost(
   }
 
   const { media, ...postData } = data;
-  if (media !== undefined) await validateMediaOwnership(media, userId);
+  if (media !== undefined) {
+    await validateMediaOwnership(media, userId, existing.media.map((m) => m.url));
+  }
 
   const post = await prisma.$transaction(async (tx) => {
     if (media !== undefined) {

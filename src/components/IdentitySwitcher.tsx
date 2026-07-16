@@ -17,7 +17,9 @@ export default function IdentitySwitcher({ compact = false, onSelect }: Identity
   const { identities, activeIdentity, switchIdentity, loading } = useIdentity();
   const [open, setOpen] = useState(false);
 
-  if (!activeIdentity || identities.length === 0) return null;
+  if (!activeIdentity || identities.length === 0) {
+    return <IdentitySwitcherPlaceholder compact={compact} />;
+  }
 
   async function handleSelect(channelId: string) {
     await switchIdentity(channelId);
@@ -26,7 +28,7 @@ export default function IdentitySwitcher({ compact = false, onSelect }: Identity
   }
 
   return (
-    <div className="relative">
+    <div className="relative animate-in fade-in duration-300">
       <button
         type="button"
         className={cn(
@@ -105,6 +107,25 @@ export default function IdentitySwitcher({ compact = false, onSelect }: Identity
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function IdentitySwitcherPlaceholder({ compact = false }: { compact?: boolean }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "flex items-center gap-2 rounded-full border border-white/10 bg-white/5 opacity-70",
+        compact ? "w-full px-3 py-2" : "w-56 px-3 py-1.5",
+      )}
+    >
+      <span className="size-8 shrink-0 rounded-full bg-white/10" />
+      <span className="min-w-0 flex-1 space-y-1.5">
+        {!compact && <span className="block h-2 w-20 rounded-full bg-white/10" />}
+        <span className="block h-3 w-28 rounded-full bg-white/15" />
+      </span>
+      <span className="size-4 shrink-0 rounded-full bg-white/10" />
     </div>
   );
 }

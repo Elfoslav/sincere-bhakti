@@ -20,10 +20,12 @@ import {
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { NAME_MAX_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
+import { useIdentity } from "@/components/IdentityProvider";
 import type { UserProfile } from "@/types/user";
 
 export default function ProfileContent({ authorId }: { authorId: string }) {
   const { data: session } = useSession();
+  const { refreshIdentities } = useIdentity();
   const locale = useLocale();
   const t = useTranslations("ProfilePage");
   const common = useTranslations("Common");
@@ -88,6 +90,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 						: prev,
 				);
 				setOpen(false);
+				refreshIdentities().catch(() => {});
 				} else {
 					const data = await res.json().catch(() => ({}));
 					if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
@@ -124,6 +127,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 				setProfile((prev) => (prev ? { ...prev, channels: [...prev.channels, channel] } : prev));
 				setChannelDialogOpen(false);
 				setChannelName("");
+				refreshIdentities().catch(() => {});
 				} else {
 					const data = await res.json().catch(() => ({}));
 					if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
