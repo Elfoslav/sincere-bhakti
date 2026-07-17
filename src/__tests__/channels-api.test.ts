@@ -15,12 +15,14 @@ vi.mock("@/lib/prisma", () => ({
       findFirst: vi.fn(),
     },
     $transaction: vi.fn((cb: (tx: any) => any) => cb({
+      $executeRaw: vi.fn(),
       channel: {
         findFirst: (...args: any[]) => (prisma.channel.findFirst as any)(...args),
         create: (...args: any[]) => (prisma.channel.create as any)(...args),
         findUnique: (...args: any[]) => (prisma.channel.findUnique as any)(...args),
         update: (...args: any[]) => (prisma.channel.update as any)(...args),
         updateMany: (...args: any[]) => (prisma.channel.updateMany as any)(...args),
+        count: (...args: any[]) => (prisma.channel.count as any)(...args),
       },
       channelSlugHistory: {
         create: (...args: any[]) => (prisma.channelSlugHistory.create as any)(...args),
