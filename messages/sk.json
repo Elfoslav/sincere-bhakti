@@ -209,7 +209,7 @@
 		"publicPosts": "Verejné príspevky ({count})",
 		"privatePosts": "Súkromné príspevky ({count})",
 		"noPublicPosts": "Zatiaľ žiadne verejné príspevky v slovenčine. Buď prvý, kto pridá!",
-		"noPublicPostsVisitor": "No public posts in English yet.",
+		"noPublicPostsVisitor": "Zatiaľ žiadne verejné príspevky.",
 		"noPrivatePosts": "Zatiaľ žiadne súkromné príspevky v slovenčine.",
 		"loadingMore": "Načítavam ďalšie...",
 		"notFound": "Kanál nenájdený",

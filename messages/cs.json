@@ -209,7 +209,7 @@
 		"publicPosts": "Veřejné příspěvky ({count})",
 		"privatePosts": "Soukromé příspěvky ({count})",
 		"noPublicPosts": "Zatím žádné veřejné příspěvky v češtině. Buď první, kdo přidá!",
-		"noPublicPostsVisitor": "No public posts in English yet.",
+		"noPublicPostsVisitor": "Zatím žádné veřejné příspěvky.",
 		"noPrivatePosts": "Zatím žádné soukromé příspěvky v češtině.",
 		"loadingMore": "Načítám další...",
 		"notFound": "Kanál nenalezen",

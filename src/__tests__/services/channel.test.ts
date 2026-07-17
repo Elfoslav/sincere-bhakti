@@ -275,6 +275,79 @@ describe("createChannel", () => {
     expect(result.name).toBe("My Devotees (2)");
   });
 
+  it("retries the whole transaction after a P2002 and succeeds on the next suffix", async () => {
+    const transactionMock = vi.mocked(prisma.$transaction);
+    const p2002 = Object.assign(new Error("unique conflict"), { code: "P2002" });
+
+    function createTx({ slugTakenOnFirstSlug, failCreate }: { slugTakenOnFirstSlug: boolean; failCreate: boolean }) {
+      let aborted = false;
+      const assertActive = () => {
+        if (aborted) throw new Error("transaction_aborted");
+      };
+
+      return {
+        $executeRaw: vi.fn(async () => {
+          assertActive();
+        }),
+        channel: {
+          count: vi.fn(async () => {
+            assertActive();
+            return 0;
+          }),
+          findFirst: vi.fn(async (args: { where: Record<string, any> }) => {
+            assertActive();
+            if ("normalizedName" in args.where) return null;
+            if ("oldNormalizedName" in args.where) return null;
+            if ("oldSlug" in args.where) return null;
+            if (args.where.slug === "my-devotees") {
+              return slugTakenOnFirstSlug ? { id: "taken" } as any : null;
+            }
+            if (args.where.slug === "my-devotees-2") {
+              return null;
+            }
+            return null;
+          }),
+          create: vi.fn(async () => {
+            assertActive();
+            if (failCreate) {
+              aborted = true;
+              throw p2002;
+            }
+            return {
+              id: "ch-2",
+              name: "My Devotees (2)",
+              normalizedName: "my devotees (2)",
+              slug: "my-devotees-2",
+              avatarUrl: null,
+              ownerId: "user-1",
+              isPersonal: false,
+              createdAt: new Date(),
+            } as any;
+          }),
+        },
+        channelSlugHistory: {
+          findFirst: vi.fn(async () => {
+            assertActive();
+            return null;
+          }),
+        },
+      };
+    }
+
+    transactionMock
+      .mockImplementationOnce((cb: (tx: any) => any) => cb(createTx({ slugTakenOnFirstSlug: false, failCreate: true })))
+      .mockImplementationOnce((cb: (tx: any) => any) => cb(createTx({ slugTakenOnFirstSlug: true, failCreate: false })));
+
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+
+    const result = await createChannel("user-1", "My Devotees");
+
+    expect(transactionMock).toHaveBeenCalledTimes(2);
+    expect(result.slug).toBe("my-devotees-2");
+    expect(result.name).toBe("My Devotees (2)");
+  });
+
   it("falls back to UUID suffix when retries are exhausted", async () => {
     vi.mocked(prisma.channel.count).mockResolvedValue(0);
     vi.mocked(prisma.channel.findFirst)

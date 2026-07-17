@@ -274,62 +274,70 @@ export async function createChannel(userId: string, channelName: string): Promis
   const normalized = normalizeName(channelName);
   const maxChannelsPerUser = getMaxChannelsPerUser();
 
-  return prisma.$transaction(async (tx) => {
-    // Lock the owning user row so concurrent creates for the same account
-    // serialize before we count and insert.
-    await tx.$executeRaw`SELECT 1 FROM "User" WHERE id = ${userId} FOR UPDATE`;
+  const maxTransactionRetries = 3;
 
-    const additionalChannelCount = await tx.channel.count({
-      where: { ownerId: userId, isPersonal: false },
-    });
-    if (additionalChannelCount >= maxChannelsPerUser) {
-      throw new ChannelLimitError();
-    }
+  for (let attempt = 1; attempt <= maxTransactionRetries; attempt++) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        // Lock the owning user row so concurrent creates for the same account
+        // serialize before we count and insert.
+        await tx.$executeRaw`SELECT 1 FROM "User" WHERE id = ${userId} FOR UPDATE`;
 
-    // Fail if an active channel already has this name
-    const nameTaken = await tx.channel.findFirst({
-      where: { normalizedName: normalized },
-      select: { id: true },
-    });
-    if (nameTaken) throw new NameTakenError();
+        const additionalChannelCount = await tx.channel.count({
+          where: { ownerId: userId, isPersonal: false },
+        });
+        if (additionalChannelCount >= maxChannelsPerUser) {
+          throw new ChannelLimitError();
+        }
 
-    const historyNameTaken = await tx.channelSlugHistory.findFirst({
-      where: { oldNormalizedName: normalized },
-      select: { id: true },
-    });
-    if (historyNameTaken) throw new NameTakenError();
+        // Fail if an active channel already has this name
+        const nameTaken = await tx.channel.findFirst({
+          where: { normalizedName: normalized },
+          select: { id: true },
+        });
+        if (nameTaken) throw new NameTakenError();
 
-    for (let i = 1; i <= 10; i++) {
-      const finalSlug = i === 1 ? slug : `${slug}-${i}`;
-      const name = i === 1 ? channelName : `${channelName} (${i})`;
+        const historyNameTaken = await tx.channelSlugHistory.findFirst({
+          where: { oldNormalizedName: normalized },
+          select: { id: true },
+        });
+        if (historyNameTaken) throw new NameTakenError();
 
-      const slugTaken = await tx.channel.findFirst({
-        where: { slug: finalSlug },
-        select: { id: true },
-      });
-      if (slugTaken) continue;
+        for (let i = 1; i <= 10; i++) {
+          const finalSlug = i === 1 ? slug : `${slug}-${i}`;
+          const name = i === 1 ? channelName : `${channelName} (${i})`;
 
-      const historySlugTaken = await tx.channelSlugHistory.findFirst({
-        where: { oldSlug: finalSlug },
-        select: { id: true },
-      });
-      if (historySlugTaken) continue;
+          const slugTaken = await tx.channel.findFirst({
+            where: { slug: finalSlug },
+            select: { id: true },
+          });
+          if (slugTaken) continue;
 
-      try {
+          const historySlugTaken = await tx.channelSlugHistory.findFirst({
+            where: { oldSlug: finalSlug },
+            select: { id: true },
+          });
+          if (historySlugTaken) continue;
+
+          const channel = await tx.channel.create({
+            data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId, isPersonal: false },
+          });
+          return { ...toPostChannel(channel), postCount: 0 };
+        }
+
+        const uuid = crypto.randomUUID().slice(0, 8);
         const channel = await tx.channel.create({
-          data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId, isPersonal: false },
+          data: { name: `${channelName} (${uuid})`, normalizedName: normalizeName(`${channelName} (${uuid})`), slug: `${slug}-${uuid}`, ownerId: userId, isPersonal: false },
         });
         return { ...toPostChannel(channel), postCount: 0 };
-      } catch (err) {
-        if ((err as { code?: string })?.code === "P2002") continue;
-        throw err;
+      });
+    } catch (err) {
+      if ((err as { code?: string })?.code === "P2002" && attempt < maxTransactionRetries) {
+        continue;
       }
+      throw err;
     }
+  }
 
-    const uuid = crypto.randomUUID().slice(0, 8);
-    const channel = await tx.channel.create({
-      data: { name: `${channelName} (${uuid})`, normalizedName: normalizeName(`${channelName} (${uuid})`), slug: `${slug}-${uuid}`, ownerId: userId, isPersonal: false },
-    });
-    return { ...toPostChannel(channel), postCount: 0 };
-  });
+  throw new Error("unreachable");
 }
