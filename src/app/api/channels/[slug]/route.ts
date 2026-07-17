@@ -62,15 +62,11 @@ export async function PATCH(
     }
 
     if (channel.ownerId !== session.user.id) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+      return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
     if (channel.isPersonal) {
       return NextResponse.json({ error: "cannot_rename_personal_channel" }, { status: 400 });
-    }
-
-    if (channel.renameCount >= MAX_RENAME_COUNT) {
-      return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
 
     const body = await request.json();
@@ -87,11 +83,6 @@ export async function PATCH(
 
     const { name } = parsed.data;
 
-    // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
-    if (isBrandNameBlocked(name, session.user.email)) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
-    }
-
     const normalizedTarget = normalizeName(name);
 
     // Renaming to the same name is a no-op — don't count or write history
@@ -104,6 +95,15 @@ export async function PATCH(
         ownerId: channel.ownerId,
         renameCount: channel.renameCount,
       });
+    }
+
+    // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
+    if (isBrandNameBlocked(name, session.user.email)) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+    }
+
+    if (channel.renameCount >= MAX_RENAME_COUNT) {
+      return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
 
     // Check if the new name is already taken by another channel

@@ -93,11 +93,6 @@ export async function PATCH(
       );
     }
 
-    // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
-    if (isBrandNameBlocked(parsed.data.name, session.user.email)) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
-    }
-
     const normalizedTarget = normalizeName(parsed.data.name);
 
     // Renaming to the same name is a no-op — don't count or write history
@@ -107,6 +102,11 @@ export async function PATCH(
     });
     if (currentUser && normalizeName(currentUser.name) === normalizedTarget) {
       return NextResponse.json({ ...currentUser, id });
+    }
+
+    // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
+    if (isBrandNameBlocked(parsed.data.name, session.user.email)) {
+      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
     }
 
     // All name/slug checks and writes happen inside a single transaction so a
