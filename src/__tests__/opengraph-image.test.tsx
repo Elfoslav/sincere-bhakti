@@ -40,7 +40,36 @@ vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { getCachedPostById } from "@/lib/services/post";
 import { checkRateLimit } from "@/lib/rate-limit";
-import Image, { fetchImageAsPngBase64 } from "@/app/[locale]/posts/[id]/opengraph-image";
+import Image, { fetchImageAsPngBase64, MAX_OG_IMAGE_BYTES } from "@/app/[locale]/posts/[id]/opengraph-image";
+
+function makeStreamResponse({
+  chunks,
+  headers,
+}: {
+  chunks: Uint8Array[];
+  headers: Headers;
+}) {
+  let index = 0;
+  const read = vi.fn(async () => {
+    if (index >= chunks.length) {
+      return { done: true, value: undefined };
+    }
+    const value = chunks[index];
+    index += 1;
+    return { done: false, value };
+  });
+
+  return {
+    ok: true,
+    headers,
+    body: {
+      getReader: () => ({
+        read,
+        releaseLock: vi.fn(),
+      }),
+    },
+  } as any;
+}
 
 describe("post opengraph image", () => {
   beforeEach(() => {
@@ -71,16 +100,28 @@ describe("post opengraph image", () => {
   });
 
   it("keeps the abort timeout active until the image body is read", async () => {
-    let resolveBody: ((value: ArrayBuffer) => void) | null = null;
-    const bodyPromise = new Promise<ArrayBuffer>((resolve) => {
-      resolveBody = resolve;
+    let resolveChunk: ((value: Uint8Array) => void) | undefined;
+    const firstChunk = new Promise<Uint8Array>((resolve) => {
+      resolveChunk = resolve;
     });
+    let readCount = 0;
 
     const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       headers: new Headers({ "content-type": "image/png" }),
-      arrayBuffer: () => bodyPromise,
+      body: {
+        getReader: () => ({
+          read: vi.fn(async () => {
+            if (readCount === 0) {
+              readCount += 1;
+              return { done: false, value: await firstChunk };
+            }
+            return { done: true, value: undefined };
+          }),
+          releaseLock: vi.fn(),
+        }),
+      },
     } as any);
 
     const imagePromise = fetchImageAsPngBase64("https://cdn.example.com/image.png");
@@ -91,12 +132,45 @@ describe("post opengraph image", () => {
 
     expect(clearTimeoutSpy).not.toHaveBeenCalled();
 
-    if (!resolveBody) throw new Error("body resolver missing");
-    (resolveBody as (value: ArrayBuffer) => void)(new Uint8Array([137, 80, 78, 71]).buffer);
+    const bodyResolver = resolveChunk;
+    if (!bodyResolver) throw new Error("body resolver missing");
+    bodyResolver(new Uint8Array([137, 80, 78, 71]));
     const response = await imagePromise;
 
     expect(response).toBe("data:image/png;base64,iVBORw==");
     expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
     clearTimeoutSpy.mockRestore();
+  });
+
+  it("rejects oversized content-length headers before reading the body", async () => {
+    const bodyGetReader = vi.fn();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      headers: new Headers({
+        "content-type": "image/png",
+        "content-length": String(MAX_OG_IMAGE_BYTES + 1),
+      }),
+      body: { getReader: bodyGetReader },
+    } as any);
+
+    const response = await fetchImageAsPngBase64("https://cdn.example.com/image.png");
+
+    expect(response).toBeNull();
+    expect(bodyGetReader).not.toHaveBeenCalled();
+  });
+
+  it("stops reading once the streamed byte limit is exceeded", async () => {
+    const oversized = new Uint8Array(MAX_OG_IMAGE_BYTES + 1);
+    const fetchMock = vi.fn().mockResolvedValue(
+      makeStreamResponse({
+        chunks: [oversized],
+        headers: new Headers({ "content-type": "image/png" }),
+      }),
+    );
+    vi.spyOn(globalThis, "fetch").mockImplementation(fetchMock as any);
+
+    const response = await fetchImageAsPngBase64("https://cdn.example.com/image.png");
+
+    expect(response).toBeNull();
   });
 });

@@ -8,6 +8,14 @@ import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/l
 export const runtime = "nodejs";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+export const MAX_OG_IMAGE_BYTES = 10 * 1024 * 1024;
+
+function parseContentLength(value: string | null): number | null {
+  if (value === null) return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) return null;
+  return parsed;
+}
 
 export async function fetchImageAsPngBase64(url: string): Promise<string | null> {
   const controller = new AbortController();
@@ -16,7 +24,32 @@ export async function fetchImageAsPngBase64(url: string): Promise<string | null>
   try {
     const res = await fetch(url, { signal: controller.signal });
     if (!res.ok) return null;
-    const buffer = Buffer.from(await res.arrayBuffer());
+    const contentLength = parseContentLength(res.headers.get("content-length"));
+    if (contentLength !== null && contentLength > MAX_OG_IMAGE_BYTES) return null;
+
+    if (!res.body) return null;
+
+    const reader = res.body.getReader();
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!value) continue;
+        totalBytes += value.byteLength;
+        if (totalBytes > MAX_OG_IMAGE_BYTES) {
+          controller.abort();
+          return null;
+        }
+        chunks.push(Buffer.from(value));
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    const buffer = Buffer.concat(chunks, totalBytes);
     const ct = res.headers.get("content-type") || "";
     // Satori only supports PNG/JPEG. Convert WebP and other formats to PNG.
     if (ct === "image/webp" || !ct.startsWith("image/")) {
