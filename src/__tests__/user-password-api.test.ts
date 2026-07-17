@@ -62,6 +62,24 @@ describe("PATCH /api/users/[id]/password", () => {
     });
   });
 
+  it("trims incidental whitespace from the current password before comparing", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ password: "hashed-current" } as any);
+    vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+    vi.mocked(bcrypt.hash).mockResolvedValue("hashed-new" as never);
+    vi.mocked(prisma.user.update).mockResolvedValue({} as any);
+
+    const res = await PATCH(
+      mockRequest({ currentPassword: "  current-secret  ", newPassword: "new-secret123" }),
+      { params: Promise.resolve({ id: "user-1" }) },
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(bcrypt.compare).toHaveBeenCalledWith("current-secret", "hashed-current");
+  });
+
   it("returns 403 when the caller is not the owner", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "other-user" } } as any);
 

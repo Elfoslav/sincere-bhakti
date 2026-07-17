@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import bcrypt from "bcryptjs";
 
 vi.mock("next-auth", () => ({
   default: vi.fn((config: any) => ({
@@ -22,6 +23,10 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/services/channel", () => ({
   getPersonalChannel: vi.fn(),
   createPersonalChannel: vi.fn(),
+}));
+vi.mock("bcryptjs", () => ({
+  default: { compare: vi.fn() },
+  compare: vi.fn(),
 }));
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(async () => true),
@@ -103,5 +108,32 @@ describe("auth session version", () => {
     } as any);
 
     expect(token).toBeNull();
+  });
+
+  it("trims incidental whitespace from the password before login comparison", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "user-1",
+      name: "Devotee",
+      email: "devotee@example.com",
+      image: null,
+      password: "hashed-password",
+      sessionVersion: 0,
+    } as any);
+    vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+
+    const provider = authConfig.providers[0] as any;
+    const user = await provider.authorize?.({
+      email: " devotee@example.com ",
+      password: "  secret123  ",
+    }, {
+      headers: new Headers({ "x-forwarded-for": "127.0.0.1" }),
+    });
+
+    expect(user).toMatchObject({
+      id: "user-1",
+      email: "devotee@example.com",
+      sessionVersion: 0,
+    });
+    expect(bcrypt.compare).toHaveBeenCalledWith("secret123", "hashed-password");
   });
 });
