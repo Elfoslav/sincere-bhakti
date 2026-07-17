@@ -25,6 +25,10 @@ vi.mock("@/lib/prisma", () => ({
     channelEditor: {
       findUnique: vi.fn(),
     },
+    pendingUpload: {
+      findMany: vi.fn(() => Promise.resolve([])),
+      deleteMany: vi.fn(),
+    },
     $transaction: vi.fn((cb: (tx: any) => any) => cb(prisma)),
   },
 }));
@@ -46,6 +50,9 @@ const basePost = {
 describe("getPosts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.media.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.pendingUpload.findMany).mockResolvedValue([]);
   });
 
   it("returns public posts with hasMore=false when under limit", async () => {
@@ -124,7 +131,12 @@ describe("getPosts", () => {
     expect(prisma.channel.findMany).not.toHaveBeenCalled();
     expect(prisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { channel: { ownerId: "user-1" } },
+        where: {
+          OR: [
+            { channel: { ownerId: "user-1" } },
+            { channel: { editors: { some: { userId: "user-1" } } } },
+          ],
+        },
       }),
     );
   });
@@ -143,6 +155,20 @@ describe("getPosts", () => {
     expect(prisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { channelId: "channel-1", isPublic: true },
+      }),
+    );
+  });
+
+  it("returns all channel posts when requester is channel editor", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "channel-1", ownerId: "user-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-2" } as any);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+
+    await getPosts({ channelId: "channel-1" }, "user-2");
+
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { channelId: "channel-1" },
       }),
     );
   });
@@ -173,12 +199,26 @@ describe("getPosts", () => {
     );
   });
 
-  it("throws UnauthorizedError when private scope requested for non-owned channel", async () => {
+  it("throws UnauthorizedError when private scope requested for non-authorable channel", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "channel-1", ownerId: "user-1" } as any);
 
     await expect(
       getPosts({ channelId: "channel-1", scope: "private" }, "user-2"),
     ).rejects.toThrow(UnauthorizedError);
+  });
+
+  it("returns private posts when private scope requested by channel editor", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "channel-1", ownerId: "user-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-2" } as any);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+
+    await getPosts({ channelId: "channel-1", scope: "private" }, "user-2");
+
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { channelId: "channel-1", isPublic: false },
+      }),
+    );
   });
 });
 
@@ -317,6 +357,11 @@ describe("createPost", () => {
 });
 
 describe("deletePost", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
+  });
+
   it("deletes own post", async () => {
     vi.mocked(prisma.post.findUnique).mockResolvedValue({
       ...basePost,
@@ -328,10 +373,36 @@ describe("deletePost", () => {
 
     expect(prisma.post.findUnique).toHaveBeenCalledWith({
       where: { id: "post-1" },
-      include: { media: { select: { url: true } }, channel: { select: { ownerId: true } } },
+      include: { media: { select: { url: true } }, channel: { select: { id: true, ownerId: true } } },
     });
     expect(prisma.post.deleteMany).toHaveBeenCalledWith({
-      where: { id: "post-1", channel: { ownerId: "user-1" } },
+      where: {
+        id: "post-1",
+        OR: [
+          { channel: { ownerId: "user-1" } },
+          { channel: { editors: { some: { userId: "user-1" } } } },
+        ],
+      },
+    });
+  });
+
+  it("allows channel editor to delete post", async () => {
+    vi.mocked(prisma.post.findUnique).mockResolvedValue({
+      ...basePost,
+      channel: { id: "channel-1", ownerId: "user-2" },
+    } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-1" } as any);
+
+    await deletePost("post-1", "user-1");
+
+    expect(prisma.post.deleteMany).toHaveBeenCalledWith({
+      where: {
+        id: "post-1",
+        OR: [
+          { channel: { ownerId: "user-1" } },
+          { channel: { editors: { some: { userId: "user-1" } } } },
+        ],
+      },
     });
   });
 
@@ -351,6 +422,7 @@ describe("deletePost", () => {
 describe("updatePost", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
   });
 
   it("updates own post content", async () => {
@@ -363,9 +435,81 @@ describe("updatePost", () => {
 
     expect(result.content).toBe("Updated!");
     expect(prisma.post.updateMany).toHaveBeenCalledWith({
-      where: { id: "post-1" },
+      where: {
+        id: "post-1",
+        OR: [
+          { channel: { ownerId: "user-1" } },
+          { channel: { editors: { some: { userId: "user-1" } } } },
+        ],
+      },
       data: { content: "Updated!" },
     });
+  });
+
+  it("allows channel editor to update post", async () => {
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce({ ...basePost, channel: { id: "channel-1", ownerId: "user-2" } } as any)
+      .mockResolvedValueOnce({ ...basePost, content: "Updated!", channel: { id: "channel-1", ownerId: "user-2" } } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-1" } as any);
+    vi.mocked(prisma.post.updateMany).mockResolvedValue({ count: 1 });
+
+    const result = await updatePost("post-1", "user-1", { content: "Updated!" });
+
+    expect(result.content).toBe("Updated!");
+  });
+
+  it("allows editor to keep existing media owned by another user while editing", async () => {
+    const previousR2PublicUrl = process.env.R2_PUBLIC_URL;
+    process.env.R2_PUBLIC_URL = "https://cdn.example.com";
+    try {
+      const existingMedia = { url: "https://cdn.example.com/posts/post-1/owner.jpg" };
+      vi.mocked(prisma.post.findUnique)
+        .mockResolvedValueOnce({
+          ...basePost,
+          media: [existingMedia],
+          channel: { id: "channel-1", ownerId: "user-2" },
+        } as any)
+        .mockResolvedValueOnce({
+          ...basePost,
+          content: "Edited by editor",
+          media: [{ ...existingMedia, type: "image", position: 0, width: null, height: null }],
+          channel: { id: "channel-1", ownerId: "user-2" },
+        } as any);
+      vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "editor-1" } as any);
+      vi.mocked(prisma.media.findMany)
+        .mockResolvedValueOnce([{ url: existingMedia.url, userId: "owner-1" }] as any)
+        .mockResolvedValue([]);
+      vi.mocked(prisma.pendingUpload.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.post.updateMany).mockResolvedValue({ count: 1 });
+
+      const result = await updatePost("post-1", "editor-1", {
+        content: "Edited by editor",
+        media: [{ url: existingMedia.url, type: "image" }],
+      });
+
+      expect(result.content).toBe("Edited by editor");
+    } finally {
+      process.env.R2_PUBLIC_URL = previousR2PublicUrl;
+    }
+  });
+
+  it("rejects editor adding media owned by another user", async () => {
+    const previousR2PublicUrl = process.env.R2_PUBLIC_URL;
+    process.env.R2_PUBLIC_URL = "https://cdn.example.com";
+    try {
+      const newMedia = { url: "https://cdn.example.com/posts/other-post/owner.jpg", type: "image" as const };
+      vi.mocked(prisma.post.findUnique).mockResolvedValueOnce({
+        ...basePost,
+        media: [],
+        channel: { id: "channel-1", ownerId: "user-2" },
+      } as any);
+      vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "editor-1" } as any);
+      vi.mocked(prisma.media.findMany).mockResolvedValue([{ url: newMedia.url, userId: "owner-1" }] as any);
+
+      await expect(updatePost("post-1", "editor-1", { media: [newMedia] })).rejects.toThrow(ForbiddenError);
+    } finally {
+      process.env.R2_PUBLIC_URL = previousR2PublicUrl;
+    }
   });
 
   it("updates post visibility", async () => {

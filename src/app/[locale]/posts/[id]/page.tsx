@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getCachedPostById } from "@/lib/services/post";
+import { canAuthorChannel } from "@/lib/services/channel";
 import { auth } from "@/lib/auth";
-import { selectOgImageUrl } from "@/lib/og";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import PostDetailClient from "./post-detail-client";
 import { getSiteUrl } from "@/lib/url";
@@ -26,19 +26,6 @@ export async function generateMetadata({
   const ogTitle = post.content ? post.content.slice(0, 60) : undefined;
   const ogDescription = post.content ? post.content.slice(0, 160) : undefined;
 
-  const postImage = selectOgImageUrl(post.media);
-  const ogUrl = postImage ?? "/images/sincere-bhakti-logo.png";
-  const selected = postImage
-    ? post.media.find((m) => m.url === postImage)
-    : undefined;
-
-  const ogImages =
-    selected?.width && selected?.height
-      ? [{ url: ogUrl, width: selected.width, height: selected.height }]
-      : postImage
-        ? [{ url: ogUrl }]
-        : [{ url: ogUrl, width: 603, height: 414 }];
-
   return {
     title: ogTitle || "Post",
     description: ogDescription,
@@ -48,13 +35,11 @@ export async function generateMetadata({
       type: "article",
       locale: locale === "en" ? "en_US" : locale === "cs" ? "cs_CZ" : "sk_SK",
       url: `${siteUrl}/${locale}/posts/${id}`,
-      images: ogImages,
     },
     twitter: {
       card: "summary_large_image",
       title: ogTitle,
       description: ogDescription,
-      images: [ogUrl],
     },
   };
 }
@@ -72,7 +57,7 @@ export default async function PostPage({
   const [post, session] = await Promise.all([getCachedPostById(id), auth()]);
 
   if (!post) notFound();
-  if (!post.isPublic && session?.user?.id !== post.channel.ownerId) notFound();
+  if (!post.isPublic && (!session?.user?.id || !await canAuthorChannel(post.channel.id, session.user.id))) notFound();
 
   const serialized: Post = {
     ...post,

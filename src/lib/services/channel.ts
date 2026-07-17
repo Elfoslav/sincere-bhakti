@@ -1,10 +1,18 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { slugifyName, normalizeName } from "@/lib/validation";
+import { getMaxChannelsPerUser } from "@/lib/channel-limit";
 import type { PostChannel } from "@/types/post";
+import type { AuthorableIdentity } from "@/types/identity";
 
 export class NotFoundError extends Error {
   name = "NotFoundError" as const;
+}
+export class NameTakenError extends Error {
+  name = "NameTakenError" as const;
+}
+export class ChannelLimitError extends Error {
+  name = "ChannelLimitError" as const;
 }
 
 function toPostChannel(channel: { id: string; name: string; slug: string; avatarUrl: string | null; ownerId: string }): PostChannel {
@@ -113,6 +121,7 @@ export async function getChannelBySlug(slug: string): Promise<{
   ownerImage: string | null;
   postCount: number;
   isPersonal: boolean;
+  renameCount: number;
 } | null> {
   const channel = await prisma.channel.findUnique({
     where: { slug },
@@ -122,18 +131,19 @@ export async function getChannelBySlug(slug: string): Promise<{
     },
   });
   if (!channel) return null;
-  return {
-    id: channel.id,
-    name: channel.name,
-    slug: channel.slug,
-    avatarUrl: channel.avatarUrl,
-    createdAt: channel.createdAt,
-    ownerId: channel.ownerId,
-    ownerName: channel.owner.name,
-    ownerImage: channel.owner.image,
-    postCount: channel._count.posts,
-    isPersonal: channel.isPersonal,
-  };
+    return {
+      id: channel.id,
+      name: channel.name,
+      slug: channel.slug,
+      avatarUrl: channel.avatarUrl,
+      createdAt: channel.createdAt,
+      ownerId: channel.ownerId,
+      ownerName: channel.owner.name,
+      ownerImage: channel.owner.image,
+      postCount: channel._count.posts,
+      isPersonal: channel.isPersonal,
+      renameCount: channel.renameCount,
+    };
 }
 
 // `generateMetadata` and the page body both need channel data. React's
@@ -175,47 +185,159 @@ export async function isChannelEditor(channelId: string, userId: string): Promis
   return !!editor;
 }
 
+export async function getAuthorableChannels(userId: string): Promise<AuthorableIdentity[]> {
+  const [owned, editable] = await Promise.all([
+    prisma.channel.findMany({
+      where: { ownerId: userId },
+      orderBy: [{ isPersonal: "desc" }, { createdAt: "asc" }, { id: "asc" }],
+      select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, isPersonal: true },
+    }),
+    prisma.channelEditor.findMany({
+      where: { userId },
+      include: {
+        channel: {
+          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, isPersonal: true },
+        },
+      },
+      orderBy: [{ channelId: "asc" }],
+    }),
+  ]);
+
+  const identities = new Map<string, AuthorableIdentity>();
+  for (const channel of owned) {
+    identities.set(channel.id, { ...channel, role: "owner" });
+  }
+  for (const editor of editable) {
+    if (!identities.has(editor.channel.id)) {
+      identities.set(editor.channel.id, { ...editor.channel, role: "editor" });
+    }
+  }
+
+  return Array.from(identities.values());
+}
+
+export async function canAuthorChannel(channelId: string, userId: string): Promise<boolean> {
+  const channel = await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { ownerId: true },
+  });
+  if (!channel) return false;
+  if (channel.ownerId === userId) return true;
+  return isChannelEditor(channelId, userId);
+}
+
+export async function resolveAuthorableChannelId({
+  explicitChannelId,
+  preferredChannelId,
+  fallbackChannelId,
+  userId,
+}: {
+  explicitChannelId?: string;
+  preferredChannelId?: string;
+  fallbackChannelId?: string;
+  userId: string;
+}): Promise<{ channelId?: string; shouldRefreshPreference: boolean; explicitForbidden: boolean }> {
+  if (explicitChannelId) {
+    const allowed = await canAuthorChannel(explicitChannelId, userId);
+    return {
+      channelId: allowed ? explicitChannelId : undefined,
+      shouldRefreshPreference: false,
+      explicitForbidden: !allowed,
+    };
+  }
+
+  if (preferredChannelId && await canAuthorChannel(preferredChannelId, userId)) {
+    return {
+      channelId: preferredChannelId,
+      shouldRefreshPreference: false,
+      explicitForbidden: false,
+    };
+  }
+
+  if (fallbackChannelId && await canAuthorChannel(fallbackChannelId, userId)) {
+    return {
+      channelId: fallbackChannelId,
+      shouldRefreshPreference: preferredChannelId !== undefined && preferredChannelId !== fallbackChannelId,
+      explicitForbidden: false,
+    };
+  }
+
+  return {
+    channelId: undefined,
+    shouldRefreshPreference: preferredChannelId !== undefined,
+    explicitForbidden: false,
+  };
+}
+
 export async function createChannel(userId: string, channelName: string): Promise<PostChannel & { postCount: number }> {
   const slug = slugifyName(channelName);
+  const normalized = normalizeName(channelName);
+  const maxChannelsPerUser = getMaxChannelsPerUser();
 
-  for (let i = 1; i <= 10; i++) {
-    const finalSlug = i === 1 ? slug : `${slug}-${i}`;
-    const name = i === 1 ? channelName : `${channelName} (${i})`;
-    const normalized = normalizeName(name);
+  const maxTransactionRetries = 3;
 
-    const existing = await prisma.channel.findFirst({
-      where: { OR: [{ slug: finalSlug }, { normalizedName: normalized }] },
-      select: { id: true },
-    });
-    if (existing) continue;
-
-    const historyNameTaken = await prisma.channelSlugHistory.findFirst({
-      where: { oldNormalizedName: normalized },
-      select: { id: true },
-    });
-    if (historyNameTaken) continue;
-
-    const historySlugTaken = await prisma.channelSlugHistory.findFirst({
-      where: { oldSlug: finalSlug },
-      select: { id: true },
-    });
-    if (historySlugTaken) continue;
-
+  for (let attempt = 1; attempt <= maxTransactionRetries; attempt++) {
     try {
-      const channel = await prisma.channel.create({
-        data: { name, normalizedName: normalized, slug: finalSlug, ownerId: userId, isPersonal: false },
+      return await prisma.$transaction(async (tx) => {
+        // Lock the owning user row so concurrent creates for the same account
+        // serialize before we count and insert.
+        await tx.$executeRaw`SELECT 1 FROM "User" WHERE id = ${userId} FOR UPDATE`;
+
+        const additionalChannelCount = await tx.channel.count({
+          where: { ownerId: userId, isPersonal: false },
+        });
+        if (additionalChannelCount >= maxChannelsPerUser) {
+          throw new ChannelLimitError();
+        }
+
+        // Fail if an active channel already has this name
+        const nameTaken = await tx.channel.findFirst({
+          where: { normalizedName: normalized },
+          select: { id: true },
+        });
+        if (nameTaken) throw new NameTakenError();
+
+        const historyNameTaken = await tx.channelSlugHistory.findFirst({
+          where: { oldNormalizedName: normalized },
+          select: { id: true },
+        });
+        if (historyNameTaken) throw new NameTakenError();
+
+        for (let i = 1; i <= 10; i++) {
+          const finalSlug = i === 1 ? slug : `${slug}-${i}`;
+          const name = i === 1 ? channelName : `${channelName} (${i})`;
+
+          const slugTaken = await tx.channel.findFirst({
+            where: { slug: finalSlug },
+            select: { id: true },
+          });
+          if (slugTaken) continue;
+
+          const historySlugTaken = await tx.channelSlugHistory.findFirst({
+            where: { oldSlug: finalSlug },
+            select: { id: true },
+          });
+          if (historySlugTaken) continue;
+
+          const channel = await tx.channel.create({
+            data: { name, normalizedName: normalizeName(name), slug: finalSlug, ownerId: userId, isPersonal: false },
+          });
+          return { ...toPostChannel(channel), postCount: 0 };
+        }
+
+        const uuid = crypto.randomUUID().slice(0, 8);
+        const channel = await tx.channel.create({
+          data: { name: `${channelName} (${uuid})`, normalizedName: normalizeName(`${channelName} (${uuid})`), slug: `${slug}-${uuid}`, ownerId: userId, isPersonal: false },
+        });
+        return { ...toPostChannel(channel), postCount: 0 };
       });
-      return { ...toPostChannel(channel), postCount: 0 };
     } catch (err) {
-      if ((err as { code?: string })?.code === "P2002") continue;
+      if ((err as { code?: string })?.code === "P2002" && attempt < maxTransactionRetries) {
+        continue;
+      }
       throw err;
     }
   }
 
-  const uuid = crypto.randomUUID().slice(0, 8);
-  const channel = await prisma.channel.create({
-    data: { name: `${channelName} (${uuid})`, normalizedName: normalizeName(`${channelName} (${uuid})`), slug: `${slug}-${uuid}`, ownerId: userId, isPersonal: false },
-  });
-  return { ...toPostChannel(channel), postCount: 0 };
+  throw new Error("unreachable");
 }
-

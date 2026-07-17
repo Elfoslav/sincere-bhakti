@@ -16,6 +16,10 @@ beforeEach(() => {
     const urlStr = typeof url === "string" ? url : url.toString();
 
     if (urlStr === "/api/upload-url/batch") {
+      const body = JSON.parse(String(init?.body));
+      if (body.channelId === "bad-channel") {
+        return { ok: false, status: 403, json: () => Promise.resolve({ error: "forbidden" }) } as Response;
+      }
       return mockBatchResponse();
     }
 
@@ -40,7 +44,7 @@ beforeEach(() => {
 describe("uploadMediaFiles", () => {
   it("returns empty when no items given", async () => {
     const { uploadMediaFiles } = await import("@/lib/client-upload");
-    const result = await uploadMediaFiles("post-1", []);
+    const result = await uploadMediaFiles("post-1", [], "channel-1");
     expect(result).toEqual({ media: [], error: null });
   });
 
@@ -124,6 +128,31 @@ describe("uploadMediaFiles", () => {
 
     expect(result.error).toBeNull();
     expect(result.media).toHaveLength(2);
+    expect(fetch).toHaveBeenCalledWith("/api/upload-url/batch", expect.objectContaining({
+      body: expect.stringContaining("\"postId\":\"post-1\""),
+    }));
+  });
+
+  it("sends selected channel identity to batch upload endpoint", async () => {
+    mockBatchResponse.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          urls: [
+            { uploadUrl: "https://presigned.example.com/success-1", publicUrl: "https://pub.example.com/a.jpg", key: "a" },
+          ],
+        }),
+    });
+    mockCompressResponse.mockResolvedValue({ ok: false });
+
+    const { uploadMediaFiles } = await import("@/lib/client-upload");
+    await uploadMediaFiles("post-1", [
+      { file: new File(["data"], "a.jpg", { type: "image/jpeg" }) },
+    ], "channel-1");
+
+    expect(fetch).toHaveBeenCalledWith("/api/upload-url/batch", expect.objectContaining({
+      body: expect.stringContaining("\"channelId\":\"channel-1\""),
+    }));
   });
 
   it("includes compress response data when compress succeeds", async () => {

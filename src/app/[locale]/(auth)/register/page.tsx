@@ -7,6 +7,9 @@ import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isApiErrorCode } from "@/lib/api-error";
+import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { AUTH_EMAIL_PERSIST_KEY } from "@/lib/form-persist-keys";
 import { PASSWORD_MIN_LENGTH } from "@/lib/validation";
 import { useFormPersist } from "@/lib/hooks/useFormPersist";
 
@@ -44,12 +47,23 @@ const initialErrors: FieldErrors = { name: null, email: null, password: null, te
 export default function RegisterPage() {
   const router = useRouter();
   const t = useTranslations("Auth.register");
+  const common = useTranslations("Common");
   const [errors, setErrors] = useState<FieldErrors>(initialErrors);
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const { stored, save, clear, loaded } = useFormPersist<{ name: string; email: string }>("register", ["password"]);
+  const {
+    stored: storedName,
+    save: saveName,
+    clear: clearName,
+    loaded: nameLoaded,
+  } = useFormPersist<{ name: string }>("register", ["password"]);
+  const {
+    stored: storedEmail,
+    save: saveEmail,
+    loaded: emailLoaded,
+  } = useFormPersist<{ email: string }>(AUTH_EMAIL_PERSIST_KEY);
 
   const validators = useMemo(() => ({
     name: (val: string) => validateName(val, t),
@@ -62,7 +76,8 @@ export default function RegisterPage() {
       const val = e.target.value;
       const err = validators[field](val);
       setErrors((prev) => ({ ...prev, [field]: err }));
-      if (!err) save({ [field]: val });
+      if (!err && field === "name") saveName({ name: val });
+      if (!err && field === "email") saveEmail({ email: val });
     };
   }
 
@@ -93,6 +108,8 @@ export default function RegisterPage() {
 
     if (nameErr || emailErr || passwordErr || termsErr) return;
 
+    saveName({ name });
+    saveEmail({ email });
     setLoading(true);
 
     try {
@@ -103,10 +120,30 @@ export default function RegisterPage() {
       });
 
       if (!res.ok) {
-        if (res.status === 409) {
+        if (res.status === 429) {
+          handleServerError(common("tooManyRequests"));
+        } else if (res.status === 409) {
           setErrors((prev) => ({ ...prev, name: t("nameTaken") }));
+        } else if (res.status === 400) {
+          const data = await res.json().catch(() => ({}));
+          if (data.error === "validation_error:name:too_big") {
+            setErrors((prev) => ({ ...prev, name: t("nameTooLong", { max: 50 }) }));
+          } else if (data.error === "validation_error:name:too_small") {
+            setErrors((prev) => ({ ...prev, name: t("nameRequired") }));
+          } else if (data.error === "validation_error:email:invalid_string") {
+            setErrors((prev) => ({ ...prev, email: t("emailInvalid") }));
+          } else if (data.error?.startsWith("validation_error:")) {
+            handleServerError(t("registrationFailed"));
+          } else {
+            handleServerError(t("registrationFailed"));
+          }
         } else {
-          handleServerError(t("registrationFailed"));
+          const data = await res.json().catch(() => ({}));
+          if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
+            handleServerError(common("tooManyRequests"));
+          } else {
+            handleServerError(t("registrationFailed"));
+          }
         }
         setLoading(false);
         return;
@@ -117,19 +154,19 @@ export default function RegisterPage() {
       return;
     }
 
-    clear();
+    clearName();
     router.push("/login?registered=true");
   }
 
   // Restore persisted values after mount
   useEffect(() => {
-    if (!loaded || !stored || !formRef.current) return;
+    if (!nameLoaded || !emailLoaded || !formRef.current) return;
     const form = formRef.current;
     const nameInput = form.elements.namedItem("name") as HTMLInputElement | null;
     const emailInput = form.elements.namedItem("email") as HTMLInputElement | null;
-    if (nameInput && stored.name) nameInput.value = stored.name;
-    if (emailInput && stored.email) emailInput.value = stored.email;
-  }, [loaded, stored]);
+    if (nameInput && storedName?.name) nameInput.value = storedName.name;
+    if (emailInput && storedEmail?.email) emailInput.value = storedEmail.email;
+  }, [emailLoaded, nameLoaded, storedEmail, storedName]);
 
   return (
     <div className="w-full max-w-md">
@@ -152,6 +189,7 @@ export default function RegisterPage() {
               placeholder={t("namePlaceholder")}
               onBlur={handleBlur("name")}
               onChange={handleChange("name")}
+              maxLength={50}
             />
             {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
           </div>

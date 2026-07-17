@@ -13,6 +13,9 @@ import { formatBytes } from "@/lib/format";
 import { genId } from "@/lib/id";
 import { getImageDimensions } from "@/lib/client-media";
 import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
+import { isApiErrorCode } from "@/lib/api-error";
+import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { useIdentity } from "@/components/IdentityProvider";
 import type { Post } from "@/types/post";
 import type { MediaInput } from "@/lib/services/post";
 import {
@@ -53,6 +56,11 @@ export interface PostFormProps {
   onSuccess: (post: Post) => void;
   onCancel?: () => void;
   onSubmittingChange?: (submitting: boolean) => void;
+  postingChannel?: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+  };
 }
 
 const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
@@ -65,10 +73,13 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   onSuccess,
   onCancel,
   onSubmittingChange,
+  postingChannel,
 }, ref) {
   const { data: session } = useSession();
+  const { activeIdentity, activeChannelId } = useIdentity();
   const locale = useLocale();
   const t = useTranslations("PostsPage");
+  const common = useTranslations("Common");
   const [content, setContent] = useState(initialContent);
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>(
@@ -84,6 +95,8 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragItemId = useRef<string | null>(null);
+  const postingIdentity = postingChannel ?? activeIdentity;
+  const postingChannelId = postingChannel?.id ?? activeChannelId;
 
   const totalUploadSize = useMemo(
     () => mediaItems.reduce((sum, item) => sum + (item.file?.size ?? 0), 0),
@@ -214,6 +227,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
       const { media: uploaded, error: uploadError } = await uploadMediaFiles(
         targetPostId,
         mediaItems.filter((m) => m.file).map((m) => ({ file: m.file!, width: m.width, height: m.height })),
+        mode === "create" ? postingChannelId ?? undefined : undefined,
       );
       if (uploadError) {
         await cleanupUploadedMedia(uploaded.map((m) => m.url));
@@ -248,6 +262,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
         content: mode === "edit" ? (postContent || null) : (postContent || undefined),
         isPublic,
         language: mode === "create" ? locale : undefined,
+        channelId: mode === "create" ? postingChannelId ?? undefined : undefined,
         media: mode === "edit" ? media : (media.length > 0 ? media : undefined),
       };
 
@@ -273,6 +288,8 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
         const err = body?.error ?? "";
         if (err === "validation_error:input:custom") {
           toast.error(t("nothingToPost"));
+        } else if (res.status === 429 || isApiErrorCode(body, ERROR_TOO_MANY_REQUESTS)) {
+          toast.error(common("tooManyRequests"));
         } else {
           toast.error(mode === "edit" ? t("updatePostFailed") : t("createPostFailed"));
         }
@@ -301,6 +318,22 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
 
   return (
     <form onSubmit={handleSubmit} id={formId}>
+      {mode === "create" && postingIdentity && (
+        <div className="mb-3 flex items-center gap-2 text-sm text-deep/60">
+          <span>{t("postingAs")}</span>
+          <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-deep/5 px-3 py-1 font-medium text-deep">
+            {postingIdentity.avatarUrl ? (
+              <img src={postingIdentity.avatarUrl} alt="" className="size-5 rounded-full object-cover" />
+            ) : (
+              <span className="flex size-5 items-center justify-center rounded-full bg-gold/20 text-xs text-gold">
+                {postingIdentity.name?.[0]?.toUpperCase() || "?"}
+              </span>
+            )}
+            <span className="truncate">{postingIdentity.name}</span>
+          </span>
+        </div>
+      )}
+
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -421,7 +454,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
             type="submit"
             variant="default"
             className="px-6 py-2"
-            disabled={submitting || (!content.trim() && mediaItems.length === 0)}
+            disabled={submitting || (mode === "create" && !activeChannelId) || (!content.trim() && mediaItems.length === 0)}
           >
             {submitting
               ? t("posting")

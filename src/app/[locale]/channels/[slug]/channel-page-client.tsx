@@ -22,10 +22,15 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import PostCard from "@/components/PostCard";
+import PostForm from "@/components/PostForm";
 import EditPostModal from "@/components/EditPostModal";
+import { useIdentity } from "@/components/IdentityProvider";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
+import { isApiErrorCode } from "@/lib/api-error";
+import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
+import { NAME_MAX_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
 import type { Post } from "@/types/post";
 import type { ChannelWithPostCount } from "@/types/channel";
 
@@ -35,10 +40,14 @@ export default function ChannelPageClient({
   channel: ChannelWithPostCount;
 }) {
   const { data: session } = useSession();
+  const { identities, refreshIdentities } = useIdentity();
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("ChannelPage");
+  const common = useTranslations("Common");
   const isOwner = session?.user?.id === initialChannel.ownerId;
+  const manageableChannelIds = useMemo(() => identities.map((identity) => identity.id), [identities]);
+  const canAuthorChannel = isOwner || manageableChannelIds.includes(initialChannel.id);
 
   const [channel, setChannel] = useState(initialChannel);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -63,7 +72,7 @@ export default function ChannelPageClient({
     loadingMore: myPostsLoadingMore,
     hasMore: myPostsHasMore,
     sentinelRef: myPostsSentinelRef,
-  } = useInfinitePosts({ channelId: channel.id, scope: "private", disabled: !isOwner, language: locale });
+  } = useInfinitePosts({ channelId: channel.id, scope: "private", disabled: !canAuthorChannel, language: locale });
 
   const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);
 
@@ -71,6 +80,17 @@ export default function ChannelPageClient({
     setPublicPosts((prev) => prev.filter((p) => p.id !== id));
     setMyPosts((prev) => prev.filter((p) => p.id !== id));
   }, [setPublicPosts, setMyPosts]);
+
+  const handleCreateSuccess = useCallback((post: Post) => {
+    if (post.isPublic) {
+      setChannel((prev) => ({ ...prev, postCount: prev.postCount + 1 }));
+    }
+    if (post.isPublic) {
+      setPublicPosts((prev) => [post, ...prev]);
+    } else {
+      setMyPosts((prev) => [post, ...prev]);
+    }
+  }, [setMyPosts, setPublicPosts]);
 
   const handleEdit = useCallback((postId: string) => {
     const found = [...publicPosts, ...myPosts].find((p) => p.id === postId);
@@ -95,13 +115,20 @@ export default function ChannelPageClient({
       });
       if (res.ok) {
         const updated = await res.json();
-        setChannel((prev) => ({ ...prev, name: updated.name, slug: updated.slug }));
+        setChannel((prev) => ({ ...prev, name: updated.name, slug: updated.slug, renameCount: updated.renameCount }));
         setRenameOpen(false);
+        refreshIdentities().catch(() => {});
         router.replace(`/channels/${updated.slug}`);
       } else {
         const data = await res.json().catch(() => ({}));
-        if (data.error === "name_taken") {
+        if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
+          setNameError(common("tooManyRequests"));
+        } else if (data.error === "name_taken") {
           setNameError(t("nameTaken"));
+        } else if (data.error === "rename_limit_reached") {
+          setNameError(t("saveError"));
+        } else if (data.error === "validation_error:name:too_big") {
+          setNameError(t("nameTooLong", { max: NAME_MAX_LENGTH }));
         } else {
           setNameError(t("saveError"));
         }
@@ -141,7 +168,14 @@ export default function ChannelPageClient({
       <div>
         <div className="space-y-4">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} currentUserId={isOwner ? session?.user?.id : undefined} onDelete={handleDelete} onEdit={isOwner ? handleEdit : undefined} />
+            <PostCard
+              key={post.id}
+              post={post}
+              currentUserId={session?.user?.id}
+              manageableChannelIds={manageableChannelIds}
+              onDelete={canAuthorChannel ? handleDelete : undefined}
+              onEdit={canAuthorChannel ? handleEdit : undefined}
+            />
           ))}
         </div>
         {hasMore && (
@@ -206,12 +240,17 @@ export default function ChannelPageClient({
                       autoComplete="off"
                       autoFocus
                       errorMessage={nameError || undefined}
+                      maxLength={NAME_MAX_LENGTH}
                     />
+                    <div className="flex items-center justify-between text-xs text-deep/50">
+                      <span>{common("renameCountInfo")}</span>
+                      <span>{common("renameCount", { count: channel.renameCount, max: MAX_RENAME_COUNT })}</span>
+                    </div>
                     <div className="flex justify-end gap-2">
                       <Button type="button" variant="outline" className="min-w-24" onClick={() => setRenameOpen(false)}>
                         {t("cancel")}
                       </Button>
-                      <Button type="submit" className="min-w-24" disabled={saving || !newName.trim()}>
+                      <Button type="submit" className="min-w-24" disabled={saving || !newName.trim() || channel.renameCount >= MAX_RENAME_COUNT}>
                         {saving ? t("saving") : t("save")}
                       </Button>
                     </div>
@@ -226,7 +265,17 @@ export default function ChannelPageClient({
         </p>
       </Card>
 
-      {isOwner ? (
+      {canAuthorChannel && (
+        <Card variant="default" padding="lg" className="mb-8">
+          <PostForm
+            mode="create"
+            onSuccess={handleCreateSuccess}
+            postingChannel={{ id: channel.id, name: channel.name, avatarUrl: channel.avatarUrl }}
+          />
+        </Card>
+      )}
+
+      {canAuthorChannel ? (
         <TabsRoot defaultValue="public">
           <TabsList>
             <TabsTab value="public">{t("publicPosts", { count: publicPosts.length })}</TabsTab>
@@ -244,7 +293,7 @@ export default function ChannelPageClient({
       ) : (
         <>
           <Heading as="h2" className="mb-4">{t("publicPosts", { count: publicPosts.length })}</Heading>
-          {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPublicPosts")}
+          {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPublicPostsVisitor")}
         </>
       )}
       <EditPostModal

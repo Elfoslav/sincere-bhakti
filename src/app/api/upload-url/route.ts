@@ -5,6 +5,8 @@ import { uploadUrlSchema } from "@/lib/validation";
 import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
+import { resolveAuthorableChannelId } from "@/lib/services/channel";
+import { getActiveIdentityCookie, setActiveIdentityCookie } from "@/lib/active-identity";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
@@ -37,6 +39,16 @@ export async function POST(request: NextRequest) {
     }
 
     const { fileName, contentType, postId, contentLength } = parsed.data;
+    const resolved = await resolveAuthorableChannelId({
+      explicitChannelId: parsed.data.channelId,
+      preferredChannelId: getActiveIdentityCookie(request),
+      fallbackChannelId: session.user.channelId,
+      userId: session.user.id,
+    });
+    if (resolved.explicitForbidden) {
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+    }
+    const channelId = resolved.channelId;
 
     const { uploadUrl, publicUrl, key } = await createUploadUrl(
       fileName,
@@ -50,17 +62,21 @@ export async function POST(request: NextRequest) {
         data: {
           key,
           userId: session.user.id,
-          channelId: session.user.channelId,
+          channelId,
           expiresAt: new Date(Date.now() + 3600_000),
         },
       });
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       uploadUrl,
       publicUrl,
       mediaType: contentTypeToMediaType(contentType),
     });
+    if (resolved.shouldRefreshPreference && channelId) {
+      setActiveIdentityCookie(response, channelId);
+    }
+    return response;
   } catch (error) {
     logServerError("POST /api/upload-url failed", error);
     return NextResponse.json(

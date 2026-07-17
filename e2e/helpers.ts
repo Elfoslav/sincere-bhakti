@@ -25,7 +25,7 @@ export async function openEditModal(page: Page) {
 
 export async function goToPostPage(page: Page, postId: string) {
   await page.goto(`/en/posts/${postId}`);
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("load");
 }
 
 export async function switchToPreviewTab(dialog: Locator) {

@@ -7,4 +7,5 @@ export interface ChannelWithPostCount {
   ownerId: string;
   postCount: number;
   isPersonal: boolean;
+  renameCount: number;
 }
