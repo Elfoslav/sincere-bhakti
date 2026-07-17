@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { MAX_RENAME_COUNT } from "@/lib/validation";
 
 vi.mock("@/lib/prisma", () => {
   const user = {
@@ -268,6 +269,27 @@ describe("PATCH /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("Devotee");
     expect(json.renameCount).toBe(2);
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    expect(prisma.channel.update).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 for an unchanged brand name even after the rename cap is reached", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "someone@example.com" } } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "user-1",
+      name: "Sincere Bhakti",
+      email: "someone@example.com",
+      image: null,
+      createdAt: new Date("2026-01-01"),
+      renameCount: MAX_RENAME_COUNT,
+    } as any);
+
+    const res = await PATCH(mockRequest({ name: "Sincere Bhakti" }), { params: Promise.resolve({ id: "user-1" }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.name).toBe("Sincere Bhakti");
+    expect(json.renameCount).toBe(MAX_RENAME_COUNT);
     expect(prisma.user.updateMany).not.toHaveBeenCalled();
     expect(prisma.channel.update).not.toHaveBeenCalled();
   });

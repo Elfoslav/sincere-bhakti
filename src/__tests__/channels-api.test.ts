@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { MAX_RENAME_COUNT } from "@/lib/validation";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -260,6 +261,28 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(prisma.channelSlugHistory.create).not.toHaveBeenCalled();
   });
 
+  it("returns 200 for an unchanged brand name even after the rename cap is reached", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "someone@example.com" } } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({
+      id: "ch-1",
+      name: "Sincere Bhakti",
+      ownerId: "user-1",
+      isPersonal: false,
+      slug: "sincere-bhakti",
+      avatarUrl: null,
+      renameCount: MAX_RENAME_COUNT,
+    } as any);
+
+    const res = await PATCH(mockRequest({ name: "Sincere Bhakti" }), params);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.name).toBe("Sincere Bhakti");
+    expect(json.renameCount).toBe(MAX_RENAME_COUNT);
+    expect(prisma.channel.updateMany).not.toHaveBeenCalled();
+    expect(prisma.channelSlugHistory.create).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when the rename cap is reached during the write", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old Name", ownerId: "user-1", isPersonal: false, slug: "old-name", avatarUrl: null, renameCount: 2 } as any);
@@ -299,15 +322,15 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(json.error).toBe("not_found");
   });
 
-  it("returns 403 when not the owner", async () => {
+  it("returns 404 when not the owner", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-2" } } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1", isPersonal: false, slug: "my-channel" } as any);
 
     const res = await PATCH(mockRequest({ name: "New" }), params);
     const json = await res.json();
 
-    expect(res.status).toBe(403);
-    expect(json.error).toBe("forbidden");
+    expect(res.status).toBe(404);
+    expect(json.error).toBe("not_found");
   });
 
   it("returns 403 when not authenticated", async () => {
