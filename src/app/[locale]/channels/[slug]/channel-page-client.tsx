@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
 import PostCard from "@/components/PostCard";
 import PostForm from "@/components/PostForm";
 import EditPostModal from "@/components/EditPostModal";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { useIdentity } from "@/components/IdentityProvider";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
@@ -44,6 +45,7 @@ export default function ChannelPageClient({
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("ChannelPage");
+  const channelsT = useTranslations("ChannelsPage");
   const common = useTranslations("Common");
   const isOwner = session?.user?.id === initialChannel.ownerId;
   const manageableChannelIds = useMemo(() => identities.map((identity) => identity.id), [identities]);
@@ -193,6 +195,13 @@ export default function ChannelPageClient({
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8">
+      <Breadcrumb
+        items={[
+          { label: channelsT("title"), href: "/channels" },
+          { label: channel.name },
+        ]}
+        className="mb-6"
+      />
       <Card variant="default" padding="lg" className="mb-8 text-center">
         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
           {channel.name[0]?.toUpperCase() || "?"}
@@ -271,9 +280,19 @@ export default function ChannelPageClient({
             )
           )}
         </div>
-        <p className="text-deep/50 text-sm mt-2">
-          {channel.postCount} {t("posts")}
-        </p>
+        <div className="mt-2 flex items-center justify-center gap-2 text-sm text-deep/50">
+          <span>{t("channelLabel")}</span>
+          <span aria-hidden="true" className="text-deep/25">·</span>
+          <span>{t("postCount", { count: channel.postCount })}</span>
+        </div>
+        {isOwner && (
+          <p className="mt-1 text-sm text-deep/50">
+            <span>{t("ownerLabel")}: </span>
+            <Link href={`/profile/${channel.ownerId}`} className="font-medium text-deep/70 hover:text-gold">
+              {channel.ownerName}
+            </Link>
+          </p>
+        )}
       </Card>
 
       {canAuthorChannel && (

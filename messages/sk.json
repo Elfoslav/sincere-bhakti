@@ -206,6 +206,9 @@
 		"metaDescription": "Prehliadať všetky kanály na Sincere Bhakti"
 	},
 	"ChannelPage": {
+		"channelLabel": "Kanál",
+		"ownerLabel": "Vlastník",
+		"postCount": "{count} príspevkov",
 		"posts": "príspevkov",
 		"publicPosts": "Verejné príspevky ({count})",
 		"privatePosts": "Súkromné príspevky ({count})",

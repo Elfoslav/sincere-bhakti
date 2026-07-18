@@ -5,6 +5,7 @@ export interface ChannelWithPostCount {
   avatarUrl: string | null;
   createdAt: string;
   ownerId: string;
+  ownerName: string;
   postCount: number;
   isPersonal: boolean;
   renameCount: number;

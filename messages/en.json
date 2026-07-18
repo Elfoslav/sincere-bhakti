@@ -206,6 +206,9 @@
 		"metaDescription": "Browse all channels on Sincere Bhakti"
 	},
 	"ChannelPage": {
+		"channelLabel": "Channel",
+		"ownerLabel": "Owner",
+		"postCount": "{count} posts",
 		"posts": "posts",
 		"publicPosts": "Public Posts ({count})",
 		"privatePosts": "Private Posts ({count})",
