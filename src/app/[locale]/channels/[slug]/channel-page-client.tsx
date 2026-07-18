@@ -207,7 +207,7 @@ export default function ChannelPageClient({
                     <Button
                       type="button"
                       aria-disabled="true"
-                      className="cursor-not-allowed text-deep/20 hover:bg-transparent hover:text-deep/20"
+                      className="cursor-not-allowed text-deep/20 hover:bg-transparent hover:text-deep/20 active:bg-transparent"
                       icon={<Pencil />}
                     />
                   }

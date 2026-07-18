@@ -63,6 +63,13 @@ describe("buttonVariants rounded styles", () => {
     expect(classes).not.toContain("bg-clip-border");
   });
 
+  it("aria-disabled buttons do not show active movement or focus glow", () => {
+    const classes = mergedClasses({ variant: "icon", size: "icon" });
+    expect(classes).toContain("aria-disabled:active:translate-y-0");
+    expect(classes).toContain("aria-disabled:focus-visible:border-transparent");
+    expect(classes).toContain("aria-disabled:focus-visible:ring-0");
+  });
+
   it("non-pill variants fall back to the base radius at default size", () => {
     const classes = mergedClasses({ variant: "ghost", size: "default" });
     expect(classes).toContain("rounded-lg");

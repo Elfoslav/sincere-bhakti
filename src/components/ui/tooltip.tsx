@@ -21,8 +21,44 @@ function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
 }
 
-function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+function TooltipTrigger({
+  closeOnClick = false,
+  onClick,
+  onPointerDown,
+  onTouchStart,
+  ...props
+}: TooltipPrimitive.Trigger.Props) {
+  function focusTrigger(element: HTMLElement) {
+    element.focus({ preventScroll: true })
+  }
+
+  function isCoarsePointer() {
+    return window.matchMedia?.("(hover: none), (pointer: coarse)").matches ?? false
+  }
+
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      closeOnClick={closeOnClick}
+      {...props}
+      onPointerDown={(event) => {
+        if (event.pointerType !== "mouse" || isCoarsePointer()) {
+          focusTrigger(event.currentTarget)
+        }
+        onPointerDown?.(event)
+      }}
+      onTouchStart={(event) => {
+        focusTrigger(event.currentTarget)
+        onTouchStart?.(event)
+      }}
+      onClick={(event) => {
+        if (isCoarsePointer()) {
+          focusTrigger(event.currentTarget)
+        }
+        onClick?.(event)
+      }}
+    />
+  )
 }
 
 function TooltipContent({
