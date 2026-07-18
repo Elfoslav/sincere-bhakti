@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
+const dialogActionsClassName = "grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-end"
+const dialogActionButtonClassName = "w-full sm:w-auto sm:min-w-24"
+
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
@@ -101,7 +104,8 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-row flex-wrap justify-end gap-2 rounded-b-xl border-t bg-muted/50 p-4",
+        "-mx-4 -mb-4 rounded-b-xl border-t bg-muted/50 p-4",
+        dialogActionsClassName,
         className
       )}
       {...props}
@@ -113,6 +117,16 @@ function DialogFooter({
         </DialogPrimitive.Close>
       )}
     </div>
+  )
+}
+
+function DialogActions({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-actions"
+      className={cn(dialogActionsClassName, className)}
+      {...props}
+    />
   )
 }
 
@@ -147,6 +161,7 @@ function DialogDescription({
 
 export {
   Dialog,
+  DialogActions,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -156,4 +171,5 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  dialogActionButtonClassName,
 }

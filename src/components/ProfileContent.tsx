@@ -12,11 +12,13 @@ import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+	Dialog,
+	DialogActions,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+	dialogActionButtonClassName,
 } from "@/components/ui/dialog";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
@@ -250,14 +252,14 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 										<span>{common("renameCountInfo")}</span>
 										<span>{common("renameCount", { count: profile.renameCount, max: MAX_RENAME_COUNT })}</span>
 									</div>
-									<div className="flex justify-end gap-2">
-										<Button type="button" variant="outline" className="min-w-24" onClick={() => setOpen(false)}>
+									<DialogActions>
+										<Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={() => setOpen(false)}>
 											{t("cancel")}
 										</Button>
-										<Button type="submit" className="min-w-24" disabled={saving || !newName.trim() || profile.renameCount >= MAX_RENAME_COUNT}>
+										<Button type="submit" className={dialogActionButtonClassName} disabled={saving || !newName.trim() || profile.renameCount >= MAX_RENAME_COUNT}>
 											{saving ? t("saving") : t("save")}
 										</Button>
-									</div>
+									</DialogActions>
 								</form>
 							</DialogContent>
 						</Dialog>
@@ -317,11 +319,11 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 												</span>
 											</div>
 										</Alert>
-										<div className="flex justify-end gap-2">
+										<DialogActions>
 											<Button
 												type="button"
 												variant="outline"
-												className="min-w-24"
+												className={dialogActionButtonClassName}
 												onClick={() => {
 													setChannelDialogOpen(false);
 													setChannelName("");
@@ -330,10 +332,10 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 											>
 												{t("cancel")}
 											</Button>
-											<Button type="submit" className="min-w-24" disabled={channelSaving || channelLimitReached || !channelName.trim()}>
+											<Button type="submit" className={dialogActionButtonClassName} disabled={channelSaving || channelLimitReached || !channelName.trim()}>
 												{channelSaving ? t("creating") : t("save")}
 											</Button>
-										</div>
+										</DialogActions>
 									</form>
 								</DialogContent>
 							</Dialog>

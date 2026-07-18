@@ -11,10 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Pencil } from "lucide-react";
 import {
   Dialog,
+  DialogActions,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  dialogActionButtonClassName,
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -266,14 +268,14 @@ export default function ChannelPageClient({
                       <span>{common("renameCountInfo")}</span>
                       <span>{common("renameCount", { count: channel.renameCount, max: MAX_RENAME_COUNT })}</span>
                     </div>
-                    <div className="flex justify-end gap-2">
-                      <Button type="button" variant="outline" className="min-w-24" onClick={() => setRenameOpen(false)}>
+                    <DialogActions>
+                      <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={() => setRenameOpen(false)}>
                         {t("cancel")}
                       </Button>
-                      <Button type="submit" className="min-w-24" disabled={saving || !newName.trim() || channel.renameCount >= MAX_RENAME_COUNT}>
+                      <Button type="submit" className={dialogActionButtonClassName} disabled={saving || !newName.trim() || channel.renameCount >= MAX_RENAME_COUNT}>
                         {saving ? t("saving") : t("save")}
                       </Button>
-                    </div>
+                    </DialogActions>
                   </form>
                 </DialogContent>
               </Dialog>

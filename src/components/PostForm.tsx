@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { DialogActions, dialogActionButtonClassName } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { GripVertical, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -446,16 +447,16 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
           </label>
         </div>
 
-        <div className="flex items-center gap-2">
+        <DialogActions className={onCancel ? undefined : "flex grid-cols-none items-center justify-end"}>
           {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={onCancel}>
               {t("cancel")}
             </Button>
           )}
           <Button
             type="submit"
             variant="default"
-            className="px-6 py-2"
+            className={onCancel ? dialogActionButtonClassName : "px-6 py-2"}
             disabled={submitting || (mode === "create" && !activeChannelId) || (!content.trim() && mediaItems.length === 0)}
           >
             {submitting
@@ -464,7 +465,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
                 ? t("saveButton")
                 : t("postButton")}
           </Button>
-        </div>
+        </DialogActions>
       </div>
     </form>
   );
