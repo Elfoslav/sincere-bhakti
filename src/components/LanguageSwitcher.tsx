@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const locales = [
   { code: "en", label: "EN", flag: "🇬🇧" },
@@ -11,7 +12,7 @@ const locales = [
   { code: "sk", label: "SK", flag: "🇸🇰" },
 ] as const;
 
-export default function LanguageSwitcher() {
+export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: boolean }) {
   const locale = useLocale();
   const pathname = usePathname();
   const router = useRouter();
@@ -65,10 +66,15 @@ export default function LanguageSwitcher() {
       <button
         ref={btnRef}
         onClick={() => setOpen((p) => !p)}
-        className="flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors px-3 py-2 rounded-md border border-white/10 hover:border-white/20 min-h-10"
+        className={cn(
+          "flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors px-3 py-2 rounded-md border border-white/10 hover:border-white/20 min-h-10",
+          fullWidth && "w-full justify-between",
+        )}
       >
-        <span className="text-base leading-none">{current.flag}</span>
-        <span className="text-xs font-medium uppercase">{current.label}</span>
+        <span className="flex items-center gap-2">
+          <span className="text-base leading-none">{current.flag}</span>
+          <span className="text-xs font-medium uppercase">{current.label}</span>
+        </span>
         <ChevronDown
           className={`w-3 h-3 transition-transform duration-200 ${
             open ? "rotate-180" : ""
