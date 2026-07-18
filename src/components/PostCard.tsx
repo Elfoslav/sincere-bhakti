@@ -8,6 +8,7 @@ import { Link as LinkIcon, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { extractYouTubeContent } from "@/lib/video";
 import { replaceEmoticons } from "@/lib/emoticons";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import ImageGallery from "@/components/ImageGallery";
@@ -102,44 +103,37 @@ export default function PostCard({
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {canManage && !hideEdit && onEdit && (
-            <button
+            <Button
               onClick={() => onEdit(post.id)}
-              className="text-deep/40 hover:text-gold transition-colors p-1 cursor-pointer"
               title={t("editPost")}
               aria-label={t("editPost")}
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
+              icon={<Pencil />}
+            />
           )}
           {canManage && onDelete && (
-            <button
+            <Button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={isDeleting}
-              className="text-deep/40 hover:text-red-500 transition-colors p-1 cursor-pointer disabled:opacity-30"
+              variant="icon-destructive"
               title={t("delete")}
               aria-label={t("delete")}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              icon={<Trash2 />}
+            />
           )}
           {hideExternalLink ? (
-            <button
+            <Button
               onClick={handleCopyLink}
-              className="text-deep/40 hover:text-gold transition-colors p-1 cursor-pointer"
               title={t("copyLink")}
               aria-label={t("copyLink")}
-            >
-              <LinkIcon className="w-4 h-4" />
-            </button>
+              icon={<LinkIcon />}
+            />
           ) : (
-            <Link
+            <Button
               href={`/posts/${post.id}`}
-              className="text-deep/40 hover:text-gold transition-colors p-1"
               title={t("openPost")}
               aria-label={t("openPost")}
-            >
-              <ExternalLink className="w-4 h-4" />
-            </Link>
+              icon={<ExternalLink />}
+            />
           )}
         </div>
       </div>

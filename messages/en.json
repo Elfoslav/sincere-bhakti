@@ -67,6 +67,7 @@
 		"fileTooLarge": "Some files are too large and were skipped (images max {imageMax} MB, videos max {videoMax} MB).",
 		"duplicateMediaSkipped": "Duplicate files were skipped.",
 		"totalUploadTooLarge": "Total file size exceeds the limit. Please remove some files.",
+		"removeMedia": "Remove media",
 		"createPostFailed": "Failed to create post. Please try again.",
 		"youtubePreview": "YouTube preview",
 		"preview": "Preview",

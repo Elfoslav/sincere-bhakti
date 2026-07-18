@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function MediaLightbox({
 	images,
@@ -42,25 +43,26 @@ export default function MediaLightbox({
 			aria-modal="true"
 			aria-label="Image viewer"
 		>
-			<button
+			<Button
 				onClick={onClose}
-				className="absolute top-4 right-4 p-2 bg-black/50 rounded-full text-white/70 hover:text-white hover:bg-black/70 transition-colors"
+				variant="icon-light"
+				size="icon-lg"
+				className="absolute top-4 right-4 rounded-full bg-black/50 hover:bg-black/70"
 				aria-label="Close"
-			>
-				<X className="w-6 h-6" />
-			</button>
+				icon={<X className="size-6" />}
+			/>
 
 			{currentIndex > 0 && (
-				<button
+				<Button
 					onClick={(e) => {
 						e.stopPropagation();
 						onNavigate(currentIndex - 1);
 					}}
-					className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/50 rounded-full text-white/70 hover:text-white hover:bg-black/70 transition-colors"
+					variant="icon-light"
+					className="absolute left-4 top-1/2 size-12 -translate-y-1/2 rounded-full bg-black/50 hover:bg-black/70"
 					aria-label="Previous image"
-				>
-					<ChevronLeft className="w-8 h-8" />
-				</button>
+					icon={<ChevronLeft className="size-8" />}
+				/>
 			)}
 
 			<div className="bg-[conic-gradient(#e5e5e5_25%,#f5f5f5_0_50%,#e5e5e5_0_75%,#f5f5f5_0)] bg-[length:24px_24px] rounded overflow-hidden">
@@ -73,16 +75,16 @@ export default function MediaLightbox({
 			</div>
 
 			{currentIndex < images.length - 1 && (
-				<button
+				<Button
 					onClick={(e) => {
 						e.stopPropagation();
 						onNavigate(currentIndex + 1);
 					}}
-					className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/50 rounded-full text-white/70 hover:text-white hover:bg-black/70 transition-colors"
+					variant="icon-light"
+					className="absolute right-4 top-1/2 size-12 -translate-y-1/2 rounded-full bg-black/50 hover:bg-black/70"
 					aria-label="Next image"
-				>
-					<ChevronRight className="w-8 h-8" />
-				</button>
+					icon={<ChevronRight className="size-8" />}
+				/>
 			)}
 
 			<div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 rounded-full px-3 py-1 text-white/70 text-sm">

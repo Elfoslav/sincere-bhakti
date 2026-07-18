@@ -202,9 +202,17 @@ export default function ChannelPageClient({
           {isOwner && (
             channel.isPersonal ? (
               <Tooltip>
-                <TooltipTrigger aria-label={t("changeNameInProfile")}>
-                  <Pencil className="w-[18px] h-[18px] text-deep/20 cursor-not-allowed" />
-                </TooltipTrigger>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      aria-disabled="true"
+                      className="cursor-not-allowed text-deep/20 hover:bg-transparent hover:text-deep/20"
+                      icon={<Pencil />}
+                    />
+                  }
+                  aria-label={t("changeNameInProfile")}
+                />
                 <TooltipContent>
                   {t("changeNameInProfile")}
                 </TooltipContent>
@@ -212,12 +220,15 @@ export default function ChannelPageClient({
             ) : (
               <Dialog open={renameOpen} onOpenChange={(open) => { setRenameOpen(open); if (open) { setNewName(channel.name); setNameError(""); } }}>
                 <DialogTrigger
-                  className="text-gold hover:text-gold-light transition-colors cursor-pointer"
+                  render={
+                    <Button
+                      className="text-gold hover:text-gold-light"
+                      icon={<Pencil />}
+                    />
+                  }
                   title={t("editName")}
                   aria-label={t("editName")}
-                >
-                  <Pencil className="w-[18px] h-[18px]" />
-                </DialogTrigger>
+                />
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>{t("editNameTitle")}</DialogTitle>

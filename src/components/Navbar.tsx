@@ -80,13 +80,16 @@ export default function Navbar() {
 						<div className="md:hidden">
 							<LanguageSwitcher />
 						</div>
-						<button
-							className="md:hidden p-2"
+						<Button
+							type="button"
+							variant="icon-light"
+							size="icon-lg"
+							className="md:hidden"
 							onClick={() => setOpen(!open)}
 							aria-label={t("toggleMenu")}
-						>
-							<Hamburger open={open} />
-						</button>
+							aria-expanded={open}
+							icon={<Hamburger open={open} />}
+						/>
 
 						<div className="hidden md:flex items-center gap-4">
 							<LanguageSwitcher />

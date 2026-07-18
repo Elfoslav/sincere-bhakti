@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { GripVertical } from "lucide-react";
+import { GripVertical, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getYouTubeEmbedUrl } from "@/lib/video";
 import { formatBytes } from "@/lib/format";
@@ -384,13 +384,15 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
                   {formatBytes(item.file.size)}
                 </span>
               )}
-              <button
+              <Button
                 type="button"
                 onClick={() => removeMedia(item.id)}
-                className="text-deep/30 hover:text-red-500 transition-colors p-1 ml-auto"
-              >
-                ✕
-              </button>
+                variant="icon-destructive"
+                size="icon-xs"
+                className="ml-auto text-deep/30"
+                aria-label={t("removeMedia")}
+                icon={<X />}
+              />
             </div>
           ))}
         </div>

@@ -2,6 +2,7 @@
 
 import { Search, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface SearchInputProps {
   value: string;
@@ -41,14 +42,15 @@ export default function SearchInput({
         {loading ? (
           <Loader2 className="w-4 h-4 text-muted-foreground/40 animate-spin" />
         ) : value ? (
-          <button
+          <Button
             type="button"
             onClick={() => onChange("")}
-            className="p-0.5 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+            variant="icon-destructive"
+            size="icon-xs"
+            className="text-muted-foreground/40"
             aria-label="Clear search"
-          >
-            <X className="w-4 h-4" />
-          </button>
+            icon={<X />}
+          />
         ) : null}
       </div>
     </div>

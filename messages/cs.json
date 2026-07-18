@@ -67,6 +67,7 @@
 		"fileTooLarge": "Některé soubory jsou příliš velké a byly přeskočeny (obrázky max. {imageMax} MB, videa max. {videoMax} MB).",
 		"duplicateMediaSkipped": "Duplicitní soubory byly přeskočeny.",
 		"totalUploadTooLarge": "Celková velikost souborů překračuje limit. Prosím odeberte některé soubory.",
+		"removeMedia": "Odebrat médium",
 		"createPostFailed": "Nepodařilo se vytvořit příspěvek. Zkuste to prosím znovu.",
 		"youtubePreview": "YouTube náhled",
 		"preview": "Náhled",

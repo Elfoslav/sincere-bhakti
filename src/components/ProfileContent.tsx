@@ -198,14 +198,11 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 				{isOwnProfile && (
 					<Button
 						href="/profile/settings"
-						variant="ghost"
-						size="icon-sm"
 						className="absolute right-3 top-3 sm:right-4 sm:top-4 text-deep/40 hover:text-gold-light"
 						title={t("settings")}
 						aria-label={t("settings")}
-					>
-						<Settings className="w-[18px] h-[18px]" />
-					</Button>
+						icon={<Settings />}
+					/>
 				)}
 				<div className="w-20 h-20 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
 					{profile.name[0]?.toUpperCase() || "?"}
@@ -216,12 +213,15 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 						<>
 							<Dialog open={open} onOpenChange={setOpen}>
 							<DialogTrigger
-								className="text-gold hover:text-gold-light transition-colors cursor-pointer"
+								render={
+									<Button
+										className="text-gold hover:text-gold-light"
+										icon={<Pencil />}
+									/>
+								}
 								title={t("editName")}
 								aria-label={t("editName")}
-							>
-								<Pencil className="w-[18px] h-[18px]" />
-							</DialogTrigger>
+							/>
 							<DialogContent className="sm:max-w-md">
 								<DialogHeader>
 									<DialogTitle>{t("editNameTitle")}</DialogTitle>
