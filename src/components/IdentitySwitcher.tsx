@@ -34,9 +34,9 @@ export default function IdentitySwitcher({ compact = false, mobileNav = false, o
         type="button"
         className={cn(
           "flex items-center gap-2 rounded-full border border-white/15 bg-white/10 text-left text-white transition-colors hover:bg-white/15",
-          mobileNav && "h-9 w-full min-w-0 gap-2 border-white/10 px-3 text-white/85",
+          mobileNav && "h-9 w-full min-w-0 gap-2 border-white/10 pl-1 pr-3 text-white/85",
           compact && !mobileNav ? "w-full px-3 py-2" : "",
-          !compact && !mobileNav ? "max-w-56 px-3 py-1.5" : "",
+          !compact && !mobileNav ? "h-10 max-w-56 pl-1 pr-3" : "",
         )}
         onClick={() => setOpen((value) => !value)}
         aria-haspopup="menu"
@@ -127,9 +127,9 @@ function IdentitySwitcherPlaceholder({ compact = false, mobileNav = false }: { c
       aria-hidden="true"
       className={cn(
         "flex items-center gap-2 rounded-full border border-white/10 bg-white/5 opacity-70",
-        mobileNav && "h-9 w-full max-w-44 px-3",
+        mobileNav && "h-9 w-full max-w-44 pl-1 pr-3",
         compact && !mobileNav ? "w-full px-3 py-2" : "",
-        !compact && !mobileNav ? "w-56 px-3 py-1.5" : "",
+        !compact && !mobileNav ? "h-10 w-56 pl-1 pr-3" : "",
       )}
     >
       <span className={cn("shrink-0 rounded-full bg-white/10", mobileNav ? "size-5" : "size-8")} />

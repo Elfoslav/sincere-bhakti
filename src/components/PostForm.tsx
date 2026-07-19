@@ -322,7 +322,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
       {mode === "create" && postingIdentity && (
         <div className="mb-3 flex items-center gap-2 text-sm text-deep/60">
           <span>{t("postingAs")}</span>
-          <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-deep/5 px-3 py-1 font-medium text-deep">
+          <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-deep/5 py-1 pl-1 pr-3 font-medium text-deep">
             {postingIdentity.avatarUrl ? (
               <img src={postingIdentity.avatarUrl} alt="" className="size-5 rounded-full object-cover" />
             ) : (
