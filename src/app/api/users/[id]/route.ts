@@ -8,10 +8,24 @@ import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_RENAME_LIMIT } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 import { getMaxChannelsPerUser } from "@/lib/channel-limit";
+import type { ChannelMemberRole } from "@/lib/channel-roles";
 
 class NameTakenError extends Error {
   name = "NameTakenError" as const;
 }
+
+type ManagedChannelSelection = {
+  role: ChannelMemberRole;
+  channel: {
+    id: string;
+    name: string;
+    slug: string;
+    avatarUrl: string | null;
+    ownerId: string;
+    isPersonal: boolean;
+    _count: { posts: number };
+  };
+};
 
 export async function GET(
   request: NextRequest,
@@ -26,6 +40,7 @@ export async function GET(
     const { id } = await params;
 
     const session = await auth();
+    const isOwnProfile = session?.user?.id === id;
 
     const user = await prisma.user.findUnique({
       where: { id },
@@ -39,7 +54,27 @@ export async function GET(
           where: { ownerId: id },
           select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, isPersonal: true, _count: { select: { posts: { where: { isPublic: true } } } } },
         },
-        ...(session?.user?.id === id ? { email: true } : {}),
+        ...(isOwnProfile ? {
+          email: true,
+          editors: {
+            where: { channel: { ownerId: { not: id } } },
+            select: {
+              role: true,
+              channel: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  avatarUrl: true,
+                  ownerId: true,
+                  isPersonal: true,
+                  _count: { select: { posts: { where: { isPublic: true } } } },
+                },
+              },
+            },
+            orderBy: [{ channelId: "asc" }],
+          },
+        } : {}),
       },
     });
 
@@ -47,13 +82,18 @@ export async function GET(
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
-    const { channels, ...profile } = user;
+    const { channels, editors = [], ...profile } = user;
+    const managedEditors = editors as unknown as ManagedChannelSelection[];
     const additionalChannelCount = channels.filter((channel) => !channel.isPersonal).length;
     return NextResponse.json({
       ...profile,
       additionalChannelCount,
       channelLimit: getMaxChannelsPerUser(),
       channels: channels.map(({ _count, ...ch }) => ({ ...ch, postCount: _count.posts })),
+      managedChannels: managedEditors.map(({ role, channel }) => {
+        const { _count, ...ch } = channel;
+        return { ...ch, role: role as ChannelMemberRole, postCount: _count.posts };
+      }),
     });
   } catch (error) {
     logServerError("GET /api/users/[id] failed", error);

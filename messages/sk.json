@@ -20,6 +20,7 @@
 		"closeSwitcher": "Zavrieť prepínač identity",
 		"personal": "Osobný",
 		"owner": "Vlastník",
+		"admin": "Admin",
 		"editor": "Editor",
 		"manage": "Spravovať kanály"
 	},
@@ -67,6 +68,7 @@
 		"fileTooLarge": "Niektoré súbory sú príliš veľké a boli preskočené (obrázky max. {imageMax} MB, videá max. {videoMax} MB).",
 		"duplicateMediaSkipped": "Duplicitné súbory boli preskočené.",
 		"totalUploadTooLarge": "Celková veľkosť súborov presahuje limit. Prosím odstráňte niektoré súbory.",
+		"removeMedia": "Odstrániť médium",
 		"createPostFailed": "Nepodarilo sa vytvoriť príspevok. Skúste to prosím znova.",
 		"youtubePreview": "YouTube náhľad",
 		"preview": "Náhľad",
@@ -130,6 +132,7 @@
 		"saving": "Ukladám...",
 		"joined": "Pripojil sa {date}",
 		"channels": "Kanály",
+		"managedChannels": "Spravované kanály",
 		"noChannels": "Zatiaľ žiadne kanály.",
 		"noProfile": "Tento oddaný sa buď vybral na zelenšie pastviny, alebo nikdy neexistoval. Tak či tak, nie je tu.",
 		"noProfileTitle": "Oddaný nenájdený",
@@ -140,16 +143,17 @@
 		"nameTooLong": "Meno nesmie presiahnuť {max} znakov",
 		"saveError": "Nepodarilo sa uložiť",
 		"settings": "Nastavenia",
+		"roleAdmin": "Admin",
+		"roleEditor": "Editor",
 		"createChannel": "Vytvoriť kanál",
 		"createChannelTitle": "Vytvoriť kanál",
 		"channelNamePlaceholder": "Názov kanálu",
 		"creating": "Vytváram...",
-		"channelLimitModalInfo": "Môžete vytvoriť až {max} kanálov.",
+		"channelLimitModalInfo": "Môžete vytvoriť až {max} kanálov:",
 		"channelLimitReachedError": "Dosiahli ste limit {max} ďalších kanálov."
 	},
 	"SettingsPage": {
 		"title": "Nastavenia",
-		"backToProfile": "← Späť na profil",
 		"description": "Zmeňte heslo, ktoré používate na prihlásenie.",
 		"changePassword": "Zmeniť heslo",
 		"currentPasswordLabel": "Súčasné heslo",
@@ -184,7 +188,6 @@
 	},
 	"SinglePost": {
 		"title": "Príspevok",
-		"backLink": "← Späť na príspevky",
 		"notFound": "Príspevok nenájdený",
 		"loadError": "Pri načítavaní príspevku došlo k chybe. Skúste to prosím znova."
 	},
@@ -205,6 +208,9 @@
 		"metaDescription": "Prehliadať všetky kanály na Sincere Bhakti"
 	},
 	"ChannelPage": {
+		"channelLabel": "Kanál",
+		"ownerLabel": "Vlastník",
+		"postCount": "{count} príspevkov",
 		"posts": "príspevkov",
 		"publicPosts": "Verejné príspevky ({count})",
 		"privatePosts": "Súkromné príspevky ({count})",
@@ -222,7 +228,34 @@
 		"saveError": "Niečo sa pokazilo",
 		"nameTaken": "Tento názov už bol obsadený",
 		"nameTooLong": "Názov nesmie presiahnuť {max} znakov",
-		"changeNameInProfile": "Zmeňte svoje meno v nastaveniach profilu"
+		"changeNameInProfile": "Zmeňte svoje meno v nastaveniach profilu",
+		"settings": "Nastavenia kanála"
+	},
+	"ChannelSettingsPage": {
+		"metaTitle": "Nastavenia kanála",
+		"title": "Nastavenia kanála",
+		"membersTitle": "Admini a editori",
+		"membersSubtitle": "Pridajte dôveryhodných používateľov, ktorí môžu pomáhať so správou alebo publikovaním v tomto kanáli.",
+		"emailPlaceholder": "E-mail používateľa",
+		"roleAdmin": "Admin",
+		"roleEditor": "Editor",
+		"addMember": "Pridať člena",
+		"adding": "Pridávam...",
+		"editMemberTitle": "Upraviť člena",
+		"saveChanges": "Uložiť zmeny",
+		"saving": "Ukladám...",
+		"cancel": "Zrušiť",
+		"currentMembers": "Aktuálni členovia",
+		"noMembers": "Zatiaľ žiadni admini ani editori.",
+		"memberAdded": "Člen pridaný",
+		"memberUpdated": "Prístup člena bol aktualizovaný",
+		"userNotFound": "Používateľa sa nepodarilo pridať. Skontrolujte e-mailovú adresu alebo rolu a skúste to znova.",
+		"memberAlreadyExists": "Tento používateľ už je členom. Otvorte ho v časti Aktuálni členovia a upravte jeho rolu.",
+		"memberConflict": "Prístup člena sa zmenil v rovnakej chvíli. Obnovte stránku a skúste to znova.",
+		"cannotAddOwner": "Vlastník kanála už má plný prístup.",
+		"tooManyRequests": "Robíte to príliš rýchlo. Počkajte prosím chvíľu a skúste to znova.",
+		"validationError": "Zadajte platný e-mail a rolu.",
+		"saveError": "Niečo sa pokazilo"
 	},
 	"Common": {
 		"cancel": "Zrušiť",

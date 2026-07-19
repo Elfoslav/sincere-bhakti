@@ -1,4 +1,6 @@
-export type IdentityRole = "owner" | "editor";
+import type { ChannelRole } from "@/lib/channel-roles";
+
+export type IdentityRole = ChannelRole;
 
 export interface AuthorableIdentity {
   id: string;

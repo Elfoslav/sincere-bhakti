@@ -36,6 +36,40 @@ describe("buttonVariants rounded styles", () => {
     },
   );
 
+  it.each(["icon", "icon-destructive", "icon-light"] as const)(
+    "icon variant %s keeps size-tuned radius at small sizes",
+    (variant) => {
+      const classes = mergedClasses({ variant, size: "icon-sm" });
+      expect(classes).toMatch(/rounded-\[min/);
+      expect(classes).not.toContain("rounded-full");
+    },
+  );
+
+  it("default icon-only size uses the shared 18px glyph size", () => {
+    const classes = mergedClasses({ variant: "icon", size: "icon" });
+    expect(classes).toContain("size-8");
+    expect(classes).toContain("[&_svg:not([class*='size-'])]:size-[18px]");
+  });
+
+  it("buttons use pointer cursor by default", () => {
+    expect(mergedClasses({ variant: "icon", size: "icon" })).toContain("cursor-pointer");
+  });
+
+  it("default variant avoids glossy gradient borders", () => {
+    const classes = mergedClasses({ variant: "default", size: "default" });
+    expect(classes).toContain("bg-saffron");
+    expect(classes).toContain("bg-clip-padding");
+    expect(classes).not.toContain("bg-gradient-to-b");
+    expect(classes).not.toContain("bg-clip-border");
+  });
+
+  it("aria-disabled buttons do not show active movement or focus glow", () => {
+    const classes = mergedClasses({ variant: "icon", size: "icon" });
+    expect(classes).toContain("aria-disabled:active:translate-y-0");
+    expect(classes).toContain("aria-disabled:focus-visible:border-transparent");
+    expect(classes).toContain("aria-disabled:focus-visible:ring-0");
+  });
+
   it("non-pill variants fall back to the base radius at default size", () => {
     const classes = mergedClasses({ variant: "ghost", size: "default" });
     expect(classes).toContain("rounded-lg");

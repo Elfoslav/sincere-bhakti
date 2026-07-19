@@ -11,7 +11,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Utility functions** go in `src/lib/` (e.g. `video.ts`, `auth.ts`, `validation.ts`, `rate-limit.ts`).
 - **Extract pure utilities from components.** Any function inside a `.tsx` file that has no React hooks (`useState`, `useEffect`, etc.) and no browser-DOM dependency must be moved to `src/lib/` so it can be unit-tested without jsdom. Examples: `genId()`, `formatBytes()`, `getSiteUrl()`.
 - **Do not duplicate constants that are already exported from `src/lib/`.** If a list, threshold, or config constant exists in a lib file, import it — never redeclare it locally.
+- Channel roles MUST use shared constants from `src/lib/channel-roles.ts`. Never inline role string unions or values like `"admin" | "editor"` in schemas, services, components, or tests.
 - **Reusable UI** goes in `src/components/` or `src/components/ui/` (shadcn).
+- Dialogs MUST use the shared `DialogHeader` from `src/components/ui/dialog.tsx` for standard headings. Pass `text` for the title, `subheading` for helper text, and `subheadingRight` when compact metadata/counts should align to the right. Use raw `DialogTitle` / `DialogDescription` only for unusual custom layouts that `DialogHeader` cannot express.
 - **Types/interfaces** shared across files MUST go in `src/types/` and be imported where needed — never define the same type inline in multiple places. Service-specific types may stay in the service file but must be exported. Component-props interfaces stay co-located with the component.
 - Inline the same logic in multiple files only if there's a strong reason — otherwise refactor.
 - **No dead type exports.** If a type/interface is defined in `src/types/` and not imported anywhere, remove it.
@@ -84,6 +86,8 @@ Existing rate-limit entries (all defined in `src/lib/rate-limit.ts`):
 | `updateProfile` | userId | 10 | 1 hour | Profile rename |
 | `createChannel` | userId | 10 | 1 hour | Channel creation |
 | `updateChannel` | userId | 10 | 1 hour | Channel rename |
+| `readChannelMembers` | userId | 60 | 60 s | Channel settings + members |
+| `updateChannelMembers` | userId | 30 | 1 hour | Channel member management |
 
 For new endpoints, pick a reasonable limit that regular users won't hit but blocks abuse.
 

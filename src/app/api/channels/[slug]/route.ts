@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { getChannelBySlug, isNormalizedNameTaken } from "@/lib/services/channel";
+import { canManageChannelSettings, getChannelBySlug, isNormalizedNameTaken } from "@/lib/services/channel";
+import { CHANNEL_ROLE_ADMIN } from "@/lib/channel-roles";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
@@ -61,7 +62,7 @@ export async function PATCH(
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
-    if (channel.ownerId !== session.user.id) {
+    if (!await canManageChannelSettings(channel.id, session.user.id)) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
@@ -141,7 +142,14 @@ export async function PATCH(
       }
 
       const result = await tx.channel.updateMany({
-        where: { id: channel.id, ownerId: session.user.id, renameCount: { lt: MAX_RENAME_COUNT } },
+        where: {
+          id: channel.id,
+          renameCount: { lt: MAX_RENAME_COUNT },
+          OR: [
+            { ownerId: session.user.id },
+            { editors: { some: { userId: session.user.id, role: CHANNEL_ROLE_ADMIN } } },
+          ],
+        },
         data: { name, normalizedName: normalizedTarget, slug: newSlug, renameCount: { increment: 1 } },
       });
 

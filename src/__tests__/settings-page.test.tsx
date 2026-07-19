@@ -30,7 +30,6 @@ vi.mock("next-intl", () => ({
     SettingsPage: {
       title: "Settings",
       description: "Change the password you use to sign in.",
-        backToProfile: "← Back to profile",
         changePassword: "Change password",
         currentPasswordLabel: "Current password",
         currentPasswordPlaceholder: "Enter your current password",
@@ -47,6 +46,9 @@ vi.mock("next-intl", () => ({
     },
     Common: {
       tooManyRequests: "You're doing that too quickly. Please wait a moment and try again.",
+    },
+    ProfilePage: {
+      title: "Profile",
     },
   };
     return (key: string, values?: Record<string, string | number>) => {

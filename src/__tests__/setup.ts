@@ -28,6 +28,8 @@ vi.mock("@/lib/rate-limit", () => {
       changePassword: "change-password",
       readIdentity: "read-identity",
       updateIdentity: "update-identity",
+      readChannelMembers: "read-channel-members",
+      updateChannelMembers: "update-channel-members",
     },
     RATE_LIMITS: {
       register: { limit: 5, windowMs: 3_600_000 },
@@ -46,6 +48,8 @@ vi.mock("@/lib/rate-limit", () => {
       changePassword: { limit: 5, windowMs: 3_600_000 },
       readIdentity: { limit: 120, windowMs: 60_000 },
       updateIdentity: { limit: 60, windowMs: 3_600_000 },
+      readChannelMembers: { limit: 60, windowMs: 60_000 },
+      updateChannelMembers: { limit: 30, windowMs: 3_600_000 },
     },
   };
 });

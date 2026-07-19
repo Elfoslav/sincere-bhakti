@@ -20,6 +20,7 @@
 		"closeSwitcher": "Zavřít přepínač identity",
 		"personal": "Osobní",
 		"owner": "Vlastník",
+		"admin": "Admin",
 		"editor": "Editor",
 		"manage": "Spravovat kanály"
 	},
@@ -67,6 +68,7 @@
 		"fileTooLarge": "Některé soubory jsou příliš velké a byly přeskočeny (obrázky max. {imageMax} MB, videa max. {videoMax} MB).",
 		"duplicateMediaSkipped": "Duplicitní soubory byly přeskočeny.",
 		"totalUploadTooLarge": "Celková velikost souborů překračuje limit. Prosím odeberte některé soubory.",
+		"removeMedia": "Odebrat médium",
 		"createPostFailed": "Nepodařilo se vytvořit příspěvek. Zkuste to prosím znovu.",
 		"youtubePreview": "YouTube náhled",
 		"preview": "Náhled",
@@ -130,6 +132,7 @@
 		"saving": "Ukládám...",
 		"joined": "Připojil se {date}",
 		"channels": "Kanály",
+		"managedChannels": "Spravované kanály",
 		"noChannels": "Zatím žádné kanály.",
 		"noProfile": "Tento oddaný se buď vydal na zelenější pastviny, nebo nikdy neexistoval. Každopádně tu není.",
 		"noProfileTitle": "Oddaný nenalezen",
@@ -140,16 +143,17 @@
 		"nameTooLong": "Jméno nesmí přesáhnout {max} znaků",
 		"saveError": "Nepodařilo se uložit",
 		"settings": "Nastavení",
+		"roleAdmin": "Admin",
+		"roleEditor": "Editor",
 		"createChannel": "Vytvořit kanál",
 		"createChannelTitle": "Vytvořit kanál",
 		"channelNamePlaceholder": "Název kanálu",
 		"creating": "Vytvářím...",
-		"channelLimitModalInfo": "Můžete vytvořit až {max} kanálů.",
+		"channelLimitModalInfo": "Můžete vytvořit až {max} kanálů:",
 		"channelLimitReachedError": "Dosáhli jste limitu {max} dalších kanálů."
 	},
 	"SettingsPage": {
 		"title": "Nastavení",
-		"backToProfile": "← Zpět na profil",
 		"description": "Změňte heslo, které používáte k přihlášení.",
 		"changePassword": "Změnit heslo",
 		"currentPasswordLabel": "Současné heslo",
@@ -184,7 +188,6 @@
 	},
 	"SinglePost": {
 		"title": "Příspěvek",
-		"backLink": "← Zpět na příspěvky",
 		"notFound": "Příspěvek nenalezen",
 		"loadError": "Při načítání příspěvku došlo k chybě. Zkuste to prosím znovu."
 	},
@@ -205,6 +208,9 @@
 		"metaDescription": "Procházet všechny kanály na Sincere Bhakti"
 	},
 	"ChannelPage": {
+		"channelLabel": "Kanál",
+		"ownerLabel": "Vlastník",
+		"postCount": "{count} příspěvků",
 		"posts": "příspěvků",
 		"publicPosts": "Veřejné příspěvky ({count})",
 		"privatePosts": "Soukromé příspěvky ({count})",
@@ -222,7 +228,34 @@
 		"saveError": "Něco se pokazilo",
 		"nameTaken": "Tento název již byl obsazen",
 		"nameTooLong": "Název nesmí přesáhnout {max} znaků",
-		"changeNameInProfile": "Změňte své jméno v nastavení profilu"
+		"changeNameInProfile": "Změňte své jméno v nastavení profilu",
+		"settings": "Nastavení kanálu"
+	},
+	"ChannelSettingsPage": {
+		"metaTitle": "Nastavení kanálu",
+		"title": "Nastavení kanálu",
+		"membersTitle": "Admini a editoři",
+		"membersSubtitle": "Přidejte důvěryhodné uživatele, kteří mohou pomáhat se správou nebo publikováním v tomto kanálu.",
+		"emailPlaceholder": "E-mail uživatele",
+		"roleAdmin": "Admin",
+		"roleEditor": "Editor",
+		"addMember": "Přidat člena",
+		"adding": "Přidávám...",
+		"editMemberTitle": "Upravit člena",
+		"saveChanges": "Uložit změny",
+		"saving": "Ukládám...",
+		"cancel": "Zrušit",
+		"currentMembers": "Aktuální členové",
+		"noMembers": "Zatím žádní admini ani editoři.",
+		"memberAdded": "Člen přidán",
+		"memberUpdated": "Přístup člena byl aktualizován",
+		"userNotFound": "Uživatele se nepodařilo přidat. Zkontrolujte e-mailovou adresu nebo roli a zkuste to znovu.",
+		"memberAlreadyExists": "Tento uživatel už je členem. Otevřete ho v části Aktuální členové a upravte jeho roli.",
+		"memberConflict": "Přístup člena se změnil ve stejnou chvíli. Obnovte stránku a zkuste to znovu.",
+		"cannotAddOwner": "Vlastník kanálu už má plný přístup.",
+		"tooManyRequests": "Děláte to příliš rychle. Počkejte prosím chvíli a zkuste to znovu.",
+		"validationError": "Zadejte platný e-mail a roli.",
+		"saveError": "Něco se pokazilo"
 	},
 	"Common": {
 		"cancel": "Zrušit",

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { locales } from "@/i18n/routing";
+import { CHANNEL_MEMBER_ACTIONS, CHANNEL_MEMBER_ROLES } from "@/lib/channel-roles";
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const BCRYPT_SALT_ROUNDS = 12;
@@ -171,6 +172,17 @@ export const createChannelSchema = z.object({
     .trim()
     .min(1)
     .max(NAME_MAX_LENGTH),
+});
+
+export const addChannelMemberSchema = z.object({
+  action: z.enum(CHANNEL_MEMBER_ACTIONS),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email()
+    .max(255),
+  role: z.enum(CHANNEL_MEMBER_ROLES),
 });
 
 export const paginationSchema = z.object({
