@@ -82,9 +82,13 @@ export default function ChannelPageClient({
   const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);
 
   const handleDelete = useCallback((id: string) => {
+    const deletedPost = [...publicPosts, ...myPosts].find((post) => post.id === id);
+    if (deletedPost?.isPublic) {
+      setChannel((prev) => ({ ...prev, postCount: Math.max(0, prev.postCount - 1) }));
+    }
     setPublicPosts((prev) => prev.filter((p) => p.id !== id));
     setMyPosts((prev) => prev.filter((p) => p.id !== id));
-  }, [setPublicPosts, setMyPosts]);
+  }, [myPosts, publicPosts, setPublicPosts, setMyPosts]);
 
   const handleCreateSuccess = useCallback((post: Post) => {
     if (post.isPublic) {
@@ -103,10 +107,33 @@ export default function ChannelPageClient({
   }, [publicPosts, myPosts]);
 
   const handleEditSuccess = useCallback((updatedPost: Post) => {
-    setPublicPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
-    setMyPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+    const previousPost = [...publicPosts, ...myPosts].find((post) => post.id === updatedPost.id);
+    if (previousPost && previousPost.isPublic !== updatedPost.isPublic) {
+      setChannel((prev) => ({
+        ...prev,
+        postCount: Math.max(0, prev.postCount + (updatedPost.isPublic ? 1 : -1)),
+      }));
+    }
+    setPublicPosts((prev) => {
+      const exists = prev.some((post) => post.id === updatedPost.id);
+      if (updatedPost.isPublic) {
+        return exists
+          ? prev.map((post) => (post.id === updatedPost.id ? updatedPost : post))
+          : [updatedPost, ...prev];
+      }
+      return prev.filter((post) => post.id !== updatedPost.id);
+    });
+    setMyPosts((prev) => {
+      const exists = prev.some((post) => post.id === updatedPost.id);
+      if (!updatedPost.isPublic) {
+        return exists
+          ? prev.map((post) => (post.id === updatedPost.id ? updatedPost : post))
+          : [updatedPost, ...prev];
+      }
+      return prev.filter((post) => post.id !== updatedPost.id);
+    });
     setEditingPost(null);
-  }, [setPublicPosts, setMyPosts]);
+  }, [myPosts, publicPosts, setPublicPosts, setMyPosts]);
 
   async function handleRename() {
     if (!newName.trim()) return;

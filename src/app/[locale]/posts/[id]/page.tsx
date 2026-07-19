@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getCachedPostById } from "@/lib/services/post";
 import { canAuthorChannel } from "@/lib/services/channel";
 import { auth } from "@/lib/auth";
@@ -84,6 +85,7 @@ export default async function PostPage({
   const description = getPostSeoDescription(post.channel.name, post.content);
   const postUrl = getLocalizedUrl(post.language || locale, `/posts/${id}`);
   const imageUrl = getPostOpenGraphImageUrl(post.language || locale, id);
+  const postsT = await getTranslations({ locale, namespace: "PostsPage" });
   const jsonLd = [
     createPostJsonLd({
       title,
@@ -96,7 +98,7 @@ export default async function PostPage({
       language: post.language || locale,
     }),
     createBreadcrumbJsonLd([
-      { name: "Posts", url: getLocalizedUrl(locale, "/posts") },
+      { name: postsT("title"), url: getLocalizedUrl(locale, "/posts") },
       { name: title, url: postUrl },
     ]),
   ];
