@@ -199,7 +199,7 @@ describe("canAuthorChannel", () => {
 
   it("allows channel editor", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-2" } as any);
-    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
 
     await expect(canAuthorChannel("ch-1", "user-1")).resolves.toBe(true);
   });
@@ -207,6 +207,13 @@ describe("canAuthorChannel", () => {
   it("rejects non-author", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-2" } as any);
     vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
+
+    await expect(canAuthorChannel("ch-1", "user-1")).resolves.toBe(false);
+  });
+
+  it("rejects membership rows with non-author roles", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-2" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_OWNER } as any);
 
     await expect(canAuthorChannel("ch-1", "user-1")).resolves.toBe(false);
   });
@@ -286,6 +293,9 @@ describe("addChannelMemberByEmail", () => {
     expect(prisma.channelEditor.create).toHaveBeenCalledWith(expect.objectContaining({
       data: { channelId: "ch-1", userId: "admin-1", role: CHANNEL_ROLE_ADMIN },
     }));
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable",
+    });
     expect(prisma.channelEditor.upsert).not.toHaveBeenCalled();
   });
 
@@ -388,6 +398,9 @@ describe("updateChannelMemberByEmail", () => {
       where: { channelId_userId: { channelId: "ch-1", userId: "editor-1" } },
       data: { role: CHANNEL_ROLE_ADMIN },
     }));
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable",
+    });
     expect(prisma.channelEditor.create).not.toHaveBeenCalled();
   });
 

@@ -13,6 +13,11 @@ export const CHANNEL_MEMBER_ROLES = [
   CHANNEL_ROLE_EDITOR,
 ] as const;
 
+export const CHANNEL_AUTHOR_ROLES = [
+  CHANNEL_ROLE_ADMIN,
+  CHANNEL_ROLE_EDITOR,
+] as const;
+
 export const CHANNEL_MEMBER_ACTION_ADD = "add";
 export const CHANNEL_MEMBER_ACTION_EDIT = "edit";
 

@@ -1,9 +1,10 @@
 import { cache } from "react";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { slugifyName, normalizeName } from "@/lib/validation";
 import { getMaxChannelsPerUser } from "@/lib/channel-limit";
 import {
+  CHANNEL_AUTHOR_ROLES,
   CHANNEL_ROLE_ADMIN,
   CHANNEL_ROLE_OWNER,
   type ChannelMemberRole,
@@ -198,8 +199,9 @@ export async function resolveSlugRedirect(oldSlug: string): Promise<string | nul
 export async function isChannelEditor(channelId: string, userId: string): Promise<boolean> {
   const editor = await prisma.channelEditor.findUnique({
     where: { channelId_userId: { channelId, userId } },
+    select: { role: true },
   });
-  return !!editor;
+  return !!editor && (CHANNEL_AUTHOR_ROLES as readonly string[]).includes(editor.role);
 }
 
 export async function canManageChannelSettings(channelId: string, userId: string): Promise<boolean> {
@@ -325,7 +327,7 @@ export async function addChannelMemberByEmail({
       image: member.user.image,
       role: member.role as ChannelMemberRole,
     };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function updateChannelMemberByEmail({
@@ -369,7 +371,7 @@ export async function updateChannelMemberByEmail({
       if ((error as { code?: string })?.code === "P2025") throw new NotFoundError();
       throw error;
     }
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function getAuthorableChannels(userId: string): Promise<AuthorableIdentity[]> {

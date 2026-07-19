@@ -34,6 +34,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
+import { CHANNEL_AUTHOR_ROLES, CHANNEL_ROLE_EDITOR, CHANNEL_ROLE_OWNER } from "@/lib/channel-roles";
 import { getPosts, getPostById, createPost, deletePost, updatePost, UnauthorizedError, NotFoundError, ForbiddenError } from "@/lib/services/post";
 
 const basePost = {
@@ -134,7 +135,7 @@ describe("getPosts", () => {
         where: {
           OR: [
             { channel: { ownerId: "user-1" } },
-            { channel: { editors: { some: { userId: "user-1" } } } },
+            { channel: { editors: { some: { userId: "user-1", role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
           ],
         },
       }),
@@ -161,7 +162,7 @@ describe("getPosts", () => {
 
   it("returns all channel posts when requester is channel editor", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "channel-1", ownerId: "user-1" } as any);
-    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-2" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
     vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
 
     await getPosts({ channelId: "channel-1" }, "user-2");
@@ -209,7 +210,7 @@ describe("getPosts", () => {
 
   it("returns private posts when private scope requested by channel editor", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "channel-1", ownerId: "user-1" } as any);
-    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-2" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
     vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
 
     await getPosts({ channelId: "channel-1", scope: "private" }, "user-2");
@@ -345,9 +346,16 @@ describe("createPost", () => {
     await expect(createPost({ content: "Hello", channelId: "channel-1" }, "user-1")).rejects.toThrow("not_channel_author");
   });
 
+  it("throws when user has a non-author membership role", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-2" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_OWNER } as any);
+
+    await expect(createPost({ content: "Hello", channelId: "channel-1" }, "user-1")).rejects.toThrow("not_channel_author");
+  });
+
   it("allows post creation for channel editors", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-2" } as any);
-    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
     vi.mocked(prisma.post.create).mockResolvedValue(basePost as any);
 
     const post = await createPost({ content: "Editor post", channelId: "channel-1" }, "user-1");
@@ -380,7 +388,7 @@ describe("deletePost", () => {
         id: "post-1",
         OR: [
           { channel: { ownerId: "user-1" } },
-          { channel: { editors: { some: { userId: "user-1" } } } },
+          { channel: { editors: { some: { userId: "user-1", role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
         ],
       },
     });
@@ -391,7 +399,7 @@ describe("deletePost", () => {
       ...basePost,
       channel: { id: "channel-1", ownerId: "user-2" },
     } as any);
-    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
 
     await deletePost("post-1", "user-1");
 
@@ -400,7 +408,7 @@ describe("deletePost", () => {
         id: "post-1",
         OR: [
           { channel: { ownerId: "user-1" } },
-          { channel: { editors: { some: { userId: "user-1" } } } },
+          { channel: { editors: { some: { userId: "user-1", role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
         ],
       },
     });
@@ -439,7 +447,7 @@ describe("updatePost", () => {
         id: "post-1",
         OR: [
           { channel: { ownerId: "user-1" } },
-          { channel: { editors: { some: { userId: "user-1" } } } },
+          { channel: { editors: { some: { userId: "user-1", role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
         ],
       },
       data: { content: "Updated!" },
@@ -450,7 +458,7 @@ describe("updatePost", () => {
     vi.mocked(prisma.post.findUnique)
       .mockResolvedValueOnce({ ...basePost, channel: { id: "channel-1", ownerId: "user-2" } } as any)
       .mockResolvedValueOnce({ ...basePost, content: "Updated!", channel: { id: "channel-1", ownerId: "user-2" } } as any);
-    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "user-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
     vi.mocked(prisma.post.updateMany).mockResolvedValue({ count: 1 });
 
     const result = await updatePost("post-1", "user-1", { content: "Updated!" });
@@ -475,7 +483,7 @@ describe("updatePost", () => {
           media: [{ ...existingMedia, type: "image", position: 0, width: null, height: null }],
           channel: { id: "channel-1", ownerId: "user-2" },
         } as any);
-      vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "editor-1" } as any);
+      vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
       vi.mocked(prisma.media.findMany)
         .mockResolvedValueOnce([{ url: existingMedia.url, userId: "owner-1" }] as any)
         .mockResolvedValue([]);
@@ -503,7 +511,7 @@ describe("updatePost", () => {
         media: [],
         channel: { id: "channel-1", ownerId: "user-2" },
       } as any);
-      vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "editor-1" } as any);
+      vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
       vi.mocked(prisma.media.findMany).mockResolvedValue([{ url: newMedia.url, userId: "owner-1" }] as any);
 
       await expect(updatePost("post-1", "editor-1", { media: [newMedia] })).rejects.toThrow(ForbiddenError);
