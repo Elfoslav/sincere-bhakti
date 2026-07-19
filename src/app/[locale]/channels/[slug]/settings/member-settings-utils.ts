@@ -1,8 +1,5 @@
-import {
-  CHANNEL_ROLE_ADMIN,
-  CHANNEL_ROLE_EDITOR,
-  type ChannelMemberRole,
-} from "@/lib/channel-roles";
+import type { ChannelMemberRole } from "@/lib/channel-roles";
+import { channelRoleLabelKey } from "@/lib/channel-role-label";
 import {
   ERROR_CANNOT_ADD_CHANNEL_OWNER,
   ERROR_CHANNEL_MEMBER_CONFLICT,
@@ -14,9 +11,7 @@ import {
 type ChannelSettingsTranslation = (key: string) => string;
 
 export function channelMemberRoleLabel(role: ChannelMemberRole, t: ChannelSettingsTranslation) {
-  if (role === CHANNEL_ROLE_ADMIN) return t("roleAdmin");
-  if (role === CHANNEL_ROLE_EDITOR) return t("roleEditor");
-  return role;
+  return t(channelRoleLabelKey(role));
 }
 
 export function channelMemberErrorMessage(code: string | undefined, t: ChannelSettingsTranslation) {

@@ -20,13 +20,9 @@ import {
 } from "@/components/ui/dialog";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { channelRoleLabelKey } from "@/lib/channel-role-label";
 import { NAME_MAX_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
 import { useIdentity } from "@/components/IdentityProvider";
-import {
-	CHANNEL_ROLE_ADMIN,
-	CHANNEL_ROLE_EDITOR,
-	type ChannelMemberRole,
-} from "@/lib/channel-roles";
 import type { ChannelInfo, ManagedChannelInfo, UserProfile } from "@/types/user";
 
 export default function ProfileContent({ authorId }: { authorId: string }) {
@@ -365,7 +361,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 								channel={ch}
 								viewLabel={t("viewChannel")}
 								postCountLabel={t("postCount", { count: ch.postCount })}
-								roleLabel={channelRoleLabel(ch.role, t)}
+								roleLabel={t(channelRoleLabelKey(ch.role))}
 							/>
 						))}
 					</div>
@@ -422,10 +418,4 @@ function ProfileChannelCard({
 			</Card>
 		</Link>
 	);
-}
-
-function channelRoleLabel(role: ChannelMemberRole, t: ReturnType<typeof useTranslations<"ProfilePage">>) {
-	if (role === CHANNEL_ROLE_ADMIN) return t("roleAdmin");
-	if (role === CHANNEL_ROLE_EDITOR) return t("roleEditor");
-	return role;
 }
