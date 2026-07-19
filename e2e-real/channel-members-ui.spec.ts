@@ -24,9 +24,10 @@ test("owner can add a member as editor and update them to admin from the setting
     await page.goto(`/channels/${owner.channel.slug}/settings`);
     await expect(page.getByRole("heading", { name: "Channel settings" })).toBeVisible();
 
-    await page.getByPlaceholder("User email").fill(memberEmail);
-    await page.locator("select").first().selectOption(CHANNEL_ROLE_EDITOR);
-    await page.getByRole("button", { name: "Add member" }).click();
+    const addMemberForm = page.getByRole("button", { name: "Add member" }).locator("..");
+    await addMemberForm.getByPlaceholder("User email").fill(memberEmail);
+    await addMemberForm.locator("select").selectOption(CHANNEL_ROLE_EDITOR);
+    await addMemberForm.getByRole("button", { name: "Add member" }).click();
     await expect(page.getByRole("button").filter({ hasText: memberEmail })).toBeVisible();
     await expect(page.getByText("Editor").last()).toBeVisible();
 

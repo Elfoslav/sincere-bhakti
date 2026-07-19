@@ -6,10 +6,18 @@ import { canAuthorChannel } from "@/lib/services/channel";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import PostDetailClient from "./post-detail-client";
-import { getSiteUrl } from "@/lib/url";
+import {
+  POST_OG_IMAGE,
+  createBreadcrumbJsonLd,
+  createJsonLdScript,
+  createPostJsonLd,
+  getLocalizedUrl,
+  getOpenGraphLocale,
+  getPostOpenGraphImageUrl,
+  getPostSeoDescription,
+  getPostSeoTitle,
+} from "@/lib/seo";
 import type { Post, MediaType } from "@/types/post";
-
-const siteUrl = getSiteUrl();
 
 type Params = { locale: string; id: string };
 
@@ -23,23 +31,31 @@ export async function generateMetadata({
   const post = await getCachedPostById(id);
   if (!post || !post.isPublic) return {};
 
-  const ogTitle = post.content ? post.content.slice(0, 60) : undefined;
-  const ogDescription = post.content ? post.content.slice(0, 160) : undefined;
+  const title = getPostSeoTitle(post.channel.name, post.content);
+  const description = getPostSeoDescription(post.channel.name, post.content);
+  const canonicalUrl = getLocalizedUrl(post.language || locale, `/posts/${id}`);
+  const imageUrl = getPostOpenGraphImageUrl(post.language || locale, id);
 
   return {
-    title: ogTitle || "Post",
-    description: ogDescription,
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
     openGraph: {
-      title: ogTitle,
-      description: ogDescription,
+      title,
+      description,
       type: "article",
-      locale: locale === "en" ? "en_US" : locale === "cs" ? "cs_CZ" : "sk_SK",
-      url: `${siteUrl}/${locale}/posts/${id}`,
+      locale: getOpenGraphLocale(post.language || locale),
+      url: canonicalUrl,
+      siteName: "Sincere Bhakti",
+      images: [{ ...POST_OG_IMAGE, url: imageUrl, alt: title }],
     },
     twitter: {
       card: "summary_large_image",
-      title: ogTitle,
-      description: ogDescription,
+      title,
+      description,
+      images: [imageUrl],
     },
   };
 }
@@ -49,7 +65,7 @@ export default async function PostPage({
 }: {
   params: Promise<Params>;
 }) {
-  const { id } = await params;
+  const { locale, id } = await params;
 
   const ip = getClientIp(await headers());
   if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) notFound();
@@ -64,6 +80,31 @@ export default async function PostPage({
     createdAt: post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt,
     media: post.media.map((m) => ({ ...m, type: m.type as MediaType })),
   };
+  const title = getPostSeoTitle(post.channel.name, post.content);
+  const description = getPostSeoDescription(post.channel.name, post.content);
+  const postUrl = getLocalizedUrl(post.language || locale, `/posts/${id}`);
+  const imageUrl = getPostOpenGraphImageUrl(post.language || locale, id);
+  const jsonLd = [
+    createPostJsonLd({
+      title,
+      description,
+      url: postUrl,
+      imageUrl,
+      channelName: post.channel.name,
+      content: post.content,
+      createdAt: post.createdAt,
+      language: post.language || locale,
+    }),
+    createBreadcrumbJsonLd([
+      { name: "Posts", url: getLocalizedUrl(locale, "/posts") },
+      { name: title, url: postUrl },
+    ]),
+  ];
 
-  return <PostDetailClient post={serialized} />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={createJsonLdScript(jsonLd)} />
+      <PostDetailClient post={serialized} />
+    </>
+  );
 }

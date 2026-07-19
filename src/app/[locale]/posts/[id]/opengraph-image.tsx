@@ -6,6 +6,7 @@ import { getSiteUrl } from "@/lib/url";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+export const alt = "Sincere Bhakti post image";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const MAX_OG_IMAGE_BYTES = 10 * 1024 * 1024;

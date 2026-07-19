@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { getChannelSettingsBySlug, resolveSlugRedirect } from "@/lib/services/channel";
+import { getNoIndexMetadata } from "@/lib/seo";
 import ChannelSettingsClient from "./settings-client";
 
 type Props = {
@@ -15,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = await getTranslations({ locale, namespace: "ChannelSettingsPage" });
 
   return {
-    title: t("metaTitle"),
+    ...getNoIndexMetadata(t("metaTitle")),
   };
 }
 

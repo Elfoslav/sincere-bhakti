@@ -3,6 +3,9 @@
 		"home": {
 			"title": "Sincere Bhakti — Gaudiya Vaishnavism Community",
 			"description": "A spiritual community for devotees of Gaudiya Vaishnavism — share bhakti, inspire devotion. Post verses, realizations, and connect with the global saṅga."
+		},
+		"profile": {
+			"description": "{name} on Sincere Bhakti."
 		}
 	},
 	"Navbar": {

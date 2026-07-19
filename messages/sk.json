@@ -3,6 +3,9 @@
 		"home": {
 			"title": "Sincere Bhakti — Komunita Gaudiya vaišnavizmu",
 			"description": "Duchovná komunita pre oddaných Gaudiya vaišnavizmu — zdieľaj bhakti, inšpiruj oddanosť. Pridávaj verše, realizácie a spoj sa s globálnou saṅgou."
+		},
+		"profile": {
+			"description": "{name} na Sincere Bhakti."
 		}
 	},
 	"Navbar": {
