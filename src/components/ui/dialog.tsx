@@ -82,13 +82,57 @@ function DialogContent({
   )
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+interface DialogHeaderProps extends Omit<React.ComponentProps<"div">, "title"> {
+  text?: React.ReactNode
+  subheading?: React.ReactNode
+  subheadingRight?: React.ReactNode
+  titleClassName?: string
+  subheadingClassName?: string
+  subheadingRightClassName?: string
+}
+
+function DialogHeader({
+  className,
+  text,
+  subheading,
+  subheadingRight,
+  titleClassName,
+  subheadingClassName,
+  subheadingRightClassName,
+  children,
+  ...props
+}: DialogHeaderProps) {
+  const hasStructuredContent = text || subheading || subheadingRight
+
   return (
     <div
       data-slot="dialog-header"
       className={cn("flex flex-col gap-2", className)}
       {...props}
-    />
+    >
+      {hasStructuredContent ? (
+        <>
+          {text && <DialogTitle className={titleClassName}>{text}</DialogTitle>}
+          {(subheading || subheadingRight) && (
+            <DialogDescription
+              className={cn(
+                subheadingRight && "flex items-center justify-between gap-3",
+                subheadingClassName,
+              )}
+            >
+              {subheading && <span>{subheading}</span>}
+              {subheadingRight && (
+                <span className={cn("shrink-0", subheadingRightClassName)}>
+                  {subheadingRight}
+                </span>
+              )}
+            </DialogDescription>
+          )}
+        </>
+      ) : (
+        children
+      )}
+    </div>
   )
 }
 

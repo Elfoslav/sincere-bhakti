@@ -145,7 +145,7 @@
 		"createChannelTitle": "Create Channel",
 		"channelNamePlaceholder": "Channel name",
 		"creating": "Creating...",
-		"channelLimitModalInfo": "You can create up to {max} channels.",
+		"channelLimitModalInfo": "You can create up to {max} channels:",
 		"channelLimitReachedError": "You have reached the channel limit of {max} additional channels."
 	},
 	"SettingsPage": {

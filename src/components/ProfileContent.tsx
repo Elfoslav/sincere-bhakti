@@ -8,7 +8,6 @@ import { Heading } from "@/components/ui/heading";
 import { Pencil, Hash, FileText, Plus, Settings } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -16,7 +15,6 @@ import {
 	DialogActions,
 	DialogContent,
 	DialogHeader,
-	DialogTitle,
 	DialogTrigger,
 	dialogActionButtonClassName,
 } from "@/components/ui/dialog";
@@ -225,9 +223,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 								aria-label={t("editName")}
 							/>
 							<DialogContent className="sm:max-w-md">
-								<DialogHeader>
-									<DialogTitle>{t("editNameTitle")}</DialogTitle>
-								</DialogHeader>
+								<DialogHeader text={t("editNameTitle")} />
 								<form
 									onSubmit={(e) => {
 										e.preventDefault();
@@ -288,16 +284,20 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 									<Plus className="w-4 h-4 mr-1" />
 									{t("createChannel")}
 								</DialogTrigger>
-								<DialogContent className="sm:max-w-md">
-									<DialogHeader>
-										<DialogTitle>{t("createChannelTitle")}</DialogTitle>
-									</DialogHeader>
+								<DialogContent className="gap-3 sm:max-w-md">
+									<DialogHeader
+										className="gap-1"
+										text={t("createChannelTitle")}
+										subheading={t("channelLimitModalInfo", { max: profile.channelLimit })}
+										subheadingRight={`${additionalChannelCount} / ${profile.channelLimit}`}
+										subheadingClassName="text-deep/50"
+									/>
 									<form
 										onSubmit={(e) => {
 											e.preventDefault();
 											handleCreateChannel();
 										}}
-										className="space-y-4 pt-2"
+										className="space-y-3"
 									>
 										<Input
 											name="channelName"
@@ -311,14 +311,6 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 											errorMessage={channelError || undefined}
 											maxLength={NAME_MAX_LENGTH}
 										/>
-										<Alert variant={channelLimitReached ? "destructive" : "info"} className="py-2.5">
-											<div className="flex w-full items-center justify-between gap-3 text-xs">
-												<span>{t("channelLimitModalInfo", { max: profile.channelLimit })}</span>
-												<span className="shrink-0 tabular-nums">
-													({additionalChannelCount}/{profile.channelLimit})
-												</span>
-											</div>
-										</Alert>
 										<DialogActions>
 											<Button
 												type="button"

@@ -3,10 +3,8 @@
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
   dialogActionButtonClassName,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -37,10 +35,7 @@ export function ConfirmDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+        <DialogHeader text={title} subheading={description} />
         <DialogFooter>
           <Button variant="outline" className={dialogActionButtonClassName} onClick={() => onOpenChange(false)} disabled={loading}>
             {cancelLabel}

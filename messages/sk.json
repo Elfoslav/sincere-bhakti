@@ -145,7 +145,7 @@
 		"createChannelTitle": "Vytvoriť kanál",
 		"channelNamePlaceholder": "Názov kanálu",
 		"creating": "Vytváram...",
-		"channelLimitModalInfo": "Môžete vytvoriť až {max} kanálov.",
+		"channelLimitModalInfo": "Môžete vytvoriť až {max} kanálov:",
 		"channelLimitReachedError": "Dosiahli ste limit {max} ďalších kanálov."
 	},
 	"SettingsPage": {

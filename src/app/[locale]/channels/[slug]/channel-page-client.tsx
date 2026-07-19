@@ -14,7 +14,6 @@ import {
   DialogActions,
   DialogContent,
   DialogHeader,
-  DialogTitle,
   DialogTrigger,
   dialogActionButtonClassName,
 } from "@/components/ui/dialog";
@@ -240,16 +239,20 @@ export default function ChannelPageClient({
                   title={t("editName")}
                   aria-label={t("editName")}
                 />
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>{t("editNameTitle")}</DialogTitle>
-                  </DialogHeader>
+                <DialogContent className="gap-3 sm:max-w-md">
+                  <DialogHeader
+                    className="gap-1"
+                    text={t("editNameTitle")}
+                    subheading={common("renameCountInfo")}
+                    subheadingRight={common("renameCount", { count: channel.renameCount, max: MAX_RENAME_COUNT })}
+                    subheadingClassName="text-deep/50"
+                  />
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
                       handleRename();
                     }}
-                    className="space-y-4 pt-2"
+                    className="space-y-3"
                   >
                     <Input
                       name="name"
@@ -264,10 +267,6 @@ export default function ChannelPageClient({
                       errorMessage={nameError || undefined}
                       maxLength={NAME_MAX_LENGTH}
                     />
-                    <div className="flex items-center justify-between text-xs text-deep/50">
-                      <span>{common("renameCountInfo")}</span>
-                      <span>{common("renameCount", { count: channel.renameCount, max: MAX_RENAME_COUNT })}</span>
-                    </div>
                     <DialogActions>
                       <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={() => setRenameOpen(false)}>
                         {t("cancel")}

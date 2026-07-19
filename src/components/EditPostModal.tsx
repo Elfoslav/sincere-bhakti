@@ -7,7 +7,6 @@ import {
   DialogActions,
   DialogContent,
   DialogHeader,
-  DialogTitle,
   dialogActionButtonClassName,
 } from "@/components/ui/dialog";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
@@ -84,14 +83,16 @@ export default function EditPostModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {t("title")}
-            <span className="ml-2 text-base" title={post.language}>
-              {localeFlags[post.language] || post.language}
-            </span>
-          </DialogTitle>
-        </DialogHeader>
+        <DialogHeader
+          text={(
+            <>
+              {t("title")}
+              <span className="ml-2 text-base" title={post.language}>
+                {localeFlags[post.language] || post.language}
+              </span>
+            </>
+          )}
+        />
 
         <TabsRoot defaultValue="edit" onValueChange={handleTabChange}>
           <TabsList>
