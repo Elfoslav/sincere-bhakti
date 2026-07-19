@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CHANNEL_ROLE_OWNER } from "@/lib/channel-roles";
 import { resolveActiveIdentityState } from "@/lib/identity";
 import type { AuthorableIdentity } from "@/types/identity";
 
@@ -10,7 +11,7 @@ const identities: AuthorableIdentity[] = [
     avatarUrl: null,
     ownerId: "user-1",
     isPersonal: true,
-    role: "owner",
+    role: CHANNEL_ROLE_OWNER,
   },
   {
     id: "channel-2",
@@ -19,7 +20,7 @@ const identities: AuthorableIdentity[] = [
     avatarUrl: null,
     ownerId: "user-1",
     isPersonal: false,
-    role: "owner",
+    role: CHANNEL_ROLE_OWNER,
   },
 ];
 

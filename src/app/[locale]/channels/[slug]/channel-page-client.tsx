@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil } from "lucide-react";
+import { Pencil, Settings } from "lucide-react";
 import {
   Dialog,
   DialogActions,
@@ -32,6 +32,7 @@ import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
+import { CHANNEL_ROLE_ADMIN } from "@/lib/channel-roles";
 import { NAME_MAX_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
 import type { Post } from "@/types/post";
 import type { ChannelWithPostCount } from "@/types/channel";
@@ -50,6 +51,7 @@ export default function ChannelPageClient({
   const common = useTranslations("Common");
   const isOwner = session?.user?.id === initialChannel.ownerId;
   const manageableChannelIds = useMemo(() => identities.map((identity) => identity.id), [identities]);
+  const canManageSettings = isOwner || identities.some((identity) => identity.id === initialChannel.id && identity.role === CHANNEL_ROLE_ADMIN);
   const canAuthorChannel = isOwner || manageableChannelIds.includes(initialChannel.id);
 
   const [channel, setChannel] = useState(initialChannel);
@@ -201,9 +203,18 @@ export default function ChannelPageClient({
           { label: channelsT("title"), href: "/channels" },
           { label: channel.name },
         ]}
-        className="mb-6"
+        className="mb-4"
       />
-      <Card variant="default" padding="lg" className="mb-8 text-center">
+      <Card variant="default" padding="lg" className="relative mb-8 text-center">
+        {canManageSettings && (
+          <Button
+            href={`/channels/${channel.slug}/settings`}
+            className="absolute right-3 top-3 text-deep/40 hover:text-gold-light sm:right-4 sm:top-4"
+            title={t("settings")}
+            aria-label={t("settings")}
+            icon={<Settings />}
+          />
+        )}
         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
           {channel.name[0]?.toUpperCase() || "?"}
         </div>

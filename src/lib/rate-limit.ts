@@ -29,6 +29,10 @@ export const RATE_LIMITS = {
   createChannel: { limit: 20, windowMs: 3_600_000 },
   // Channel rename: 20 per hour per user
   updateChannel: { limit: 20, windowMs: 3_600_000 },
+  // Read channel members/settings: 60 requests per 60s per user
+  readChannelMembers: { limit: 60, windowMs: 60_000 },
+  // Channel member management: 30 requests per hour per user
+  updateChannelMembers: { limit: 30, windowMs: 3_600_000 },
   // Read single post by id: 120 requests per 60s per IP
   readPostDetail: { limit: 120, windowMs: 60_000 },
   // Read user profile: 60 requests per 60s per IP
@@ -58,6 +62,8 @@ export const RATE_LIMIT_PREFIX = {
   searchChannels: "search-channels",
   createChannel: "create-channel",
   updateChannel: "update-channel",
+  readChannelMembers: "read-channel-members",
+  updateChannelMembers: "update-channel-members",
   readPostDetail: "read-post-detail",
   readProfile: "read-profile",
   changePassword: "change-password",

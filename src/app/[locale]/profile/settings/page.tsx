@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Heading } from "@/components/ui/heading";
 import { Alert } from "@/components/ui/alert";
-import { Link } from "@/i18n/navigation";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const t = useTranslations("SettingsPage");
+  const profileT = useTranslations("ProfilePage");
   const common = useTranslations("Common");
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -117,9 +118,13 @@ export default function SettingsPage() {
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
-      <Link href="/profile" className="text-gold hover:text-gold-light transition-colors text-sm mb-6 inline-block">
-        {t("backToProfile")}
-      </Link>
+      <Breadcrumb
+        items={[
+          { label: profileT("title"), href: "/profile" },
+          { label: t("title") },
+        ]}
+        className="mb-4"
+      />
 
       <Card variant="default" padding="lg" className="space-y-6">
         <div className="space-y-2">

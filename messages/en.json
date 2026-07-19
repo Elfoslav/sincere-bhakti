@@ -20,6 +20,7 @@
 		"closeSwitcher": "Close identity switcher",
 		"personal": "Personal",
 		"owner": "Owner",
+		"admin": "Admin",
 		"editor": "Editor",
 		"manage": "Manage channels"
 	},
@@ -150,7 +151,6 @@
 	},
 	"SettingsPage": {
 		"title": "Settings",
-		"backToProfile": "← Back to profile",
 		"description": "Change the password you use to sign in.",
 		"changePassword": "Change password",
 		"currentPasswordLabel": "Current password",
@@ -185,7 +185,6 @@
 	},
 	"SinglePost": {
 		"title": "Post",
-		"backLink": "← Back to posts",
 		"notFound": "Post not found",
 		"loadError": "Something went wrong loading the post. Please try again."
 	},
@@ -226,7 +225,33 @@
 		"saveError": "Something went wrong",
 		"nameTaken": "This name has already been taken.",
 		"nameTooLong": "Name cannot exceed {max} characters",
-		"changeNameInProfile": "Change your name in profile settings"
+		"changeNameInProfile": "Change your name in profile settings",
+		"settings": "Channel settings"
+	},
+	"ChannelSettingsPage": {
+		"metaTitle": "Channel settings",
+		"title": "Channel settings",
+		"membersTitle": "Admins and editors",
+		"membersSubtitle": "Add trusted users who can help manage or publish to this channel.",
+		"emailPlaceholder": "User email",
+		"roleAdmin": "Admin",
+		"roleEditor": "Editor",
+		"addMember": "Add member",
+		"adding": "Adding...",
+		"editMemberTitle": "Edit member",
+		"saveChanges": "Save changes",
+		"saving": "Saving...",
+		"cancel": "Cancel",
+		"currentMembers": "Current members",
+		"noMembers": "No admins or editors yet.",
+		"memberAdded": "Member added",
+		"memberUpdated": "Member access updated",
+		"userNotFound": "Could not add this user. Check the email address or role and try again.",
+		"memberAlreadyExists": "This user is already a member. Open them from Current members to edit their role.",
+		"cannotAddOwner": "The channel owner already has full access.",
+		"tooManyRequests": "You're doing that too quickly. Please wait a moment and try again.",
+		"validationError": "Enter a valid email and role.",
+		"saveError": "Something went wrong"
 	},
 	"Common": {
 		"cancel": "Cancel",

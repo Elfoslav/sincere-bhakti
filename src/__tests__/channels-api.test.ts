@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { CHANNEL_ROLE_ADMIN, CHANNEL_ROLE_EDITOR } from "@/lib/channel-roles";
 import { MAX_RENAME_COUNT } from "@/lib/validation";
 
 vi.mock("@/lib/prisma", () => ({
@@ -10,6 +11,9 @@ vi.mock("@/lib/prisma", () => ({
       update: vi.fn(),
       updateMany: vi.fn(),
       count: vi.fn(),
+    },
+    channelEditor: {
+      findUnique: vi.fn(),
     },
     channelSlugHistory: {
       create: vi.fn(),
@@ -24,6 +28,9 @@ vi.mock("@/lib/prisma", () => ({
         update: (...args: any[]) => (prisma.channel.update as any)(...args),
         updateMany: (...args: any[]) => (prisma.channel.updateMany as any)(...args),
         count: (...args: any[]) => (prisma.channel.count as any)(...args),
+      },
+      channelEditor: {
+        findUnique: (...args: any[]) => (prisma.channelEditor.findUnique as any)(...args),
       },
       channelSlugHistory: {
         create: (...args: any[]) => (prisma.channelSlugHistory.create as any)(...args),
@@ -222,13 +229,14 @@ describe("PATCH /api/channels/[slug]", () => {
 
   it("renames a channel", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old Name", ownerId: "user-1", isPersonal: false, slug: "old-name", renameCount: 0 } as any);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channel.updateMany).mockResolvedValue({ count: 1 } as any);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValueOnce({ id: "ch-1", name: "Old Name", ownerId: "user-1", isPersonal: false, slug: "old-name", avatarUrl: null, renameCount: 0 } as any);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValueOnce({
-      id: "ch-1", name: "New Name", slug: "new-name", avatarUrl: null, ownerId: "user-1", renameCount: 1,
-    } as any);
+    vi.mocked(prisma.channel.findUnique)
+      .mockResolvedValueOnce({ id: "ch-1", name: "Old Name", ownerId: "user-1", isPersonal: false, slug: "old-name", avatarUrl: null, renameCount: 0 } as any)
+      .mockResolvedValueOnce({ ownerId: "user-1" } as any)
+      .mockResolvedValueOnce({
+        id: "ch-1", name: "New Name", slug: "new-name", avatarUrl: null, ownerId: "user-1", renameCount: 1,
+      } as any);
     vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
 
     const res = await PATCH(mockRequest({ name: "New Name" }), params);
@@ -238,11 +246,51 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(json.name).toBe("New Name");
     expect(json.slug).toBe("new-name");
     expect(prisma.channel.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "ch-1", ownerId: "user-1", renameCount: { lt: 3 } }, data: { name: "New Name", normalizedName: "new name", slug: "new-name", renameCount: { increment: 1 } } }),
+      expect.objectContaining({
+        where: {
+          id: "ch-1",
+          renameCount: { lt: 3 },
+          OR: [
+            { ownerId: "user-1" },
+            { editors: { some: { userId: "user-1", role: CHANNEL_ROLE_ADMIN } } },
+          ],
+        },
+        data: { name: "New Name", normalizedName: "new name", slug: "new-name", renameCount: { increment: 1 } },
+      }),
     );
     expect(prisma.channelSlugHistory.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: { oldSlug: "old-name", oldNormalizedName: "old name", channelId: "ch-1" } }),
     );
+  });
+
+  it("allows a channel admin to rename a channel", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "admin-1" } } as any);
+    vi.mocked(prisma.channel.findUnique)
+      .mockResolvedValueOnce({ id: "ch-1", name: "Old Name", ownerId: "owner-1", isPersonal: false, slug: "old-name", avatarUrl: null, renameCount: 0 } as any)
+      .mockResolvedValueOnce({ ownerId: "owner-1" } as any)
+      .mockResolvedValueOnce({
+        id: "ch-1",
+        name: "New Name",
+        slug: "new-name",
+        avatarUrl: null,
+        ownerId: "owner-1",
+        renameCount: 1,
+      } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_ADMIN } as any);
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
+    vi.mocked(prisma.channel.updateMany).mockResolvedValue({ count: 1 } as any);
+
+    const res = await PATCH(mockRequest({ name: "New Name" }), params);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.name).toBe("New Name");
+    expect(prisma.channelEditor.findUnique).toHaveBeenCalledWith({
+      where: { channelId_userId: { channelId: "ch-1", userId: "admin-1" } },
+      select: { role: true },
+    });
   });
 
   it("returns 200 without incrementing count when renaming to the same name", async () => {
@@ -322,9 +370,10 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(json.error).toBe("not_found");
   });
 
-  it("returns 404 when not the owner", async () => {
+  it("returns 404 when the caller is neither owner nor admin", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-2" } } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "ch-1", name: "Old", ownerId: "user-1", isPersonal: false, slug: "my-channel" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
 
     const res = await PATCH(mockRequest({ name: "New" }), params);
     const json = await res.json();
@@ -383,6 +432,7 @@ describe("PATCH /api/channels/[slug]", () => {
       vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "owner@sincerebhakti.com" } } as any);
       vi.mocked(prisma.channel.findUnique)
         .mockResolvedValueOnce({ id: "ch-1", name: "Old", ownerId: "user-1", isPersonal: false, slug: "my-channel", avatarUrl: null, renameCount: 0 } as any)
+        .mockResolvedValueOnce({ ownerId: "user-1" } as any)
         .mockResolvedValueOnce({ id: "ch-1", name: "Sincere Bhakti", slug: "sincere-bhakti", avatarUrl: null, ownerId: "user-1", renameCount: 1 } as any);
       vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
@@ -458,6 +508,7 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channel.findUnique)
       .mockResolvedValueOnce({ id: "ch-1", name: "A", ownerId: "user-1", isPersonal: false, slug: "a", avatarUrl: null, renameCount: 1 } as any)
+      .mockResolvedValueOnce({ ownerId: "user-1" } as any)
       .mockResolvedValueOnce({ id: "ch-1", name: "Ca", slug: "ca", avatarUrl: null, ownerId: "user-1", renameCount: 2 } as any);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
     // channelSlugHistory.findFirst call order:

@@ -12,6 +12,12 @@ vi.mock("@/lib/prisma", () => ({
     channelEditor: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      upsert: vi.fn(),
+    },
+    user: {
+      findUnique: vi.fn(),
     },
     channelSlugHistory: {
       findFirst: vi.fn(),
@@ -29,6 +35,12 @@ vi.mock("@/lib/prisma", () => ({
         channelEditor: {
           findMany: (...args: any[]) => (prisma.channelEditor.findMany as any)(...args),
           findUnique: (...args: any[]) => (prisma.channelEditor.findUnique as any)(...args),
+          create: (...args: any[]) => (prisma.channelEditor.create as any)(...args),
+          update: (...args: any[]) => (prisma.channelEditor.update as any)(...args),
+          upsert: (...args: any[]) => (prisma.channelEditor.upsert as any)(...args),
+        },
+        user: {
+          findUnique: (...args: any[]) => (prisma.user.findUnique as any)(...args),
         },
         channelSlugHistory: {
           findFirst: (...args: any[]) => (prisma.channelSlugHistory.findFirst as any)(...args),
@@ -39,7 +51,23 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
-import { createPersonalChannel, createChannel, NameTakenError, ChannelLimitError, getAuthorableChannels, canAuthorChannel, resolveAuthorableChannelId } from "@/lib/services/channel";
+import { CHANNEL_ROLE_ADMIN, CHANNEL_ROLE_EDITOR, CHANNEL_ROLE_OWNER } from "@/lib/channel-roles";
+import {
+  CannotAddChannelOwnerError,
+  ChannelMemberAlreadyExistsError,
+  ChannelLimitError,
+  NameTakenError,
+  NotFoundError,
+  UserNotFoundError,
+  addChannelMemberByEmail,
+  canAuthorChannel,
+  canManageChannelSettings,
+  createChannel,
+  createPersonalChannel,
+  getAuthorableChannels,
+  resolveAuthorableChannelId,
+  updateChannelMemberByEmail,
+} from "@/lib/services/channel";
 
 const baseChannel = {
   id: "",
@@ -128,13 +156,13 @@ describe("getAuthorableChannels", () => {
       {
         channelId: "ch-2",
         userId: "user-1",
-        role: "editor",
+        role: CHANNEL_ROLE_EDITOR,
         channel: { id: "ch-2", name: "Owned", slug: "owned", avatarUrl: null, ownerId: "user-1", isPersonal: false },
       },
       {
         channelId: "ch-3",
         userId: "user-1",
-        role: "editor",
+        role: CHANNEL_ROLE_EDITOR,
         channel: { id: "ch-3", name: "Editable", slug: "editable", avatarUrl: null, ownerId: "user-2", isPersonal: false },
       },
     ] as any);
@@ -142,9 +170,9 @@ describe("getAuthorableChannels", () => {
     const result = await getAuthorableChannels("user-1");
 
     expect(result).toEqual([
-      { id: "ch-1", name: "Personal", slug: "personal", avatarUrl: null, ownerId: "user-1", isPersonal: true, role: "owner" },
-      { id: "ch-2", name: "Owned", slug: "owned", avatarUrl: null, ownerId: "user-1", isPersonal: false, role: "owner" },
-      { id: "ch-3", name: "Editable", slug: "editable", avatarUrl: null, ownerId: "user-2", isPersonal: false, role: "editor" },
+      { id: "ch-1", name: "Personal", slug: "personal", avatarUrl: null, ownerId: "user-1", isPersonal: true, role: CHANNEL_ROLE_OWNER },
+      { id: "ch-2", name: "Owned", slug: "owned", avatarUrl: null, ownerId: "user-1", isPersonal: false, role: CHANNEL_ROLE_OWNER },
+      { id: "ch-3", name: "Editable", slug: "editable", avatarUrl: null, ownerId: "user-2", isPersonal: false, role: CHANNEL_ROLE_EDITOR },
     ]);
   });
 });
@@ -174,6 +202,205 @@ describe("canAuthorChannel", () => {
     vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
 
     await expect(canAuthorChannel("ch-1", "user-1")).resolves.toBe(false);
+  });
+});
+
+describe("canManageChannelSettings", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("allows channel owner", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
+
+    await expect(canManageChannelSettings("ch-1", "user-1")).resolves.toBe(true);
+    expect(prisma.channelEditor.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("allows channel admin", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_ADMIN } as any);
+
+    await expect(canManageChannelSettings("ch-1", "admin-1")).resolves.toBe(true);
+  });
+
+  it("rejects channel editor", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
+
+    await expect(canManageChannelSettings("ch-1", "editor-1")).resolves.toBe(false);
+  });
+
+  it("rejects missing channel", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue(null);
+
+    await expect(canManageChannelSettings("missing", "user-1")).resolves.toBe(false);
+  });
+});
+
+describe("addChannelMemberByEmail", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("creates an admin when actor can manage channel settings", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+        id: "admin-1",
+        name: "Admin User",
+        email: "admin@example.com",
+        image: null,
+    } as any);
+    vi.mocked(prisma.channelEditor.create).mockResolvedValue({
+      role: CHANNEL_ROLE_ADMIN,
+      user: {
+        id: "admin-1",
+        name: "Admin User",
+        email: "admin@example.com",
+        image: null,
+      },
+    } as any);
+
+    const member = await addChannelMemberByEmail({
+      channelId: "ch-1",
+      email: "admin@example.com",
+      role: CHANNEL_ROLE_ADMIN,
+      actorUserId: "owner-1",
+    });
+
+    expect(member).toEqual({
+      id: "admin-1",
+      name: "Admin User",
+      email: "admin@example.com",
+      image: null,
+      role: CHANNEL_ROLE_ADMIN,
+    });
+    expect(prisma.channelEditor.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: { channelId: "ch-1", userId: "admin-1", role: CHANNEL_ROLE_ADMIN },
+    }));
+    expect(prisma.channelEditor.upsert).not.toHaveBeenCalled();
+  });
+
+  it("does not update an existing member from the add path", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "editor-1",
+      name: "Editor User",
+      email: "editor@example.com",
+      image: null,
+    } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ userId: "editor-1" } as any);
+
+    await expect(addChannelMemberByEmail({
+      channelId: "ch-1",
+      email: "editor@example.com",
+      role: CHANNEL_ROLE_ADMIN,
+      actorUserId: "owner-1",
+    })).rejects.toThrow(ChannelMemberAlreadyExistsError);
+    expect(prisma.channelEditor.create).not.toHaveBeenCalled();
+    expect(prisma.channelEditor.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects actors who are only editors", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
+
+    await expect(addChannelMemberByEmail({
+      channelId: "ch-1",
+      email: "user@example.com",
+      role: CHANNEL_ROLE_ADMIN,
+      actorUserId: "editor-1",
+    })).rejects.toThrow(NotFoundError);
+    expect(prisma.channelEditor.create).not.toHaveBeenCalled();
+  });
+
+  it("throws UserNotFoundError when email does not belong to a user", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+
+    await expect(addChannelMemberByEmail({
+      channelId: "ch-1",
+      email: "missing@example.com",
+      role: CHANNEL_ROLE_EDITOR,
+      actorUserId: "owner-1",
+    })).rejects.toThrow(UserNotFoundError);
+  });
+
+  it("does not add the channel owner as a member", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "owner-1",
+      name: "Owner",
+      email: "owner@example.com",
+      image: null,
+    } as any);
+
+    await expect(addChannelMemberByEmail({
+      channelId: "ch-1",
+      email: "owner@example.com",
+      role: CHANNEL_ROLE_ADMIN,
+      actorUserId: "owner-1",
+    })).rejects.toThrow(CannotAddChannelOwnerError);
+    expect(prisma.channelEditor.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateChannelMemberByEmail", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("updates an existing member role", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "editor-1",
+      name: "Editor User",
+      email: "editor@example.com",
+      image: null,
+    } as any);
+    vi.mocked(prisma.channelEditor.update).mockResolvedValue({
+      role: CHANNEL_ROLE_ADMIN,
+      user: {
+        id: "editor-1",
+        name: "Editor User",
+        email: "editor@example.com",
+        image: null,
+      },
+    } as any);
+
+    const member = await updateChannelMemberByEmail({
+      channelId: "ch-1",
+      email: "editor@example.com",
+      role: CHANNEL_ROLE_ADMIN,
+      actorUserId: "owner-1",
+    });
+
+    expect(member.role).toBe(CHANNEL_ROLE_ADMIN);
+    expect(prisma.channelEditor.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { channelId_userId: { channelId: "ch-1", userId: "editor-1" } },
+      data: { role: CHANNEL_ROLE_ADMIN },
+    }));
+    expect(prisma.channelEditor.create).not.toHaveBeenCalled();
+  });
+
+  it("does not create a missing member from the edit path", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "editor-1",
+      name: "Editor User",
+      email: "editor@example.com",
+      image: null,
+    } as any);
+    vi.mocked(prisma.channelEditor.update).mockRejectedValue(Object.assign(new Error("missing"), { code: "P2025" }));
+
+    await expect(updateChannelMemberByEmail({
+      channelId: "ch-1",
+      email: "editor@example.com",
+      role: CHANNEL_ROLE_ADMIN,
+      actorUserId: "owner-1",
+    })).rejects.toThrow(NotFoundError);
+    expect(prisma.channelEditor.create).not.toHaveBeenCalled();
   });
 });
 

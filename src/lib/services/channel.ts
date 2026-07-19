@@ -1,9 +1,17 @@
 import { cache } from "react";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { slugifyName, normalizeName } from "@/lib/validation";
 import { getMaxChannelsPerUser } from "@/lib/channel-limit";
+import {
+  CHANNEL_ROLE_ADMIN,
+  CHANNEL_ROLE_OWNER,
+  type ChannelMemberRole,
+  type ChannelRole,
+} from "@/lib/channel-roles";
 import type { PostChannel } from "@/types/post";
 import type { AuthorableIdentity } from "@/types/identity";
+import type { ChannelMember, ChannelSettings } from "@/types/channel";
 
 export class NotFoundError extends Error {
   name = "NotFoundError" as const;
@@ -13,6 +21,15 @@ export class NameTakenError extends Error {
 }
 export class ChannelLimitError extends Error {
   name = "ChannelLimitError" as const;
+}
+export class UserNotFoundError extends Error {
+  name = "UserNotFoundError" as const;
+}
+export class CannotAddChannelOwnerError extends Error {
+  name = "CannotAddChannelOwnerError" as const;
+}
+export class ChannelMemberAlreadyExistsError extends Error {
+  name = "ChannelMemberAlreadyExistsError" as const;
 }
 
 function toPostChannel(channel: { id: string; name: string; slug: string; avatarUrl: string | null; ownerId: string }): PostChannel {
@@ -185,6 +202,176 @@ export async function isChannelEditor(channelId: string, userId: string): Promis
   return !!editor;
 }
 
+export async function canManageChannelSettings(channelId: string, userId: string): Promise<boolean> {
+  const channel = await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { ownerId: true },
+  });
+  if (!channel) return false;
+  if (channel.ownerId === userId) return true;
+
+  const editor = await prisma.channelEditor.findUnique({
+    where: { channelId_userId: { channelId, userId } },
+    select: { role: true },
+  });
+  return editor?.role === CHANNEL_ROLE_ADMIN;
+}
+
+export async function getChannelMembers(channelId: string): Promise<ChannelMember[]> {
+  const members = await prisma.channelEditor.findMany({
+    where: { channelId },
+    include: {
+      user: { select: { id: true, name: true, email: true, image: true } },
+    },
+    orderBy: [{ role: "asc" }, { userId: "asc" }],
+  });
+
+  return members.map((member) => ({
+    id: member.user.id,
+    name: member.user.name,
+    email: member.user.email,
+    image: member.user.image,
+    role: member.role as ChannelMemberRole,
+  }));
+}
+
+export async function getChannelSettingsBySlug(slug: string, userId: string): Promise<ChannelSettings | null> {
+  const channel = await prisma.channel.findUnique({
+    where: { slug },
+    include: {
+      owner: { select: { id: true, name: true, email: true } },
+    },
+  });
+  if (!channel) return null;
+
+  if (!await canManageChannelSettings(channel.id, userId)) return null;
+
+  return {
+    channel: {
+      id: channel.id,
+      name: channel.name,
+      slug: channel.slug,
+      avatarUrl: channel.avatarUrl,
+      ownerId: channel.ownerId,
+      ownerName: channel.owner.name,
+      ownerEmail: channel.owner.email,
+    },
+    members: await getChannelMembers(channel.id),
+  };
+}
+
+async function getManageableChannelForMemberMutation(
+  tx: Prisma.TransactionClient,
+  channelId: string,
+  actorUserId: string,
+) {
+  const channel = await tx.channel.findUnique({
+    where: { id: channelId },
+    select: { ownerId: true },
+  });
+  if (!channel) throw new NotFoundError();
+
+  if (channel.ownerId !== actorUserId) {
+    const actorMember = await tx.channelEditor.findUnique({
+      where: { channelId_userId: { channelId, userId: actorUserId } },
+      select: { role: true },
+    });
+    if (actorMember?.role !== CHANNEL_ROLE_ADMIN) {
+      throw new NotFoundError();
+    }
+  }
+
+  return channel;
+}
+
+export async function addChannelMemberByEmail({
+  channelId,
+  email,
+  role,
+  actorUserId,
+}: {
+  channelId: string;
+  email: string;
+  role: ChannelMemberRole;
+  actorUserId: string;
+}): Promise<ChannelMember> {
+  return prisma.$transaction(async (tx) => {
+    const channel = await getManageableChannelForMemberMutation(tx, channelId, actorUserId);
+
+    const user = await tx.user.findUnique({
+      where: { email },
+      select: { id: true, name: true, email: true, image: true },
+    });
+    if (!user) throw new UserNotFoundError();
+    if (user.id === channel.ownerId) throw new CannotAddChannelOwnerError();
+
+    const existingMember = await tx.channelEditor.findUnique({
+      where: { channelId_userId: { channelId, userId: user.id } },
+      select: { userId: true },
+    });
+    if (existingMember) throw new ChannelMemberAlreadyExistsError();
+
+    const member = await tx.channelEditor.create({
+      data: { channelId, userId: user.id, role },
+      include: {
+        user: { select: { id: true, name: true, email: true, image: true } },
+      },
+    });
+
+    return {
+      id: member.user.id,
+      name: member.user.name,
+      email: member.user.email,
+      image: member.user.image,
+      role: member.role as ChannelMemberRole,
+    };
+  });
+}
+
+export async function updateChannelMemberByEmail({
+  channelId,
+  email,
+  role,
+  actorUserId,
+}: {
+  channelId: string;
+  email: string;
+  role: ChannelMemberRole;
+  actorUserId: string;
+}): Promise<ChannelMember> {
+  return prisma.$transaction(async (tx) => {
+    const channel = await getManageableChannelForMemberMutation(tx, channelId, actorUserId);
+
+    const user = await tx.user.findUnique({
+      where: { email },
+      select: { id: true, name: true, email: true, image: true },
+    });
+    if (!user) throw new UserNotFoundError();
+    if (user.id === channel.ownerId) throw new CannotAddChannelOwnerError();
+
+    try {
+      const member = await tx.channelEditor.update({
+        where: { channelId_userId: { channelId, userId: user.id } },
+        data: { role },
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true } },
+        },
+      });
+
+      return {
+        id: member.user.id,
+        name: member.user.name,
+        email: member.user.email,
+        image: member.user.image,
+        role: member.role as ChannelMemberRole,
+      };
+    } catch (error) {
+      if ((error as { code?: string })?.code === "P2025") throw new NotFoundError();
+      throw error;
+    }
+  });
+}
+
 export async function getAuthorableChannels(userId: string): Promise<AuthorableIdentity[]> {
   const [owned, editable] = await Promise.all([
     prisma.channel.findMany({
@@ -205,11 +392,11 @@ export async function getAuthorableChannels(userId: string): Promise<AuthorableI
 
   const identities = new Map<string, AuthorableIdentity>();
   for (const channel of owned) {
-    identities.set(channel.id, { ...channel, role: "owner" });
+    identities.set(channel.id, { ...channel, role: CHANNEL_ROLE_OWNER });
   }
   for (const editor of editable) {
     if (!identities.has(editor.channel.id)) {
-      identities.set(editor.channel.id, { ...editor.channel, role: "editor" });
+      identities.set(editor.channel.id, { ...editor.channel, role: editor.role as ChannelRole });
     }
   }
 

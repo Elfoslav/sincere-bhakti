@@ -1,0 +1,1 @@
+ALTER TYPE "ChannelRole" ADD VALUE IF NOT EXISTS 'admin';
