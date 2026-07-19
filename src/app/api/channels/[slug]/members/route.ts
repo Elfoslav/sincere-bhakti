@@ -4,6 +4,7 @@ import { validateOrigin } from "@/lib/csrf";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 import {
   ERROR_CANNOT_ADD_CHANNEL_OWNER,
+  ERROR_CHANNEL_MEMBER_CONFLICT,
   ERROR_CHANNEL_MEMBER_EXISTS,
   ERROR_FORBIDDEN,
   ERROR_NOT_FOUND,
@@ -18,6 +19,7 @@ import { addChannelMemberSchema } from "@/lib/validation";
 import {
   addChannelMemberByEmail,
   ChannelMemberAlreadyExistsError,
+  ChannelMemberTransactionConflictError,
   CannotAddChannelOwnerError,
   getChannelSettingsBySlug,
   NotFoundError,
@@ -117,6 +119,9 @@ export async function POST(
     }
     if (error instanceof ChannelMemberAlreadyExistsError) {
       return NextResponse.json({ error: ERROR_CHANNEL_MEMBER_EXISTS }, { status: HTTP_CONFLICT });
+    }
+    if (error instanceof ChannelMemberTransactionConflictError) {
+      return NextResponse.json({ error: ERROR_CHANNEL_MEMBER_CONFLICT }, { status: HTTP_CONFLICT });
     }
 
     logServerError("POST /api/channels/[slug]/members failed", error);

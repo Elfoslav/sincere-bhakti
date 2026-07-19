@@ -251,6 +251,7 @@
 		"memberUpdated": "Přístup člena byl aktualizován",
 		"userNotFound": "Uživatele se nepodařilo přidat. Zkontrolujte e-mailovou adresu nebo roli a zkuste to znovu.",
 		"memberAlreadyExists": "Tento uživatel už je členem. Otevřete ho v části Aktuální členové a upravte jeho roli.",
+		"memberConflict": "Přístup člena se změnil ve stejnou chvíli. Obnovte stránku a zkuste to znovu.",
 		"cannotAddOwner": "Vlastník kanálu už má plný přístup.",
 		"tooManyRequests": "Děláte to příliš rychle. Počkejte prosím chvíli a zkuste to znovu.",
 		"validationError": "Zadejte platný e-mail a roli.",

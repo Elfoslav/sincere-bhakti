@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CHANNEL_MEMBER_ACTION_ADD, CHANNEL_MEMBER_ACTION_EDIT, CHANNEL_ROLE_ADMIN, CHANNEL_ROLE_EDITOR } from "@/lib/channel-roles";
 import {
   ERROR_CANNOT_ADD_CHANNEL_OWNER,
+  ERROR_CHANNEL_MEMBER_CONFLICT,
   ERROR_CHANNEL_MEMBER_EXISTS,
   ERROR_FORBIDDEN,
   ERROR_NOT_FOUND,
@@ -34,6 +35,9 @@ vi.mock("@/lib/services/channel", () => {
   class CannotAddChannelOwnerError extends Error {
     name = "CannotAddChannelOwnerError" as const;
   }
+  class ChannelMemberTransactionConflictError extends Error {
+    name = "ChannelMemberTransactionConflictError" as const;
+  }
 
   return {
     NotFoundError,
@@ -42,6 +46,7 @@ vi.mock("@/lib/services/channel", () => {
     ChannelMemberAlreadyExistsError: class ChannelMemberAlreadyExistsError extends Error {
       name = "ChannelMemberAlreadyExistsError" as const;
     },
+    ChannelMemberTransactionConflictError,
     getChannelSettingsBySlug: vi.fn(),
     addChannelMemberByEmail: vi.fn(),
     updateChannelMemberByEmail: vi.fn(),
@@ -55,6 +60,7 @@ import { validateOrigin } from "@/lib/csrf";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   ChannelMemberAlreadyExistsError,
+  ChannelMemberTransactionConflictError,
   CannotAddChannelOwnerError,
   UserNotFoundError,
   addChannelMemberByEmail,
@@ -271,5 +277,17 @@ describe("POST /api/channels/[slug]/members", () => {
 
     expect(res.status).toBe(409);
     expect(json.error).toBe(ERROR_CHANNEL_MEMBER_EXISTS);
+  });
+
+  it("returns 409 when member access changes conflict repeatedly", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "owner-1" } } as any);
+    vi.mocked(getChannelSettingsBySlug).mockResolvedValue(settings as any);
+    vi.mocked(updateChannelMemberByEmail).mockRejectedValue(new ChannelMemberTransactionConflictError());
+
+    const res = await POST(mockRequest({ action: CHANNEL_MEMBER_ACTION_EDIT, email: "admin@example.com", role: CHANNEL_ROLE_EDITOR }), params);
+    const json = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(json.error).toBe(ERROR_CHANNEL_MEMBER_CONFLICT);
   });
 });

@@ -251,6 +251,7 @@
 		"memberUpdated": "Member access updated",
 		"userNotFound": "Could not add this user. Check the email address or role and try again.",
 		"memberAlreadyExists": "This user is already a member. Open them from Current members to edit their role.",
+		"memberConflict": "Member access changed at the same time. Refresh and try again.",
 		"cannotAddOwner": "The channel owner already has full access.",
 		"tooManyRequests": "You're doing that too quickly. Please wait a moment and try again.",
 		"validationError": "Enter a valid email and role.",

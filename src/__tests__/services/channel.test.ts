@@ -55,6 +55,7 @@ import { CHANNEL_ROLE_ADMIN, CHANNEL_ROLE_EDITOR, CHANNEL_ROLE_OWNER } from "@/l
 import {
   CannotAddChannelOwnerError,
   ChannelMemberAlreadyExistsError,
+  ChannelMemberTransactionConflictError,
   ChannelLimitError,
   NameTakenError,
   NotFoundError,
@@ -331,6 +332,22 @@ describe("addChannelMemberByEmail", () => {
     expect(prisma.channelEditor.create).toHaveBeenCalledTimes(1);
   });
 
+  it("throws a domain error when transaction conflicts exhaust retries", async () => {
+    const conflict = Object.assign(new Error("write conflict"), { code: "P2034" });
+    vi.mocked(prisma.$transaction)
+      .mockRejectedValueOnce(conflict)
+      .mockRejectedValueOnce(conflict)
+      .mockRejectedValueOnce(conflict);
+
+    await expect(addChannelMemberByEmail({
+      channelId: "ch-1",
+      email: "admin@example.com",
+      role: CHANNEL_ROLE_ADMIN,
+      actorUserId: "owner-1",
+    })).rejects.toThrow(ChannelMemberTransactionConflictError);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(3);
+  });
+
   it("does not update an existing member from the add path", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
@@ -465,6 +482,22 @@ describe("updateChannelMemberByEmail", () => {
     expect(member.role).toBe(CHANNEL_ROLE_ADMIN);
     expect(prisma.$transaction).toHaveBeenCalledTimes(2);
     expect(prisma.channelEditor.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws a domain error when transaction conflicts exhaust retries", async () => {
+    const conflict = Object.assign(new Error("write conflict"), { code: "P2034" });
+    vi.mocked(prisma.$transaction)
+      .mockRejectedValueOnce(conflict)
+      .mockRejectedValueOnce(conflict)
+      .mockRejectedValueOnce(conflict);
+
+    await expect(updateChannelMemberByEmail({
+      channelId: "ch-1",
+      email: "editor@example.com",
+      role: CHANNEL_ROLE_ADMIN,
+      actorUserId: "owner-1",
+    })).rejects.toThrow(ChannelMemberTransactionConflictError);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(3);
   });
 
   it("does not create a missing member from the edit path", async () => {

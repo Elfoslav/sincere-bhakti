@@ -32,6 +32,9 @@ export class CannotAddChannelOwnerError extends Error {
 export class ChannelMemberAlreadyExistsError extends Error {
   name = "ChannelMemberAlreadyExistsError" as const;
 }
+export class ChannelMemberTransactionConflictError extends Error {
+  name = "ChannelMemberTransactionConflictError" as const;
+}
 
 const CHANNEL_MEMBER_TRANSACTION_MAX_ATTEMPTS = 3;
 const PRISMA_TRANSACTION_CONFLICT_CODE = "P2034";
@@ -49,8 +52,11 @@ async function runChannelMemberTransaction<T>(
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       });
     } catch (error) {
-      if (!isPrismaTransactionConflict(error) || attempt === CHANNEL_MEMBER_TRANSACTION_MAX_ATTEMPTS) {
+      if (!isPrismaTransactionConflict(error)) {
         throw error;
+      }
+      if (attempt === CHANNEL_MEMBER_TRANSACTION_MAX_ATTEMPTS) {
+        throw new ChannelMemberTransactionConflictError();
       }
     }
   }
