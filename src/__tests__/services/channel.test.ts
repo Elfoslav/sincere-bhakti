@@ -299,6 +299,38 @@ describe("addChannelMemberByEmail", () => {
     expect(prisma.channelEditor.upsert).not.toHaveBeenCalled();
   });
 
+  it("retries serializable transaction conflicts", async () => {
+    vi.mocked(prisma.$transaction).mockRejectedValueOnce(Object.assign(new Error("write conflict"), { code: "P2034" }));
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin User",
+      email: "admin@example.com",
+      image: null,
+    } as any);
+    vi.mocked(prisma.channelEditor.create).mockResolvedValue({
+      role: CHANNEL_ROLE_ADMIN,
+      user: {
+        id: "admin-1",
+        name: "Admin User",
+        email: "admin@example.com",
+        image: null,
+      },
+    } as any);
+
+    const member = await addChannelMemberByEmail({
+      channelId: "ch-1",
+      email: "admin@example.com",
+      role: CHANNEL_ROLE_ADMIN,
+      actorUserId: "owner-1",
+    });
+
+    expect(member.role).toBe(CHANNEL_ROLE_ADMIN);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(prisma.channelEditor.create).toHaveBeenCalledTimes(1);
+  });
+
   it("does not update an existing member from the add path", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
@@ -402,6 +434,37 @@ describe("updateChannelMemberByEmail", () => {
       isolationLevel: "Serializable",
     });
     expect(prisma.channelEditor.create).not.toHaveBeenCalled();
+  });
+
+  it("retries serializable transaction conflicts", async () => {
+    vi.mocked(prisma.$transaction).mockRejectedValueOnce(Object.assign(new Error("write conflict"), { code: "P2034" }));
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "editor-1",
+      name: "Editor User",
+      email: "editor@example.com",
+      image: null,
+    } as any);
+    vi.mocked(prisma.channelEditor.update).mockResolvedValue({
+      role: CHANNEL_ROLE_ADMIN,
+      user: {
+        id: "editor-1",
+        name: "Editor User",
+        email: "editor@example.com",
+        image: null,
+      },
+    } as any);
+
+    const member = await updateChannelMemberByEmail({
+      channelId: "ch-1",
+      email: "editor@example.com",
+      role: CHANNEL_ROLE_ADMIN,
+      actorUserId: "owner-1",
+    });
+
+    expect(member.role).toBe(CHANNEL_ROLE_ADMIN);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(prisma.channelEditor.update).toHaveBeenCalledTimes(1);
   });
 
   it("does not create a missing member from the edit path", async () => {

@@ -33,6 +33,31 @@ export class ChannelMemberAlreadyExistsError extends Error {
   name = "ChannelMemberAlreadyExistsError" as const;
 }
 
+const CHANNEL_MEMBER_TRANSACTION_MAX_ATTEMPTS = 3;
+const PRISMA_TRANSACTION_CONFLICT_CODE = "P2034";
+
+function isPrismaTransactionConflict(error: unknown): boolean {
+  return (error as { code?: string })?.code === PRISMA_TRANSACTION_CONFLICT_CODE;
+}
+
+async function runChannelMemberTransaction<T>(
+  callback: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  for (let attempt = 1; attempt <= CHANNEL_MEMBER_TRANSACTION_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await prisma.$transaction(callback, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      if (!isPrismaTransactionConflict(error) || attempt === CHANNEL_MEMBER_TRANSACTION_MAX_ATTEMPTS) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("unreachable_transaction_retry_state");
+}
+
 function toPostChannel(channel: { id: string; name: string; slug: string; avatarUrl: string | null; ownerId: string }): PostChannel {
   return {
     id: channel.id,
@@ -297,7 +322,7 @@ export async function addChannelMemberByEmail({
   role: ChannelMemberRole;
   actorUserId: string;
 }): Promise<ChannelMember> {
-  return prisma.$transaction(async (tx) => {
+  return runChannelMemberTransaction(async (tx) => {
     const channel = await getManageableChannelForMemberMutation(tx, channelId, actorUserId);
 
     const user = await tx.user.findUnique({
@@ -327,7 +352,7 @@ export async function addChannelMemberByEmail({
       image: member.user.image,
       role: member.role as ChannelMemberRole,
     };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  });
 }
 
 export async function updateChannelMemberByEmail({
@@ -341,7 +366,7 @@ export async function updateChannelMemberByEmail({
   role: ChannelMemberRole;
   actorUserId: string;
 }): Promise<ChannelMember> {
-  return prisma.$transaction(async (tx) => {
+  return runChannelMemberTransaction(async (tx) => {
     const channel = await getManageableChannelForMemberMutation(tx, channelId, actorUserId);
 
     const user = await tx.user.findUnique({
@@ -371,7 +396,7 @@ export async function updateChannelMemberByEmail({
       if ((error as { code?: string })?.code === "P2025") throw new NotFoundError();
       throw error;
     }
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  });
 }
 
 export async function getAuthorableChannels(userId: string): Promise<AuthorableIdentity[]> {
