@@ -257,6 +257,7 @@ export default function ChannelPageClient({
                     subheading={common("renameCountInfo")}
                     subheadingRight={common("renameCount", { count: channel.renameCount, max: MAX_RENAME_COUNT })}
                     subheadingClassName="text-deep/50"
+                    subheadingRightClassName="text-deep/50"
                   />
                   <form
                     onSubmit={(e) => {

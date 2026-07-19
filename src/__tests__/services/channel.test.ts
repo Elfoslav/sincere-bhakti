@@ -162,8 +162,14 @@ describe("getAuthorableChannels", () => {
       {
         channelId: "ch-3",
         userId: "user-1",
+        role: CHANNEL_ROLE_ADMIN,
+        channel: { id: "ch-3", name: "Admin", slug: "admin", avatarUrl: null, ownerId: "user-2", isPersonal: false },
+      },
+      {
+        channelId: "ch-4",
+        userId: "user-1",
         role: CHANNEL_ROLE_EDITOR,
-        channel: { id: "ch-3", name: "Editable", slug: "editable", avatarUrl: null, ownerId: "user-2", isPersonal: false },
+        channel: { id: "ch-4", name: "Editable", slug: "editable", avatarUrl: null, ownerId: "user-3", isPersonal: false },
       },
     ] as any);
 
@@ -172,7 +178,8 @@ describe("getAuthorableChannels", () => {
     expect(result).toEqual([
       { id: "ch-1", name: "Personal", slug: "personal", avatarUrl: null, ownerId: "user-1", isPersonal: true, role: CHANNEL_ROLE_OWNER },
       { id: "ch-2", name: "Owned", slug: "owned", avatarUrl: null, ownerId: "user-1", isPersonal: false, role: CHANNEL_ROLE_OWNER },
-      { id: "ch-3", name: "Editable", slug: "editable", avatarUrl: null, ownerId: "user-2", isPersonal: false, role: CHANNEL_ROLE_EDITOR },
+      { id: "ch-3", name: "Admin", slug: "admin", avatarUrl: null, ownerId: "user-2", isPersonal: false, role: CHANNEL_ROLE_ADMIN },
+      { id: "ch-4", name: "Editable", slug: "editable", avatarUrl: null, ownerId: "user-3", isPersonal: false, role: CHANNEL_ROLE_EDITOR },
     ]);
   });
 });

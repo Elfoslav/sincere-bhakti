@@ -5,6 +5,7 @@ import { Check, ChevronDown, CircleUserRound, Hash } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useIdentity } from "@/components/IdentityProvider";
+import { getIdentitySubtitleKey } from "@/lib/identity-label";
 import { cn } from "@/lib/utils";
 
 interface IdentitySwitcherProps {
@@ -95,7 +96,7 @@ export default function IdentitySwitcher({ compact = false, mobileNav = false, o
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{identity.name}</span>
                     <span className="block text-xs text-deep/45">
-                      {identity.isPersonal ? t("personal") : t(identity.role)}
+                      {t(getIdentitySubtitleKey(identity))}
                     </span>
                   </span>
                   {identity.id === activeIdentity.id && <Check className="size-4 text-tulsi" />}
