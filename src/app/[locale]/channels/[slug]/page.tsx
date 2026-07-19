@@ -5,15 +5,14 @@ import { getTranslations } from "next-intl/server";
 import { resolveSlugRedirect, getCachedChannelBySlug } from "@/lib/services/channel";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import {
-  DEFAULT_OG_IMAGE,
+  POST_OG_IMAGE,
   createBreadcrumbJsonLd,
   createChannelJsonLd,
   createJsonLdScript,
   getCanonicalAlternates,
-  getJsonLdImageUrl,
+  getChannelOpenGraphImageUrl,
   getLocalizedUrl,
   getOpenGraphLocale,
-  getSeoImageUrl,
 } from "@/lib/seo";
 import ChannelPageClient from "./channel-page-client";
 
@@ -32,7 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const description = t("metaDescription", { name: channel.name });
-  const imageUrl = getSeoImageUrl(channel.avatarUrl);
+  const imageUrl = getChannelOpenGraphImageUrl(locale, channel.slug);
 
   return {
     title: channel.name,
@@ -45,7 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       locale: getOpenGraphLocale(locale),
       url: getCanonicalAlternates(locale, `/channels/${channel.slug}`)?.canonical as string,
       siteName: "Sincere Bhakti",
-      images: [{ ...DEFAULT_OG_IMAGE, url: imageUrl }],
+      images: [{ ...POST_OG_IMAGE, url: imageUrl, alt: channel.name }],
     },
     twitter: {
       card: "summary_large_image",
@@ -78,7 +77,7 @@ export default async function ChannelPage({ params }: Props) {
   ]);
   const description = t("metaDescription", { name: channel.name });
   const channelUrl = getLocalizedUrl(locale, `/channels/${channel.slug}`);
-  const imageUrl = getJsonLdImageUrl(channel.avatarUrl);
+  const imageUrl = getChannelOpenGraphImageUrl(locale, channel.slug);
   const jsonLd = [
     createChannelJsonLd({
       name: channel.name,

@@ -6,15 +6,14 @@ import ProfileContent from "@/components/ProfileContent";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { getCachedPublicUserById } from "@/lib/services/user";
 import {
-  DEFAULT_OG_IMAGE,
+  POST_OG_IMAGE,
   createBreadcrumbJsonLd,
   createJsonLdScript,
   createProfileJsonLd,
   getCanonicalAlternates,
-  getJsonLdImageUrl,
   getLocalizedUrl,
   getOpenGraphLocale,
-  getSeoImageUrl,
+  getProfileOpenGraphImageUrl,
 } from "@/lib/seo";
 
 type Props = {
@@ -28,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const t = await getTranslations({ locale, namespace: "Metadata" });
   const description = t("profile.description", { name: user.name });
-  const imageUrl = getSeoImageUrl(user.image);
+  const imageUrl = getProfileOpenGraphImageUrl(locale, id);
   const alternates = getCanonicalAlternates(locale, `/profile/${id}`);
 
   return {
@@ -42,7 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       locale: getOpenGraphLocale(locale),
       url: alternates?.canonical as string,
       siteName: "Sincere Bhakti",
-      images: [{ ...DEFAULT_OG_IMAGE, url: imageUrl }],
+      images: [{ ...POST_OG_IMAGE, url: imageUrl, alt: user.name }],
     },
     twitter: {
       card: "summary_large_image",
@@ -65,7 +64,7 @@ export default async function ProfileByIdPage({ params }: Props) {
   const t = await getTranslations({ locale, namespace: "Metadata" });
   const description = t("profile.description", { name: user.name });
   const profileUrl = getLocalizedUrl(locale, `/profile/${id}`);
-  const imageUrl = getJsonLdImageUrl(user.image);
+  const imageUrl = getProfileOpenGraphImageUrl(locale, id);
   const jsonLd = [
     createProfileJsonLd({
       name: user.name,

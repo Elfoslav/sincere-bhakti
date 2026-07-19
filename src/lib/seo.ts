@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
 import { routing } from "@/i18n/routing";
 import { getSiteUrl } from "@/lib/url";
-import { isSafeHttpUrl } from "@/lib/validation";
 
 export const SITE_NAME = "Sincere Bhakti";
-export const DEFAULT_OG_IMAGE = {
-  url: "/images/sincere-bhakti-logo.png",
-  width: 603,
-  height: 414,
-};
 export const POST_OG_IMAGE = {
   width: 1200,
   height: 630,
@@ -61,14 +55,6 @@ export function getCanonicalAlternates(locale: string, path: string): Metadata["
   };
 }
 
-export function getSeoImageUrl(...candidates: Array<string | null | undefined>): string {
-  return candidates.find((candidate) => candidate && isSafeHttpUrl(candidate)) ?? DEFAULT_OG_IMAGE.url;
-}
-
-export function getJsonLdImageUrl(...candidates: Array<string | null | undefined>): string {
-  return candidates.find((candidate) => candidate && isSafeHttpUrl(candidate)) ?? `${getSiteUrl()}${DEFAULT_OG_IMAGE.url}`;
-}
-
 export function getPostSeoTitle(channelName: string, content: string | null | undefined): string {
   const trimmedContent = truncateSeoText(content, 72);
   return trimmedContent ? `${channelName}: ${trimmedContent}` : channelName;
@@ -81,6 +67,14 @@ export function getPostSeoDescription(channelName: string, content: string | nul
 
 export function getPostOpenGraphImageUrl(locale: string, postId: string): string {
   return getLocalizedUrl(locale, `/posts/${postId}/opengraph-image`);
+}
+
+export function getChannelOpenGraphImageUrl(locale: string, slug: string): string {
+  return getLocalizedUrl(locale, `/channels/${slug}/opengraph-image`);
+}
+
+export function getProfileOpenGraphImageUrl(locale: string, id: string): string {
+  return getLocalizedUrl(locale, `/profile/${id}/opengraph-image`);
 }
 
 export function createJsonLdScript(value: Record<string, unknown> | Array<Record<string, unknown>>) {

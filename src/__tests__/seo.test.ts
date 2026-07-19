@@ -6,13 +6,13 @@ import {
   createPostJsonLd,
   createProfileJsonLd,
   getCanonicalAlternates,
-  getJsonLdImageUrl,
+  getChannelOpenGraphImageUrl,
   getLocalizedPath,
   getNoIndexMetadata,
   getPostOpenGraphImageUrl,
   getPostSeoDescription,
   getPostSeoTitle,
-  getSeoImageUrl,
+  getProfileOpenGraphImageUrl,
   normalizeSeoText,
   truncateSeoText,
 } from "@/lib/seo";
@@ -49,15 +49,14 @@ describe("seo helpers", () => {
     });
   });
 
-  it("uses only safe absolute URLs as SEO images", () => {
-    expect(getSeoImageUrl("javascript:alert(1)", "https://cdn.example.test/image.jpg")).toBe("https://cdn.example.test/image.jpg");
-    expect(getSeoImageUrl("data:text/html,hi")).toBe("/images/sincere-bhakti-logo.png");
-    expect(getJsonLdImageUrl("data:text/html,hi")).toBe("https://example.test/images/sincere-bhakti-logo.png");
-  });
-
   it("builds generated post Open Graph image URLs", () => {
     expect(getPostOpenGraphImageUrl("en", "post-1")).toBe("https://example.test/posts/post-1/opengraph-image");
     expect(getPostOpenGraphImageUrl("cs", "post-1")).toBe("https://example.test/cs/posts/post-1/opengraph-image");
+  });
+
+  it("builds generated channel and profile Open Graph image URLs", () => {
+    expect(getChannelOpenGraphImageUrl("en", "govinda")).toBe("https://example.test/channels/govinda/opengraph-image");
+    expect(getProfileOpenGraphImageUrl("sk", "user-1")).toBe("https://example.test/sk/profile/user-1/opengraph-image");
   });
 
   it("builds escaped JSON-LD script content", () => {
