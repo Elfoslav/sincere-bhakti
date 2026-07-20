@@ -9,9 +9,15 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test:web:ui": "playwright test --config playwright.ui.config.ts",
+    "test:web:ui:server": "node scripts/require-existing-web-server.mjs http://localhost:3001 && PLAYWRIGHT_USE_EXISTING_SERVER=1 PLAYWRIGHT_BASE_URL=http://localhost:3001 playwright test --config playwright.ui.config.ts",
+    "test:web:e2e": "node scripts/reset-test-db.mjs && playwright test --config playwright.e2e.config.ts",
+    "test:web:e2e:server": "node scripts/require-existing-web-server.mjs http://localhost:3001 && node scripts/reset-test-db.mjs && PLAYWRIGHT_USE_EXISTING_SERVER=1 PLAYWRIGHT_BASE_URL=http://localhost:3001 playwright test --config playwright.e2e.config.ts",
+    "test:web:e2e:dirty": "playwright test --config playwright.e2e.config.ts",
+    "test:web:e2e:dirty:server": "node scripts/require-existing-web-server.mjs http://localhost:3001 && PLAYWRIGHT_USE_EXISTING_SERVER=1 PLAYWRIGHT_BASE_URL=http://localhost:3001 playwright test --config playwright.e2e.config.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:test:reset": "node scripts/reset-test-db.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

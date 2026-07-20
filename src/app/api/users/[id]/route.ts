@@ -5,7 +5,7 @@ import { updateNameSchema, normalizeName, isBrandNameBlocked, slugifyName, MAX_R
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_RENAME_LIMIT } from "@/lib/error-messages";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 import { getMaxChannelsPerUser } from "@/lib/channel-limit";
 import type { ChannelMemberRole } from "@/lib/channel-roles";
@@ -146,7 +146,7 @@ export async function PATCH(
 
     // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
     if (isBrandNameBlocked(parsed.data.name, session.user.email)) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
     // All name/slug checks and writes happen inside a single transaction so a
@@ -225,7 +225,7 @@ export async function PATCH(
     return NextResponse.json(updated);
   } catch (error) {
     if (error instanceof NameTakenError) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
     if (error instanceof Error && error.message === "rename_limit_reached") {
       return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });

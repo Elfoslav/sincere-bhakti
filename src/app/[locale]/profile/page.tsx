@@ -1,30 +1,18 @@
-"use client";
+import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
+import { getNoIndexMetadata } from "@/lib/seo";
+import MyProfilePageClient from "./profile-page-client";
 
-import { useEffect } from "react";
-import { useSession } from "next-auth/react";
-import { useRouter } from "@/i18n/navigation";
-import ProfileContent from "@/components/ProfileContent";
-import { Skeleton } from "@/components/ui/skeleton";
+type Props = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "ProfilePage" });
+  return getNoIndexMetadata(t("title"));
+}
 
 export default function MyProfilePage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.replace("/login");
-    }
-  }, [status, router]);
-
-  if (status === "loading") {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
-        <Skeleton className="h-48 w-full" />
-      </div>
-    );
-  }
-
-  if (!session?.user?.id) return null;
-
-  return <ProfileContent authorId={session.user.id} />;
+  return <MyProfilePageClient />;
 }

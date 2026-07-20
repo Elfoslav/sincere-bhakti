@@ -57,8 +57,8 @@ export function IdentityProvider({
       .then((data) => {
         if (data && !cancelled) applyResponse(data, userId);
       })
-      .catch(() => {
-        // Keep the current identity state if refresh fails.
+      .catch((err) => {
+        console.error("IdentityProvider: initial identity fetch failed", err);
       });
 
     return () => {

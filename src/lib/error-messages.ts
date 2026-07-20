@@ -7,6 +7,7 @@ export const ERROR_SERVER_ERROR = "server_error";
 export const ERROR_BAD_REQUEST = "bad_request";
 export const ERROR_CHANNEL_LIMIT_REACHED = "channel_limit_reached";
 export const ERROR_RENAME_LIMIT = "rename_limit_reached";
+export const ERROR_NAME_TAKEN = "name_taken";
 export const ERROR_INVALID_PASSWORD = "invalid_password";
 export const ERROR_USER_NOT_FOUND = "user_not_found";
 export const ERROR_CANNOT_ADD_CHANNEL_OWNER = "cannot_add_channel_owner";

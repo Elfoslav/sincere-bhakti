@@ -7,7 +7,7 @@ import { updateActiveIdentitySchema } from "@/lib/validation";
 import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
-import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_UNAUTHORIZED } from "@/lib/error-messages";
+import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_UNAUTHORIZED, ERROR_NOT_FOUND, ERROR_SERVER_ERROR } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_UNAUTHORIZED } from "@/lib/error-codes";
 
 export async function GET(request: NextRequest) {
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     logServerError("GET /api/identity failed", error);
-    return NextResponse.json({ error: "server_error" }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
   }
 }
 
@@ -73,7 +73,7 @@ export async function PATCH(request: NextRequest) {
     const identities = await getAuthorableChannels(session.user.id);
     const activeIdentity = identities.find((identity) => identity.id === parsed.data.channelId);
     if (!activeIdentity) {
-      return NextResponse.json({ error: "identity_not_found" }, { status: HTTP_NOT_FOUND });
+      return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
     const response = NextResponse.json({
@@ -84,6 +84,6 @@ export async function PATCH(request: NextRequest) {
     return response;
   } catch (error) {
     logServerError("PATCH /api/identity failed", error);
-    return NextResponse.json({ error: "server_error" }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
   }
 }

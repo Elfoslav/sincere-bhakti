@@ -6,7 +6,7 @@ import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/validation";
 import { createChannel, NameTakenError, ChannelLimitError } from "@/lib/services/channel";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_CHANNEL_LIMIT_REACHED } from "@/lib/error-messages";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function GET(request: NextRequest) {
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
     if (isBrandNameBlocked(name, session.user.email)) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
     const channel = await createChannel(session.user.id, name);
@@ -124,11 +124,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: ERROR_CHANNEL_LIMIT_REACHED }, { status: HTTP_CONFLICT });
     }
     if (error instanceof NameTakenError) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
     if ((error as { code?: string })?.code === "P2002") {
       logServerError("POST /api/channels P2002 collision", error);
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
     logServerError("POST /api/channels failed", error);
     return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });

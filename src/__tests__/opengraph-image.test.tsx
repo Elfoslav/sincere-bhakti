@@ -29,10 +29,10 @@ vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(),
   getClientIp: vi.fn(() => "203.0.113.10"),
   RATE_LIMITS: {
-    readPosts: { limit: 120, windowMs: 60_000 },
+    readPostOgImage: { limit: 240, windowMs: 60_000 },
   },
   RATE_LIMIT_PREFIX: {
-    readPosts: "read-posts",
+    readPostOgImage: "read-post-og-image",
   },
 }));
 
@@ -81,6 +81,7 @@ describe("post opengraph image", () => {
 
     const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
 
+    expect(checkRateLimit).toHaveBeenCalledWith("read-post-og-image", "203.0.113.10", 240, 60_000);
     expect(getCachedPostById).not.toHaveBeenCalled();
     expect(response).toBeInstanceOf(ImageResponseMock);
     expect((response as unknown as InstanceType<typeof ImageResponseMock>).init).toMatchObject({
