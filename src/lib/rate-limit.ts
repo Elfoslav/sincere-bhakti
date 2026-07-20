@@ -21,8 +21,12 @@ export const RATE_LIMITS = {
   updateProfile: { limit: 20, windowMs: 3_600_000 },
   // Read posts: 120 requests per 60s per IP (2 req/s average)
   readPosts: { limit: 120, windowMs: 60_000 },
+  // Read post Open Graph images: 240 requests per 60s per IP
+  readPostOgImage: { limit: 240, windowMs: 60_000 },
   // Read channel by slug: 60 requests per 60s per IP
   readChannel: { limit: 60, windowMs: 60_000 },
+  // Read channel Open Graph images: 240 requests per 60s per IP
+  readChannelOgImage: { limit: 240, windowMs: 60_000 },
   // Search channels: 30 requests per 60s per IP
   searchChannels: { limit: 30, windowMs: 60_000 },
   // Channel creation: 20 per hour per user
@@ -37,6 +41,8 @@ export const RATE_LIMITS = {
   readPostDetail: { limit: 120, windowMs: 60_000 },
   // Read user profile: 60 requests per 60s per IP
   readProfile: { limit: 60, windowMs: 60_000 },
+  // Read profile Open Graph images: 240 requests per 60s per IP
+  readProfileOgImage: { limit: 240, windowMs: 60_000 },
   // Password change: 5 per hour per user
   changePassword: { limit: 5, windowMs: 3_600_000 },
   // Read active identity: 120 requests per 60s per user
@@ -52,6 +58,7 @@ export const RATE_LIMIT_PREFIX = {
   register: "register",
   login: "login",
   readPosts: "read-posts",
+  readPostOgImage: "read-post-og-image",
   createPost: "create-post",
   updatePost: "update-post",
   deletePost: "delete-post",
@@ -59,6 +66,7 @@ export const RATE_LIMIT_PREFIX = {
   uploadUrl: "upload-url",
   updateProfile: "update-profile",
   readChannel: "read-channel",
+  readChannelOgImage: "read-channel-og-image",
   searchChannels: "search-channels",
   createChannel: "create-channel",
   updateChannel: "update-channel",
@@ -66,6 +74,7 @@ export const RATE_LIMIT_PREFIX = {
   updateChannelMembers: "update-channel-members",
   readPostDetail: "read-post-detail",
   readProfile: "read-profile",
+  readProfileOgImage: "read-profile-og-image",
   changePassword: "change-password",
   readIdentity: "read-identity",
   updateIdentity: "update-identity",

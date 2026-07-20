@@ -20,7 +20,7 @@ export default async function Image({
   const ip = getClientIp(await headers());
   const t = await getTranslations({ locale, namespace: "ChannelPage" });
 
-  if (!await checkRateLimit(RATE_LIMIT_PREFIX.readChannel, ip, RATE_LIMITS.readChannel.limit, RATE_LIMITS.readChannel.windowMs)) {
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.readChannelOgImage, ip, RATE_LIMITS.readChannelOgImage.limit, RATE_LIMITS.readChannelOgImage.windowMs)) {
     return new ImageResponse(<OgImageTemplate eyebrow={t("channelLabel")} title="Sincere Bhakti" />, size);
   }
 

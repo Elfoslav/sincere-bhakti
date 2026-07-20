@@ -23,7 +23,7 @@ export default async function Image({
     getTranslations({ locale, namespace: "ProfilePage" }),
   ]);
 
-  if (!await checkRateLimit(RATE_LIMIT_PREFIX.readProfile, ip, RATE_LIMITS.readProfile.limit, RATE_LIMITS.readProfile.windowMs)) {
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.readProfileOgImage, ip, RATE_LIMITS.readProfileOgImage.limit, RATE_LIMITS.readProfileOgImage.windowMs)) {
     return new ImageResponse(<OgImageTemplate eyebrow={profileT("title")} title="Sincere Bhakti" />, size);
   }
 

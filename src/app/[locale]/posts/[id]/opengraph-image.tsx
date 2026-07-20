@@ -101,7 +101,7 @@ export default async function Image({
   const siteUrl = getSiteUrl();
   const ip = getClientIp(await headers());
 
-  if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) {
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPostOgImage, ip, RATE_LIMITS.readPostOgImage.limit, RATE_LIMITS.readPostOgImage.windowMs)) {
     return logoFallback(siteUrl);
   }
 
