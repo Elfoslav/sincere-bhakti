@@ -1,3 +1,8 @@
+import type { Metadata } from "next";
+import { getNoIndexMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = getNoIndexMetadata();
+
 export default function AuthLayout({
   children,
 }: {

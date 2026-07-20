@@ -4,9 +4,10 @@ import { useRef, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
+  DialogActions,
   DialogContent,
   DialogHeader,
-  DialogTitle,
+  dialogActionButtonClassName,
 } from "@/components/ui/dialog";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -82,14 +83,16 @@ export default function EditPostModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {t("title")}
-            <span className="ml-2 text-base" title={post.language}>
-              {localeFlags[post.language] || post.language}
-            </span>
-          </DialogTitle>
-        </DialogHeader>
+        <DialogHeader
+          text={(
+            <>
+              {t("title")}
+              <span className="ml-2 text-base" title={post.language}>
+                {localeFlags[post.language] || post.language}
+              </span>
+            </>
+          )}
+        />
 
         <TabsRoot defaultValue="edit" onValueChange={handleTabChange}>
           <TabsList>
@@ -120,14 +123,14 @@ export default function EditPostModal({
               hideExternalLink
             />
 
-            <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-sand">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            <DialogActions className="mt-4 border-t border-sand pt-4">
+              <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={() => onOpenChange(false)} disabled={submitting}>
                 {postT("cancel")}
               </Button>
-              <Button type="submit" form={FORM_ID} variant="default" className="px-6 py-2" disabled={submitting}>
+              <Button type="submit" form={FORM_ID} variant="default" className={dialogActionButtonClassName} disabled={submitting}>
                 {submitting ? postT("posting") : postT("saveButton")}
               </Button>
-            </div>
+            </DialogActions>
           </TabsPanel>
         </TabsRoot>
       </DialogContent>

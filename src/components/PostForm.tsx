@@ -5,8 +5,9 @@ import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { DialogActions, dialogActionButtonClassName } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { GripVertical } from "lucide-react";
+import { GripVertical, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getYouTubeEmbedUrl } from "@/lib/video";
 import { formatBytes } from "@/lib/format";
@@ -321,7 +322,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
       {mode === "create" && postingIdentity && (
         <div className="mb-3 flex items-center gap-2 text-sm text-deep/60">
           <span>{t("postingAs")}</span>
-          <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-deep/5 px-3 py-1 font-medium text-deep">
+          <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-deep/5 py-1 pl-1 pr-3 font-medium text-deep">
             {postingIdentity.avatarUrl ? (
               <img src={postingIdentity.avatarUrl} alt="" className="size-5 rounded-full object-cover" />
             ) : (
@@ -384,13 +385,15 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
                   {formatBytes(item.file.size)}
                 </span>
               )}
-              <button
+              <Button
                 type="button"
                 onClick={() => removeMedia(item.id)}
-                className="text-deep/30 hover:text-red-500 transition-colors p-1 ml-auto"
-              >
-                ✕
-              </button>
+                variant="icon-destructive"
+                size="icon-xs"
+                className="ml-auto text-deep/30"
+                aria-label={t("removeMedia")}
+                icon={<X />}
+              />
             </div>
           ))}
         </div>
@@ -444,16 +447,16 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
           </label>
         </div>
 
-        <div className="flex items-center gap-2">
+        <DialogActions className={onCancel ? undefined : "flex grid-cols-none items-center justify-end"}>
           {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={onCancel}>
               {t("cancel")}
             </Button>
           )}
           <Button
             type="submit"
             variant="default"
-            className="px-6 py-2"
+            className={onCancel ? dialogActionButtonClassName : "px-6 py-2"}
             disabled={submitting || (mode === "create" && !activeChannelId) || (!content.trim() && mediaItems.length === 0)}
           >
             {submitting
@@ -462,7 +465,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
                 ? t("saveButton")
                 : t("postButton")}
           </Button>
-        </div>
+        </DialogActions>
       </div>
     </form>
   );

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { canonicalizeUrl } from "@/lib/url";
 import { isChannelEditor } from "@/lib/services/channel";
+import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
 
@@ -118,7 +119,7 @@ export async function getPosts(
     } else {
       where.OR = [
         { channel: { ownerId: currentUserId } },
-        { channel: { editors: { some: { userId: currentUserId } } } },
+        { channel: { editors: { some: { userId: currentUserId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
       ];
     }
     where.isPublic = false;
@@ -138,7 +139,7 @@ export async function getPosts(
     } else {
       where.OR = [
         { channel: { ownerId: currentUserId } },
-        { channel: { editors: { some: { userId: currentUserId } } } },
+        { channel: { editors: { some: { userId: currentUserId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
       ];
     }
   }
@@ -236,9 +237,11 @@ export async function createPost(
   if (channel.ownerId !== userId) {
     const editor = await prisma.channelEditor.findUnique({
       where: { channelId_userId: { channelId, userId } },
-      select: { userId: true },
+      select: { role: true },
     });
-    if (!editor) throw new ForbiddenError("not_channel_author");
+    if (!editor || !(CHANNEL_AUTHOR_ROLES as readonly string[]).includes(editor.role)) {
+      throw new ForbiddenError("not_channel_author");
+    }
   }
 
   let post: PostResponse;
@@ -297,7 +300,7 @@ export async function deletePost(
         id,
         OR: [
           { channel: { ownerId: userId } },
-          { channel: { editors: { some: { userId } } } },
+          { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
         ],
       },
     });
@@ -359,7 +362,7 @@ export async function updatePost(
         id,
         OR: [
           { channel: { ownerId: userId } },
-          { channel: { editors: { some: { userId } } } },
+          { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
         ],
       },
       data: postData,

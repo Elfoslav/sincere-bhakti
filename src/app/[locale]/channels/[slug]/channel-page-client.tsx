@@ -3,18 +3,19 @@
 import { useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil } from "lucide-react";
+import { Pencil, Settings } from "lucide-react";
 import {
   Dialog,
+  DialogActions,
   DialogContent,
   DialogHeader,
-  DialogTitle,
   DialogTrigger,
+  dialogActionButtonClassName,
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -24,12 +25,14 @@ import {
 import PostCard from "@/components/PostCard";
 import PostForm from "@/components/PostForm";
 import EditPostModal from "@/components/EditPostModal";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { useIdentity } from "@/components/IdentityProvider";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
+import { CHANNEL_ROLE_ADMIN } from "@/lib/channel-roles";
 import { NAME_MAX_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
 import type { Post } from "@/types/post";
 import type { ChannelWithPostCount } from "@/types/channel";
@@ -44,9 +47,11 @@ export default function ChannelPageClient({
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("ChannelPage");
+  const channelsT = useTranslations("ChannelsPage");
   const common = useTranslations("Common");
   const isOwner = session?.user?.id === initialChannel.ownerId;
   const manageableChannelIds = useMemo(() => identities.map((identity) => identity.id), [identities]);
+  const canManageSettings = isOwner || identities.some((identity) => identity.id === initialChannel.id && identity.role === CHANNEL_ROLE_ADMIN);
   const canAuthorChannel = isOwner || manageableChannelIds.includes(initialChannel.id);
 
   const [channel, setChannel] = useState(initialChannel);
@@ -77,9 +82,13 @@ export default function ChannelPageClient({
   const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);
 
   const handleDelete = useCallback((id: string) => {
+    const deletedPost = [...publicPosts, ...myPosts].find((post) => post.id === id);
+    if (deletedPost?.isPublic) {
+      setChannel((prev) => ({ ...prev, postCount: Math.max(0, prev.postCount - 1) }));
+    }
     setPublicPosts((prev) => prev.filter((p) => p.id !== id));
     setMyPosts((prev) => prev.filter((p) => p.id !== id));
-  }, [setPublicPosts, setMyPosts]);
+  }, [myPosts, publicPosts, setPublicPosts, setMyPosts]);
 
   const handleCreateSuccess = useCallback((post: Post) => {
     if (post.isPublic) {
@@ -98,10 +107,33 @@ export default function ChannelPageClient({
   }, [publicPosts, myPosts]);
 
   const handleEditSuccess = useCallback((updatedPost: Post) => {
-    setPublicPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
-    setMyPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+    const previousPost = [...publicPosts, ...myPosts].find((post) => post.id === updatedPost.id);
+    if (previousPost && previousPost.isPublic !== updatedPost.isPublic) {
+      setChannel((prev) => ({
+        ...prev,
+        postCount: Math.max(0, prev.postCount + (updatedPost.isPublic ? 1 : -1)),
+      }));
+    }
+    setPublicPosts((prev) => {
+      const exists = prev.some((post) => post.id === updatedPost.id);
+      if (updatedPost.isPublic) {
+        return exists
+          ? prev.map((post) => (post.id === updatedPost.id ? updatedPost : post))
+          : [updatedPost, ...prev];
+      }
+      return prev.filter((post) => post.id !== updatedPost.id);
+    });
+    setMyPosts((prev) => {
+      const exists = prev.some((post) => post.id === updatedPost.id);
+      if (!updatedPost.isPublic) {
+        return exists
+          ? prev.map((post) => (post.id === updatedPost.id ? updatedPost : post))
+          : [updatedPost, ...prev];
+      }
+      return prev.filter((post) => post.id !== updatedPost.id);
+    });
     setEditingPost(null);
-  }, [setPublicPosts, setMyPosts]);
+  }, [myPosts, publicPosts, setPublicPosts, setMyPosts]);
 
   async function handleRename() {
     if (!newName.trim()) return;
@@ -193,7 +225,23 @@ export default function ChannelPageClient({
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8">
-      <Card variant="default" padding="lg" className="mb-8 text-center">
+      <Breadcrumb
+        items={[
+          { label: channelsT("title"), href: "/channels" },
+          { label: channel.name },
+        ]}
+        className="mb-4"
+      />
+      <Card variant="default" padding="lg" className="relative mb-8 text-center">
+        {canManageSettings && (
+          <Button
+            href={`/channels/${channel.slug}/settings`}
+            className="absolute right-3 top-3 text-deep/40 hover:text-gold-light sm:right-4 sm:top-4"
+            title={t("settings")}
+            aria-label={t("settings")}
+            icon={<Settings />}
+          />
+        )}
         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
           {channel.name[0]?.toUpperCase() || "?"}
         </div>
@@ -202,9 +250,17 @@ export default function ChannelPageClient({
           {isOwner && (
             channel.isPersonal ? (
               <Tooltip>
-                <TooltipTrigger aria-label={t("changeNameInProfile")}>
-                  <Pencil className="w-[18px] h-[18px] text-deep/20 cursor-not-allowed" />
-                </TooltipTrigger>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      aria-disabled="true"
+                      className="cursor-not-allowed text-deep/20 hover:bg-transparent hover:text-deep/20 active:bg-transparent"
+                      icon={<Pencil />}
+                    />
+                  }
+                  aria-label={t("changeNameInProfile")}
+                />
                 <TooltipContent>
                   {t("changeNameInProfile")}
                 </TooltipContent>
@@ -212,22 +268,30 @@ export default function ChannelPageClient({
             ) : (
               <Dialog open={renameOpen} onOpenChange={(open) => { setRenameOpen(open); if (open) { setNewName(channel.name); setNameError(""); } }}>
                 <DialogTrigger
-                  className="text-gold hover:text-gold-light transition-colors cursor-pointer"
+                  render={
+                    <Button
+                      className="text-gold hover:text-gold-light"
+                      icon={<Pencil />}
+                    />
+                  }
                   title={t("editName")}
                   aria-label={t("editName")}
-                >
-                  <Pencil className="w-[18px] h-[18px]" />
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>{t("editNameTitle")}</DialogTitle>
-                  </DialogHeader>
+                />
+                <DialogContent className="gap-3 sm:max-w-md">
+                  <DialogHeader
+                    className="gap-1"
+                    text={t("editNameTitle")}
+                    subheading={common("renameCountInfo")}
+                    subheadingRight={common("renameCount", { count: channel.renameCount, max: MAX_RENAME_COUNT })}
+                    subheadingClassName="text-deep/50"
+                    subheadingRightClassName="text-deep/50"
+                  />
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
                       handleRename();
                     }}
-                    className="space-y-4 pt-2"
+                    className="space-y-3"
                   >
                     <Input
                       name="name"
@@ -242,27 +306,33 @@ export default function ChannelPageClient({
                       errorMessage={nameError || undefined}
                       maxLength={NAME_MAX_LENGTH}
                     />
-                    <div className="flex items-center justify-between text-xs text-deep/50">
-                      <span>{common("renameCountInfo")}</span>
-                      <span>{common("renameCount", { count: channel.renameCount, max: MAX_RENAME_COUNT })}</span>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button type="button" variant="outline" className="min-w-24" onClick={() => setRenameOpen(false)}>
+                    <DialogActions>
+                      <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={() => setRenameOpen(false)}>
                         {t("cancel")}
                       </Button>
-                      <Button type="submit" className="min-w-24" disabled={saving || !newName.trim() || channel.renameCount >= MAX_RENAME_COUNT}>
+                      <Button type="submit" className={dialogActionButtonClassName} disabled={saving || !newName.trim() || channel.renameCount >= MAX_RENAME_COUNT}>
                         {saving ? t("saving") : t("save")}
                       </Button>
-                    </div>
+                    </DialogActions>
                   </form>
                 </DialogContent>
               </Dialog>
             )
           )}
         </div>
-        <p className="text-deep/50 text-sm mt-2">
-          {channel.postCount} {t("posts")}
-        </p>
+        <div className="mt-2 flex items-center justify-center gap-2 text-sm text-deep/50">
+          <span>{t("channelLabel")}</span>
+          <span aria-hidden="true" className="text-deep/25">·</span>
+          <span>{t("postCount", { count: channel.postCount })}</span>
+        </div>
+        {isOwner && (
+          <p className="mt-1 text-sm text-deep/50">
+            <span>{t("ownerLabel")}: </span>
+            <Link href={`/profile/${channel.ownerId}`} className="font-medium text-deep/70 hover:text-gold">
+              {channel.ownerName}
+            </Link>
+          </p>
+        )}
       </Card>
 
       {canAuthorChannel && (

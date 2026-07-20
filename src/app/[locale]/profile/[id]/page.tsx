@@ -1,11 +1,86 @@
-"use client";
-
-import { useParams } from "next/navigation";
+import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import ProfileContent from "@/components/ProfileContent";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
+import { getCachedPublicUserById } from "@/lib/services/user";
+import {
+  POST_OG_IMAGE,
+  createBreadcrumbJsonLd,
+  createJsonLdScript,
+  createProfileJsonLd,
+  getCanonicalAlternates,
+  getLocalizedUrl,
+  getOpenGraphLocale,
+  getProfileOpenGraphImageUrl,
+} from "@/lib/seo";
 
-export default function ProfileByIdPage() {
-  const params = useParams();
-  const authorId = params.id as string;
+type Props = {
+  params: Promise<{ locale: string; id: string }>;
+};
 
-  return <ProfileContent authorId={authorId} />;
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale, id } = await params;
+  const user = await getCachedPublicUserById(id);
+  if (!user) return {};
+
+  const t = await getTranslations({ locale, namespace: "Metadata" });
+  const description = t("profile.description", { name: user.name });
+  const imageUrl = getProfileOpenGraphImageUrl(locale, id);
+  const alternates = getCanonicalAlternates(locale, `/profile/${id}`);
+
+  return {
+    title: user.name,
+    description,
+    alternates,
+    openGraph: {
+      title: user.name,
+      description,
+      type: "profile",
+      locale: getOpenGraphLocale(locale),
+      url: alternates?.canonical as string,
+      siteName: "Sincere Bhakti",
+      images: [{ ...POST_OG_IMAGE, url: imageUrl, alt: user.name }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: user.name,
+      description,
+      images: [imageUrl],
+    },
+  };
+}
+
+export default async function ProfileByIdPage({ params }: Props) {
+  const { locale, id } = await params;
+
+  const ip = getClientIp(await headers());
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.readProfile, ip, RATE_LIMITS.readProfile.limit, RATE_LIMITS.readProfile.windowMs)) notFound();
+
+  const user = await getCachedPublicUserById(id);
+  if (!user) notFound();
+
+  const t = await getTranslations({ locale, namespace: "Metadata" });
+  const description = t("profile.description", { name: user.name });
+  const profileUrl = getLocalizedUrl(locale, `/profile/${id}`);
+  const imageUrl = getProfileOpenGraphImageUrl(locale, id);
+  const jsonLd = [
+    createProfileJsonLd({
+      name: user.name,
+      description,
+      url: profileUrl,
+      imageUrl,
+    }),
+    createBreadcrumbJsonLd([
+      { name: user.name, url: profileUrl },
+    ]),
+  ];
+
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={createJsonLdScript(jsonLd)} />
+      <ProfileContent authorId={id} />
+    </>
+  );
 }

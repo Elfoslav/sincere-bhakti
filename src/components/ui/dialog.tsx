@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
+const dialogActionsClassName = "grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-end"
+const dialogActionButtonClassName = "w-full sm:w-auto sm:min-w-24"
+
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
@@ -67,11 +70,10 @@ function DialogContent({
                 variant="ghost"
                 className="absolute top-2 right-2"
                 size="icon-sm"
+                icon={<XIcon />}
               />
             }
           >
-            <XIcon
-            />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
@@ -80,13 +82,57 @@ function DialogContent({
   )
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+interface DialogHeaderProps extends Omit<React.ComponentProps<"div">, "title"> {
+  text?: React.ReactNode
+  subheading?: React.ReactNode
+  subheadingRight?: React.ReactNode
+  titleClassName?: string
+  subheadingClassName?: string
+  subheadingRightClassName?: string
+}
+
+function DialogHeader({
+  className,
+  text,
+  subheading,
+  subheadingRight,
+  titleClassName,
+  subheadingClassName,
+  subheadingRightClassName,
+  children,
+  ...props
+}: DialogHeaderProps) {
+  const hasStructuredContent = text || subheading || subheadingRight
+
   return (
     <div
       data-slot="dialog-header"
       className={cn("flex flex-col gap-2", className)}
       {...props}
-    />
+    >
+      {hasStructuredContent ? (
+        <>
+          {text && <DialogTitle className={titleClassName}>{text}</DialogTitle>}
+          {(subheading || subheadingRight) && (
+            <DialogDescription
+              className={cn(
+                subheadingRight && "flex items-center justify-between gap-3",
+                subheadingClassName,
+              )}
+            >
+              {subheading && <span>{subheading}</span>}
+              {subheadingRight && (
+                <span className={cn("shrink-0", subheadingRightClassName)}>
+                  {subheadingRight}
+                </span>
+              )}
+            </DialogDescription>
+          )}
+        </>
+      ) : (
+        children
+      )}
+    </div>
   )
 }
 
@@ -102,7 +148,8 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-row flex-wrap justify-end gap-2 rounded-b-xl border-t bg-muted/50 p-4",
+        "-mx-4 -mb-4 rounded-b-xl border-t bg-muted/50 p-4",
+        dialogActionsClassName,
         className
       )}
       {...props}
@@ -114,6 +161,16 @@ function DialogFooter({
         </DialogPrimitive.Close>
       )}
     </div>
+  )
+}
+
+function DialogActions({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-actions"
+      className={cn(dialogActionsClassName, className)}
+      {...props}
+    />
   )
 }
 
@@ -148,6 +205,7 @@ function DialogDescription({
 
 export {
   Dialog,
+  DialogActions,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -157,4 +215,5 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  dialogActionButtonClassName,
 }

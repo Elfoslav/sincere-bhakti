@@ -15,6 +15,7 @@ import { getAuthorableChannels } from "@/lib/services/channel";
 import { validateOrigin } from "@/lib/csrf";
 import { GET, PATCH } from "@/app/api/identity/route";
 import { ACTIVE_IDENTITY_COOKIE } from "@/lib/active-identity";
+import { CHANNEL_ROLE_OWNER } from "@/lib/channel-roles";
 import type { AuthorableIdentity } from "@/types/identity";
 
 const identities: AuthorableIdentity[] = [
@@ -25,7 +26,7 @@ const identities: AuthorableIdentity[] = [
     avatarUrl: null,
     ownerId: "user-1",
     isPersonal: true,
-    role: "owner",
+    role: CHANNEL_ROLE_OWNER,
   },
   {
     id: "channel-2",
@@ -34,7 +35,7 @@ const identities: AuthorableIdentity[] = [
     avatarUrl: null,
     ownerId: "user-1",
     isPersonal: false,
-    role: "owner",
+    role: CHANNEL_ROLE_OWNER,
   },
 ];
 
@@ -99,7 +100,7 @@ describe("/api/identity", () => {
     const json = await res.json();
 
     expect(res.status).toBe(404);
-    expect(json.error).toBe("identity_not_found");
+    expect(json.error).toBe("not_found");
   });
 
   it("returns 403 on invalid origin", async () => {

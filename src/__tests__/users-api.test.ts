@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { CHANNEL_ROLE_ADMIN } from "@/lib/channel-roles";
 import { MAX_RENAME_COUNT } from "@/lib/validation";
 
 vi.mock("@/lib/prisma", () => {
@@ -50,6 +51,7 @@ const baseUser = {
   renameCount: 0,
   sessionVersion: 0,
   channels: [{ id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1", isPersonal: true, _count: { posts: 5 } }],
+  editors: [],
 };
 
 describe("GET /api/users/[id]", () => {
@@ -72,6 +74,45 @@ describe("GET /api/users/[id]", () => {
     expect(json.channels).toHaveLength(1);
     expect(json.channels[0]).toMatchObject({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1" });
     expect(json.channels[0].postCount).toBe(5);
+    expect(json.managedChannels).toEqual([]);
+  });
+
+  it("returns managed channels with roles for the profile owner", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      ...baseUser,
+      editors: [
+        {
+          role: CHANNEL_ROLE_ADMIN,
+          channel: {
+            id: "channel-2",
+            name: "Managed Channel",
+            slug: "managed-channel",
+            avatarUrl: null,
+            ownerId: "owner-2",
+            isPersonal: false,
+            _count: { posts: 3 },
+          },
+        },
+      ],
+    } as any);
+
+    const res = await GET(mockRequest(), { params: Promise.resolve({ id: "user-1" }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.managedChannels).toEqual([
+      {
+        id: "channel-2",
+        name: "Managed Channel",
+        slug: "managed-channel",
+        avatarUrl: null,
+        ownerId: "owner-2",
+        isPersonal: false,
+        role: CHANNEL_ROLE_ADMIN,
+        postCount: 3,
+      },
+    ]);
   });
 
   it("returns 404 when user not found", async () => {
@@ -111,6 +152,7 @@ describe("GET /api/users/[id]", () => {
     expect(json.channelLimit).toBe(10);
     expect(json.channels).toHaveLength(1);
     expect(json.channels[0].id).toBe("channel-1");
+    expect(json.managedChannels).toEqual([]);
   });
 });
 

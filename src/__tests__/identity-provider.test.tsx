@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { IdentityProvider, useIdentity } from "@/components/IdentityProvider";
+import { CHANNEL_ROLE_OWNER } from "@/lib/channel-roles";
 
 const { useSessionMock } = vi.hoisted(() => ({
   useSessionMock: vi.fn(),
@@ -18,7 +19,7 @@ const identities = [
     avatarUrl: null,
     ownerId: "user-1",
     isPersonal: true,
-    role: "owner",
+    role: CHANNEL_ROLE_OWNER,
   },
   {
     id: "channel-2",
@@ -27,7 +28,7 @@ const identities = [
     avatarUrl: null,
     ownerId: "user-1",
     isPersonal: false,
-    role: "owner",
+    role: CHANNEL_ROLE_OWNER,
   },
 ] as const;
 

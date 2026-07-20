@@ -11,7 +11,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Utility functions** go in `src/lib/` (e.g. `video.ts`, `auth.ts`, `validation.ts`, `rate-limit.ts`).
 - **Extract pure utilities from components.** Any function inside a `.tsx` file that has no React hooks (`useState`, `useEffect`, etc.) and no browser-DOM dependency must be moved to `src/lib/` so it can be unit-tested without jsdom. Examples: `genId()`, `formatBytes()`, `getSiteUrl()`.
 - **Do not duplicate constants that are already exported from `src/lib/`.** If a list, threshold, or config constant exists in a lib file, import it — never redeclare it locally.
+- Channel roles MUST use shared constants from `src/lib/channel-roles.ts`. Never inline role string unions or values like `"admin" | "editor"` in schemas, services, components, or tests.
 - **Reusable UI** goes in `src/components/` or `src/components/ui/` (shadcn).
+- Dialogs MUST use the shared `DialogHeader` from `src/components/ui/dialog.tsx` for standard headings. Pass `text` for the title, `subheading` for helper text, and `subheadingRight` when compact metadata/counts should align to the right. Use raw `DialogTitle` / `DialogDescription` only for unusual custom layouts that `DialogHeader` cannot express.
 - **Types/interfaces** shared across files MUST go in `src/types/` and be imported where needed — never define the same type inline in multiple places. Service-specific types may stay in the service file but must be exported. Component-props interfaces stay co-located with the component.
 - Inline the same logic in multiple files only if there's a strong reason — otherwise refactor.
 - **No dead type exports.** If a type/interface is defined in `src/types/` and not imported anywhere, remove it.
@@ -84,6 +86,8 @@ Existing rate-limit entries (all defined in `src/lib/rate-limit.ts`):
 | `updateProfile` | userId | 10 | 1 hour | Profile rename |
 | `createChannel` | userId | 10 | 1 hour | Channel creation |
 | `updateChannel` | userId | 10 | 1 hour | Channel rename |
+| `readChannelMembers` | userId | 60 | 60 s | Channel settings + members |
+| `updateChannelMembers` | userId | 30 | 1 hour | Channel member management |
 
 For new endpoints, pick a reasonable limit that regular users won't hit but blocks abuse.
 
@@ -159,6 +163,7 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 - **Always run `pnpm test`** before writing any code to see the current test state.
 - After making changes, run `pnpm test` again and fix any failing tests before considering work complete.
 - **Always run `pnpm lint`** alongside tests and fix any errors and warnings before considering work complete. The only exception is `@next/next/no-img-element` (using `<img>` vs `<Image>`) — that can be intentional.
+- **Every refactor must verify the affected test layers.** Check and fix any failing UI tests, E2E tests, and API/unit tests that cover the refactored feature or behavior. If the feature/refactor has no coverage yet, add the missing tests: mocked UI tests for component behavior, real E2E tests for critical user flows/security-sensitive behavior, and API/unit tests for route, service, validation, or permission logic as applicable.
 - **Every extracted lib function must have a corresponding test file.** Pure functions in `src/lib/` (format, id, url, etc.) get their own `src/__tests__/<name>.test.ts`. Browser-API functions in `src/lib/` (client-media, etc.) are tested by mocking the browser API.
 - Every test file that exercises error paths (e.g. "returns 500 on server error") MUST silence `console.error` to keep stderr clean:
   ```ts

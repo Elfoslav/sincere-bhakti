@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
+import { CircleUserRound, Hash, LogIn, LogOut, Newspaper } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -43,7 +44,7 @@ export default function Navbar() {
 	return (
 		<nav className="bg-deep text-white shadow-lg">
 			<div className="max-w-6xl mx-auto px-4">
-				<div className="flex items-center justify-between h-16">
+				<div className="relative flex h-16 items-center justify-between">
 					<div className="flex items-center gap-6">
 						<Link href="/" className="flex items-center gap-2" onClick={close}>
 							<Image
@@ -76,17 +77,23 @@ export default function Navbar() {
 						</div>
 					</div>
 
-					<div className="flex items-center gap-1">
-						<div className="md:hidden">
-							<LanguageSwitcher />
+					{status === "authenticated" && (
+						<div className="pointer-events-none absolute inset-x-20 bottom-0 top-0 z-10 flex items-center justify-center md:hidden">
+							<IdentitySwitcher mobileNav />
 						</div>
-						<button
-							className="md:hidden p-2"
+					)}
+
+					<div className="flex items-center gap-1">
+						<Button
+							type="button"
+							variant="icon-light"
+							size="icon-lg"
+							className="md:hidden"
 							onClick={() => setOpen(!open)}
 							aria-label={t("toggleMenu")}
-						>
-							<Hamburger open={open} />
-						</button>
+							aria-expanded={open}
+							icon={<Hamburger open={open} />}
+						/>
 
 						<div className="hidden md:flex items-center gap-4">
 							<LanguageSwitcher />
@@ -108,26 +115,24 @@ export default function Navbar() {
 			</div>
 
 			<div
-				className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-					open ? "max-h-80 opacity-100" : "max-h-0 opacity-0"
+				className={`md:hidden transition-all duration-300 ease-in-out ${
+					open ? "max-h-[calc(100svh-4rem)] overflow-y-auto opacity-100" : "max-h-0 overflow-hidden opacity-0"
 				}`}
 			>
 				<div className="flex flex-col gap-1 px-4 pb-4 pt-1 border-t border-white/10">
-					<MobileLink href="/posts" onClick={close}>
+					<div className="px-4 py-2">
+						<LanguageSwitcher fullWidth />
+					</div>
+					<MobileLink href="/posts" onClick={close} icon={<Newspaper className="size-4" />}>
 						{t("posts")}
 					</MobileLink>
-					<MobileLink href="/channels" onClick={close}>
+					<MobileLink href="/channels" onClick={close} icon={<Hash className="size-4" />}>
 						{t("channels")}
 					</MobileLink>
 					{status === "authenticated" && (
-						<>
-							<div className="px-4 py-2">
-								<IdentitySwitcher compact onSelect={close} />
-							</div>
-							<MobileLink href="/profile" onClick={close}>
-								{t("profile")}
-							</MobileLink>
-						</>
+						<MobileLink href="/profile" onClick={close} icon={<CircleUserRound className="size-4" />}>
+							{t("profile")}
+						</MobileLink>
 					)}
 					<div className="flex items-center gap-2 pt-2">
 						{status === "authenticated" ? (
@@ -138,11 +143,18 @@ export default function Navbar() {
 								}}
 								variant="default"
 								className="flex-1 text-center px-4"
+								icon={<LogOut className="size-4" />}
 							>
 								{t("logout")}
 							</Button>
 						) : (
-							<Button href="/login" variant="default" size="sm" className="flex-1 text-center px-4">
+							<Button
+								href="/login"
+								variant="default"
+								size="sm"
+								className="flex-1 text-center px-4"
+								icon={<LogIn className="size-4" />}
+							>
 								{t("getIn")}
 							</Button>
 						)}
@@ -156,18 +168,23 @@ export default function Navbar() {
 function MobileLink({
 	href,
 	onClick,
+	icon,
 	children,
 }: {
 	href: string;
 	onClick: () => void;
+	icon: React.ReactNode;
 	children: React.ReactNode;
 }) {
 	return (
 		<Link
 			href={href}
 			onClick={onClick}
-			className="text-white/80 hover:text-white hover:bg-white/5 px-4 py-2 rounded-md transition-colors"
+			className="flex items-center gap-2 rounded-md px-4 py-2 text-white/80 transition-colors hover:bg-white/5 hover:text-white"
 		>
+			<span aria-hidden="true" className="text-gold-light/85">
+				{icon}
+			</span>
 			{children}
 		</Link>
 	);

@@ -1,24 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown, Hash } from "lucide-react";
+import { Check, ChevronDown, CircleUserRound, Hash } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useIdentity } from "@/components/IdentityProvider";
+import { getIdentitySubtitleKey } from "@/lib/identity-label";
 import { cn } from "@/lib/utils";
 
 interface IdentitySwitcherProps {
   compact?: boolean;
+  mobileNav?: boolean;
   onSelect?: () => void;
 }
 
-export default function IdentitySwitcher({ compact = false, onSelect }: IdentitySwitcherProps) {
+export default function IdentitySwitcher({ compact = false, mobileNav = false, onSelect }: IdentitySwitcherProps) {
   const t = useTranslations("Identity");
   const { identities, activeIdentity, switchIdentity, loading } = useIdentity();
   const [open, setOpen] = useState(false);
 
   if (!activeIdentity || identities.length === 0) {
-    return <IdentitySwitcherPlaceholder compact={compact} />;
+    return <IdentitySwitcherPlaceholder compact={compact} mobileNav={mobileNav} />;
   }
 
   async function handleSelect(channelId: string) {
@@ -28,27 +30,34 @@ export default function IdentitySwitcher({ compact = false, onSelect }: Identity
   }
 
   return (
-    <div className="relative animate-in fade-in duration-300">
+    <div className={cn("relative animate-in fade-in duration-300", mobileNav && "pointer-events-auto w-full max-w-44")}>
       <button
         type="button"
         className={cn(
           "flex items-center gap-2 rounded-full border border-white/15 bg-white/10 text-left text-white transition-colors hover:bg-white/15",
-          compact ? "w-full px-3 py-2" : "max-w-56 px-3 py-1.5",
+          mobileNav && "h-9 w-full min-w-0 gap-2 border-white/10 pl-1 pr-3 text-white/85",
+          compact && !mobileNav ? "w-full px-3 py-2" : "",
+          !compact && !mobileNav ? "h-10 max-w-56 pl-1 pr-3" : "",
         )}
         onClick={() => setOpen((value) => !value)}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={`${t("switchLabel")}: ${activeIdentity.name}`}
       >
-        <IdentityAvatar name={activeIdentity.name} avatarUrl={activeIdentity.avatarUrl} />
-        <span className="min-w-0 flex-1">
-          {!compact && (
+        {mobileNav ? (
+          <CircleUserRound className="size-5 shrink-0 text-gold-light" aria-hidden="true" />
+        ) : (
+          <IdentityAvatar name={activeIdentity.name} avatarUrl={activeIdentity.avatarUrl} />
+        )}
+        <span className={cn("min-w-0", !mobileNav && "flex-1")}>
+          {!compact && !mobileNav && (
             <span className="block text-[10px] uppercase text-white/55">
               {t("activeLabel")}
             </span>
           )}
           <span className="block truncate text-sm font-medium">{activeIdentity.name}</span>
         </span>
-        <ChevronDown className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")} />
+        <ChevronDown className={cn(mobileNav ? "size-3.5" : "size-4", "shrink-0 transition-transform", open && "rotate-180")} />
       </button>
 
       {open && (
@@ -63,8 +72,10 @@ export default function IdentitySwitcher({ compact = false, onSelect }: Identity
           <div
             role="menu"
             className={cn(
-              "absolute z-30 mt-2 w-72 overflow-hidden rounded-lg border border-deep/10 bg-white text-deep shadow-xl",
-              compact ? "left-0" : "right-0",
+              "z-30 mt-2 overflow-hidden rounded-lg border border-deep/10 bg-white text-deep shadow-xl",
+              mobileNav && "fixed left-3 right-3 top-[4.25rem] mt-0",
+              compact && !mobileNav ? "relative w-full" : "",
+              !compact && !mobileNav ? "absolute right-0 w-72" : "",
             )}
           >
             <div className="border-b border-deep/10 px-3 py-2">
@@ -85,7 +96,7 @@ export default function IdentitySwitcher({ compact = false, onSelect }: Identity
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{identity.name}</span>
                     <span className="block text-xs text-deep/45">
-                      {identity.isPersonal ? t("personal") : t(identity.role)}
+                      {t(getIdentitySubtitleKey(identity))}
                     </span>
                   </span>
                   {identity.id === activeIdentity.id && <Check className="size-4 text-tulsi" />}
@@ -111,21 +122,23 @@ export default function IdentitySwitcher({ compact = false, onSelect }: Identity
   );
 }
 
-function IdentitySwitcherPlaceholder({ compact = false }: { compact?: boolean }) {
+function IdentitySwitcherPlaceholder({ compact = false, mobileNav = false }: { compact?: boolean; mobileNav?: boolean }) {
   return (
     <div
       aria-hidden="true"
       className={cn(
         "flex items-center gap-2 rounded-full border border-white/10 bg-white/5 opacity-70",
-        compact ? "w-full px-3 py-2" : "w-56 px-3 py-1.5",
+        mobileNav && "h-9 w-full max-w-44 pl-1 pr-3",
+        compact && !mobileNav ? "w-full px-3 py-2" : "",
+        !compact && !mobileNav ? "h-10 w-56 pl-1 pr-3" : "",
       )}
     >
-      <span className="size-8 shrink-0 rounded-full bg-white/10" />
-      <span className="min-w-0 flex-1 space-y-1.5">
-        {!compact && <span className="block h-2 w-20 rounded-full bg-white/10" />}
-        <span className="block h-3 w-28 rounded-full bg-white/15" />
+      <span className={cn("shrink-0 rounded-full bg-white/10", mobileNav ? "size-5" : "size-8")} />
+      <span className={cn("min-w-0 flex-1", mobileNav ? "" : "space-y-1.5")}>
+        {!compact && !mobileNav && <span className="block h-2 w-20 rounded-full bg-white/10" />}
+        <span className={cn("block rounded-full bg-white/15", mobileNav ? "h-3 w-16" : "h-3 w-28")} />
       </span>
-      <span className="size-4 shrink-0 rounded-full bg-white/10" />
+      <span className={cn("shrink-0 rounded-full bg-white/10", mobileNav ? "size-3.5" : "size-4")} />
     </div>
   );
 }

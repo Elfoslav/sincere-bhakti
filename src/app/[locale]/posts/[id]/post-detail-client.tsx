@@ -51,7 +51,7 @@ export default function PostDetailClient({
   }
 
   return (
-    <PostLayout postId={displayedPost.id} title={t("title")} backHref="/posts" backLabel={t("backLink")}>
+    <PostLayout title={t("title")}>
       <PostCard
         post={displayedPost}
         currentUserId={session?.user?.id}
