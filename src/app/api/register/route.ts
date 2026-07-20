@@ -5,7 +5,7 @@ import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName, isBrandNameBlocked, 
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
-import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR } from "@/lib/error-messages";
+import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 type RegistrationTx = {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
     if (isBrandNameBlocked(name, email)) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
     // Reject if name (or a diacritic variant) is already taken by an active channel
@@ -101,14 +101,14 @@ export async function POST(request: NextRequest) {
     const normalizedTarget = normalizeName(name);
     const existing = await prisma.channel.findFirst({ where: { normalizedName: normalizedTarget }, select: { id: true } });
     if (existing) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
     const historicalName = await prisma.channelSlugHistory.findFirst({
       where: { oldNormalizedName: normalizedTarget },
       select: { id: true },
     });
     if (historicalName) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);

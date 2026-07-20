@@ -43,8 +43,6 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 	const [channelError, setChannelError] = useState("");
 
 	const isOwnProfile = session?.user?.id === authorId;
-	const additionalChannelCount = profile ? profile.channels.filter((channel) => !channel.isPersonal).length : 0;
-	const channelLimitReached = profile ? additionalChannelCount >= profile.channelLimit : false;
 
 	useEffect(() => {
 		if (!authorId) return;

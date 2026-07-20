@@ -100,7 +100,7 @@ describe("/api/identity", () => {
     const json = await res.json();
 
     expect(res.status).toBe(404);
-    expect(json.error).toBe("identity_not_found");
+    expect(json.error).toBe("not_found");
   });
 
   it("returns 403 on invalid origin", async () => {

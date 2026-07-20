@@ -7,7 +7,7 @@ import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/l
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { createChannelSchema, normalizeName, isBrandNameBlocked, slugifyName, MAX_RENAME_COUNT } from "@/lib/validation";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_RENAME_LIMIT } from "@/lib/error-messages";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function GET(
@@ -100,7 +100,7 @@ export async function PATCH(
 
     // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
     if (isBrandNameBlocked(name, session.user.email)) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
     if (channel.renameCount >= MAX_RENAME_COUNT) {
@@ -109,7 +109,7 @@ export async function PATCH(
 
     // Check if the new name is already taken by another channel
     if (await isNormalizedNameTaken(normalizedTarget, channel.id)) {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
     const newSlug = slugifyName(name);
@@ -177,7 +177,7 @@ export async function PATCH(
     });
 
     if (updated === "name_taken") {
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
     if (!updated || updated === "limit_reached") {
@@ -188,7 +188,7 @@ export async function PATCH(
   } catch (error) {
     if ((error as { code?: string })?.code === "P2002") {
       logServerError("PATCH /api/channels/[slug] P2002 collision", error);
-      return NextResponse.json({ error: "name_taken" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
     logServerError("PATCH /api/channels/[slug] failed", error);
     return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });

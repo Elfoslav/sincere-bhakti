@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { getChannelSettingsBySlug, resolveSlugRedirect } from "@/lib/services/channel";
 import { getNoIndexMetadata } from "@/lib/seo";
@@ -28,12 +29,23 @@ export default async function ChannelSettingsPage({ params }: Props) {
 
   if (!await checkRateLimit(RATE_LIMIT_PREFIX.readChannelMembers, session.user.id, RATE_LIMITS.readChannelMembers.limit, RATE_LIMITS.readChannelMembers.windowMs)) notFound();
 
-  const settings = await getChannelSettingsBySlug(slug, session.user.id);
-  if (!settings) {
+  // Check if the channel exists first (without permission check) to avoid
+  // leaking slug-migration info when the user simply lacks access.
+  const channel = await prisma.channel.findUnique({
+    where: { slug },
+    select: { id: true },
+  });
+
+  if (!channel) {
     const targetSlug = await resolveSlugRedirect(slug);
     if (targetSlug) {
       redirect(`/${locale}/channels/${targetSlug}/settings`);
     }
+    notFound();
+  }
+
+  const settings = await getChannelSettingsBySlug(slug, session.user.id);
+  if (!settings) {
     notFound();
   }
 
