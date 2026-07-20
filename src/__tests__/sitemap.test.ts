@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import sitemap from "@/app/sitemap";
+import sitemap, { revalidate } from "@/app/sitemap";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
@@ -14,6 +14,10 @@ vi.mock("@/lib/url", () => ({
 }));
 
 describe("sitemap", () => {
+  it("revalidates the database-backed sitemap periodically", () => {
+    expect(revalidate).toBe(900);
+  });
+
   it("uses latest public post dates for channel and profile lastModified values", async () => {
     const ownerCreatedAt = new Date("2026-01-01T00:00:00.000Z");
     const firstChannelLatestPostAt = new Date("2026-07-01T00:00:00.000Z");

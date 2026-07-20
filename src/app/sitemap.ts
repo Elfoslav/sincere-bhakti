@@ -3,6 +3,8 @@ import { routing } from "@/i18n/routing";
 import { prisma } from "@/lib/prisma";
 import { getLanguageAlternates, getLocalizedUrl } from "@/lib/seo";
 
+export const revalidate = 900;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages = ["", "/posts"];
 
