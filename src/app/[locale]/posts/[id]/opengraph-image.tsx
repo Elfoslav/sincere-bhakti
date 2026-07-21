@@ -1,4 +1,3 @@
-import { ImageResponse } from "next/og";
 import { headers } from "next/headers";
 import sharp from "sharp";
 import { getCachedPostById } from "@/lib/services/post";
@@ -8,8 +7,18 @@ import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/l
 export const runtime = "nodejs";
 export const alt = "Sincere Bhakti post image";
 export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+// JPEG, not PNG: WhatsApp silently drops link-preview images over ~600 KB,
+// and a photo re-encoded as PNG (what Satori/ImageResponse always outputs)
+// easily exceeds 1.5 MB. A quality-80 JPEG of the same frame is ~100–250 KB.
+export const contentType = "image/jpeg";
 export const MAX_OG_IMAGE_BYTES = 10 * 1024 * 1024;
+
+const JPEG_QUALITY = 80;
+const IVORY = "#fdf8ee";
+const CACHE_HEADERS = {
+  "Content-Type": "image/jpeg",
+  "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+};
 
 function parseContentLength(value: string | null): number | null {
   if (value === null) return null;
@@ -18,7 +27,7 @@ function parseContentLength(value: string | null): number | null {
   return parsed;
 }
 
-export async function fetchImageAsPngBase64(url: string): Promise<string | null> {
+export async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
 
@@ -50,14 +59,7 @@ export async function fetchImageAsPngBase64(url: string): Promise<string | null>
       reader.releaseLock();
     }
 
-    const buffer = Buffer.concat(chunks, totalBytes);
-    const ct = res.headers.get("content-type") || "";
-    // Satori only supports PNG/JPEG. Convert WebP and other formats to PNG.
-    if (ct === "image/webp" || !ct.startsWith("image/")) {
-      const png = await sharp(buffer).png().toBuffer();
-      return `data:image/png;base64,${png.toString("base64")}`;
-    }
-    return `data:${ct};base64,${buffer.toString("base64")}`;
+    return Buffer.concat(chunks, totalBytes);
   } catch {
     return null;
   } finally {
@@ -65,31 +67,30 @@ export async function fetchImageAsPngBase64(url: string): Promise<string | null>
   }
 }
 
-function logoFallback(siteUrl: string) {
-  return new ImageResponse(
-    <div
-      style={{
-        display: "flex",
-        width: "100%",
-        height: "100%",
-        // Warm ivory: the logo is dark-ink-on-transparent (its light-background
-        // variant), so a light brand-colored ground gives it full contrast.
-        background: "#fdf8ee",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      {/* Fill the 1200×630 canvas with the logo, leaving a small margin:
-          550px tall at the logo's exact 603×414 aspect ratio → 801px wide. */}
-      <img
-        src={`${siteUrl}/images/sincere-bhakti-logo.png`}
-        alt="Sincere Bhakti"
-        width={801}
-        height={550}
-      />
-    </div>,
-    { width: 1200, height: 630 },
-  );
+function jpegResponse(buffer: Buffer): Response {
+  return new Response(new Uint8Array(buffer), { headers: CACHE_HEADERS });
+}
+
+// Warm ivory canvas with the logo large and centered (550px tall at the
+// logo's exact 603×414 aspect ratio → 801px wide). The logo is
+// dark-ink-on-transparent, so the light brand ground gives it full contrast.
+async function logoFallback(siteUrl: string): Promise<Response> {
+  const canvas = sharp({
+    create: { width: 1200, height: 630, channels: 3, background: IVORY },
+  });
+
+  const logo = await fetchImageBuffer(`${siteUrl}/images/sincere-bhakti-logo.png`);
+  if (!logo) {
+    // Last resort: plain ivory frame — still a valid preview image.
+    return jpegResponse(await canvas.jpeg({ quality: JPEG_QUALITY }).toBuffer());
+  }
+
+  const resizedLogo = await sharp(logo).resize(801, 550, { fit: "inside" }).png().toBuffer();
+  const buffer = await canvas
+    .composite([{ input: resizedLogo }]) // gravity defaults to centre
+    .jpeg({ quality: JPEG_QUALITY })
+    .toBuffer();
+  return jpegResponse(buffer);
 }
 
 export default async function Image({
@@ -114,27 +115,20 @@ export default async function Image({
     post && post.isPublic ? post.media.filter((m) => m.type === "image" && m.url) : [];
   const bestImage =
     images.find((m) => m.width && m.height && m.width >= m.height) ?? images[0] ?? null;
-  const imageSrc = bestImage ? await fetchImageAsPngBase64(bestImage.url) : null;
+  const original = bestImage ? await fetchImageBuffer(bestImage.url) : null;
 
-  if (!imageSrc) {
+  if (!original) {
     return logoFallback(siteUrl);
   }
 
-  return new ImageResponse(
-    <div
-      style={{
-        display: "flex",
-        width: "100%",
-        height: "100%",
-        background: "#1a1a2e",
-      }}
-    >
-      <img
-        src={imageSrc}
-        alt=""
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-      />
-    </div>,
-    { width: 1200, height: 630 },
-  );
+  try {
+    const buffer = await sharp(original)
+      .resize(1200, 630, { fit: "cover" })
+      .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+      .toBuffer();
+    return jpegResponse(buffer);
+  } catch {
+    // Undecodable image data — fall back rather than 500 the preview.
+    return logoFallback(siteUrl);
+  }
 }
