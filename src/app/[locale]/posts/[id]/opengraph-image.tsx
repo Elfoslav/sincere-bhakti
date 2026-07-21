@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { getCachedPostById } from "@/lib/services/post";
 import { getSiteUrl } from "@/lib/url";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { POST_OG_IMAGE, OG_POST_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL } from "@/lib/seo";
+import { POST_OG_IMAGE, OG_POST_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL, OG_IMAGE_TRANSIENT_CACHE_CONTROL } from "@/lib/seo";
 
 export const runtime = "nodejs";
 export const alt = "Sincere Bhakti post image";
@@ -120,10 +120,19 @@ export default async function Image({
     post && post.isPublic ? post.media.filter((m) => m.type === "image" && m.url) : [];
   const bestImage =
     images.find((m) => m.width && m.height && m.width >= m.height) ?? images[0] ?? null;
-  const original = bestImage ? await fetchImageBuffer(bestImage.url) : null;
 
+  // No post, private, or genuinely imageless: the logo IS the correct response
+  // for this URL, so it may be briefly shared-cached.
+  if (!bestImage) {
+    return logoFallback(siteUrl, OG_IMAGE_FALLBACK_CACHE_CONTROL);
+  }
+
+  // The post HAS an image but we couldn't fetch or decode it — likely transient
+  // (upstream timeout/5xx, truncated/oversized stream, bad bytes). Fall back but
+  // do NOT shared-cache it, so a blip can't pin the logo on a real post's card.
+  const original = await fetchImageBuffer(bestImage.url);
   if (!original) {
-    return logoFallback(siteUrl);
+    return logoFallback(siteUrl, OG_IMAGE_TRANSIENT_CACHE_CONTROL);
   }
 
   try {
@@ -135,7 +144,6 @@ export default async function Image({
     // can serve a stale photo from the shared cache (see OG_POST_IMAGE_CACHE_CONTROL).
     return jpegResponse(buffer, OG_POST_IMAGE_CACHE_CONTROL);
   } catch {
-    // Undecodable image data — fall back rather than 500 the preview.
-    return logoFallback(siteUrl);
+    return logoFallback(siteUrl, OG_IMAGE_TRANSIENT_CACHE_CONTROL);
   }
 }

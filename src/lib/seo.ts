@@ -45,6 +45,13 @@ export const OG_IMAGE_CACHE_CONTROL = "public, s-maxage=3600, stale-while-revali
 export const OG_IMAGE_FALLBACK_CACHE_CONTROL = "public, max-age=60, s-maxage=300";
 export const OG_IMAGE_RATE_LIMITED_CACHE_CONTROL = "private, no-store";
 
+// Transient failure fetching/decoding a post's image (upstream timeout, 5xx,
+// truncated or oversized stream, undecodable bytes). The post DOES have an
+// image, so this fallback is NOT the correct response for the URL — never
+// shared-cache it, or one upstream blip pins the logo on a real post's card.
+// no-store lets the next crawler retry and get the real photo.
+export const OG_IMAGE_TRANSIENT_CACHE_CONTROL = "private, no-store";
+
 // The post-photo OG response embeds mutable, privacy-sensitive user media: a
 // post can be made private or have its media removed/replaced after the image
 // is cached, and the edge would keep serving the old photo without re-running
