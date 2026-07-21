@@ -1,21 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { ImageResponseMock } = vi.hoisted(() => {
-  class ImageResponseMock {
-    body: unknown;
-    init: unknown;
-    constructor(body: unknown, init: unknown) {
-      this.body = body;
-      this.init = init;
-    }
-  }
-
-  return { ImageResponseMock };
-});
-
-vi.mock("next/og", () => ({
-  ImageResponse: ImageResponseMock,
-}));
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => new Headers({ host: "localhost:3000", "x-forwarded-for": "203.0.113.10" })),
 }));
@@ -38,9 +22,10 @@ vi.mock("@/lib/rate-limit", () => ({
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
+import sharp from "sharp";
 import { getCachedPostById } from "@/lib/services/post";
 import { checkRateLimit } from "@/lib/rate-limit";
-import Image, { fetchImageAsPngBase64, MAX_OG_IMAGE_BYTES } from "@/app/[locale]/posts/[id]/opengraph-image";
+import Image, { fetchImageBuffer, MAX_OG_IMAGE_BYTES } from "@/app/[locale]/posts/[id]/opengraph-image";
 
 function makeStreamResponse({
   chunks,
@@ -71,33 +56,80 @@ function makeStreamResponse({
   } as any;
 }
 
+async function expectJpegResponse(response: Response) {
+  expect(response).toBeInstanceOf(Response);
+  expect(response.headers.get("Content-Type")).toBe("image/jpeg");
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const meta = await sharp(buffer).metadata();
+  expect(meta.format).toBe("jpeg");
+  expect(meta.width).toBe(1200);
+  expect(meta.height).toBe(630);
+  // WhatsApp silently drops preview images over ~600 KB — the entire reason
+  // this route serves JPEG instead of Satori's PNG output.
+  expect(buffer.length).toBeLessThan(600 * 1024);
+  return buffer;
+}
+
 describe("post opengraph image", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("returns the fallback image immediately when rate limited", async () => {
+  it("returns the fallback JPEG immediately when rate limited (never shared-cached)", async () => {
     vi.mocked(checkRateLimit).mockResolvedValue(false);
+    // Logo fetch fails → plain ivory canvas; no network needed in tests.
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
 
     const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
 
     expect(checkRateLimit).toHaveBeenCalledWith("read-post-og-image", "203.0.113.10", 240, 60_000);
     expect(getCachedPostById).not.toHaveBeenCalled();
-    expect(response).toBeInstanceOf(ImageResponseMock);
-    expect((response as unknown as InstanceType<typeof ImageResponseMock>).init).toMatchObject({
-      width: 1200,
-      height: 630,
-    });
+    await expectJpegResponse(response);
+    // A per-IP throttle must NOT poison the shared CDN entry for this URL.
+    const cc = response.headers.get("Cache-Control") ?? "";
+    expect(cc).toContain("no-store");
+    expect(cc).not.toContain("public");
   });
 
-  it("looks up the post when within quota", async () => {
+  it("returns the fallback when the post is missing (briefly cacheable)", async () => {
     vi.mocked(checkRateLimit).mockResolvedValue(true);
     vi.mocked(getCachedPostById).mockResolvedValue(null as any);
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
 
     const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
 
     expect(getCachedPostById).toHaveBeenCalledWith("post-1");
-    expect(response).toBeInstanceOf(ImageResponseMock);
+    await expectJpegResponse(response);
+    // The "no such post" fallback is the correct response for this URL — safe
+    // to cache publicly for a short window.
+    const cc = response.headers.get("Cache-Control") ?? "";
+    expect(cc).toContain("public");
+    expect(cc).not.toContain("no-store");
+  });
+
+  it("serves the post image as a 1200x630 cover-cropped JPEG", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue(true);
+    vi.mocked(getCachedPostById).mockResolvedValue({
+      isPublic: true,
+      media: [
+        { type: "image", url: "https://cdn.example.com/photo.png", width: 1600, height: 900 },
+      ],
+    } as any);
+
+    // A real (tiny) landscape PNG the route will fetch and re-encode.
+    const source = await sharp({
+      create: { width: 32, height: 18, channels: 3, background: "#c87427" },
+    }).png().toBuffer();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      makeStreamResponse({
+        chunks: [new Uint8Array(source)],
+        headers: new Headers({ "content-type": "image/png" }),
+      }),
+    );
+
+    const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
+
+    await expectJpegResponse(response);
   });
 
   it("keeps the abort timeout active until the image body is read", async () => {
@@ -125,7 +157,7 @@ describe("post opengraph image", () => {
       },
     } as any);
 
-    const imagePromise = fetchImageAsPngBase64("https://cdn.example.com/image.png");
+    const imagePromise = fetchImageBuffer("https://cdn.example.com/image.png");
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "https://cdn.example.com/image.png",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
@@ -136,9 +168,9 @@ describe("post opengraph image", () => {
     const bodyResolver = resolveChunk;
     if (!bodyResolver) throw new Error("body resolver missing");
     bodyResolver(new Uint8Array([137, 80, 78, 71]));
-    const response = await imagePromise;
+    const buffer = await imagePromise;
 
-    expect(response).toBe("data:image/png;base64,iVBORw==");
+    expect(buffer).toEqual(Buffer.from([137, 80, 78, 71]));
     expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
     clearTimeoutSpy.mockRestore();
   });
@@ -154,9 +186,9 @@ describe("post opengraph image", () => {
       body: { getReader: bodyGetReader },
     } as any);
 
-    const response = await fetchImageAsPngBase64("https://cdn.example.com/image.png");
+    const buffer = await fetchImageBuffer("https://cdn.example.com/image.png");
 
-    expect(response).toBeNull();
+    expect(buffer).toBeNull();
     expect(bodyGetReader).not.toHaveBeenCalled();
   });
 
@@ -170,8 +202,8 @@ describe("post opengraph image", () => {
     );
     vi.spyOn(globalThis, "fetch").mockImplementation(fetchMock as any);
 
-    const response = await fetchImageAsPngBase64("https://cdn.example.com/image.png");
+    const buffer = await fetchImageBuffer("https://cdn.example.com/image.png");
 
-    expect(response).toBeNull();
+    expect(buffer).toBeNull();
   });
 });

@@ -153,6 +153,24 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 - Add `aria-label` to icon-only buttons (delete, external link, etc.) for accessibility.
 - Logo `alt`/`title` attributes must use translation keys (e.g. `Navbar.logoAlt`, `HomePage.logoAlt`), not hardcoded strings.
 
+## Open Graph / Link Previews (og:image)
+Hard-won rules — violating any of these silently breaks previews on WhatsApp/Messenger with no error anywhere:
+
+- **Keep og:image under ~600 KB.** WhatsApp silently drops larger images (Messenger is similarly strict). This is the #1 cause of "link shows no image".
+- **Photos must be JPEG, never PNG.** `ImageResponse` (Satori) can ONLY output PNG; a photo re-encoded as PNG easily exceeds 1.5 MB. Any OG route that embeds a user photo must bypass Satori and use `sharp` directly: `resize(1200, 630, { fit: "cover" }).jpeg({ quality: 80, mozjpeg: true })` (~100–250 KB). See `posts/[id]/opengraph-image.tsx`.
+- **Satori is fine for flat text cards** (profile, channel): flat-color PNGs stay ~40 KB. In Satori JSX, every element with more than one child MUST declare `display: "flex"` — a bare `<div>` wrapper 500s the whole route.
+- **Never use a transparent PNG as og:image.** WhatsApp/Telegram dark mode render transparency as near-black, so dark logo ink disappears. Static pages use the flattened `/images/og-default.jpg` (logo on ivory), exposed as `DEFAULT_OG_IMAGE` in `src/lib/seo.ts`. Regenerate it with sharp if the logo changes.
+- **Use the shared constants from `src/lib/seo.ts`** — `POST_OG_IMAGE` (JPEG, photo surfaces), `TEXT_OG_IMAGE` (PNG, Satori cards), `DEFAULT_OG_IMAGE` (static pages). The declared `og:image:type` must match what the route actually serves; OG routes derive their `contentType` export from these constants.
+- All OG images are 1200×630. OG routes are rate-limited (`readPostOgImage` etc.) and must return the logo fallback on any failure — never a 500 (crawlers cache failures for weeks).
+- **OG routes render dynamically** (rate limiting reads `headers()`), so they must set `Cache-Control` explicitly or every crawler hit pays a DB lookup + full render. Cache policy depends on WHY the response is what it is — use the shared constants from `src/lib/seo.ts`:
+  - `OG_IMAGE_CACHE_CONTROL` (1h + SWR) — success.
+  - `OG_IMAGE_FALLBACK_CACHE_CONTROL` (short public TTL) — missing/undecodable entity. This fallback IS the correct response for that URL, so brief shared caching is fine and lets it self-heal.
+  - `OG_IMAGE_RATE_LIMITED_CACHE_CONTROL` (`private, no-store`) — rate-limited. This is transient PER-IP state, NOT a property of the URL. **Never** shared-cache it: one throttled crawler would otherwise pin the logo fallback on a real card's URL for every other visitor. The rate-limit branch must use this, distinct from the missing-entity branch.
+  - For `ImageResponse` pass `{ ...size, headers: { "Cache-Control": ... } }`; for raw `sharp` responses set it on the `Response` headers.
+- External images fetched inside an OG route need a timeout + a streamed byte cap (`MAX_OG_IMAGE_BYTES`), and undecodable data must fall back, not throw.
+- Every OG-route change needs a regression test asserting output format, 1200×630 dimensions, and **size < 600 KB** (see `opengraph-image.test.tsx`).
+- After deploying OG changes, previews stay stale: force a re-scrape at https://developers.facebook.com/tools/debug/ (WhatsApp caches up to ~30 days; or append a dummy `?v=` param when testing in chat).
+
 ## Error Handling
 - Add `error.tsx` (error boundary) files at each route segment level so a crash doesn't white-screen the entire app.
 - Add `loading.tsx` at route segments for skeleton UIs during page transitions.

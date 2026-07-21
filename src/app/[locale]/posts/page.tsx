@@ -5,6 +5,7 @@ import { getPosts } from "@/lib/services/post";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import type { Post } from "@/types/post";
 import PostsPageClient from "./posts-page-client";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -25,13 +26,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: t("metaTitle"),
       description: t("metaDescription"),
       type: "website",
-      images: [{ url: "/images/sincere-bhakti-logo.png", width: 603, height: 414 }],
+      images: [DEFAULT_OG_IMAGE],
     },
     twitter: {
       card: "summary_large_image",
       title: t("metaTitle"),
       description: t("metaDescription"),
-      images: ["/images/sincere-bhakti-logo.png"],
+      images: [DEFAULT_OG_IMAGE.url],
     },
   };
 }
