@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { getCachedPostById } from "@/lib/services/post";
 import { getSiteUrl } from "@/lib/url";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { POST_OG_IMAGE, OG_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL } from "@/lib/seo";
+import { POST_OG_IMAGE, OG_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL } from "@/lib/seo";
 
 export const runtime = "nodejs";
 export const alt = "Sincere Bhakti post image";
@@ -73,7 +73,13 @@ function jpegResponse(buffer: Buffer, cacheControl = OG_IMAGE_CACHE_CONTROL): Re
 // Warm ivory canvas with the logo large and centered (550px tall at the
 // logo's exact 603×414 aspect ratio → 801px wide). The logo is
 // dark-ink-on-transparent, so the light brand ground gives it full contrast.
-async function logoFallback(siteUrl: string): Promise<Response> {
+// cacheControl varies by WHY we're falling back: missing/undecodable entity is
+// cacheable for that URL (short TTL); a rate-limit hit is transient per-IP
+// state that must not be shared-cached (see OG_IMAGE_RATE_LIMITED_CACHE_CONTROL).
+async function logoFallback(
+  siteUrl: string,
+  cacheControl: string = OG_IMAGE_FALLBACK_CACHE_CONTROL,
+): Promise<Response> {
   const canvas = sharp({
     create: { width: 1200, height: 630, channels: 3, background: IVORY },
   });
@@ -81,10 +87,7 @@ async function logoFallback(siteUrl: string): Promise<Response> {
   const logo = await fetchImageBuffer(`${siteUrl}/images/sincere-bhakti-logo.png`);
   if (!logo) {
     // Last resort: plain ivory frame — still a valid preview image.
-    return jpegResponse(
-      await canvas.jpeg({ quality: JPEG_QUALITY }).toBuffer(),
-      OG_IMAGE_FALLBACK_CACHE_CONTROL,
-    );
+    return jpegResponse(await canvas.jpeg({ quality: JPEG_QUALITY }).toBuffer(), cacheControl);
   }
 
   const resizedLogo = await sharp(logo).resize(801, 550, { fit: "inside" }).png().toBuffer();
@@ -92,9 +95,7 @@ async function logoFallback(siteUrl: string): Promise<Response> {
     .composite([{ input: resizedLogo }]) // gravity defaults to centre
     .jpeg({ quality: JPEG_QUALITY })
     .toBuffer();
-  // Fallback (no image / private / undecodable): short TTL so a temporarily
-  // degraded preview doesn't mask the real image for long.
-  return jpegResponse(buffer, OG_IMAGE_FALLBACK_CACHE_CONTROL);
+  return jpegResponse(buffer, cacheControl);
 }
 
 export default async function Image({
@@ -107,7 +108,7 @@ export default async function Image({
   const ip = getClientIp(await headers());
 
   if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPostOgImage, ip, RATE_LIMITS.readPostOgImage.limit, RATE_LIMITS.readPostOgImage.windowMs)) {
-    return logoFallback(siteUrl);
+    return logoFallback(siteUrl, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL);
   }
 
   const post = await getCachedPostById(id);

@@ -75,7 +75,7 @@ describe("post opengraph image", () => {
     vi.clearAllMocks();
   });
 
-  it("returns the fallback JPEG immediately when rate limited", async () => {
+  it("returns the fallback JPEG immediately when rate limited (never shared-cached)", async () => {
     vi.mocked(checkRateLimit).mockResolvedValue(false);
     // Logo fetch fails → plain ivory canvas; no network needed in tests.
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
@@ -85,9 +85,13 @@ describe("post opengraph image", () => {
     expect(checkRateLimit).toHaveBeenCalledWith("read-post-og-image", "203.0.113.10", 240, 60_000);
     expect(getCachedPostById).not.toHaveBeenCalled();
     await expectJpegResponse(response);
+    // A per-IP throttle must NOT poison the shared CDN entry for this URL.
+    const cc = response.headers.get("Cache-Control") ?? "";
+    expect(cc).toContain("no-store");
+    expect(cc).not.toContain("public");
   });
 
-  it("returns the fallback when the post is missing", async () => {
+  it("returns the fallback when the post is missing (briefly cacheable)", async () => {
     vi.mocked(checkRateLimit).mockResolvedValue(true);
     vi.mocked(getCachedPostById).mockResolvedValue(null as any);
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
@@ -96,6 +100,11 @@ describe("post opengraph image", () => {
 
     expect(getCachedPostById).toHaveBeenCalledWith("post-1");
     await expectJpegResponse(response);
+    // The "no such post" fallback is the correct response for this URL — safe
+    // to cache publicly for a short window.
+    const cc = response.headers.get("Cache-Control") ?? "";
+    expect(cc).toContain("public");
+    expect(cc).not.toContain("no-store");
   });
 
   it("serves the post image as a 1200x630 cover-cropped JPEG", async () => {

@@ -32,11 +32,18 @@ export const DEFAULT_OG_IMAGE = {
 
 // CDN caching for OG image routes. They render dynamically (rate limiting
 // reads headers()), so without these every crawler hit pays a DB lookup and
-// a full image render. Success responses are stable for an hour; fallbacks
-// (rate-limited / missing entity) get a short TTL so a temporarily degraded
-// response doesn't mask the real card for long.
+// a full image render.
+//
+// - Success: stable for an hour.
+// - Missing/undecodable entity: this fallback IS the correct response for that
+//   URL, so cache it briefly (short TTL lets it self-heal if the entity/image
+//   later appears).
+// - Rate-limited: transient PER-IP state, NOT a property of the URL. It must
+//   never enter a shared cache — otherwise one throttled crawler pins the logo
+//   fallback on a real card's URL for other visitors. Hence no-store.
 export const OG_IMAGE_CACHE_CONTROL = "public, s-maxage=3600, stale-while-revalidate=86400";
 export const OG_IMAGE_FALLBACK_CACHE_CONTROL = "public, max-age=60, s-maxage=300";
+export const OG_IMAGE_RATE_LIMITED_CACHE_CONTROL = "private, no-store";
 
 const OG_LOCALES: Record<string, string> = {
   en: "en_US",
