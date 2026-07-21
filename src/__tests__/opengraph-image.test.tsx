@@ -130,6 +130,11 @@ describe("post opengraph image", () => {
     const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
 
     await expectJpegResponse(response);
+    // Mutable user photo: bounded TTL, no day-long stale-while-revalidate, so a
+    // post going private / changing media propagates within minutes.
+    const cc = response.headers.get("Cache-Control") ?? "";
+    expect(cc).toContain("s-maxage=300");
+    expect(cc).not.toContain("stale-while-revalidate");
   });
 
   it("keeps the abort timeout active until the image body is read", async () => {

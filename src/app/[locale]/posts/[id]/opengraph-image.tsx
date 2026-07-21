@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { getCachedPostById } from "@/lib/services/post";
 import { getSiteUrl } from "@/lib/url";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { POST_OG_IMAGE, OG_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL } from "@/lib/seo";
+import { POST_OG_IMAGE, OG_POST_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL } from "@/lib/seo";
 
 export const runtime = "nodejs";
 export const alt = "Sincere Bhakti post image";
@@ -64,7 +64,7 @@ export async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   }
 }
 
-function jpegResponse(buffer: Buffer, cacheControl = OG_IMAGE_CACHE_CONTROL): Response {
+function jpegResponse(buffer: Buffer, cacheControl = OG_POST_IMAGE_CACHE_CONTROL): Response {
   return new Response(new Uint8Array(buffer), {
     headers: { "Content-Type": "image/jpeg", "Cache-Control": cacheControl },
   });
@@ -131,7 +131,9 @@ export default async function Image({
       .resize(1200, 630, { fit: "cover" })
       .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
       .toBuffer();
-    return jpegResponse(buffer);
+    // Short TTL, no long SWR: bounds how long a now-private / media-changed post
+    // can serve a stale photo from the shared cache (see OG_POST_IMAGE_CACHE_CONTROL).
+    return jpegResponse(buffer, OG_POST_IMAGE_CACHE_CONTROL);
   } catch {
     // Undecodable image data — fall back rather than 500 the preview.
     return logoFallback(siteUrl);

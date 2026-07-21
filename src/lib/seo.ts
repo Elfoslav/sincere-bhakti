@@ -45,6 +45,16 @@ export const OG_IMAGE_CACHE_CONTROL = "public, s-maxage=3600, stale-while-revali
 export const OG_IMAGE_FALLBACK_CACHE_CONTROL = "public, max-age=60, s-maxage=300";
 export const OG_IMAGE_RATE_LIMITED_CACHE_CONTROL = "private, no-store";
 
+// The post-photo OG response embeds mutable, privacy-sensitive user media: a
+// post can be made private or have its media removed/replaced after the image
+// is cached, and the edge would keep serving the old photo without re-running
+// the isPublic/media checks. Use a short TTL with NO long stale-while-revalidate
+// so a visibility/media change propagates within minutes (the route re-checks
+// on every revalidation). Shared caching stays safe — the response only ever
+// contains what was public at render time. Instant propagation would require
+// purging this URL on post update/delete.
+export const OG_POST_IMAGE_CACHE_CONTROL = "public, s-maxage=300";
+
 const OG_LOCALES: Record<string, string> = {
   en: "en_US",
   cs: "cs_CZ",
