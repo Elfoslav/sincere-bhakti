@@ -6,19 +6,28 @@ import { getLanguageAlternates, getLocalizedUrl } from "@/lib/seo";
 export const revalidate = 900;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const staticPages = ["", "/posts"];
+  const staticPages: {
+    path: string;
+    changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
+    priority: number;
+  }[] = [
+    { path: "", changeFrequency: "daily", priority: 1.0 },
+    { path: "/posts", changeFrequency: "daily", priority: 0.8 },
+    { path: "/channels", changeFrequency: "daily", priority: 0.7 },
+    { path: "/terms", changeFrequency: "yearly", priority: 0.2 },
+  ];
 
   const entries: MetadataRoute.Sitemap = [];
 
   for (const locale of routing.locales) {
-    for (const page of staticPages) {
+    for (const { path, changeFrequency, priority } of staticPages) {
       entries.push({
-        url: getLocalizedUrl(locale, page || "/"),
+        url: getLocalizedUrl(locale, path || "/"),
         lastModified: new Date(),
-        changeFrequency: "daily" as const,
-        priority: page === "" ? 1.0 : 0.8,
+        changeFrequency,
+        priority,
         alternates: {
-          languages: getLanguageAlternates(page || "/"),
+          languages: getLanguageAlternates(path || "/"),
         },
       });
     }

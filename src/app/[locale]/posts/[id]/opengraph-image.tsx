@@ -3,22 +3,19 @@ import sharp from "sharp";
 import { getCachedPostById } from "@/lib/services/post";
 import { getSiteUrl } from "@/lib/url";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
+import { POST_OG_IMAGE, OG_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL } from "@/lib/seo";
 
 export const runtime = "nodejs";
 export const alt = "Sincere Bhakti post image";
-export const size = { width: 1200, height: 630 };
+export const size = { width: POST_OG_IMAGE.width, height: POST_OG_IMAGE.height };
 // JPEG, not PNG: WhatsApp silently drops link-preview images over ~600 KB,
 // and a photo re-encoded as PNG (what Satori/ImageResponse always outputs)
 // easily exceeds 1.5 MB. A quality-80 JPEG of the same frame is ~100–250 KB.
-export const contentType = "image/jpeg";
+export const contentType = POST_OG_IMAGE.type;
 export const MAX_OG_IMAGE_BYTES = 10 * 1024 * 1024;
 
 const JPEG_QUALITY = 80;
 const IVORY = "#fdf8ee";
-const CACHE_HEADERS = {
-  "Content-Type": "image/jpeg",
-  "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
-};
 
 function parseContentLength(value: string | null): number | null {
   if (value === null) return null;
@@ -67,8 +64,10 @@ export async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   }
 }
 
-function jpegResponse(buffer: Buffer): Response {
-  return new Response(new Uint8Array(buffer), { headers: CACHE_HEADERS });
+function jpegResponse(buffer: Buffer, cacheControl = OG_IMAGE_CACHE_CONTROL): Response {
+  return new Response(new Uint8Array(buffer), {
+    headers: { "Content-Type": "image/jpeg", "Cache-Control": cacheControl },
+  });
 }
 
 // Warm ivory canvas with the logo large and centered (550px tall at the
@@ -82,7 +81,10 @@ async function logoFallback(siteUrl: string): Promise<Response> {
   const logo = await fetchImageBuffer(`${siteUrl}/images/sincere-bhakti-logo.png`);
   if (!logo) {
     // Last resort: plain ivory frame — still a valid preview image.
-    return jpegResponse(await canvas.jpeg({ quality: JPEG_QUALITY }).toBuffer());
+    return jpegResponse(
+      await canvas.jpeg({ quality: JPEG_QUALITY }).toBuffer(),
+      OG_IMAGE_FALLBACK_CACHE_CONTROL,
+    );
   }
 
   const resizedLogo = await sharp(logo).resize(801, 550, { fit: "inside" }).png().toBuffer();
@@ -90,7 +92,9 @@ async function logoFallback(siteUrl: string): Promise<Response> {
     .composite([{ input: resizedLogo }]) // gravity defaults to centre
     .jpeg({ quality: JPEG_QUALITY })
     .toBuffer();
-  return jpegResponse(buffer);
+  // Fallback (no image / private / undecodable): short TTL so a temporarily
+  // degraded preview doesn't mask the real image for long.
+  return jpegResponse(buffer, OG_IMAGE_FALLBACK_CACHE_CONTROL);
 }
 
 export default async function Image({

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import ChannelsPageClient from "./channels-page-client";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -17,13 +18,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: t("metaTitle"),
       description: t("metaDescription"),
       type: "website",
-      images: [{ url: "/images/sincere-bhakti-logo.png", width: 603, height: 414 }],
+      images: [DEFAULT_OG_IMAGE],
     },
     twitter: {
       card: "summary_large_image",
       title: t("metaTitle"),
       description: t("metaDescription"),
-      images: ["/images/sincere-bhakti-logo.png"],
+      images: [DEFAULT_OG_IMAGE.url],
     },
   };
 }

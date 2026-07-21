@@ -3,11 +3,40 @@ import { routing } from "@/i18n/routing";
 import { getSiteUrl } from "@/lib/url";
 
 export const SITE_NAME = "Sincere Bhakti";
+
+export const OG_IMAGE_SIZE = { width: 1200, height: 630 };
+
+// Post previews embed user photos → JPEG. WhatsApp silently drops preview
+// images over ~600 KB and a photo re-encoded as PNG easily exceeds 1.5 MB;
+// a quality-80 JPEG of the same frame is ~100–250 KB.
 export const POST_OG_IMAGE = {
-  width: 1200,
-  height: 630,
+  ...OG_IMAGE_SIZE,
+  type: "image/jpeg",
+};
+
+// Satori/ImageResponse text cards (profile, channel) are flat art — those
+// PNGs stay small (~40 KB), so PNG is fine there.
+export const TEXT_OG_IMAGE = {
+  ...OG_IMAGE_SIZE,
   type: "image/png",
 };
+
+// Flattened default preview (logo on ivory) for static pages. Never use a
+// transparent PNG as og:image — WhatsApp/Telegram dark mode renders
+// transparency as near-black, making dark logo ink invisible.
+export const DEFAULT_OG_IMAGE = {
+  ...OG_IMAGE_SIZE,
+  type: "image/jpeg",
+  url: "/images/og-default.jpg",
+};
+
+// CDN caching for OG image routes. They render dynamically (rate limiting
+// reads headers()), so without these every crawler hit pays a DB lookup and
+// a full image render. Success responses are stable for an hour; fallbacks
+// (rate-limited / missing entity) get a short TTL so a temporarily degraded
+// response doesn't mask the real card for long.
+export const OG_IMAGE_CACHE_CONTROL = "public, s-maxage=3600, stale-while-revalidate=86400";
+export const OG_IMAGE_FALLBACK_CACHE_CONTROL = "public, max-age=60, s-maxage=300";
 
 const OG_LOCALES: Record<string, string> = {
   en: "en_US",
