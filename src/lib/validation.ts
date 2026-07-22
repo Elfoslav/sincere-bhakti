@@ -172,6 +172,7 @@ export const createChannelSchema = z.object({
     .trim()
     .min(1)
     .max(NAME_MAX_LENGTH),
+  language: z.string().min(1).max(10).optional(),
 });
 
 export const addChannelMemberSchema = z.object({

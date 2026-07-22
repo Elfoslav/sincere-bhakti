@@ -19,7 +19,8 @@ export async function GET(
     if (!await checkRateLimit(RATE_LIMIT_PREFIX.readChannel, ip, RATE_LIMITS.readChannel.limit, RATE_LIMITS.readChannel.windowMs)) {
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
-  const { slug } = await params;
+
+    const { slug } = await params;
     const channel = await getChannelBySlug(slug);
 
     if (!channel) {

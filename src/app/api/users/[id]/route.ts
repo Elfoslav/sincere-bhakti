@@ -8,6 +8,7 @@ import { logServerError, logValidationError } from "@/lib/server-log";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 import { getMaxChannelsPerUser } from "@/lib/channel-limit";
+import { resolveTranslation } from "@/lib/channel-translation";
 import type { ChannelMemberRole } from "@/lib/channel-roles";
 
 class NameTakenError extends Error {
@@ -39,6 +40,7 @@ export async function GET(
     }
 
     const { id } = await params;
+    const language = new URL(request.url).searchParams.get("language") ?? "en";
 
     const session = await auth();
     const isOwnProfile = session?.user?.id === id;
@@ -86,21 +88,17 @@ export async function GET(
     const managedEditors = editors as unknown as ManagedChannelSelection[];
     const additionalChannelCount = channels.filter((channel) => !channel.isPersonal).length;
 
-    function pickTranslation(translations: { language: string; name: string; slug: string }[]): { name: string; slug: string } {
-      return translations[0] ?? { name: "", slug: "" };
-    }
-
     return NextResponse.json({
       ...profile,
       additionalChannelCount,
       channelLimit: getMaxChannelsPerUser(),
       channels: channels.map(({ _count, translations, ...ch }) => {
-        const t = pickTranslation(translations);
+        const t = resolveTranslation(translations, language) ?? { name: "", slug: "" };
         return { ...ch, name: t.name, slug: t.slug, postCount: _count.posts };
       }),
       managedChannels: managedEditors.map(({ role, channel }) => {
         const { _count, translations, ...ch } = channel;
-        const t = pickTranslation(translations);
+        const t = resolveTranslation(translations, language) ?? { name: "", slug: "" };
         return { ...ch, name: t.name, slug: t.slug, role: role as ChannelMemberRole, postCount: _count.posts };
       }),
     });

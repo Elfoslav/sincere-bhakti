@@ -6,6 +6,7 @@ import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/validation";
 import { createChannel, NameTakenError, ChannelLimitError } from "@/lib/services/channel";
+import { resolveTranslation } from "@/lib/channel-translation";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
     }
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
+    const language = searchParams.get("language") ?? "en";
 
     if (userId) {
       const session = await auth();
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest) {
       }
 
       const { _count, translations, ...data } = channel;
-      const t = translations[0] ?? { name: "", slug: "" };
+      const t = resolveTranslation(translations, language) ?? { name: "", slug: "" };
       return NextResponse.json({ ...data, name: t.name, slug: t.slug, postCount: _count.posts });
     }
 
@@ -76,7 +78,7 @@ export async function GET(request: NextRequest) {
     });
 
     const items = channels.map(({ _count, translations, ...data }) => {
-      const t = translations[0] ?? { name: "", slug: "" };
+      const t = resolveTranslation(translations, language) ?? { name: "", slug: "" };
       return { ...data, name: t.name, slug: t.slug, postCount: _count.posts };
     });
 
@@ -117,14 +119,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name } = parsed.data;
+    const { name, language } = parsed.data;
 
     // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
     if (isBrandNameBlocked(name, session.user.email)) {
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
-    const channel = await createChannel(session.user.id, name);
+    const channel = await createChannel(session.user.id, name, language);
 
     return NextResponse.json(channel, { status: HTTP_CREATED });
   } catch (error) {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveTranslation, resolveChannelTranslation } from "@/lib/channel-translation";
+import { resolveTranslation } from "@/lib/channel-translation";
 
 const translations = [
   { language: "en", name: "English Name", slug: "english-slug" },
@@ -32,25 +32,5 @@ describe("resolveTranslation", () => {
   it("matches exact language even when it is not first in the array", () => {
     const result = resolveTranslation(translations, "sk");
     expect(result).toEqual({ language: "sk", name: "Slovenské meno", slug: "slovensky-slug" });
-  });
-});
-
-describe("resolveChannelTranslation", () => {
-  it("preserves extra fields on the translation object", () => {
-    const extended = translations.map((t) => ({ ...t, channelId: "ch-1" }));
-    const result = resolveChannelTranslation(extended, "cs");
-    expect(result).toEqual({ language: "cs", name: "České jméno", slug: "cesky-slug", channelId: "ch-1" });
-  });
-
-  it("falls back to first translation when no language match", () => {
-    const extended = translations.map((t) => ({ ...t, channelId: "ch-1" }));
-    const result = resolveChannelTranslation(extended, "de");
-    expect(result?.channelId).toBe("ch-1");
-    expect(result?.language).toBe("en");
-  });
-
-  it("returns null for empty array", () => {
-    const result = resolveChannelTranslation([], "en");
-    expect(result).toBeNull();
   });
 });

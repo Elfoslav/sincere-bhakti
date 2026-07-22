@@ -123,6 +123,31 @@ describe("POST /api/channels", () => {
     expect(json.postCount).toBe(0);
   });
 
+  it("creates a channel with the requested language", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channel.create).mockResolvedValue({
+      id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, createdAt: new Date(),
+    } as any);
+
+    const res = await POST(mockRequest({ name: "Můj kanál", language: "cs" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(json.name).toBe("Můj kanál");
+    expect(prisma.channel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          translations: expect.objectContaining({
+            create: expect.objectContaining({ language: "cs" }),
+          }),
+        }),
+      }),
+    );
+  });
+
   it("returns 409 when name matches the brand name", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
 

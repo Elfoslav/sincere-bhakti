@@ -50,7 +50,7 @@ model ChannelTranslation {
   channelId      String
   language       String
   name           String
-  normalizedName String   @default("") @unique
+  normalizedName String   @unique
   slug           String   @unique
   channel        Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
 

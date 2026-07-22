@@ -15,6 +15,7 @@ import type { AuthorableIdentity } from "@/types/identity";
 import type { ChannelMember, ChannelSettings } from "@/types/channel";
 
 import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
+import { logServerError } from "@/lib/server-log";
 
 export class NotFoundError extends Error {
   name = "NotFoundError" as const;
@@ -122,16 +123,18 @@ export async function createPersonalChannel(
           return toPostChannel(existing, [{ language, name: userName, slug: finalSlug }], language);
         } catch (err) {
           if ((err as { code?: string })?.code !== "P2002") throw err;
-          console.warn(
+          logServerError(
             `[createPersonalChannel] fixup P2002: userId=${userId} userName="${userName}" ` +
             `properSlug="${properSlug}" attempt=${i} finalSlug="${finalSlug}" ` +
-            `oldSlug="${currentSlug}"`
+            `oldSlug="${currentSlug}"`,
+            err,
           );
         }
       }
-      console.warn(
+      logServerError(
         `[createPersonalChannel] fixup exhausted 10 attempts for userId=${userId} ` +
-        `userName="${userName}" properSlug="${properSlug}" oldSlug="${currentSlug}" — using UUID fallback`
+        `userName="${userName}" properSlug="${properSlug}" oldSlug="${currentSlug}" — using UUID fallback`,
+        new Error("fixup_retries_exhausted"),
       );
       const uuid = crypto.randomUUID().slice(0, 8);
       await prisma.channelTranslation.upsert({
@@ -145,8 +148,9 @@ export async function createPersonalChannel(
     return toPostChannel(existing, existing.translations, language);
   }
 
-  console.warn(
-    `[createPersonalChannel] no existing personal channel for userId=${userId} userName="${userName}" — creating new`
+  logServerError(
+    `[createPersonalChannel] no existing personal channel for userId=${userId} userName="${userName}" — creating new`,
+    new Error("missing_personal_channel"),
   );
 
   const slug = slugifyName(userName);

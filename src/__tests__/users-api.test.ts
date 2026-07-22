@@ -52,6 +52,7 @@ import { GET, PATCH } from "@/app/api/users/[id]/route";
 
 function mockRequest(body?: unknown): any {
   return {
+    url: "http://localhost:3000/api/users/user-1",
     json: () => Promise.resolve(body),
     headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }),
   } as any;
@@ -91,6 +92,29 @@ describe("GET /api/users/[id]", () => {
     expect(json.channels[0]).toMatchObject({ id: "channel-1", name: "Devotee", slug: "devotee", ownerId: "user-1" });
     expect(json.channels[0].postCount).toBe(5);
     expect(json.managedChannels).toEqual([]);
+  });
+
+  it("returns the channel name in the requested language", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      ...baseUser,
+      channels: [{
+        id: "channel-1", avatarUrl: null, ownerId: "user-1", isPersonal: true,
+        _count: { posts: 5 },
+        translations: [
+          { language: "en", name: "Devotee", slug: "devotee" },
+          { language: "cs", name: "Oddaný", slug: "oddany" },
+        ],
+      }],
+    } as any);
+
+    const req = { ...mockRequest(), url: "http://localhost:3000/api/users/user-1?language=cs" };
+    const res = await GET(req, { params: Promise.resolve({ id: "user-1" }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.channels[0].name).toBe("Oddaný");
+    expect(json.channels[0].slug).toBe("oddany");
   });
 
   it("returns managed channels with roles for the profile owner", async () => {
