@@ -275,9 +275,10 @@ export async function createPost(
     }
   }
 
-  let post: PostResponse;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rawPost: any;
   try {
-    post = await prisma.post.create({
+    rawPost = await prisma.post.create({
       data: {
         ...(id ? { id } : {}),
         content: content || null,
@@ -307,7 +308,7 @@ export async function createPost(
   // Remove PendingUpload records for the newly created media
   await deletePendingUploads(media.map((m) => m.url));
 
-  return toPostResponse(post, requestLanguage ?? "en");
+  return toPostResponse(rawPost, requestLanguage ?? "en") as PostResponse;
 }
 
 export async function deletePost(

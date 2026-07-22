@@ -823,7 +823,7 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     const findUniqueSpy = vi.mocked(prisma.channelTranslation.findUnique);
     let findUniqueCallCount = 0;
-    findUniqueSpy.mockImplementation(() => {
+    findUniqueSpy.mockImplementation((() => {
       findUniqueCallCount++;
       if (findUniqueCallCount === 1) {
         return Promise.resolve({
@@ -831,8 +831,8 @@ describe("PATCH /api/channels/[slug]", () => {
           channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 1, defaultLanguage: "en" },
         } as any);
       }
-      return Promise.resolve(null);
-    });
+      return Promise.resolve(null as any);
+    }) as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);

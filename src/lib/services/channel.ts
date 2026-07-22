@@ -220,6 +220,8 @@ export async function getChannelBySlug(slug: string, language: string = "en"): P
   postCount: number;
   isPersonal: boolean;
   renameCount: number;
+  defaultLanguage: string;
+  availableLanguages: string[];
 } | null> {
   const translation = await prisma.channelTranslation.findUnique({
     where: { slug },
@@ -236,11 +238,15 @@ export async function getChannelBySlug(slug: string, language: string = "en"): P
       ownerId: true,
       isPersonal: true,
       renameCount: true,
+      defaultLanguage: true,
       owner: { select: { id: true, name: true, image: true } },
       _count: { select: { posts: { where: { isPublic: true } } } },
+      translations: { select: { language: true } },
     },
   });
   if (!channel) return null;
+
+  const availableLanguages = channel.translations.map((t) => t.language);
 
   if (translation.language === language) {
     return {
@@ -255,6 +261,8 @@ export async function getChannelBySlug(slug: string, language: string = "en"): P
       postCount: channel._count.posts,
       isPersonal: channel.isPersonal,
       renameCount: channel.renameCount,
+      defaultLanguage: channel.defaultLanguage,
+      availableLanguages,
     };
   }
 
@@ -275,6 +283,8 @@ export async function getChannelBySlug(slug: string, language: string = "en"): P
     postCount: channel._count.posts,
     isPersonal: channel.isPersonal,
     renameCount: channel.renameCount,
+    defaultLanguage: channel.defaultLanguage,
+    availableLanguages,
   };
 }
 

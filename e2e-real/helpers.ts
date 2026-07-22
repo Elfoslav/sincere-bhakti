@@ -84,17 +84,23 @@ export async function createUserWithPersonalChannel({
   const user = await prisma.user.create({
     data: { name, email, password: hashedPassword },
   });
+  const slug = slugifyName(name);
   const channel = await prisma.channel.create({
     data: {
-      name,
-      normalizedName: normalizeName(name),
-      slug: slugifyName(name),
       ownerId: user.id,
       isPersonal: true,
+      translations: {
+        create: {
+          name,
+          normalizedName: normalizeName(name),
+          slug,
+          language: "en",
+        },
+      },
     },
   });
 
-  return { user, channel };
+  return { user, channel, slug };
 }
 
 export async function loginViaUi(page: Page, email: string, password = TEST_PASSWORD) {

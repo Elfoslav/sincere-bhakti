@@ -10,7 +10,7 @@ import {
 test("owner can use crucial authenticated pages with the real database", async ({ page }) => {
   const email = uniqueE2EEmail("owner-flow");
   const name = `E2E Owner ${Date.now()}`;
-  const { channel } = await createUserWithPersonalChannel({ name, email });
+  const { channel, slug } = await createUserWithPersonalChannel({ name, email });
 
   try {
     await loginViaUi(page, email);
@@ -35,11 +35,11 @@ test("owner can use crucial authenticated pages with the real database", async (
     await page.goto("/profile");
     await expect(page.getByRole("heading", { name })).toBeVisible();
 
-    await page.goto(`/channels/${channel.slug}`);
+    await page.goto(`/channels/${slug}`);
     await expect(page.getByRole("heading", { name })).toBeVisible();
     await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
 
-    await page.goto(`/channels/${channel.slug}/settings`);
+    await page.goto(`/channels/${slug}/settings`);
     await expect(page.getByRole("heading", { name: "Channel settings" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Admins and editors" })).toBeVisible();
   } finally {
