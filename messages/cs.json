@@ -207,6 +207,8 @@
 		"postCount": "{count} příspěvků",
 		"loading": "Načítám kanály...",
 		"loadMore": "Načíst další",
+		"loadError": "Nepodařilo se načíst kanály. Zkuste to prosím znovu.",
+		"retry": "Zkusit znovu",
 		"metaTitle": "Kanály | Sincere Bhakti",
 		"metaDescription": "Procházet všechny kanály na Sincere Bhakti"
 	},

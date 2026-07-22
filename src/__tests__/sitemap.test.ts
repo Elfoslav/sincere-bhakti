@@ -49,4 +49,31 @@ describe("sitemap", () => {
     expect(entries.find((entry) => entry.url === "https://example.test/channels/second-channel")?.lastModified).toBe(secondChannelLatestPostAt);
     expect(entries.find((entry) => entry.url === "https://example.test/profile/user-1")?.lastModified).toBe(secondChannelLatestPostAt);
   });
+
+  it("emits one sitemap entry per translation per channel", async () => {
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+      {
+        id: "ch-1",
+        createdAt: new Date("2026-01-01"),
+        translations: [
+          { language: "en", slug: "my-channel" },
+          { language: "cs", slug: "muj-kanal" },
+          { language: "sk", slug: "moj-kanal" },
+        ],
+        owner: { id: "user-1", createdAt: new Date("2026-01-01") },
+        posts: [{ createdAt: new Date("2026-06-01") }],
+      },
+    ] as unknown as Awaited<ReturnType<typeof prisma.channel.findMany>>);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([] as any);
+
+    const entries = await sitemap();
+    const channelUrls = entries
+      .filter((e) => e.url.includes("/channels/"))
+      .map((e) => e.url);
+
+    expect(channelUrls).toContain("https://example.test/channels/my-channel");
+    expect(channelUrls).toContain("https://example.test/cs/channels/muj-kanal");
+    expect(channelUrls).toContain("https://example.test/sk/channels/moj-kanal");
+    expect(channelUrls).toHaveLength(3);
+  });
 });

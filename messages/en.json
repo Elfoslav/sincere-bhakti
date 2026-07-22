@@ -207,6 +207,8 @@
 		"postCount": "{count} posts",
 		"loading": "Loading channels...",
 		"loadMore": "Load more",
+		"loadError": "Failed to load channels. Please try again.",
+		"retry": "Retry",
 		"metaTitle": "Channels | Sincere Bhakti",
 		"metaDescription": "Browse all channels on Sincere Bhakti"
 	},
