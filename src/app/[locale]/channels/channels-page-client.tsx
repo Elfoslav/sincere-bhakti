@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Hash, FileText } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -17,6 +17,7 @@ interface ChannelsResponse {
 
 export default function ChannelsPageClient() {
   const t = useTranslations("ChannelsPage");
+  const locale = useLocale();
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -29,10 +30,11 @@ export default function ChannelsPageClient() {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (c) params.set("cursor", c);
+    params.set("language", locale);
     const res = await fetch(`/api/channels?${params}`);
     if (!res.ok) return null;
     return res.json() as Promise<ChannelsResponse>;
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     let mounted = true;

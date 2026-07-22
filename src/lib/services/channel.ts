@@ -374,6 +374,8 @@ export async function getChannelSettingsBySlug(
       id: true,
       avatarUrl: true,
       ownerId: true,
+      isPersonal: true,
+      renameCount: true,
       owner: { select: { id: true, name: true, email: true } },
     },
   });
@@ -396,6 +398,8 @@ export async function getChannelSettingsBySlug(
       ownerId: channel.ownerId,
       ownerName: channel.owner.name,
       ownerEmail: channel.owner.email,
+      isPersonal: channel.isPersonal,
+      renameCount: channel.renameCount,
     },
     members: await getChannelMembers(channel.id),
     translations: allTranslations as ChannelSettingsTranslation[],

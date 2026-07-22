@@ -6,6 +6,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     channel: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock("@/lib/prisma", () => ({
         $executeRaw: vi.fn(),
         channel: {
           findFirst: (...args: any[]) => (outer.channel.findFirst as any)(...args),
+          findMany: (...args: any[]) => (outer.channel.findMany as any)(...args),
           create: (...args: any[]) => (outer.channel.create as any)(...args),
           findUnique: (...args: any[]) => (outer.channel.findUnique as any)(...args),
           update: (...args: any[]) => (outer.channel.update as any)(...args),
@@ -62,7 +64,7 @@ vi.mock("@/lib/csrf", () => ({
 }));
 vi.mock("@/lib/rate-limit", () => {
   const mockRateLimit = vi.fn((_key: string, _limit: number, _windowMs: number) => ({ allowed: true, remaining: 9, resetIn: 3_600_000 }));
-  const RATE_LIMITS = { createChannel: { limit: 20, windowMs: 3_600_000 }, updateChannel: { limit: 20, windowMs: 3_600_000 } };
+  const RATE_LIMITS = { searchChannels: { limit: 30, windowMs: 60_000 }, createChannel: { limit: 20, windowMs: 3_600_000 }, updateChannel: { limit: 20, windowMs: 3_600_000 } };
   const rateLimitKey = (prefix: string, id: string) => `${prefix}:${id}`;
   return {
     RATE_LIMIT_PREFIX: {
@@ -88,7 +90,7 @@ vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { POST } from "@/app/api/channels/route";
+import { GET, POST } from "@/app/api/channels/route";
 import { PATCH } from "@/app/api/channels/[slug]/route";
 
 function mockRequest(body?: unknown): any {
@@ -263,6 +265,200 @@ describe("POST /api/channels", () => {
     } finally {
       process.env.MAX_CHANNELS_PER_USER = previous;
     }
+  });
+});
+
+describe("GET /api/channels", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function mockGetRequest(language?: string): any {
+    const params = new URLSearchParams();
+    if (language) params.set("language", language);
+    return {
+      headers: new Headers({ host: "localhost:3000", "x-forwarded-for": "127.0.0.1" }),
+      url: `http://localhost:3000/api/channels?${params}`,
+    } as any;
+  }
+
+  it("lists channels with translations for the requested language", async () => {
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+      {
+        id: "ch-en", avatarUrl: null, createdAt: new Date(), ownerId: "user-1",
+        _count: { posts: 3 },
+        translations: [{ name: "English Channel", slug: "english-channel" }],
+      },
+    ] as any);
+
+    const res = await GET(mockGetRequest("en"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].name).toBe("English Channel");
+    expect(json.items[0].slug).toBe("english-channel");
+    expect(json.items[0].postCount).toBe(3);
+    expect(prisma.channel.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ translations: { some: { language: "en" } } }),
+        select: expect.objectContaining({
+          translations: expect.objectContaining({ where: { language: "en" } }),
+        }),
+      }),
+    );
+  });
+
+  it("excludes channels without a translation in the requested language", async () => {
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([] as any);
+
+    const res = await GET(mockGetRequest("cs"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.items).toHaveLength(0);
+    expect(prisma.channel.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ translations: { some: { language: "cs" } } }),
+      }),
+    );
+  });
+
+  it("falls back to 'en' when no language param is provided", async () => {
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+      {
+        id: "ch-1", avatarUrl: null, createdAt: new Date(), ownerId: "user-1",
+        _count: { posts: 1 },
+        translations: [{ name: "Default", slug: "default" }],
+      },
+    ] as any);
+
+    const res = await GET(mockGetRequest());
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].name).toBe("Default");
+    expect(prisma.channel.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ translations: { some: { language: "en" } } }),
+        select: expect.objectContaining({
+          translations: expect.objectContaining({ where: { language: "en" } }),
+        }),
+      }),
+    );
+  });
+
+  it("returns a channel for a given userId with the requested language translation", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "current-user" } } as any);
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue({
+      id: "ch-1", avatarUrl: "https://example.com/avatar.png", createdAt: new Date(), ownerId: "current-user",
+      _count: { posts: 5 },
+      translations: [{ name: "Můj kanál", slug: "muj-kanal" }],
+    } as any);
+
+    const params = new URLSearchParams({ userId: "current-user", language: "cs" });
+    const res = await GET({ headers: new Headers({ host: "localhost:3000", "x-forwarded-for": "127.0.0.1" }), url: `http://localhost:3000/api/channels?${params}` } as any);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.name).toBe("Můj kanál");
+    expect(json.slug).toBe("muj-kanal");
+    expect(json.postCount).toBe(5);
+    expect(prisma.channel.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          translations: { where: { language: "cs" }, select: { name: true, slug: true }, take: 1 },
+        }),
+      }),
+    );
+  });
+
+  it("returns the English translation for a userId when no language param", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "current-user" } } as any);
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue({
+      id: "ch-1", avatarUrl: null, createdAt: new Date(), ownerId: "current-user",
+      _count: { posts: 2 },
+      translations: [{ name: "My Channel", slug: "my-channel" }],
+    } as any);
+
+    const params = new URLSearchParams({ userId: "current-user" });
+    const res = await GET({ headers: new Headers({ host: "localhost:3000", "x-forwarded-for": "127.0.0.1" }), url: `http://localhost:3000/api/channels?${params}` } as any);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.name).toBe("My Channel");
+    expect(json.slug).toBe("my-channel");
+  });
+
+  it("supports cursor-based pagination", async () => {
+    const channels = Array.from({ length: 20 }, (_, i) => ({
+      id: `ch-${i + 1}`, avatarUrl: null, createdAt: new Date(), ownerId: "user-1",
+      _count: { posts: 0 },
+      translations: [{ name: `Channel ${i + 1}`, slug: `channel-${i + 1}` }],
+    }));
+    vi.mocked(prisma.channel.findMany).mockResolvedValue(channels as any);
+
+    const params = new URLSearchParams({ language: "en", cursor: "ch-5" });
+    const res = await GET({ headers: new Headers({ host: "localhost:3000", "x-forwarded-for": "127.0.0.1" }), url: `http://localhost:3000/api/channels?${params}` } as any);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.items).toHaveLength(20);
+    expect(json.nextCursor).toBe("ch-20");
+    expect(prisma.channel.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 1, cursor: { id: "ch-5" } }),
+    );
+  });
+
+  it("filters by search query in the requested language", async () => {
+    vi.mocked(prisma.channelTranslation.findMany).mockResolvedValue([
+      { channelId: "ch-1" },
+    ] as any);
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+      {
+        id: "ch-1", avatarUrl: null, createdAt: new Date(), ownerId: "user-1",
+        _count: { posts: 0 },
+        translations: [{ name: "Védská škola", slug: "vedska-skola" }],
+      },
+    ] as any);
+
+    const params = new URLSearchParams({ q: "védská", language: "cs" });
+    const res = await GET({ headers: new Headers({ host: "localhost:3000", "x-forwarded-for": "127.0.0.1" }), url: `http://localhost:3000/api/channels?${params}` } as any);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].name).toBe("Védská škola");
+    expect(prisma.channelTranslation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ language: "cs", normalizedName: { contains: "vedska", mode: "insensitive" } }),
+      }),
+    );
+  });
+
+  it("returns 429 when rate limited", async () => {
+    const { rateLimit } = await import("@/lib/rate-limit");
+    vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 60_000 } as any);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const res = await GET(mockGetRequest("en"));
+    const json = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(json.error).toBe("too_many_requests");
+    expect(warnSpy).toHaveBeenCalledWith("rate_limited", { route: "search-channels", identifier: "127.0.0.1" });
+    warnSpy.mockRestore();
+  });
+
+  it("returns 500 on server error", async () => {
+    vi.mocked(prisma.channel.findMany).mockRejectedValue(new Error("DB down"));
+
+    const res = await GET(mockGetRequest("en"));
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toBe("server_error");
   });
 });
 

@@ -4,9 +4,10 @@ import { auth } from "@/lib/auth";
 import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
-import { createChannelSchema, normalizeName, slugifyName, isBrandNameBlocked } from "@/lib/validation";
+import { createChannelSchema, normalizeName, slugifyName, isBrandNameBlocked, MAX_RENAME_COUNT } from "@/lib/validation";
 import { canManageChannelSettings } from "@/lib/services/channel";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_NAME_TAKEN } from "@/lib/error-messages";
+import { CHANNEL_ROLE_ADMIN } from "@/lib/channel-roles";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_NAME_TAKEN, ERROR_RENAME_LIMIT } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
 export async function POST(
@@ -32,7 +33,7 @@ export async function POST(
     const translation = await prisma.channelTranslation.findUnique({
       where: { slug },
       include: {
-        channel: { select: { id: true } },
+        channel: { select: { id: true, ownerId: true, isPersonal: true, renameCount: true } },
       },
     });
     if (!translation) {
@@ -40,6 +41,7 @@ export async function POST(
     }
 
     const channelId = translation.channel.id;
+    const channelInfo = translation.channel;
     if (!await canManageChannelSettings(channelId, session.user.id)) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
@@ -85,23 +87,70 @@ export async function POST(
       });
 
       if (existingTranslation) {
+        if (normalizedTarget !== normalizeName(existingTranslation.name)) {
+          if (channelInfo.isPersonal) {
+            throw new Error("cannot_rename_personal_channel");
+          }
+
+          const result = await tx.channel.updateMany({
+            where: {
+              id: channelId,
+              renameCount: { lt: MAX_RENAME_COUNT },
+              OR: [
+                { ownerId: session.user.id },
+                { editors: { some: { userId: session.user.id, role: CHANNEL_ROLE_ADMIN } } },
+              ],
+            },
+            data: { renameCount: { increment: 1 } },
+          });
+
+          if (result.count === 0) {
+            throw new Error("rename_limit_reached");
+          }
+        }
+
         const updated = await tx.channelTranslation.update({
           where: { id: existingTranslation.id },
           data: { name, normalizedName: normalizedTarget, slug: newSlug },
         });
-        return { id: updated.id, language: updated.language, name: updated.name, slug: updated.slug };
+
+        const newRenameCount = normalizedTarget !== normalizeName(existingTranslation.name)
+          ? channelInfo.renameCount + 1
+          : channelInfo.renameCount;
+
+        return {
+          id: updated.id,
+          language: updated.language,
+          name: updated.name,
+          slug: updated.slug,
+          renameCount: newRenameCount,
+        };
       }
 
       const created = await tx.channelTranslation.create({
         data: { channelId, language, name, normalizedName: normalizedTarget, slug: newSlug },
       });
-      return { id: created.id, language: created.language, name: created.name, slug: created.slug };
+      return {
+        id: created.id,
+        language: created.language,
+        name: created.name,
+        slug: created.slug,
+        renameCount: channelInfo.renameCount,
+      };
     });
 
     return NextResponse.json(updated, { status: HTTP_CREATED });
   } catch (error) {
-    if (error instanceof Error && error.message === "name_taken") {
-      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
+    if (error instanceof Error) {
+      if (error.message === "name_taken") {
+        return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
+      }
+      if (error.message === "rename_limit_reached") {
+        return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
+      }
+      if (error.message === "cannot_rename_personal_channel") {
+        return NextResponse.json({ error: "cannot_rename_personal_channel" }, { status: HTTP_BAD_REQUEST });
+      }
     }
     if ((error as { code?: string })?.code === "P2002") {
       logServerError("POST /api/channels/[slug]/translations P2002 collision", error);

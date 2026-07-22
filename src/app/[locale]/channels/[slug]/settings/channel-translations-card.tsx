@@ -8,23 +8,31 @@ import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
 import { locales, localeFlags } from "@/i18n/routing";
+import { MAX_RENAME_COUNT } from "@/lib/validation";
 import type { ChannelSettingsTranslation } from "@/types/channel";
 import EditTranslationDialog from "./edit-translation-dialog";
 
 export default function ChannelTranslationsCard({
   translations: initialTranslations,
   channelSlug,
+  renameCount: initialRenameCount,
+  isPersonal,
 }: {
   translations: ChannelSettingsTranslation[];
   channelSlug: string;
+  renameCount: number;
+  isPersonal: boolean;
 }) {
   const t = useTranslations("ChannelSettingsPage");
+  const common = useTranslations("Common");
   const [translations, setTranslations] = useState<ChannelSettingsTranslation[]>(initialTranslations);
+  const [renameCount, setRenameCount] = useState(initialRenameCount);
   const [editing, setEditing] = useState<ChannelSettingsTranslation | null>(null);
   const [showAdd, setShowAdd] = useState(false);
 
   const usedLanguages = new Set(translations.map((tr) => tr.language));
   const availableLocales = locales.filter((loc) => !usedLanguages.has(loc));
+  const renameLocked = renameCount >= MAX_RENAME_COUNT;
 
   async function handleSave(data: { language: string; name: string }, existingId?: string) {
     const response = await fetch(`/api/channels/${channelSlug}/translations`, {
@@ -35,17 +43,29 @@ export default function ChannelTranslationsCard({
     const result = await response.json();
 
     if (!response.ok) {
-      const message = result.error === "name_taken" ? t("translationsSaveError") : t("translationsSaveError");
-      toast.error(message);
+      if (result.error === "name_taken") {
+        toast.error(t("translationsSaveError"));
+        return false;
+      }
+      if (result.error === "rename_limit_reached") {
+        toast.error(common("renameLimitReached"));
+        return false;
+      }
+      if (result.error === "cannot_rename_personal_channel") {
+        toast.error(t("translationsSaveError"));
+        return false;
+      }
+      toast.error(t("translationsSaveError"));
       return false;
     }
 
     setTranslations((current) => {
       if (existingId) {
-        return current.map((tr) => (tr.id === existingId ? result : tr));
+        return current.map((tr) => (tr.id === existingId ? { id: result.id, language: result.language, name: result.name, slug: result.slug } : tr));
       }
-      return [...current, result];
+      return [...current, { id: result.id, language: result.language, name: result.name, slug: result.slug }];
     });
+    setRenameCount(result.renameCount);
     toast.success(existingId ? t("translationUpdated") : t("translationAdded"));
     return true;
   }
@@ -81,6 +101,11 @@ export default function ChannelTranslationsCard({
           <div className="min-w-0 flex-1">
             <Heading as="h2" className="text-lg">{t("translationsTitle")}</Heading>
             <p className="text-sm text-deep/50">{t("translationsSubtitle")}</p>
+            {!isPersonal && (
+              <p className="mt-1 text-xs text-deep/40">
+                {common("renameCountInfo")} {common("renameCount", { count: renameCount, max: MAX_RENAME_COUNT })}
+              </p>
+            )}
           </div>
           {availableLocales.length > 0 && (
             <Button variant="outline" size="sm" icon={<Plus className="size-4" />} onClick={() => setShowAdd(true)}>
@@ -106,6 +131,7 @@ export default function ChannelTranslationsCard({
                   variant="ghost"
                   size="icon-sm"
                   aria-label={t("editTranslation")}
+                  disabled={renameLocked}
                   onClick={() => setEditing(tr)}
                 >
                   <Pencil className="size-4" />
@@ -130,6 +156,7 @@ export default function ChannelTranslationsCard({
         <EditTranslationDialog
           translation={editing}
           availableLocales={showAdd ? availableLocales : []}
+          renameCount={renameCount}
           onSave={handleSave}
           onClose={() => {
             setShowAdd(false);

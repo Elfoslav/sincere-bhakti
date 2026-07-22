@@ -283,7 +283,8 @@
 		"terms": "Terms & Conditions",
 		"tooManyRequests": "You're doing that too quickly. Please wait a moment and try again.",
 		"renameCountInfo": "Number of renames is limited:",
-		"renameCount": "{count} / {max}"
+		"renameCount": "{count} / {max}",
+		"renameLimitReached": "You have reached the rename limit for this channel."
 	},
 	"ErrorPages": {
 		"backToPosts": "← Back to posts",

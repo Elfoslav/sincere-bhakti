@@ -6,7 +6,6 @@ import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/validation";
 import { createChannel, NameTakenError, ChannelLimitError } from "@/lib/services/channel";
-import { resolveTranslation } from "@/lib/channel-translation";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
 
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
           createdAt: true,
           ownerId: true,
           _count: { select: { posts: isOwner ? true : { where: { isPublic: true } } } },
-          translations: { select: { name: true, slug: true }, take: 1 },
+          translations: { where: { language }, select: { name: true, slug: true }, take: 1 },
         },
       });
 
@@ -40,7 +39,7 @@ export async function GET(request: NextRequest) {
       }
 
       const { _count, translations, ...data } = channel;
-      const t = resolveTranslation(translations, language) ?? { name: "", slug: "" };
+      const t = translations[0] ?? { name: "", slug: "" };
       return NextResponse.json({ ...data, name: t.name, slug: t.slug, postCount: _count.posts });
     }
 
@@ -51,16 +50,15 @@ export async function GET(request: NextRequest) {
 
     const channelIds = query
       ? await prisma.channelTranslation.findMany({
-          where: { normalizedName: { contains: normalizedQuery, mode: "insensitive" as const } },
+          where: { language, normalizedName: { contains: normalizedQuery, mode: "insensitive" as const } },
           select: { channelId: true },
           distinct: ["channelId"],
           take: 20,
         }).then((rows) => rows.map((r) => r.channelId))
       : undefined;
 
-    const where = channelIds
-      ? { id: { in: channelIds } }
-      : {};
+    const channelFilter = channelIds ? { id: { in: channelIds } } : {};
+    const where = { ...channelFilter, translations: { some: { language } } };
 
     const channels = await prisma.channel.findMany({
       where,
@@ -70,7 +68,7 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         ownerId: true,
         _count: { select: { posts: { where: { isPublic: true } } } },
-        translations: { select: { name: true, slug: true }, take: 1 },
+        translations: { where: { language }, select: { name: true, slug: true }, take: 1 },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 20,
@@ -78,7 +76,7 @@ export async function GET(request: NextRequest) {
     });
 
     const items = channels.map(({ _count, translations, ...data }) => {
-      const t = resolveTranslation(translations, language) ?? { name: "", slug: "" };
+      const t = translations[0] ?? { name: "", slug: "" };
       return { ...data, name: t.name, slug: t.slug, postCount: _count.posts };
     });
 

@@ -47,6 +47,8 @@ export interface ChannelSettings {
     ownerId: string;
     ownerName: string;
     ownerEmail: string;
+    isPersonal: boolean;
+    renameCount: number;
   };
   members: ChannelMember[];
   translations: ChannelSettingsTranslation[];

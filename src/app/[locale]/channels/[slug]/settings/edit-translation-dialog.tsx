@@ -6,20 +6,24 @@ import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogClose } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { localeFlags } from "@/i18n/routing";
+import { MAX_RENAME_COUNT } from "@/lib/validation";
 import type { ChannelSettingsTranslation } from "@/types/channel";
 
 export default function EditTranslationDialog({
   translation,
   availableLocales,
+  renameCount,
   onSave,
   onClose,
 }: {
   translation: ChannelSettingsTranslation | null;
   availableLocales: string[];
+  renameCount: number;
   onSave: (data: { language: string; name: string }, existingId?: string) => Promise<boolean>;
   onClose: () => void;
 }) {
   const t = useTranslations("ChannelSettingsPage");
+  const common = useTranslations("Common");
   const isEditing = !!translation;
 
   const [language, setLanguage] = useState(translation?.language ?? availableLocales[0] ?? "");
@@ -47,7 +51,13 @@ export default function EditTranslationDialog({
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent showCloseButton={false}>
-        <DialogHeader text={isEditing ? t("editTranslation") : t("addTranslation")} />
+        <DialogHeader
+          text={isEditing ? t("editTranslation") : t("addTranslation")}
+          subheading={isEditing ? common("renameCountInfo") : undefined}
+          subheadingRight={isEditing ? common("renameCount", { count: renameCount, max: MAX_RENAME_COUNT }) : undefined}
+          subheadingClassName="text-deep/50"
+          subheadingRightClassName="text-deep/50"
+        />
 
         <form id="translation-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">

@@ -161,6 +161,8 @@ export default function ChannelSettingsClient({
         <ChannelTranslationsCard
           translations={initialSettings.translations}
           channelSlug={initialSettings.channel.slug}
+          renameCount={initialSettings.channel.renameCount}
+          isPersonal={initialSettings.channel.isPersonal}
         />
       </div>
 

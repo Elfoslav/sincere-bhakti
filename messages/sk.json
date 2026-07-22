@@ -283,7 +283,8 @@
 		"terms": "Podmienky používania",
 		"tooManyRequests": "Robíte to príliš rýchlo. Počkajte prosím chvíľu a skúste to znova.",
 		"renameCountInfo": "Počet premenovaní je obmedzený:",
-		"renameCount": "{count} / {max}"
+		"renameCount": "{count} / {max}",
+		"renameLimitReached": "Dosiahli ste limit premenovania pre tento kanál."
 	},
 	"ErrorPages": {
 		"backToPosts": "← Späť na príspevky",
