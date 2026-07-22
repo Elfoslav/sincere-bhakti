@@ -21,6 +21,7 @@ export default function ChannelsPageClient() {
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
@@ -36,17 +37,26 @@ export default function ChannelsPageClient() {
     return res.json() as Promise<ChannelsResponse>;
   }, [locale]);
 
-  useEffect(() => {
-    let mounted = true;
+  const loadChannels = useCallback(() => {
+    Promise.resolve().then(() => {
+      setLoading(true);
+      setError(false);
+    });
     fetchChannels(search).then((data) => {
-      if (mounted && data) {
+      if (data) {
         setChannels(data.items);
         setCursor(data.nextCursor);
+        setError(false);
+      } else {
+        setError(true);
       }
-      if (mounted) setLoading(false);
+      setLoading(false);
     });
-    return () => { mounted = false; };
   }, [search, fetchChannels]);
+
+  useEffect(() => {
+    loadChannels();
+  }, [loadChannels]);
 
   function handleSearchChange(value: string) {
     setQuery(value);
@@ -87,6 +97,12 @@ return (
             <Skeleton className="h-24 w-full rounded-lg hidden sm:block" />
             <Skeleton className="h-24 w-full rounded-lg hidden sm:block" />
           </>
+      ) : error ? (
+          <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+            <Hash className="w-12 h-12 text-deep/20 mx-auto mb-4" />
+            <p className="text-deep/50 text-lg mb-4">{t("loadError")}</p>
+            <Button variant="outline" onClick={loadChannels}>{t("retry")}</Button>
+          </div>
       ) : channels.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
             <Hash className="w-12 h-12 text-deep/20 mx-auto mb-4" />

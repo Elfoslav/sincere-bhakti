@@ -27,14 +27,14 @@ describe("sitemap", () => {
       {
         id: "ch-1",
         createdAt: new Date("2026-06-01T00:00:00.000Z"),
-        translations: [{ slug: "first-channel" }],
+        translations: [{ language: "en", slug: "first-channel" }],
         owner: { id: "user-1", createdAt: ownerCreatedAt },
         posts: [{ createdAt: firstChannelLatestPostAt }],
       },
       {
         id: "ch-2",
         createdAt: new Date("2026-06-02T00:00:00.000Z"),
-        translations: [{ slug: "second-channel" }],
+        translations: [{ language: "en", slug: "second-channel" }],
         owner: { id: "user-1", createdAt: ownerCreatedAt },
         posts: [{ createdAt: secondChannelLatestPostAt }],
       },

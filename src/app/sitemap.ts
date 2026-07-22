@@ -46,7 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
         },
-        translations: { select: { slug: true }, take: 1 },
+        translations: { select: { language: true, slug: true } },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 5000,
@@ -62,9 +62,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const latestPublicPostByOwner = new Map<string, { createdAt: Date; ownerCreatedAt: Date }>();
 
   for (const channel of channels) {
-    const channelSlug = channel.translations[0]?.slug;
-    if (!channelSlug) continue;
-    const path = `/channels/${channelSlug}`;
     const latestPublicPostAt = channel.posts[0]?.createdAt ?? channel.createdAt;
     const ownerActivity = latestPublicPostByOwner.get(channel.owner.id);
     if (!ownerActivity || ownerActivity.createdAt < latestPublicPostAt) {
@@ -74,9 +71,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
     }
 
-    for (const locale of routing.locales) {
+    for (const translation of channel.translations) {
+      const path = `/channels/${translation.slug}`;
       entries.push({
-        url: getLocalizedUrl(locale, path),
+        url: getLocalizedUrl(translation.language, path),
         lastModified: latestPublicPostAt,
         changeFrequency: "weekly",
         priority: 0.7,

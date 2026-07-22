@@ -133,7 +133,7 @@ describe("post opengraph image", () => {
 
     const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
 
-    expect(getCachedPostById).toHaveBeenCalledWith("post-1");
+    expect(getCachedPostById).toHaveBeenCalledWith("post-1", "en");
     await expectJpegResponse(response);
     // The "no such post" fallback is the correct response for this URL — safe
     // to cache publicly for a short window.
