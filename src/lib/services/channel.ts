@@ -12,7 +12,7 @@ import {
 } from "@/lib/channel-roles";
 import type { PostChannel } from "@/types/post";
 import type { AuthorableIdentity } from "@/types/identity";
-import type { ChannelMember, ChannelSettings } from "@/types/channel";
+import type { ChannelMember, ChannelSettings, ChannelSettingsTranslation } from "@/types/channel";
 
 import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
 import { logServerError } from "@/lib/server-log";
@@ -381,25 +381,11 @@ export async function getChannelSettingsBySlug(
 
   if (!await canManageChannelSettings(channel.id, userId)) return null;
 
-  if (translation.language === language) {
-    return {
-      channel: {
-        id: channel.id,
-        name: translation.name,
-        slug: translation.slug,
-        avatarUrl: channel.avatarUrl,
-        ownerId: channel.ownerId,
-        ownerName: channel.owner.name,
-        ownerEmail: channel.owner.email,
-      },
-      members: await getChannelMembers(channel.id),
-    };
-  }
-
   const allTranslations = await prisma.channelTranslation.findMany({
     where: { channelId: channel.id },
-    select: { language: true, name: true, slug: true },
+    select: { id: true, language: true, name: true, slug: true },
   });
+
   const resolved = resolveTranslation(allTranslations, language) ?? translation;
   return {
     channel: {
@@ -412,6 +398,7 @@ export async function getChannelSettingsBySlug(
       ownerEmail: channel.owner.email,
     },
     members: await getChannelMembers(channel.id),
+    translations: allTranslations as ChannelSettingsTranslation[],
   };
 }
 

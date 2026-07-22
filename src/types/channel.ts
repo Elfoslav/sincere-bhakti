@@ -31,6 +31,13 @@ export interface ChannelMember {
   role: ChannelMemberRole;
 }
 
+export interface ChannelSettingsTranslation {
+  id: string;
+  language: string;
+  name: string;
+  slug: string;
+}
+
 export interface ChannelSettings {
   channel: {
     id: string;
@@ -42,4 +49,5 @@ export interface ChannelSettings {
     ownerEmail: string;
   };
   members: ChannelMember[];
+  translations: ChannelSettingsTranslation[];
 }

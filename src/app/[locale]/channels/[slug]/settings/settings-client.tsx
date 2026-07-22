@@ -14,6 +14,7 @@ import {
 } from "@/lib/channel-roles";
 import type { ChannelMember, ChannelSettings } from "@/types/channel";
 import ChannelMembersCard from "./channel-members-card";
+import ChannelTranslationsCard from "./channel-translations-card";
 import EditMemberDialog from "./edit-member-dialog";
 import { channelMemberErrorMessage } from "./member-settings-utils";
 
@@ -155,6 +156,13 @@ export default function ChannelSettingsClient({
         onAddSubmit={handleAddSubmit}
         onEditMember={openEditMember}
       />
+
+      <div className="mt-6">
+        <ChannelTranslationsCard
+          translations={initialSettings.translations}
+          channelSlug={initialSettings.channel.slug}
+        />
+      </div>
 
       <EditMemberDialog
         member={editingMember}
