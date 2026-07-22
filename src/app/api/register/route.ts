@@ -10,8 +10,10 @@ import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO
 
 type RegistrationTx = {
   channel: {
-    findFirst: typeof prisma.channel.findFirst;
     create: typeof prisma.channel.create;
+  };
+  channelTranslation: {
+    findFirst: typeof prisma.channelTranslation.findFirst;
   };
   channelSlugHistory: {
     findFirst: typeof prisma.channelSlugHistory.findFirst;
@@ -33,7 +35,7 @@ async function createPersonalChannelForRegistration(
     const name = i === 1 ? userName : `${userName} (${i})`;
     const normalized = normalizeName(name);
 
-    const slugTaken = await tx.channel.findFirst({ where: { slug: finalSlug }, select: { id: true } });
+    const slugTaken = await tx.channelTranslation.findFirst({ where: { slug: finalSlug }, select: { id: true } });
     if (slugTaken) continue;
 
     const slugInHistory = await tx.channelSlugHistory.findFirst({ where: { oldSlug: finalSlug }, select: { id: true } });
@@ -44,7 +46,13 @@ async function createPersonalChannelForRegistration(
 
     try {
       await tx.channel.create({
-        data: { name, normalizedName: normalized, slug: finalSlug, ownerId: userId, isPersonal: true },
+        data: {
+          ownerId: userId,
+          isPersonal: true,
+          translations: {
+            create: { language: "en", name, normalizedName: normalized, slug: finalSlug },
+          },
+        },
       });
       return;
     } catch (error) {
@@ -56,11 +64,11 @@ async function createPersonalChannelForRegistration(
   const uuid = crypto.randomUUID().slice(0, 8);
   await tx.channel.create({
     data: {
-      name: `${userName} (${uuid})`,
-      normalizedName: normalizeName(`${userName} (${uuid})`),
-      slug: `${slug}-${uuid}`,
       ownerId: userId,
       isPersonal: true,
+      translations: {
+        create: { language: "en", name: `${userName} (${uuid})`, normalizedName: normalizeName(`${userName} (${uuid})`), slug: `${slug}-${uuid}` },
+      },
     },
   });
 }
@@ -99,7 +107,7 @@ export async function POST(request: NextRequest) {
     // or a renamed channel's slug history — otherwise a new user could claim a slug
     // that old links still point to, breaking the redirect.
     const normalizedTarget = normalizeName(name);
-    const existing = await prisma.channel.findFirst({ where: { normalizedName: normalizedTarget }, select: { id: true } });
+    const existing = await prisma.channelTranslation.findFirst({ where: { normalizedName: normalizedTarget }, select: { id: true } });
     if (existing) {
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }

@@ -37,7 +37,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     prisma.channel.findMany({
       where: { posts: { some: { isPublic: true } } },
       select: {
-        slug: true,
+        id: true,
         createdAt: true,
         owner: { select: { id: true, createdAt: true } },
         posts: {
@@ -46,6 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
         },
+        translations: { select: { slug: true }, take: 1 },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 5000,
@@ -61,7 +62,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const latestPublicPostByOwner = new Map<string, { createdAt: Date; ownerCreatedAt: Date }>();
 
   for (const channel of channels) {
-    const path = `/channels/${channel.slug}`;
+    const channelSlug = channel.translations[0]?.slug;
+    if (!channelSlug) continue;
+    const path = `/channels/${channelSlug}`;
     const latestPublicPostAt = channel.posts[0]?.createdAt ?? channel.createdAt;
     const ownerActivity = latestPublicPostByOwner.get(channel.owner.id);
     if (!ownerActivity || ownerActivity.createdAt < latestPublicPostAt) {

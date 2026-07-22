@@ -28,22 +28,35 @@ model User {
 }
 
 model Channel {
-  id             String   @id @default(cuid())
-  name           String   @unique
-  normalizedName String   @default("")
-  slug           String   @unique
-  avatarUrl      String?
-  isPersonal     Boolean  @default(false)
-  renameCount    Int      @default(0)
-  createdAt      DateTime @default(now())
-  ownerId        String
-  owner     User          @relation("ChannelOwner", fields: [ownerId], references: [id])
-  posts     Post[]
-  editors   ChannelEditor[]
-  slugHistory ChannelSlugHistory[]
+  id              String   @id @default(cuid())
+  avatarUrl       String?
+  isPersonal      Boolean  @default(false)
+  renameCount     Int      @default(0)
+  defaultLanguage String   @default("en")
+  createdAt       DateTime @default(now())
+  ownerId         String
+  owner    User              @relation("ChannelOwner", fields: [ownerId], references: [id])
+  posts    Post[]
+  editors  ChannelEditor[]
+  slugHistory     ChannelSlugHistory[]
+  translations    ChannelTranslation[]
 
   @@index([ownerId, isPersonal])
   @@index([createdAt, id])
+}
+
+model ChannelTranslation {
+  id             String   @id @default(cuid())
+  channelId      String
+  language       String
+  name           String
+  normalizedName String   @default("") @unique
+  slug           String   @unique
+  channel        Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, language])
+  @@index([language])
+  @@index([channelId])
 }
 
 model ChannelSlugHistory {

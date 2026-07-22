@@ -24,6 +24,7 @@ type ManagedChannelSelection = {
     ownerId: string;
     isPersonal: boolean;
     _count: { posts: number };
+    translations: { language: string; name: string; slug: string }[];
   };
 };
 
@@ -52,7 +53,7 @@ export async function GET(
         renameCount: true,
         channels: {
           where: { ownerId: id },
-          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, isPersonal: true, _count: { select: { posts: { where: { isPublic: true } } } } },
+          select: { id: true, avatarUrl: true, ownerId: true, isPersonal: true, _count: { select: { posts: { where: { isPublic: true } } } }, translations: { select: { language: true, name: true, slug: true } } },
         },
         ...(isOwnProfile ? {
           email: true,
@@ -63,12 +64,11 @@ export async function GET(
               channel: {
                 select: {
                   id: true,
-                  name: true,
-                  slug: true,
                   avatarUrl: true,
                   ownerId: true,
                   isPersonal: true,
                   _count: { select: { posts: { where: { isPublic: true } } } },
+                  translations: { select: { language: true, name: true, slug: true } },
                 },
               },
             },
@@ -85,14 +85,23 @@ export async function GET(
     const { channels, editors = [], ...profile } = user;
     const managedEditors = editors as unknown as ManagedChannelSelection[];
     const additionalChannelCount = channels.filter((channel) => !channel.isPersonal).length;
+
+    function pickTranslation(translations: { language: string; name: string; slug: string }[]): { name: string; slug: string } {
+      return translations[0] ?? { name: "", slug: "" };
+    }
+
     return NextResponse.json({
       ...profile,
       additionalChannelCount,
       channelLimit: getMaxChannelsPerUser(),
-      channels: channels.map(({ _count, ...ch }) => ({ ...ch, postCount: _count.posts })),
+      channels: channels.map(({ _count, translations, ...ch }) => {
+        const t = pickTranslation(translations);
+        return { ...ch, name: t.name, slug: t.slug, postCount: _count.posts };
+      }),
       managedChannels: managedEditors.map(({ role, channel }) => {
-        const { _count, ...ch } = channel;
-        return { ...ch, role: role as ChannelMemberRole, postCount: _count.posts };
+        const { _count, translations, ...ch } = channel;
+        const t = pickTranslation(translations);
+        return { ...ch, name: t.name, slug: t.slug, role: role as ChannelMemberRole, postCount: _count.posts };
       }),
     });
   } catch (error) {
@@ -163,12 +172,21 @@ export async function PATCH(
 
       const personalChannel = await tx.channel.findFirst({
         where: { ownerId: id, isPersonal: true },
-        select: { id: true, name: true, slug: true },
+        select: { id: true },
       });
 
+      let personalTranslation: { id: string; channelId: string; language: string; name: string; slug: string } | null = null;
+      if (personalChannel) {
+        personalTranslation = await tx.channelTranslation.findFirst({
+          where: { channelId: personalChannel.id },
+          orderBy: { language: "asc" },
+          select: { id: true, channelId: true, language: true, name: true, slug: true },
+        });
+      }
+
       // Check normalized-name collision inside the transaction (authoritative).
-      const nameCollision = await tx.channel.findFirst({
-        where: { normalizedName: normalizedTarget, id: personalChannel ? { not: personalChannel.id } : undefined },
+      const nameCollision = await tx.channelTranslation.findFirst({
+        where: { normalizedName: normalizedTarget, channelId: personalChannel ? { not: personalChannel.id } : undefined },
         select: { id: true },
       });
       if (nameCollision) throw new NameTakenError();
@@ -184,39 +202,39 @@ export async function PATCH(
       });
       let updatedPersonalChannel: { id: string; name: string; slug: string } | null = null;
 
-      if (personalChannel) {
+      if (personalTranslation) {
         const newSlug = slugifyName(parsed.data.name);
-        const oldSlug = personalChannel.slug;
+        const oldSlug = personalTranslation.slug;
 
         if (oldSlug !== newSlug) {
-          const slugTaken = await tx.channel.findFirst({
-            where: { slug: newSlug, id: { not: personalChannel.id } },
+          const slugTaken = await tx.channelTranslation.findUnique({
+            where: { slug: newSlug },
             select: { id: true },
           });
           if (slugTaken) throw new NameTakenError();
 
           const historySlugTaken = await tx.channelSlugHistory.findFirst({
-            where: { oldSlug: newSlug, channelId: { not: personalChannel.id } },
+            where: { oldSlug: newSlug, channelId: { not: personalTranslation.channelId } },
             select: { id: true },
           });
           if (historySlugTaken) throw new NameTakenError();
 
           const oldInHistory = await tx.channelSlugHistory.findFirst({
-            where: { oldSlug, channelId: personalChannel.id },
+            where: { oldSlug, channelId: personalTranslation.channelId },
             select: { id: true },
           });
           if (!oldInHistory) {
             await tx.channelSlugHistory.create({
-              data: { oldSlug, oldNormalizedName: normalizeName(personalChannel.name), channelId: personalChannel.id },
+              data: { oldSlug, oldNormalizedName: normalizeName(personalTranslation.name), channelId: personalTranslation.channelId },
             });
           }
         }
 
-        updatedPersonalChannel = await tx.channel.update({
-          where: { id: personalChannel.id },
+        await tx.channelTranslation.update({
+          where: { id: personalTranslation.id },
           data: { name: parsed.data.name, normalizedName: normalizeName(parsed.data.name), slug: newSlug },
-          select: { id: true, name: true, slug: true },
         });
+        updatedPersonalChannel = { id: personalTranslation.channelId, name: parsed.data.name, slug: newSlug };
       }
 
       return { ...user, personalChannel: updatedPersonalChannel };

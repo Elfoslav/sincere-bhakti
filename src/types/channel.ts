@@ -1,5 +1,13 @@
 import type { ChannelMemberRole } from "@/lib/channel-roles";
 
+export interface ChannelTranslationInfo {
+  id: string;
+  language: string;
+  name: string;
+  normalizedName: string;
+  slug: string;
+}
+
 export interface ChannelWithPostCount {
   id: string;
   name: string;
@@ -11,6 +19,8 @@ export interface ChannelWithPostCount {
   postCount: number;
   isPersonal: boolean;
   renameCount: number;
+  defaultLanguage: string;
+  availableLanguages: string[];
 }
 
 export interface ChannelMember {

@@ -25,12 +25,11 @@ export async function GET(request: NextRequest) {
         where: { ownerId: userId },
         select: {
           id: true,
-          name: true,
-          slug: true,
           avatarUrl: true,
           createdAt: true,
           ownerId: true,
           _count: { select: { posts: isOwner ? true : { where: { isPublic: true } } } },
+          translations: { select: { name: true, slug: true }, take: 1 },
         },
       });
 
@@ -38,8 +37,9 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
       }
 
-      const { _count, ...data } = channel;
-      return NextResponse.json({ ...data, postCount: _count.posts });
+      const { _count, translations, ...data } = channel;
+      const t = translations[0] ?? { name: "", slug: "" };
+      return NextResponse.json({ ...data, name: t.name, slug: t.slug, postCount: _count.posts });
     }
 
     const cursor = searchParams.get("cursor");
@@ -47,30 +47,38 @@ export async function GET(request: NextRequest) {
 
     const normalizedQuery = query ? normalizeName(query) : "";
 
-    const where = query
-      ? { normalizedName: { contains: normalizedQuery, mode: "insensitive" as const } }
+    const channelIds = query
+      ? await prisma.channelTranslation.findMany({
+          where: { normalizedName: { contains: normalizedQuery, mode: "insensitive" as const } },
+          select: { channelId: true },
+          distinct: ["channelId"],
+          take: 20,
+        }).then((rows) => rows.map((r) => r.channelId))
+      : undefined;
+
+    const where = channelIds
+      ? { id: { in: channelIds } }
       : {};
 
     const channels = await prisma.channel.findMany({
       where,
       select: {
         id: true,
-        name: true,
-        slug: true,
         avatarUrl: true,
         createdAt: true,
         ownerId: true,
         _count: { select: { posts: { where: { isPublic: true } } } },
+        translations: { select: { name: true, slug: true }, take: 1 },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 20,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
 
-    const items = channels.map(({ _count, ...data }) => ({
-      ...data,
-      postCount: _count.posts,
-    }));
+    const items = channels.map(({ _count, translations, ...data }) => {
+      const t = translations[0] ?? { name: "", slug: "" };
+      return { ...data, name: t.name, slug: t.slug, postCount: _count.posts };
+    });
 
     return NextResponse.json({
       items,

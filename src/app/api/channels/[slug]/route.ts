@@ -19,7 +19,7 @@ export async function GET(
     if (!await checkRateLimit(RATE_LIMIT_PREFIX.readChannel, ip, RATE_LIMITS.readChannel.limit, RATE_LIMITS.readChannel.windowMs)) {
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
-    const { slug } = await params;
+  const { slug } = await params;
     const channel = await getChannelBySlug(slug);
 
     if (!channel) {
@@ -53,14 +53,23 @@ export async function PATCH(
   }
 
   try {
-    const channel = await prisma.channel.findUnique({
+    const translation = await prisma.channelTranslation.findUnique({
       where: { slug },
-      select: { id: true, name: true, ownerId: true, isPersonal: true, slug: true, avatarUrl: true, renameCount: true },
+      include: {
+        channel: {
+          select: { id: true, ownerId: true, isPersonal: true, avatarUrl: true, renameCount: true, defaultLanguage: true },
+        },
+      },
     });
 
-    if (!channel) {
+    if (!translation) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
+
+    const channel = translation.channel;
+    const currentName = translation.name;
+    const currentSlug = translation.slug;
+    const translationLanguage = translation.language;
 
     if (!await canManageChannelSettings(channel.id, session.user.id)) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
@@ -87,11 +96,11 @@ export async function PATCH(
     const normalizedTarget = normalizeName(name);
 
     // Renaming to the same name is a no-op — don't count or write history
-    if (normalizedTarget === normalizeName(channel.name)) {
+    if (normalizedTarget === normalizeName(currentName)) {
       return NextResponse.json({
         id: channel.id,
-        name: channel.name,
-        slug: channel.slug,
+        name: currentName,
+        slug: currentSlug,
         avatarUrl: channel.avatarUrl,
         ownerId: channel.ownerId,
         renameCount: channel.renameCount,
@@ -107,13 +116,12 @@ export async function PATCH(
       return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
 
-    // Check if the new name is already taken by another channel
+    // Check if the new name is already taken by another translation
     if (await isNormalizedNameTaken(normalizedTarget, channel.id)) {
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
     const newSlug = slugifyName(name);
-    const oldSlug = channel.slug;
 
     const updated = await prisma.$transaction(async (tx): Promise<"name_taken" | "limit_reached" | {
       id: string;
@@ -123,9 +131,9 @@ export async function PATCH(
       ownerId: string;
       renameCount: number;
     } | null> => {
-      if (newSlug !== oldSlug) {
-        const slugTaken = await tx.channel.findFirst({
-          where: { slug: newSlug, id: { not: channel.id } },
+      if (newSlug !== currentSlug) {
+        const slugTaken = await tx.channelTranslation.findUnique({
+          where: { slug: newSlug },
           select: { id: true },
         });
         if (slugTaken) {
@@ -150,30 +158,39 @@ export async function PATCH(
             { editors: { some: { userId: session.user.id, role: CHANNEL_ROLE_ADMIN } } },
           ],
         },
-        data: { name, normalizedName: normalizedTarget, slug: newSlug, renameCount: { increment: 1 } },
+        data: { renameCount: { increment: 1 } },
       });
 
       if (result.count === 0) {
         return "limit_reached";
       }
 
-      if (newSlug !== oldSlug) {
-        // Avoid P2002 if oldSlug is already in history (e.g. rename A→B→A→C).
+      // Update the translation (slug is on the translation, not the channel)
+      await tx.channelTranslation.update({
+        where: { channelId_language: { channelId: channel.id, language: translationLanguage } },
+        data: { name, normalizedName: normalizedTarget, slug: newSlug },
+      });
+
+      if (newSlug !== currentSlug) {
         const oldInHistory = await tx.channelSlugHistory.findFirst({
-          where: { oldSlug, channelId: channel.id },
+          where: { oldSlug: currentSlug, channelId: channel.id },
           select: { id: true },
         });
         if (!oldInHistory) {
           await tx.channelSlugHistory.create({
-            data: { oldSlug, oldNormalizedName: normalizeName(channel.name), channelId: channel.id },
+            data: { oldSlug: currentSlug, oldNormalizedName: normalizeName(currentName), channelId: channel.id },
           });
         }
       }
 
-      return tx.channel.findUnique({
-        where: { id: channel.id },
-        select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, renameCount: true },
-      });
+      return {
+        id: channel.id,
+        name,
+        slug: newSlug,
+        avatarUrl: channel.avatarUrl,
+        ownerId: channel.ownerId,
+        renameCount: channel.renameCount + 1,
+      };
     });
 
     if (updated === "name_taken") {

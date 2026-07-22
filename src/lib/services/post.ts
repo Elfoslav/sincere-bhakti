@@ -4,6 +4,7 @@ import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { canonicalizeUrl } from "@/lib/url";
 import { isChannelEditor } from "@/lib/services/channel";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
+import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
 
@@ -58,6 +59,7 @@ export interface GetPostsParams {
   limit?: number;
   channelId?: string;
   language?: string;
+  requestLanguage?: string;
 }
 
 export interface GetPostsResult {
@@ -89,15 +91,38 @@ export interface UpdatePostData {
 }
 
 const postInclude = {
-  channel: { select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true } },
+  channel: {
+    include: {
+      translations: { select: { language: true, name: true, slug: true } },
+    },
+  },
   media: { orderBy: { position: "asc" as const } },
 };
+
+function toPostResponse<Raw extends { channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] } }>(
+  raw: Raw,
+  language: string,
+): Omit<Raw, "channel"> & { channel: PostChannel } {
+  const t = raw.channel.translations
+    ? resolveTranslation(raw.channel.translations, language)
+    : null;
+  return {
+    ...raw,
+    channel: {
+      id: raw.channel.id,
+      name: t?.name ?? "",
+      slug: t?.slug ?? "",
+      avatarUrl: raw.channel.avatarUrl,
+      ownerId: raw.channel.ownerId,
+    },
+  };
+}
 
 export async function getPosts(
   params: GetPostsParams,
   currentUserId?: string,
 ): Promise<GetPostsResult> {
-  const { scope, cursor, limit = 10, channelId, language } = params;
+  const { scope, cursor, limit = 10, channelId, language, requestLanguage } = params;
 
   const where: Prisma.PostWhereInput = {};
   if (language) where.language = language;
@@ -155,16 +180,21 @@ export async function getPosts(
   const hasMore = posts.length > limit;
   if (hasMore) posts.pop();
 
-  return { posts, hasMore };
+  const resolvedLanguage = requestLanguage ?? "en";
+  return {
+    posts: posts.map((p) => toPostResponse(p, resolvedLanguage)),
+    hasMore,
+  };
 }
 
-export async function getPostById(id: string): Promise<PostResponse | null> {
+export async function getPostById(id: string, language?: string): Promise<PostResponse | null> {
   const post = await prisma.post.findUnique({
     where: { id },
     include: postInclude,
   });
 
-  return post;
+  if (!post) return null;
+  return toPostResponse(post, language ?? "en");
 }
 
 // `generateMetadata` and the page body both need the same post data. React's
@@ -222,6 +252,7 @@ async function validateMediaOwnership(
 export async function createPost(
   data: CreatePostData,
   userId: string,
+  requestLanguage?: string,
 ): Promise<PostResponse> {
   const { id, content, media = [], isPublic = true, language = "en", channelId } = data;
   await validateMediaOwnership(media, userId);
@@ -276,7 +307,7 @@ export async function createPost(
   // Remove PendingUpload records for the newly created media
   await deletePendingUploads(media.map((m) => m.url));
 
-  return post;
+  return toPostResponse(post, requestLanguage ?? "en");
 }
 
 export async function deletePost(
@@ -324,6 +355,7 @@ export async function updatePost(
   id: string,
   userId: string,
   data: UpdatePostData,
+  requestLanguage?: string,
 ): Promise<PostResponse> {
   const existing = await prisma.post.findUnique({
     where: { id },
@@ -404,5 +436,5 @@ export async function updatePost(
     await deleteMediaFiles(orphaned);
   }
 
-  return post!;
+  return toPostResponse(post!, requestLanguage ?? "en");
 }

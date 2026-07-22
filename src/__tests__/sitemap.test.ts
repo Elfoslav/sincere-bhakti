@@ -25,14 +25,16 @@ describe("sitemap", () => {
 
     vi.mocked(prisma.channel.findMany).mockResolvedValue([
       {
-        slug: "first-channel",
+        id: "ch-1",
         createdAt: new Date("2026-06-01T00:00:00.000Z"),
+        translations: [{ slug: "first-channel" }],
         owner: { id: "user-1", createdAt: ownerCreatedAt },
         posts: [{ createdAt: firstChannelLatestPostAt }],
       },
       {
-        slug: "second-channel",
+        id: "ch-2",
         createdAt: new Date("2026-06-02T00:00:00.000Z"),
+        translations: [{ slug: "second-channel" }],
         owner: { id: "user-1", createdAt: ownerCreatedAt },
         posts: [{ createdAt: secondChannelLatestPostAt }],
       },
