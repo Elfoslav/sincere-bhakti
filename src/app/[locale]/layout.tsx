@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import Navbar from "@/components/Navbar";
 import LangSetter from "@/components/LangSetter";
 import { Link } from "@/i18n/navigation";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 const siteUrl = getSiteUrl();
 
@@ -36,7 +37,7 @@ export async function generateMetadata({ params }: Omit<Props, "children">) {
       siteName: "Sincere Bhakti",
       url: siteUrl,
       locale: locale === "en" ? "en_US" : locale === "cs" ? "cs_CZ" : "sk_SK",
-      images: [{ url: "/images/sincere-bhakti-logo.png", width: 603, height: 414 }],
+      images: [DEFAULT_OG_IMAGE],
     },
     twitter: {
       card: "summary_large_image" as const,

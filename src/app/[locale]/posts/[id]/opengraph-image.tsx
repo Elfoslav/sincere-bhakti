@@ -1,15 +1,21 @@
-import { ImageResponse } from "next/og";
 import { headers } from "next/headers";
 import sharp from "sharp";
 import { getCachedPostById } from "@/lib/services/post";
 import { getSiteUrl } from "@/lib/url";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
+import { POST_OG_IMAGE, OG_POST_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL, OG_IMAGE_TRANSIENT_CACHE_CONTROL } from "@/lib/seo";
 
 export const runtime = "nodejs";
 export const alt = "Sincere Bhakti post image";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+export const size = { width: POST_OG_IMAGE.width, height: POST_OG_IMAGE.height };
+// JPEG, not PNG: WhatsApp silently drops link-preview images over ~600 KB,
+// and a photo re-encoded as PNG (what Satori/ImageResponse always outputs)
+// easily exceeds 1.5 MB. A quality-80 JPEG of the same frame is ~100–250 KB.
+export const contentType = POST_OG_IMAGE.type;
 export const MAX_OG_IMAGE_BYTES = 10 * 1024 * 1024;
+
+const JPEG_QUALITY = 80;
+const IVORY = "#fdf8ee";
 
 function parseContentLength(value: string | null): number | null {
   if (value === null) return null;
@@ -18,7 +24,7 @@ function parseContentLength(value: string | null): number | null {
   return parsed;
 }
 
-export async function fetchImageAsPngBase64(url: string): Promise<string | null> {
+export async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
 
@@ -50,14 +56,7 @@ export async function fetchImageAsPngBase64(url: string): Promise<string | null>
       reader.releaseLock();
     }
 
-    const buffer = Buffer.concat(chunks, totalBytes);
-    const ct = res.headers.get("content-type") || "";
-    // Satori only supports PNG/JPEG. Convert WebP and other formats to PNG.
-    if (ct === "image/webp" || !ct.startsWith("image/")) {
-      const png = await sharp(buffer).png().toBuffer();
-      return `data:image/png;base64,${png.toString("base64")}`;
-    }
-    return `data:${ct};base64,${buffer.toString("base64")}`;
+    return Buffer.concat(chunks, totalBytes);
   } catch {
     return null;
   } finally {
@@ -65,31 +64,38 @@ export async function fetchImageAsPngBase64(url: string): Promise<string | null>
   }
 }
 
-function logoFallback(siteUrl: string) {
-  return new ImageResponse(
-    <div
-      style={{
-        display: "flex",
-        width: "100%",
-        height: "100%",
-        // Warm ivory: the logo is dark-ink-on-transparent (its light-background
-        // variant), so a light brand-colored ground gives it full contrast.
-        background: "#fdf8ee",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      {/* Fill the 1200×630 canvas with the logo, leaving a small margin:
-          550px tall at the logo's exact 603×414 aspect ratio → 801px wide. */}
-      <img
-        src={`${siteUrl}/images/sincere-bhakti-logo.png`}
-        alt="Sincere Bhakti"
-        width={801}
-        height={550}
-      />
-    </div>,
-    { width: 1200, height: 630 },
-  );
+function jpegResponse(buffer: Buffer, cacheControl = OG_POST_IMAGE_CACHE_CONTROL): Response {
+  return new Response(new Uint8Array(buffer), {
+    headers: { "Content-Type": "image/jpeg", "Cache-Control": cacheControl },
+  });
+}
+
+// Warm ivory canvas with the logo large and centered (550px tall at the
+// logo's exact 603×414 aspect ratio → 801px wide). The logo is
+// dark-ink-on-transparent, so the light brand ground gives it full contrast.
+// cacheControl varies by WHY we're falling back: missing/undecodable entity is
+// cacheable for that URL (short TTL); a rate-limit hit is transient per-IP
+// state that must not be shared-cached (see OG_IMAGE_RATE_LIMITED_CACHE_CONTROL).
+async function logoFallback(
+  siteUrl: string,
+  cacheControl: string = OG_IMAGE_FALLBACK_CACHE_CONTROL,
+): Promise<Response> {
+  const canvas = sharp({
+    create: { width: 1200, height: 630, channels: 3, background: IVORY },
+  });
+
+  const logo = await fetchImageBuffer(`${siteUrl}/images/sincere-bhakti-logo.png`);
+  if (!logo) {
+    // Last resort: plain ivory frame — still a valid preview image.
+    return jpegResponse(await canvas.jpeg({ quality: JPEG_QUALITY }).toBuffer(), cacheControl);
+  }
+
+  const resizedLogo = await sharp(logo).resize(801, 550, { fit: "inside" }).png().toBuffer();
+  const buffer = await canvas
+    .composite([{ input: resizedLogo }]) // gravity defaults to centre
+    .jpeg({ quality: JPEG_QUALITY })
+    .toBuffer();
+  return jpegResponse(buffer, cacheControl);
 }
 
 export default async function Image({
@@ -102,7 +108,7 @@ export default async function Image({
   const ip = getClientIp(await headers());
 
   if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPostOgImage, ip, RATE_LIMITS.readPostOgImage.limit, RATE_LIMITS.readPostOgImage.windowMs)) {
-    return logoFallback(siteUrl);
+    return logoFallback(siteUrl, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL);
   }
 
   const post = await getCachedPostById(id);
@@ -114,27 +120,30 @@ export default async function Image({
     post && post.isPublic ? post.media.filter((m) => m.type === "image" && m.url) : [];
   const bestImage =
     images.find((m) => m.width && m.height && m.width >= m.height) ?? images[0] ?? null;
-  const imageSrc = bestImage ? await fetchImageAsPngBase64(bestImage.url) : null;
 
-  if (!imageSrc) {
-    return logoFallback(siteUrl);
+  // No post, private, or genuinely imageless: the logo IS the correct response
+  // for this URL, so it may be briefly shared-cached.
+  if (!bestImage) {
+    return logoFallback(siteUrl, OG_IMAGE_FALLBACK_CACHE_CONTROL);
   }
 
-  return new ImageResponse(
-    <div
-      style={{
-        display: "flex",
-        width: "100%",
-        height: "100%",
-        background: "#1a1a2e",
-      }}
-    >
-      <img
-        src={imageSrc}
-        alt=""
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-      />
-    </div>,
-    { width: 1200, height: 630 },
-  );
+  // The post HAS an image but we couldn't fetch or decode it — likely transient
+  // (upstream timeout/5xx, truncated/oversized stream, bad bytes). Fall back but
+  // do NOT shared-cache it, so a blip can't pin the logo on a real post's card.
+  const original = await fetchImageBuffer(bestImage.url);
+  if (!original) {
+    return logoFallback(siteUrl, OG_IMAGE_TRANSIENT_CACHE_CONTROL);
+  }
+
+  try {
+    const buffer = await sharp(original)
+      .resize(1200, 630, { fit: "cover" })
+      .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+      .toBuffer();
+    // Short TTL, no long SWR: bounds how long a now-private / media-changed post
+    // can serve a stale photo from the shared cache (see OG_POST_IMAGE_CACHE_CONTROL).
+    return jpegResponse(buffer, OG_POST_IMAGE_CACHE_CONTROL);
+  } catch {
+    return logoFallback(siteUrl, OG_IMAGE_TRANSIENT_CACHE_CONTROL);
+  }
 }

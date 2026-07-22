@@ -3,11 +3,64 @@ import { routing } from "@/i18n/routing";
 import { getSiteUrl } from "@/lib/url";
 
 export const SITE_NAME = "Sincere Bhakti";
+
+export const OG_IMAGE_SIZE = { width: 1200, height: 630 };
+
+// Post previews embed user photos → JPEG. WhatsApp silently drops preview
+// images over ~600 KB and a photo re-encoded as PNG easily exceeds 1.5 MB;
+// a quality-80 JPEG of the same frame is ~100–250 KB.
 export const POST_OG_IMAGE = {
-  width: 1200,
-  height: 630,
+  ...OG_IMAGE_SIZE,
+  type: "image/jpeg",
+};
+
+// Satori/ImageResponse text cards (profile, channel) are flat art — those
+// PNGs stay small (~40 KB), so PNG is fine there.
+export const TEXT_OG_IMAGE = {
+  ...OG_IMAGE_SIZE,
   type: "image/png",
 };
+
+// Flattened default preview (logo on ivory) for static pages. Never use a
+// transparent PNG as og:image — WhatsApp/Telegram dark mode renders
+// transparency as near-black, making dark logo ink invisible.
+export const DEFAULT_OG_IMAGE = {
+  ...OG_IMAGE_SIZE,
+  type: "image/jpeg",
+  url: "/images/og-default.jpg",
+};
+
+// CDN caching for OG image routes. They render dynamically (rate limiting
+// reads headers()), so without these every crawler hit pays a DB lookup and
+// a full image render.
+//
+// - Success: stable for an hour.
+// - Missing/undecodable entity: this fallback IS the correct response for that
+//   URL, so cache it briefly (short TTL lets it self-heal if the entity/image
+//   later appears).
+// - Rate-limited: transient PER-IP state, NOT a property of the URL. It must
+//   never enter a shared cache — otherwise one throttled crawler pins the logo
+//   fallback on a real card's URL for other visitors. Hence no-store.
+export const OG_IMAGE_CACHE_CONTROL = "public, s-maxage=3600, stale-while-revalidate=86400";
+export const OG_IMAGE_FALLBACK_CACHE_CONTROL = "public, max-age=60, s-maxage=300";
+export const OG_IMAGE_RATE_LIMITED_CACHE_CONTROL = "private, no-store";
+
+// Transient failure fetching/decoding a post's image (upstream timeout, 5xx,
+// truncated or oversized stream, undecodable bytes). The post DOES have an
+// image, so this fallback is NOT the correct response for the URL — never
+// shared-cache it, or one upstream blip pins the logo on a real post's card.
+// no-store lets the next crawler retry and get the real photo.
+export const OG_IMAGE_TRANSIENT_CACHE_CONTROL = "private, no-store";
+
+// The post-photo OG response embeds mutable, privacy-sensitive user media: a
+// post can be made private or have its media removed/replaced after the image
+// is cached, and the edge would keep serving the old photo without re-running
+// the isPublic/media checks. Use a short TTL with NO long stale-while-revalidate
+// so a visibility/media change propagates within minutes (the route re-checks
+// on every revalidation). Shared caching stays safe — the response only ever
+// contains what was public at render time. Instant propagation would require
+// purging this URL on post update/delete.
+export const OG_POST_IMAGE_CACHE_CONTROL = "public, s-maxage=300";
 
 const OG_LOCALES: Record<string, string> = {
   en: "en_US",

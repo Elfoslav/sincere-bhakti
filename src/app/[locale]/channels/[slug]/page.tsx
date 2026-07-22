@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { resolveSlugRedirect, getCachedChannelBySlug } from "@/lib/services/channel";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import {
-  POST_OG_IMAGE,
+  TEXT_OG_IMAGE,
   createBreadcrumbJsonLd,
   createChannelJsonLd,
   createJsonLdScript,
@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       locale: getOpenGraphLocale(locale),
       url: getCanonicalAlternates(locale, `/channels/${channel.slug}`)?.canonical as string,
       siteName: "Sincere Bhakti",
-      images: [{ ...POST_OG_IMAGE, url: imageUrl, alt: channel.name }],
+      images: [{ ...TEXT_OG_IMAGE, url: imageUrl, alt: channel.name }],
     },
     twitter: {
       card: "summary_large_image",

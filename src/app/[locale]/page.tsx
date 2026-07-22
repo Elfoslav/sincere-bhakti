@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, Image as ImageIcon, Users } from "lucide-react";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 type Props = {
 	params: Promise<{ locale: string }>;
@@ -16,13 +17,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 		openGraph: {
 			title: t("metaTitle"),
 			description: t("metaDescription"),
-			images: [{ url: "/images/sincere-bhakti-logo.png", width: 603, height: 414 }],
+			images: [DEFAULT_OG_IMAGE],
 		},
 		twitter: {
 			card: "summary_large_image",
 			title: t("metaTitle"),
 			description: t("metaDescription"),
-			images: ["/images/sincere-bhakti-logo.png"],
+			images: [DEFAULT_OG_IMAGE.url],
 		},
 	};
 }

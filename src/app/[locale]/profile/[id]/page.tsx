@@ -6,7 +6,7 @@ import ProfileContent from "@/components/ProfileContent";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { getCachedPublicUserById } from "@/lib/services/user";
 import {
-  POST_OG_IMAGE,
+  TEXT_OG_IMAGE,
   createBreadcrumbJsonLd,
   createJsonLdScript,
   createProfileJsonLd,
@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       locale: getOpenGraphLocale(locale),
       url: alternates?.canonical as string,
       siteName: "Sincere Bhakti",
-      images: [{ ...POST_OG_IMAGE, url: imageUrl, alt: user.name }],
+      images: [{ ...TEXT_OG_IMAGE, url: imageUrl, alt: user.name }],
     },
     twitter: {
       card: "summary_large_image",
