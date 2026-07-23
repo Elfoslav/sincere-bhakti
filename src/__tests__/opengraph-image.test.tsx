@@ -9,9 +9,6 @@ vi.mock("@/lib/services/post", () => ({
 vi.mock("@/lib/services/channel", () => ({
   getCachedChannelBySlug: vi.fn(),
 }));
-vi.mock("@/lib/services/user", () => ({
-  getCachedPublicUserById: vi.fn(),
-}));
 vi.mock("@/lib/url", () => ({
   getSiteUrl: vi.fn(() => "https://example.com"),
 }));

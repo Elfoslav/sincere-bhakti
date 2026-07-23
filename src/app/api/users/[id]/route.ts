@@ -53,7 +53,7 @@ export async function GET(
         name: true,
         image: true,
         createdAt: true,
-        renameCount: true,
+        ...(isOwnProfile ? { renameCount: true } : {}),
         channels: {
           where: { ownerId: id },
           select: { id: true, avatarUrl: true, ownerId: true, isPersonal: true, _count: { select: { posts: { where: { isPublic: true } } } }, translations: { select: { language: true, name: true, slug: true } } },
