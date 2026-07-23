@@ -19,7 +19,8 @@ test("public post, channel, profile, and sitemap expose SEO metadata", async ({ 
     await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", content);
     await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", `${name}: ${content}`);
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", new RegExp(`/posts/${post.id}/opengraph-image$`));
-    await expect(page.locator('meta[property="og:image:type"]')).toHaveAttribute("content", "image/png");
+    // Post OG images are served as JPEG (POST_OG_IMAGE) — photos re-encoded as PNG blow past WhatsApp's size limit.
+    await expect(page.locator('meta[property="og:image:type"]')).toHaveAttribute("content", "image/jpeg");
     await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "1200");
     await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute("content", "630");
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`/posts/${post.id}$`));

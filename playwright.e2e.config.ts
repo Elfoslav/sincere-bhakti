@@ -16,7 +16,10 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   reporter: "list",
-  timeout: 45_000,
+  // Runs against `next dev`, so the first test pays the cold-compile cost of every
+  // route it touches (login + post pages ≈ 55–60s observed). 45s was too tight and
+  // flaked whichever test happened to run first; 90s clears cold compilation with margin.
+  timeout: 90_000,
 
   use: {
     baseURL,
