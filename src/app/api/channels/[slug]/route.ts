@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { canManageChannelSettings, getChannelBySlug, isNormalizedNameTaken, renameChannelTranslation } from "@/lib/services/channel";
-import { CHANNEL_ROLE_ADMIN } from "@/lib/channel-roles";
+
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { validateOrigin } from "@/lib/csrf";
-import { logServerError, logValidationError } from "@/lib/server-log";
-import { createChannelSchema, normalizeName, isBrandNameBlocked, slugifyName, MAX_RENAME_COUNT } from "@/lib/validation";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { requireAuth } from "@/lib/require-auth";
+import { parseBody } from "@/lib/parse-body";
+import { handlePrismaCollision, serverError } from "@/lib/error-handlers";
+import { createChannelSchema, normalizeName, isBrandNameBlocked, slugifyName, MAX_RENAME_COUNT, isNameUnchanged } from "@/lib/validation";
+import { ERROR_NOT_FOUND, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 
 export async function GET(
   request: NextRequest,
@@ -29,8 +29,7 @@ export async function GET(
 
     return NextResponse.json(channel);
   } catch (error) {
-    logServerError("GET /api/channels/[slug] failed", error);
-    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return serverError("GET /api/channels/[slug]", error);
   }
 }
 
@@ -38,20 +37,10 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  if (!validateOrigin(request)) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
+  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.updateChannel, RATE_LIMITS.updateChannel);
+  if (auth.response) return auth.response;
+  const session = auth.session;
   const { slug } = await params;
-
-  if (!await checkRateLimit(RATE_LIMIT_PREFIX.updateChannel, session.user.id, RATE_LIMITS.updateChannel.limit, RATE_LIMITS.updateChannel.windowMs)) {
-    return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
-  }
 
   try {
     const translation = await prisma.channelTranslation.findUnique({
@@ -70,7 +59,6 @@ export async function PATCH(
     const channel = translation.channel;
     const currentName = translation.name;
     const currentSlug = translation.slug;
-    const translationLanguage = translation.language;
 
     if (!await canManageChannelSettings(channel.id, session.user.id)) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
@@ -81,23 +69,15 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const parsed = createChannelSchema.safeParse(body);
-
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0];
-      logValidationError("PATCH /api/channels/[slug]", issue, body);
-      return NextResponse.json(
-        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: HTTP_BAD_REQUEST }
-      );
-    }
+    const parsed = parseBody(body, createChannelSchema, "PATCH /api/channels/[slug]");
+    if (parsed.response) return parsed.response;
 
     const { name } = parsed.data;
 
     const normalizedTarget = normalizeName(name);
 
     // Renaming to the same name is a no-op — don't count or write history
-    if (normalizedTarget === normalizeName(currentName)) {
+    if (isNameUnchanged(name, currentName)) {
       return NextResponse.json({
         id: channel.id,
         name: currentName,
@@ -150,11 +130,8 @@ export async function PATCH(
       ownerId: channel.ownerId,
     });
   } catch (error) {
-    if ((error as { code?: string })?.code === "P2002") {
-      logServerError("PATCH /api/channels/[slug] P2002 collision", error);
-      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
-    }
-    logServerError("PATCH /api/channels/[slug] failed", error);
-    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    const collision = handlePrismaCollision(error, "PATCH /api/channels/[slug]");
+    if (collision) return collision;
+    return serverError("PATCH /api/channels/[slug]", error);
   }
 }

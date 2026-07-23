@@ -273,3 +273,7 @@ export function isBrandNameBlocked(name: string, callerEmail: string | null | un
   }
   return false;
 }
+
+export function isNameUnchanged(newName: string, currentName: string): boolean {
+  return normalizeName(newName) === normalizeName(currentName);
+}

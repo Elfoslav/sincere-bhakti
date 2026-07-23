@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { validateOrigin } from "@/lib/csrf";
-import { logServerError, logValidationError } from "@/lib/server-log";
+import { auth } from "@/lib/auth";
+import { requireAuth } from "@/lib/require-auth";
+import { handlePrismaCollision, serverError } from "@/lib/error-handlers";
+import { parseBody } from "@/lib/parse-body";
 import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/validation";
 import { createChannel, NameTakenError, ChannelLimitError } from "@/lib/services/channel";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { ERROR_NOT_FOUND, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { HTTP_CONFLICT, HTTP_CREATED, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 
 export async function GET(request: NextRequest) {
   try {
@@ -85,37 +86,19 @@ export async function GET(request: NextRequest) {
       nextCursor: channels.length === 20 ? channels[channels.length - 1].id : null,
     });
   } catch (error) {
-    logServerError("GET /api/channels failed", error);
-    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return serverError("GET /api/channels", error);
   }
 }
 
 export async function POST(request: NextRequest) {
-  if (!validateOrigin(request)) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
-  if (!await checkRateLimit(RATE_LIMIT_PREFIX.createChannel, session.user.id, RATE_LIMITS.createChannel.limit, RATE_LIMITS.createChannel.windowMs)) {
-    return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
-  }
+  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.createChannel, RATE_LIMITS.createChannel);
+  if (auth.response) return auth.response;
+  const session = auth.session;
 
   try {
     const body = await request.json();
-    const parsed = createChannelSchema.safeParse(body);
-
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0];
-      logValidationError("POST /api/channels", issue, body);
-      return NextResponse.json(
-        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: HTTP_BAD_REQUEST }
-      );
-    }
+    const parsed = parseBody(body, createChannelSchema, "POST /api/channels");
+    if (parsed.response) return parsed.response;
 
     const { name, language } = parsed.data;
 
@@ -134,11 +117,8 @@ export async function POST(request: NextRequest) {
     if (error instanceof NameTakenError) {
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
-    if ((error as { code?: string })?.code === "P2002") {
-      logServerError("POST /api/channels P2002 collision", error);
-      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
-    }
-    logServerError("POST /api/channels failed", error);
-    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    const collision = handlePrismaCollision(error, "POST /api/channels");
+    if (collision) return collision;
+    return serverError("POST /api/channels", error);
   }
 }
