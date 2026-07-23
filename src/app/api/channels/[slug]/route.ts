@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { canManageChannelSettings, getChannelBySlug, isNormalizedNameTaken } from "@/lib/services/channel";
+import { canManageChannelSettings, getChannelBySlug, isNormalizedNameTaken, renameChannelTranslation } from "@/lib/services/channel";
 import { CHANNEL_ROLE_ADMIN } from "@/lib/channel-roles";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
@@ -124,85 +124,31 @@ export async function PATCH(
 
     const newSlug = slugifyName(name);
 
-    const updated = await prisma.$transaction(async (tx): Promise<"name_taken" | "limit_reached" | {
-      id: string;
-      name: string;
-      slug: string;
-      avatarUrl: string | null;
-      ownerId: string;
-      renameCount: number;
-    } | null> => {
-      if (newSlug !== currentSlug) {
-        const slugTaken = await tx.channelTranslation.findUnique({
-          where: { slug: newSlug },
-          select: { id: true },
-        });
-        if (slugTaken) {
-          return "name_taken";
-        }
-
-        const historySlugTaken = await tx.channelSlugHistory.findFirst({
-          where: { oldSlug: newSlug, channelId: { not: channel.id } },
-          select: { id: true },
-        });
-        if (historySlugTaken) {
-          return "name_taken";
-        }
-      }
-
-      const result = await tx.channel.updateMany({
-        where: {
-          id: channel.id,
-          renameCount: { lt: MAX_RENAME_COUNT },
-          OR: [
-            { ownerId: session.user.id },
-            { editors: { some: { userId: session.user.id, role: CHANNEL_ROLE_ADMIN } } },
-          ],
-        },
-        data: { renameCount: { increment: 1 } },
-      });
-
-      if (result.count === 0) {
-        return "limit_reached";
-      }
-
-      // Update the translation (slug is on the translation, not the channel)
-      await tx.channelTranslation.update({
-        where: { channelId_language: { channelId: channel.id, language: translationLanguage } },
-        data: { name, normalizedName: normalizedTarget, slug: newSlug },
-      });
-
-      if (newSlug !== currentSlug) {
-        const oldInHistory = await tx.channelSlugHistory.findFirst({
-          where: { oldSlug: currentSlug, channelId: channel.id },
-          select: { id: true },
-        });
-        if (!oldInHistory) {
-          await tx.channelSlugHistory.create({
-            data: { oldSlug: currentSlug, oldNormalizedName: normalizeName(currentName), channelId: channel.id },
-          });
-        }
-      }
-
-      return {
-        id: channel.id,
-        name,
-        slug: newSlug,
-        avatarUrl: channel.avatarUrl,
-        ownerId: channel.ownerId,
-        renameCount: channel.renameCount + 1,
-      };
-    });
+    const updated = await prisma.$transaction((tx) => renameChannelTranslation(tx, {
+      channelId: channel.id,
+      userId: session.user.id,
+      oldSlug: currentSlug,
+      oldName: currentName,
+      newName: name,
+      newSlug,
+      normalizedNewName: normalizedTarget,
+      translationId: translation.id,
+      currentRenameCount: channel.renameCount,
+    }));
 
     if (updated === "name_taken") {
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
-    if (!updated || updated === "limit_reached") {
+    if (updated === "limit_reached") {
       return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
 
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      ...updated,
+      avatarUrl: channel.avatarUrl,
+      ownerId: channel.ownerId,
+    });
   } catch (error) {
     if ((error as { code?: string })?.code === "P2002") {
       logServerError("PATCH /api/channels/[slug] P2002 collision", error);

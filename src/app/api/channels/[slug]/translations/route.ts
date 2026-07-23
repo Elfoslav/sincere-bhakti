@@ -5,7 +5,7 @@ import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { createChannelSchema, normalizeName, slugifyName, isBrandNameBlocked, MAX_RENAME_COUNT } from "@/lib/validation";
-import { canManageChannelSettings, isNormalizedNameTaken } from "@/lib/services/channel";
+import { canManageChannelSettings, isNormalizedNameTaken, renameChannelTranslation } from "@/lib/services/channel";
 import { CHANNEL_ROLE_ADMIN } from "@/lib/channel-roles";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_NAME_TAKEN, ERROR_RENAME_LIMIT } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
@@ -73,79 +73,45 @@ export async function POST(
     const newSlug = slugifyName(name);
     const normalizedTarget = normalizeName(name);
 
+    const existingTranslation = await prisma.channelTranslation.findUnique({
+      where: { channelId_language: { channelId, language } },
+    });
+
     const updated = await prisma.$transaction(async (tx) => {
-      const existingTranslation = await tx.channelTranslation.findUnique({
-        where: { channelId_language: { channelId, language } },
-      });
-
-      // Slug is globally unique, so a hit on the row we're editing is not a
-      // conflict — that's just re-saving with an unchanged name. Only a
-      // DIFFERENT translation holding this slug is a real collision.
-      const slugTaken = await tx.channelTranslation.findUnique({
-        where: { slug: newSlug },
-        select: { id: true },
-      });
-      if (slugTaken && slugTaken.id !== existingTranslation?.id) throw new Error("name_taken");
-
-      const historySlugTaken = await tx.channelSlugHistory.findFirst({
-        where: { oldSlug: newSlug, channelId: { not: channelId } },
-        select: { id: true },
-      });
-      if (historySlugTaken) throw new Error("name_taken");
-
       if (existingTranslation) {
-        if (normalizedTarget !== normalizeName(existingTranslation.name)) {
-          if (channelInfo.isPersonal) {
-            throw new Error("cannot_rename_personal_channel");
-          }
-
-          const result = await tx.channel.updateMany({
-            where: {
-              id: channelId,
-              renameCount: { lt: MAX_RENAME_COUNT },
-              OR: [
-                { ownerId: session.user.id },
-                { editors: { some: { userId: session.user.id, role: CHANNEL_ROLE_ADMIN } } },
-              ],
-            },
-            data: { renameCount: { increment: 1 } },
-          });
-
-          if (result.count === 0) {
-            throw new Error("rename_limit_reached");
-          }
-
-          // Record the old slug so it cannot be reclaimed by other channels
-          const oldInHistory = await tx.channelSlugHistory.findFirst({
-            where: { oldSlug: existingTranslation.slug, channelId },
-            select: { id: true },
-          });
-          if (!oldInHistory) {
-            await tx.channelSlugHistory.create({
-              data: {
-                oldSlug: existingTranslation.slug,
-                oldNormalizedName: normalizeName(existingTranslation.name),
-                channelId,
-              },
-            });
-          }
+        if (normalizedTarget === normalizeName(existingTranslation.name)) {
+          return {
+            id: existingTranslation.id,
+            language: existingTranslation.language,
+            name: existingTranslation.name,
+            slug: existingTranslation.slug,
+            renameCount: channelInfo.renameCount,
+          };
         }
 
-        const updated = await tx.channelTranslation.update({
-          where: { id: existingTranslation.id },
-          data: { name, normalizedName: normalizedTarget, slug: newSlug },
+        if (channelInfo.isPersonal) {
+          throw new Error("cannot_rename_personal_channel");
+        }
+
+        const result = await renameChannelTranslation(tx, {
+          channelId,
+          userId: session.user.id,
+          oldSlug: existingTranslation.slug,
+          oldName: existingTranslation.name,
+          newName: name,
+          newSlug,
+          normalizedNewName: normalizedTarget,
+          translationId: existingTranslation.id,
+          currentRenameCount: channelInfo.renameCount,
         });
 
-        const newRenameCount = normalizedTarget !== normalizeName(existingTranslation.name)
-          ? channelInfo.renameCount + 1
-          : channelInfo.renameCount;
+        if (typeof result === "string") {
+          throw new Error(result);
+        }
 
         return {
-          id: updated.id,
-          language: updated.language,
-          name: updated.name,
-          slug: updated.slug,
-          renameCount: newRenameCount,
+          ...result,
+          language: existingTranslation.language,
         };
       }
 
@@ -167,7 +133,7 @@ export async function POST(
       if (error.message === "name_taken") {
         return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
       }
-      if (error.message === "rename_limit_reached") {
+      if (error.message === "limit_reached") {
         return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
       }
       if (error.message === "cannot_rename_personal_channel") {

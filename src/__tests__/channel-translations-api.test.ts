@@ -92,7 +92,6 @@ describe("POST /api/channels/[slug]/translations", () => {
         id: "existing-trans", slug: "my-channel", language: "en",
         channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, renameCount: 2 },
       } as any)
-      .mockResolvedValueOnce(null as any)     // slug not taken
       .mockResolvedValueOnce(null as any);    // no existing translation → create
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelTranslation.create).mockResolvedValue({
@@ -153,8 +152,7 @@ describe("POST /api/channels/[slug]/translations", () => {
         id: "existing-trans", slug: "my-channel", language: "en",
         channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, renameCount: 2 },
       } as any)
-      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Same Name", slug: "same-name" } as any) // existing translation
-      .mockResolvedValueOnce({ id: "trans-cs" } as any); // slug lookup hits the SAME row → must be allowed
+      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Same Name", slug: "same-name" } as any); // existing translation
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelTranslation.update).mockResolvedValue({
       id: "trans-cs", language: "cs", name: "Same Name", slug: "same-name",
@@ -194,8 +192,7 @@ describe("POST /api/channels/[slug]/translations", () => {
         id: "existing-trans", slug: "my-channel", language: "en",
         channel: { id: "ch-1", ownerId: "user-1", isPersonal: true, renameCount: 0 },
       } as any)
-      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Old Name", slug: "old-name" } as any) // existing translation
-      .mockResolvedValueOnce(null as any);    // slug not taken
+      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Old Name", slug: "old-name" } as any); // existing translation
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
 
     const res = await POST(mockRequest({ name: "New Name", language: "cs" }), params);
