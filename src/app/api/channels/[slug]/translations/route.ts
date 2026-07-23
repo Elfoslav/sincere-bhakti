@@ -5,7 +5,7 @@ import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError, logValidationError } from "@/lib/server-log";
 import { createChannelSchema, normalizeName, slugifyName, isBrandNameBlocked, MAX_RENAME_COUNT } from "@/lib/validation";
-import { canManageChannelSettings } from "@/lib/services/channel";
+import { canManageChannelSettings, isNormalizedNameTaken } from "@/lib/services/channel";
 import { CHANNEL_ROLE_ADMIN } from "@/lib/channel-roles";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_NAME_TAKEN, ERROR_RENAME_LIMIT } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
@@ -66,25 +66,32 @@ export async function POST(
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
+    if (await isNormalizedNameTaken(normalizeName(name), channelId)) {
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
+    }
+
     const newSlug = slugifyName(name);
     const normalizedTarget = normalizeName(name);
 
     const updated = await prisma.$transaction(async (tx) => {
-      const nameTaken = await tx.channelTranslation.findFirst({
-        where: { normalizedName: normalizedTarget, channelId: { not: channelId } },
-        select: { id: true },
+      const existingTranslation = await tx.channelTranslation.findUnique({
+        where: { channelId_language: { channelId, language } },
       });
-      if (nameTaken) throw new Error("name_taken");
 
+      // Slug is globally unique, so a hit on the row we're editing is not a
+      // conflict — that's just re-saving with an unchanged name. Only a
+      // DIFFERENT translation holding this slug is a real collision.
       const slugTaken = await tx.channelTranslation.findUnique({
         where: { slug: newSlug },
         select: { id: true },
       });
-      if (slugTaken) throw new Error("name_taken");
+      if (slugTaken && slugTaken.id !== existingTranslation?.id) throw new Error("name_taken");
 
-      const existingTranslation = await tx.channelTranslation.findUnique({
-        where: { channelId_language: { channelId, language } },
+      const historySlugTaken = await tx.channelSlugHistory.findFirst({
+        where: { oldSlug: newSlug, channelId: { not: channelId } },
+        select: { id: true },
       });
+      if (historySlugTaken) throw new Error("name_taken");
 
       if (existingTranslation) {
         if (normalizedTarget !== normalizeName(existingTranslation.name)) {
@@ -106,6 +113,21 @@ export async function POST(
 
           if (result.count === 0) {
             throw new Error("rename_limit_reached");
+          }
+
+          // Record the old slug so it cannot be reclaimed by other channels
+          const oldInHistory = await tx.channelSlugHistory.findFirst({
+            where: { oldSlug: existingTranslation.slug, channelId },
+            select: { id: true },
+          });
+          if (!oldInHistory) {
+            await tx.channelSlugHistory.create({
+              data: {
+                oldSlug: existingTranslation.slug,
+                oldNormalizedName: normalizeName(existingTranslation.name),
+                channelId,
+              },
+            });
           }
         }
 

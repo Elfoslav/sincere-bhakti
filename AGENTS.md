@@ -118,6 +118,11 @@ Then import and use them everywhere — client-side checks, HTML `minLength`, Zo
 ## Posts & Language Filtering
 - Every `useInfinitePosts` call MUST pass `language: locale` (from `useLocale()`) so posts are always filtered by the currently selected locale. This applies everywhere — homepage, profile page, and any future page that displays posts. The API and service layer already support the parameter; the only missing piece is the caller passing it through.
 
+## Channels & Translations
+- Channels are multilingual: a `Channel` has one `ChannelTranslation` (name + slug) per language, and each translation slug is globally unique. `slug` and `normalizedName` uniqueness is enforced across ALL translations of ALL channels.
+- **The channels listing (`GET /api/channels`) is intentionally filtered by language** (`translations: { some: { language } }`) — a channel appears in `/channels` for a given locale ONLY if it has a translation in that locale. This is expected: browsing in `cs` shows only channels with a Czech translation; it is not a bug that untranslated channels are absent from the list. (Channel *detail* pages, by contrast, fall back via `resolveTranslation` so a direct slug link always resolves.)
+- Uniqueness checks that run during an update MUST exclude the row being edited (compare against the current translation's id), or re-saving an unchanged name self-collides and 409s. `nameTaken` excludes by `channelId`; `slugTaken` must exclude by the current translation id.
+
 ## Links & Navigation
 - Always use `Link` from `@/i18n/navigation` for internal links — never `next/link` or `<a>` tags.
 - `Link` auto-prepends locale prefixes (`/cs/login`, `/sk/login`). Plain `<a href="/login">` breaks i18n.
