@@ -39,6 +39,7 @@ vi.mock("bcryptjs", () => ({ default: { hash: vi.fn() }, hash: vi.fn() }));
 vi.mock("@/lib/csrf", () => ({
   validateOrigin: vi.fn(() => true),
 }));
+vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 

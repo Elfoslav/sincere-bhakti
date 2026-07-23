@@ -18,8 +18,7 @@ describe("sitemap", () => {
     expect(revalidate).toBe(900);
   });
 
-  it("uses latest public post dates for channel and profile lastModified values", async () => {
-    const ownerCreatedAt = new Date("2026-01-01T00:00:00.000Z");
+  it("uses latest public post dates for channel lastModified values", async () => {
     const firstChannelLatestPostAt = new Date("2026-07-01T00:00:00.000Z");
     const secondChannelLatestPostAt = new Date("2026-07-10T00:00:00.000Z");
 
@@ -28,14 +27,12 @@ describe("sitemap", () => {
         id: "ch-1",
         createdAt: new Date("2026-06-01T00:00:00.000Z"),
         translations: [{ language: "en", slug: "first-channel" }],
-        owner: { id: "user-1", createdAt: ownerCreatedAt },
         posts: [{ createdAt: firstChannelLatestPostAt }],
       },
       {
         id: "ch-2",
         createdAt: new Date("2026-06-02T00:00:00.000Z"),
         translations: [{ language: "en", slug: "second-channel" }],
-        owner: { id: "user-1", createdAt: ownerCreatedAt },
         posts: [{ createdAt: secondChannelLatestPostAt }],
       },
     ] as unknown as Awaited<ReturnType<typeof prisma.channel.findMany>>);
@@ -47,7 +44,6 @@ describe("sitemap", () => {
 
     expect(entries.find((entry) => entry.url === "https://example.test/channels/first-channel")?.lastModified).toBe(firstChannelLatestPostAt);
     expect(entries.find((entry) => entry.url === "https://example.test/channels/second-channel")?.lastModified).toBe(secondChannelLatestPostAt);
-    expect(entries.find((entry) => entry.url === "https://example.test/profile/user-1")?.lastModified).toBe(secondChannelLatestPostAt);
   });
 
   it("emits one sitemap entry per translation per channel", async () => {
@@ -60,7 +56,6 @@ describe("sitemap", () => {
           { language: "cs", slug: "muj-kanal" },
           { language: "sk", slug: "moj-kanal" },
         ],
-        owner: { id: "user-1", createdAt: new Date("2026-01-01") },
         posts: [{ createdAt: new Date("2026-06-01") }],
       },
     ] as unknown as Awaited<ReturnType<typeof prisma.channel.findMany>>);

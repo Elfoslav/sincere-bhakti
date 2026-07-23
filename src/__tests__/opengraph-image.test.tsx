@@ -21,12 +21,10 @@ vi.mock("@/lib/rate-limit", () => ({
   RATE_LIMITS: {
     readPostOgImage: { limit: 240, windowMs: 60_000 },
     readChannelOgImage: { limit: 240, windowMs: 60_000 },
-    readProfileOgImage: { limit: 240, windowMs: 60_000 },
   },
   RATE_LIMIT_PREFIX: {
     readPostOgImage: "read-post-og-image",
     readChannelOgImage: "read-channel-og-image",
-    readProfileOgImage: "read-profile-og-image",
   },
 }));
 
@@ -310,54 +308,4 @@ describe("channel opengraph image", () => {
   });
 });
 
-describe("profile opengraph image", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
 
-  it("returns the fallback PNG immediately when rate limited (never shared-cached)", async () => {
-    vi.mocked(checkRateLimit).mockResolvedValue(false);
-
-    const { default: ProfileImage } = await import("@/app/[locale]/profile/[id]/opengraph-image");
-    const response = await ProfileImage({ params: Promise.resolve({ locale: "en", id: "user-1" }) });
-
-    expect(checkRateLimit).toHaveBeenCalledWith("read-profile-og-image", "203.0.113.10", 240, 60_000);
-    const { getCachedPublicUserById } = await import("@/lib/services/user");
-    expect(getCachedPublicUserById).not.toHaveBeenCalled();
-    await expectPngResponse(response);
-    const cc = response.headers.get("Cache-Control") ?? "";
-    expect(cc).toContain("no-store");
-    expect(cc).not.toContain("public");
-  });
-
-  it("returns the fallback when the profile is missing (briefly cacheable)", async () => {
-    vi.mocked(checkRateLimit).mockResolvedValue(true);
-    const { getCachedPublicUserById } = await import("@/lib/services/user");
-    vi.mocked(getCachedPublicUserById).mockResolvedValue(null as any);
-
-    const { default: ProfileImage } = await import("@/app/[locale]/profile/[id]/opengraph-image");
-    const response = await ProfileImage({ params: Promise.resolve({ locale: "en", id: "missing-user" }) });
-
-    expect(getCachedPublicUserById).toHaveBeenCalledWith("missing-user");
-    await expectPngResponse(response);
-    const cc = response.headers.get("Cache-Control") ?? "";
-    expect(cc).toContain("public");
-    expect(cc).not.toContain("no-store");
-  });
-
-  it("serves the profile OG image as a 1200x630 PNG", async () => {
-    vi.mocked(checkRateLimit).mockResolvedValue(true);
-    const { getCachedPublicUserById } = await import("@/lib/services/user");
-    vi.mocked(getCachedPublicUserById).mockResolvedValue({
-      id: "user-1",
-      name: "Devotee",
-      image: null,
-      createdAt: new Date(),
-    } as any);
-
-    const { default: ProfileImage } = await import("@/app/[locale]/profile/[id]/opengraph-image");
-    const response = await ProfileImage({ params: Promise.resolve({ locale: "en", id: "user-1" }) });
-
-    await expectPngResponse(response);
-  });
-});

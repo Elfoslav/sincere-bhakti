@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
-import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { validateOrigin } from "@/lib/csrf";
+import { getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-log";
 import { parseBody } from "@/lib/parse-body";
+import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
-import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_NAME_TAKEN } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
+import { ERROR_NAME_TAKEN } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED } from "@/lib/error-codes";
 
 type RegistrationTx = {
   channel: {
@@ -76,14 +76,11 @@ async function createPersonalChannelForRegistration(
 }
 
 export async function POST(request: NextRequest) {
-  if (!validateOrigin(request)) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
-  const ip = getClientIp(request.headers);
-  if (!await checkRateLimit(RATE_LIMIT_PREFIX.register, ip, RATE_LIMITS.register.limit, RATE_LIMITS.register.windowMs)) {
-    return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
-  }
+  const guard = await requireAuth(request, RATE_LIMIT_PREFIX.register, RATE_LIMITS.register, {
+    skipAuth: true,
+    rateLimitIdentifier: getClientIp(request.headers),
+  });
+  if (guard.response) return guard.response;
 
   try {
     const body = await request.json();
