@@ -3,11 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { updateNameSchema, normalizeName, isBrandNameBlocked, slugifyName, MAX_RENAME_COUNT } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { validateOrigin } from "@/lib/csrf";
-import { logServerError } from "@/lib/server-log";
 import { parseBody } from "@/lib/parse-body";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { requireAuth } from "@/lib/require-auth";
+import { serverError } from "@/lib/error-handlers";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 import { getMaxChannelsPerUser } from "@/lib/channel-limit";
 import { resolveTranslation } from "@/lib/channel-translation";
 import type { ChannelMemberRole } from "@/lib/channel-roles";
@@ -104,8 +104,7 @@ export async function GET(
       }),
     });
   } catch (error) {
-    logServerError("GET /api/users/[id] failed", error);
-    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return serverError("GET /api/users/[id]", error);
   }
 }
 
@@ -113,21 +112,16 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.updateProfile, RATE_LIMITS.updateProfile, { authErrorCode: ERROR_FORBIDDEN, authErrorStatus: HTTP_FORBIDDEN });
+  if (auth.response) return auth.response;
+  const session = auth.session;
+  const { id } = await params;
+
+  if (session.user.id !== id) {
+    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+  }
+
   try {
-    if (!validateOrigin(request)) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-    }
-
-    const session = await auth();
-    const { id } = await params;
-
-    if (!session?.user?.id || session.user.id !== id) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-    }
-
-    if (!await checkRateLimit(RATE_LIMIT_PREFIX.updateProfile, id, RATE_LIMITS.updateProfile.limit, RATE_LIMITS.updateProfile.windowMs)) {
-      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
-    }
 
     const body = await request.json();
     const parsed = parseBody(body, updateNameSchema, "PATCH /api/users/[id]");
@@ -239,7 +233,6 @@ export async function PATCH(
     if (error instanceof Error && error.message === "rename_limit_reached") {
       return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
-    logServerError("PATCH /api/users/[id] failed", error);
-    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return serverError("PATCH /api/users/[id]", error);
   }
 }

@@ -7,12 +7,12 @@ import { parseBody } from "@/lib/parse-body";
 import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
 import { RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { ERROR_NOT_FOUND } from "@/lib/error-messages";
-import { HTTP_NOT_FOUND } from "@/lib/error-codes";
+import { ERROR_NOT_FOUND, ERROR_UNAUTHORIZED } from "@/lib/error-messages";
+import { HTTP_NOT_FOUND, HTTP_UNAUTHORIZED } from "@/lib/error-codes";
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAuth(request, RATE_LIMIT_PREFIX.readIdentity, RATE_LIMITS.readIdentity, { skipCsrf: true });
+    const auth = await requireAuth(request, RATE_LIMIT_PREFIX.readIdentity, RATE_LIMITS.readIdentity, { skipCsrf: true, authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
     if (auth.response) return auth.response;
     const session = auth.session;
 

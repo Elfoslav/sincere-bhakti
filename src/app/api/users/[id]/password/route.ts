@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { z } from "zod";
 import { PASSWORD_MIN_LENGTH, BCRYPT_SALT_ROUNDS } from "@/lib/validation";
-import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { validateOrigin } from "@/lib/csrf";
-import { logServerError } from "@/lib/server-log";
+import { RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { parseBody } from "@/lib/parse-body";
-import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_NOT_FOUND, ERROR_INVALID_PASSWORD } from "@/lib/error-messages";
-import { HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_NOT_FOUND, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { requireAuth } from "@/lib/require-auth";
+import { serverError } from "@/lib/error-handlers";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_INVALID_PASSWORD } from "@/lib/error-messages";
+import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST, HTTP_NOT_FOUND } from "@/lib/error-codes";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().trim().min(1),
@@ -20,19 +19,13 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!validateOrigin(request)) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
-  const session = await auth();
+  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.changePassword, RATE_LIMITS.changePassword);
+  if (auth.response) return auth.response;
+  const session = auth.session;
   const { id } = await params;
 
-  if (!session?.user?.id || session.user.id !== id) {
+  if (session.user.id !== id) {
     return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
-  if (!await checkRateLimit(RATE_LIMIT_PREFIX.changePassword, id, RATE_LIMITS.changePassword.limit, RATE_LIMITS.changePassword.windowMs)) {
-    return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
   }
 
   try {
@@ -65,7 +58,6 @@ export async function PATCH(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    logServerError("PATCH /api/users/[id]/password failed", error);
-    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return serverError("PATCH /api/users/[id]/password", error);
   }
 }

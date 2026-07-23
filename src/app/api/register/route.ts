@@ -6,8 +6,9 @@ import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/l
 import { validateOrigin } from "@/lib/csrf";
 import { logServerError } from "@/lib/server-log";
 import { parseBody } from "@/lib/parse-body";
-import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_NAME_TAKEN } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { serverError } from "@/lib/error-handlers";
+import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_NAME_TAKEN } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 
 type RegistrationTx = {
   channel: {
@@ -141,11 +142,6 @@ export async function POST(request: NextRequest) {
         { status: HTTP_BAD_REQUEST }
       );
     }
-    // Genuine server fault (DB down, etc.) — surface as 500, not a client error.
-    logServerError("POST /api/register failed", error);
-    return NextResponse.json(
-      { error: ERROR_SERVER_ERROR },
-      { status: HTTP_INTERNAL_SERVER_ERROR }
-    );
+    return serverError("POST /api/register", error);
   }
 }
