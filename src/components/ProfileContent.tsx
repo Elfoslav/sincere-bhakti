@@ -124,7 +124,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 			const res = await fetch("/api/channels", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ name: channelName.trim() }),
+				body: JSON.stringify({ name: channelName.trim(), language: locale }),
 			});
 				if (res.ok) {
 				const channel = await res.json();

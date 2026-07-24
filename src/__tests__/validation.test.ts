@@ -295,8 +295,10 @@ describe("createChannelSchema", () => {
     expect(createChannelSchema.safeParse({ name: "a".repeat(51) }).success).toBe(false);
   });
 
-  it("accepts optional language field", () => {
+  it("accepts optional language field with any supported locale", () => {
+    expect(createChannelSchema.safeParse({ name: "Channel", language: "en" }).success).toBe(true);
     expect(createChannelSchema.safeParse({ name: "Channel", language: "cs" }).success).toBe(true);
+    expect(createChannelSchema.safeParse({ name: "Channel", language: "sk" }).success).toBe(true);
     expect(createChannelSchema.safeParse({ name: "Channel", language: undefined }).success).toBe(true);
     expect(createChannelSchema.safeParse({ name: "Channel" }).success).toBe(true);
   });
