@@ -41,8 +41,6 @@ export const RATE_LIMITS = {
   readPostDetail: { limit: 120, windowMs: 60_000 },
   // Read user profile: 60 requests per 60s per IP
   readProfile: { limit: 60, windowMs: 60_000 },
-  // Read profile Open Graph images: 240 requests per 60s per IP
-  readProfileOgImage: { limit: 240, windowMs: 60_000 },
   // Password change: 5 per hour per user
   changePassword: { limit: 5, windowMs: 3_600_000 },
   // Read active identity: 120 requests per 60s per user
@@ -74,7 +72,6 @@ export const RATE_LIMIT_PREFIX = {
   updateChannelMembers: "update-channel-members",
   readPostDetail: "read-post-detail",
   readProfile: "read-profile",
-  readProfileOgImage: "read-profile-og-image",
   changePassword: "change-password",
   readIdentity: "read-identity",
   updateIdentity: "update-identity",

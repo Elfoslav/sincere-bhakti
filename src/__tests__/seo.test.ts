@@ -4,7 +4,6 @@ import {
   createChannelJsonLd,
   createJsonLdScript,
   createPostJsonLd,
-  createProfileJsonLd,
   getCanonicalAlternates,
   getChannelOpenGraphImageUrl,
   getLocalizedPath,
@@ -12,7 +11,6 @@ import {
   getPostOpenGraphImageUrl,
   getPostSeoDescription,
   getPostSeoTitle,
-  getProfileOpenGraphImageUrl,
   normalizeSeoText,
   truncateSeoText,
 } from "@/lib/seo";
@@ -54,9 +52,8 @@ describe("seo helpers", () => {
     expect(getPostOpenGraphImageUrl("cs", "post-1")).toBe("https://example.test/cs/posts/post-1/opengraph-image");
   });
 
-  it("builds generated channel and profile Open Graph image URLs", () => {
+  it("builds generated channel Open Graph image URLs", () => {
     expect(getChannelOpenGraphImageUrl("en", "govinda")).toBe("https://example.test/channels/govinda/opengraph-image");
-    expect(getProfileOpenGraphImageUrl("sk", "user-1")).toBe("https://example.test/sk/profile/user-1/opengraph-image");
   });
 
   it("builds escaped JSON-LD script content", () => {
@@ -91,16 +88,6 @@ describe("seo helpers", () => {
       "@type": "ProfilePage",
       image: "https://example.test/images/sincere-bhakti-logo.png",
       mainEntity: { "@type": "Organization", name: "Govinda Das", image: "https://example.test/images/sincere-bhakti-logo.png" },
-    });
-    expect(createProfileJsonLd({
-      name: "Govinda Das",
-      description: "Govinda Das on Sincere Bhakti.",
-      url: "https://example.test/profile/user-1",
-      imageUrl: "https://example.test/images/sincere-bhakti-logo.png",
-    })).toMatchObject({
-      "@type": "ProfilePage",
-      image: "https://example.test/images/sincere-bhakti-logo.png",
-      mainEntity: { "@type": "Person", name: "Govinda Das", image: "https://example.test/images/sincere-bhakti-logo.png" },
     });
     expect(createBreadcrumbJsonLd([
       { name: "Posts", url: "https://example.test/posts" },

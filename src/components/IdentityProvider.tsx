@@ -2,6 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
+import { locales } from "@/i18n/routing";
 import type { AuthorableIdentity, InitialIdentityState } from "@/types/identity";
 
 interface IdentityContextValue {
@@ -28,6 +30,8 @@ export function IdentityProvider({
   initialState?: InitialIdentityState | null;
 }) {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
+  const locale = pathname.match(new RegExp(`^/(${locales.join("|")})(/|$)`))?.[1] ?? "en";
   const [identities, setIdentities] = useState<AuthorableIdentity[]>(initialState?.identities ?? []);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(initialState?.activeChannelId ?? null);
   const [fetchedUserId, setFetchedUserId] = useState<string | null>(initialState?.userId ?? null);
@@ -43,16 +47,16 @@ export function IdentityProvider({
     const userId = session?.user?.id;
     if (status !== "authenticated" || !userId) return;
 
-    const res = await fetch("/api/identity");
+    const res = await fetch(`/api/identity?language=${locale}`);
     if (res.ok) applyResponse(await res.json(), userId);
-  }, [applyResponse, session?.user?.id, status]);
+  }, [applyResponse, locale, session?.user?.id, status]);
 
   useEffect(() => {
     const userId = session?.user?.id;
     if (status !== "authenticated" || !userId) return;
 
     let cancelled = false;
-    fetch("/api/identity")
+    fetch(`/api/identity?language=${locale}`)
       .then((res) => res.ok ? res.json() as Promise<IdentityResponse> : null)
       .then((data) => {
         if (data && !cancelled) applyResponse(data, userId);
@@ -64,7 +68,7 @@ export function IdentityProvider({
     return () => {
       cancelled = true;
     };
-  }, [applyResponse, session?.user?.id, status]);
+  }, [applyResponse, locale, session?.user?.id, status]);
 
   const switchIdentity = useCallback(async (channelId: string) => {
     const previous = activeChannelId;
@@ -73,7 +77,7 @@ export function IdentityProvider({
     setActiveChannelId(channelId);
     setSwitching(true);
     try {
-      const res = await fetch("/api/identity", {
+      const res = await fetch(`/api/identity?language=${locale}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelId }),
@@ -89,7 +93,7 @@ export function IdentityProvider({
     } finally {
       setSwitching(false);
     }
-  }, [activeChannelId, applyResponse, session?.user?.id]);
+  }, [activeChannelId, applyResponse, locale, session?.user?.id]);
 
   const visibleIdentities = useMemo(
     () => fetchedUserId === session?.user?.id ? identities : [],

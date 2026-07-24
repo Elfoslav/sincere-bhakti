@@ -65,7 +65,7 @@ test("editor can switch identity, create and edit posts, but cannot open setting
       return saved?.content;
     }).toBe(updated);
 
-    await page.goto(`/channels/${owner.channel.slug}/settings`);
+    await page.goto(`/channels/${owner.slug}/settings`);
     await expect(page.getByRole("heading", { name: "404" })).toBeVisible();
   } finally {
     await page.close();

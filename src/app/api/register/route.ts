@@ -2,16 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
-import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { validateOrigin } from "@/lib/csrf";
-import { logServerError, logValidationError } from "@/lib/server-log";
-import { ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_NAME_TAKEN } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_CREATED, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
+import { logServerError } from "@/lib/server-log";
+import { parseBody } from "@/lib/parse-body";
+import { requireAuth } from "@/lib/require-auth";
+import { serverError } from "@/lib/error-handlers";
+import { ERROR_NAME_TAKEN } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED } from "@/lib/error-codes";
 
 type RegistrationTx = {
   channel: {
-    findFirst: typeof prisma.channel.findFirst;
     create: typeof prisma.channel.create;
+  };
+  channelTranslation: {
+    findFirst: typeof prisma.channelTranslation.findFirst;
   };
   channelSlugHistory: {
     findFirst: typeof prisma.channelSlugHistory.findFirst;
@@ -33,7 +37,7 @@ async function createPersonalChannelForRegistration(
     const name = i === 1 ? userName : `${userName} (${i})`;
     const normalized = normalizeName(name);
 
-    const slugTaken = await tx.channel.findFirst({ where: { slug: finalSlug }, select: { id: true } });
+    const slugTaken = await tx.channelTranslation.findFirst({ where: { slug: finalSlug }, select: { id: true } });
     if (slugTaken) continue;
 
     const slugInHistory = await tx.channelSlugHistory.findFirst({ where: { oldSlug: finalSlug }, select: { id: true } });
@@ -44,7 +48,13 @@ async function createPersonalChannelForRegistration(
 
     try {
       await tx.channel.create({
-        data: { name, normalizedName: normalized, slug: finalSlug, ownerId: userId, isPersonal: true },
+        data: {
+          ownerId: userId,
+          isPersonal: true,
+          translations: {
+            create: { language: "en", name, normalizedName: normalized, slug: finalSlug },
+          },
+        },
       });
       return;
     } catch (error) {
@@ -56,37 +66,26 @@ async function createPersonalChannelForRegistration(
   const uuid = crypto.randomUUID().slice(0, 8);
   await tx.channel.create({
     data: {
-      name: `${userName} (${uuid})`,
-      normalizedName: normalizeName(`${userName} (${uuid})`),
-      slug: `${slug}-${uuid}`,
       ownerId: userId,
       isPersonal: true,
+      translations: {
+        create: { language: "en", name: `${userName} (${uuid})`, normalizedName: normalizeName(`${userName} (${uuid})`), slug: `${slug}-${uuid}` },
+      },
     },
   });
 }
 
 export async function POST(request: NextRequest) {
-  if (!validateOrigin(request)) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
-  const ip = getClientIp(request.headers);
-  if (!await checkRateLimit(RATE_LIMIT_PREFIX.register, ip, RATE_LIMITS.register.limit, RATE_LIMITS.register.windowMs)) {
-    return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
-  }
+  const guard = await requireAuth(request, RATE_LIMIT_PREFIX.register, RATE_LIMITS.register, {
+    skipAuth: true,
+    rateLimitIdentifier: getClientIp(request.headers),
+  });
+  if (guard.response) return guard.response;
 
   try {
     const body = await request.json();
-    const parsed = registerSchema.safeParse(body);
-
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0];
-      logValidationError("POST /api/register", issue, body);
-      return NextResponse.json(
-        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: HTTP_BAD_REQUEST }
-      );
-    }
+    const parsed = parseBody(body, registerSchema, "POST /api/register");
+    if (parsed.response) return parsed.response;
 
     const { name, email, password } = parsed.data;
 
@@ -99,7 +98,7 @@ export async function POST(request: NextRequest) {
     // or a renamed channel's slug history — otherwise a new user could claim a slug
     // that old links still point to, breaking the redirect.
     const normalizedTarget = normalizeName(name);
-    const existing = await prisma.channel.findFirst({ where: { normalizedName: normalizedTarget }, select: { id: true } });
+    const existing = await prisma.channelTranslation.findFirst({ where: { normalizedName: normalizedTarget }, select: { id: true } });
     if (existing) {
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
@@ -140,11 +139,6 @@ export async function POST(request: NextRequest) {
         { status: HTTP_BAD_REQUEST }
       );
     }
-    // Genuine server fault (DB down, etc.) — surface as 500, not a client error.
-    logServerError("POST /api/register failed", error);
-    return NextResponse.json(
-      { error: ERROR_SERVER_ERROR },
-      { status: HTTP_INTERNAL_SERVER_ERROR }
-    );
+    return serverError("POST /api/register", error);
   }
 }

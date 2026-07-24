@@ -103,7 +103,7 @@ export default async function Image({
 }: {
   params: Promise<{ locale: string; id: string }>;
 }) {
-  const { id } = await params;
+  const { id, locale } = await params;
   const siteUrl = getSiteUrl();
   const ip = getClientIp(await headers());
 
@@ -111,7 +111,7 @@ export default async function Image({
     return logoFallback(siteUrl, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL);
   }
 
-  const post = await getCachedPostById(id);
+  const post = await getCachedPostById(id, locale);
 
   // Post image available: show it full-bleed with nothing layered on top.
   // Otherwise (no post, private, no image, or fetch failed): logo fallback.

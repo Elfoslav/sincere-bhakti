@@ -37,15 +37,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     prisma.channel.findMany({
       where: { posts: { some: { isPublic: true } } },
       select: {
-        slug: true,
+        id: true,
         createdAt: true,
-        owner: { select: { id: true, createdAt: true } },
         posts: {
           where: { isPublic: true },
           select: { createdAt: true },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
         },
+        translations: { select: { language: true, slug: true } },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 5000,
@@ -58,22 +58,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
   ]);
 
-  const latestPublicPostByOwner = new Map<string, { createdAt: Date; ownerCreatedAt: Date }>();
-
   for (const channel of channels) {
-    const path = `/channels/${channel.slug}`;
     const latestPublicPostAt = channel.posts[0]?.createdAt ?? channel.createdAt;
-    const ownerActivity = latestPublicPostByOwner.get(channel.owner.id);
-    if (!ownerActivity || ownerActivity.createdAt < latestPublicPostAt) {
-      latestPublicPostByOwner.set(channel.owner.id, {
-        createdAt: latestPublicPostAt,
-        ownerCreatedAt: channel.owner.createdAt,
-      });
-    }
 
-    for (const locale of routing.locales) {
+    for (const translation of channel.translations) {
+      const path = `/channels/${translation.slug}`;
       entries.push({
-        url: getLocalizedUrl(locale, path),
+        url: getLocalizedUrl(translation.language, path),
         lastModified: latestPublicPostAt,
         changeFrequency: "weekly",
         priority: 0.7,
@@ -91,21 +82,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 0.6,
     });
-  }
-
-  for (const [userId, activity] of latestPublicPostByOwner) {
-    const path = `/profile/${userId}`;
-    for (const locale of routing.locales) {
-      entries.push({
-        url: getLocalizedUrl(locale, path),
-        lastModified: activity.createdAt ?? activity.ownerCreatedAt,
-        changeFrequency: "weekly",
-        priority: 0.4,
-        alternates: {
-          languages: getLanguageAlternates(path),
-        },
-      });
-    }
   }
 
   return entries;

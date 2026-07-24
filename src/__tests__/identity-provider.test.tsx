@@ -11,6 +11,10 @@ vi.mock("next-auth/react", () => ({
   useSession: useSessionMock,
 }));
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/identity",
+}));
+
 const identities = [
   {
     id: "channel-1",

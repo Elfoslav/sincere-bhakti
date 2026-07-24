@@ -179,6 +179,10 @@
 		"delete": "Zmazať príspevok",
 		"openPost": "Otvoriť príspevok",
 		"editPost": "Upraviť príspevok",
+		"dropdownOpen": "Otvoriť",
+		"dropdownEdit": "Upraviť",
+		"dropdownDelete": "Zmazať",
+		"dropdownCopyLink": "Skopírovať odkaz",
 		"anonymous": "Anonymný",
 		"youtubeVideo": "YouTube video",
 		"postMedia": "Médiá príspevku",
@@ -207,6 +211,8 @@
 		"postCount": "{count} príspevkov",
 		"loading": "Načítavam kanály...",
 		"loadMore": "Načítať ďalšie",
+		"loadError": "Nepodarilo sa načítať kanály. Skúste to prosím znova.",
+		"retry": "Skúsiť znova",
 		"metaTitle": "Kanály | Sincere Bhakti",
 		"metaDescription": "Prehliadať všetky kanály na Sincere Bhakti"
 	},
@@ -258,6 +264,23 @@
 		"cannotAddOwner": "Vlastník kanála už má plný prístup.",
 		"tooManyRequests": "Robíte to príliš rýchlo. Počkajte prosím chvíľu a skúste to znova.",
 		"validationError": "Zadajte platný e-mail a rolu.",
+		"translationsTitle": "Jazyky kanálu",
+		"translationsSubtitle": "Spravujte preložené názvy tohto kanálu v rôznych jazykoch.",
+		"addTranslation": "Pridať preklad",
+		"editTranslation": "Upraviť preklad",
+		"deleteTranslation": "Odobrať",
+		"confirmDeleteTranslation": "Naozaj chcete odobrať preklad v jazyku {language}?",
+		"languageLabel": "Jazyk",
+		"nameLabel": "Názov",
+		"translationNamePlaceholder": "Názov kanálu",
+		"translationsNameTaken": "Kanál s týmto názvom už existuje.",
+		"translationsSaveError": "Nepodarilo sa uložiť preklad",
+		"translationsDeleteError": "Nepodarilo sa odobrať preklad",
+		"noTranslations": "Zatiaľ žiadne preklady. Pridajte preklad, aby bol kanál viditeľný v ďalšom jazyku.",
+		"cannotRemoveLastTranslation": "Nemožno odobrať posledný preklad.",
+		"translationAdded": "Preklad pridaný",
+		"translationUpdated": "Preklad aktualizovaný",
+		"translationDeleted": "Preklad odobraný",
 		"saveError": "Niečo sa pokazilo"
 	},
 	"Common": {
@@ -267,7 +290,8 @@
 		"terms": "Podmienky používania",
 		"tooManyRequests": "Robíte to príliš rýchlo. Počkajte prosím chvíľu a skúste to znova.",
 		"renameCountInfo": "Počet premenovaní je obmedzený:",
-		"renameCount": "{count} / {max}"
+		"renameCount": "{count} / {max}",
+		"renameLimitReached": "Dosiahli ste limit premenovania pre tento kanál."
 	},
 	"ErrorPages": {
 		"backToPosts": "← Späť na príspevky",

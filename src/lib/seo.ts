@@ -126,10 +126,6 @@ export function getChannelOpenGraphImageUrl(locale: string, slug: string): strin
   return getLocalizedUrl(locale, `/channels/${slug}/opengraph-image`);
 }
 
-export function getProfileOpenGraphImageUrl(locale: string, id: string): string {
-  return getLocalizedUrl(locale, `/profile/${id}/opengraph-image`);
-}
-
 export function createJsonLdScript(value: Record<string, unknown> | Array<Record<string, unknown>>) {
   return {
     __html: JSON.stringify(value).replace(/</g, "\\u003c"),
@@ -211,33 +207,6 @@ export function createChannelJsonLd({
     image: imageUrl,
     mainEntity: {
       "@type": "Organization",
-      name,
-      url,
-      image: imageUrl,
-    },
-  };
-}
-
-export function createProfileJsonLd({
-  name,
-  description,
-  url,
-  imageUrl,
-}: {
-  name: string;
-  description: string;
-  url: string;
-  imageUrl: string;
-}): Record<string, unknown> {
-  return {
-    "@context": "https://schema.org",
-    "@type": "ProfilePage",
-    name,
-    description,
-    url,
-    image: imageUrl,
-    mainEntity: {
-      "@type": "Person",
       name,
       url,
       image: imageUrl,

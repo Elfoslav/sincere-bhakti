@@ -3,11 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { updateNameSchema, normalizeName, isBrandNameBlocked, slugifyName, MAX_RENAME_COUNT } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { validateOrigin } from "@/lib/csrf";
-import { logServerError, logValidationError } from "@/lib/server-log";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_SERVER_ERROR, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { parseBody } from "@/lib/parse-body";
+import { requireAuth } from "@/lib/require-auth";
+import { serverError } from "@/lib/error-handlers";
+import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 import { getMaxChannelsPerUser } from "@/lib/channel-limit";
+import { resolveTranslation } from "@/lib/channel-translation";
 import type { ChannelMemberRole } from "@/lib/channel-roles";
 
 class NameTakenError extends Error {
@@ -24,6 +26,7 @@ type ManagedChannelSelection = {
     ownerId: string;
     isPersonal: boolean;
     _count: { posts: number };
+    translations: { language: string; name: string; slug: string }[];
   };
 };
 
@@ -38,6 +41,7 @@ export async function GET(
     }
 
     const { id } = await params;
+    const language = new URL(request.url).searchParams.get("language") ?? "en";
 
     const session = await auth();
     const isOwnProfile = session?.user?.id === id;
@@ -49,10 +53,10 @@ export async function GET(
         name: true,
         image: true,
         createdAt: true,
-        renameCount: true,
+        ...(isOwnProfile ? { renameCount: true } : {}),
         channels: {
           where: { ownerId: id },
-          select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, isPersonal: true, _count: { select: { posts: { where: { isPublic: true } } } } },
+          select: { id: true, avatarUrl: true, ownerId: true, isPersonal: true, _count: { select: { posts: { where: { isPublic: true } } } }, translations: { select: { language: true, name: true, slug: true } } },
         },
         ...(isOwnProfile ? {
           email: true,
@@ -63,12 +67,11 @@ export async function GET(
               channel: {
                 select: {
                   id: true,
-                  name: true,
-                  slug: true,
                   avatarUrl: true,
                   ownerId: true,
                   isPersonal: true,
                   _count: { select: { posts: { where: { isPublic: true } } } },
+                  translations: { select: { language: true, name: true, slug: true } },
                 },
               },
             },
@@ -85,19 +88,23 @@ export async function GET(
     const { channels, editors = [], ...profile } = user;
     const managedEditors = editors as unknown as ManagedChannelSelection[];
     const additionalChannelCount = channels.filter((channel) => !channel.isPersonal).length;
+
     return NextResponse.json({
       ...profile,
       additionalChannelCount,
       channelLimit: getMaxChannelsPerUser(),
-      channels: channels.map(({ _count, ...ch }) => ({ ...ch, postCount: _count.posts })),
+      channels: channels.map(({ _count, translations, ...ch }) => {
+        const t = resolveTranslation(translations, language) ?? { name: "", slug: "" };
+        return { ...ch, name: t.name, slug: t.slug, postCount: _count.posts };
+      }),
       managedChannels: managedEditors.map(({ role, channel }) => {
-        const { _count, ...ch } = channel;
-        return { ...ch, role: role as ChannelMemberRole, postCount: _count.posts };
+        const { _count, translations, ...ch } = channel;
+        const t = resolveTranslation(translations, language) ?? { name: "", slug: "" };
+        return { ...ch, name: t.name, slug: t.slug, role: role as ChannelMemberRole, postCount: _count.posts };
       }),
     });
   } catch (error) {
-    logServerError("GET /api/users/[id] failed", error);
-    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return serverError("GET /api/users/[id]", error);
   }
 }
 
@@ -105,33 +112,20 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.updateProfile, RATE_LIMITS.updateProfile, { authErrorCode: ERROR_FORBIDDEN, authErrorStatus: HTTP_FORBIDDEN });
+  if (auth.response) return auth.response;
+  const session = auth.session;
+  const { id } = await params;
+
+  if (session.user.id !== id) {
+    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+  }
+
   try {
-    if (!validateOrigin(request)) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-    }
-
-    const session = await auth();
-    const { id } = await params;
-
-    if (!session?.user?.id || session.user.id !== id) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-    }
-
-    if (!await checkRateLimit(RATE_LIMIT_PREFIX.updateProfile, id, RATE_LIMITS.updateProfile.limit, RATE_LIMITS.updateProfile.windowMs)) {
-      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
-    }
 
     const body = await request.json();
-    const parsed = updateNameSchema.safeParse(body);
-
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0];
-      logValidationError("PATCH /api/users/[id]", issue, body);
-      return NextResponse.json(
-        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: HTTP_BAD_REQUEST }
-      );
-    }
+    const parsed = parseBody(body, updateNameSchema, "PATCH /api/users/[id]");
+    if (parsed.response) return parsed.response;
 
     const normalizedTarget = normalizeName(parsed.data.name);
 
@@ -163,12 +157,21 @@ export async function PATCH(
 
       const personalChannel = await tx.channel.findFirst({
         where: { ownerId: id, isPersonal: true },
-        select: { id: true, name: true, slug: true },
+        select: { id: true },
       });
 
+      let personalTranslation: { id: string; channelId: string; language: string; name: string; slug: string } | null = null;
+      if (personalChannel) {
+        personalTranslation = await tx.channelTranslation.findFirst({
+          where: { channelId: personalChannel.id },
+          orderBy: { language: "asc" },
+          select: { id: true, channelId: true, language: true, name: true, slug: true },
+        });
+      }
+
       // Check normalized-name collision inside the transaction (authoritative).
-      const nameCollision = await tx.channel.findFirst({
-        where: { normalizedName: normalizedTarget, id: personalChannel ? { not: personalChannel.id } : undefined },
+      const nameCollision = await tx.channelTranslation.findFirst({
+        where: { normalizedName: normalizedTarget, channelId: personalChannel ? { not: personalChannel.id } : undefined },
         select: { id: true },
       });
       if (nameCollision) throw new NameTakenError();
@@ -184,39 +187,39 @@ export async function PATCH(
       });
       let updatedPersonalChannel: { id: string; name: string; slug: string } | null = null;
 
-      if (personalChannel) {
+      if (personalTranslation) {
         const newSlug = slugifyName(parsed.data.name);
-        const oldSlug = personalChannel.slug;
+        const oldSlug = personalTranslation.slug;
 
         if (oldSlug !== newSlug) {
-          const slugTaken = await tx.channel.findFirst({
-            where: { slug: newSlug, id: { not: personalChannel.id } },
+          const slugTaken = await tx.channelTranslation.findUnique({
+            where: { slug: newSlug },
             select: { id: true },
           });
           if (slugTaken) throw new NameTakenError();
 
           const historySlugTaken = await tx.channelSlugHistory.findFirst({
-            where: { oldSlug: newSlug, channelId: { not: personalChannel.id } },
+            where: { oldSlug: newSlug, channelId: { not: personalTranslation.channelId } },
             select: { id: true },
           });
           if (historySlugTaken) throw new NameTakenError();
 
           const oldInHistory = await tx.channelSlugHistory.findFirst({
-            where: { oldSlug, channelId: personalChannel.id },
+            where: { oldSlug, channelId: personalTranslation.channelId },
             select: { id: true },
           });
           if (!oldInHistory) {
             await tx.channelSlugHistory.create({
-              data: { oldSlug, oldNormalizedName: normalizeName(personalChannel.name), channelId: personalChannel.id },
+              data: { oldSlug, oldNormalizedName: normalizeName(personalTranslation.name), channelId: personalTranslation.channelId },
             });
           }
         }
 
-        updatedPersonalChannel = await tx.channel.update({
-          where: { id: personalChannel.id },
+        await tx.channelTranslation.update({
+          where: { id: personalTranslation.id },
           data: { name: parsed.data.name, normalizedName: normalizeName(parsed.data.name), slug: newSlug },
-          select: { id: true, name: true, slug: true },
         });
+        updatedPersonalChannel = { id: personalTranslation.channelId, name: parsed.data.name, slug: newSlug };
       }
 
       return { ...user, personalChannel: updatedPersonalChannel };
@@ -230,7 +233,6 @@ export async function PATCH(
     if (error instanceof Error && error.message === "rename_limit_reached") {
       return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
-    logServerError("PATCH /api/users/[id] failed", error);
-    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return serverError("PATCH /api/users/[id]", error);
   }
 }

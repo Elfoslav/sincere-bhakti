@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
   const t = await getTranslations({ locale, namespace: "ChannelPage" });
 
-  const channel = await getCachedChannelBySlug(slug);
+  const channel = await getCachedChannelBySlug(slug, locale);
 
   if (!channel) {
     return { title: t("notFound") };
@@ -61,10 +61,10 @@ export default async function ChannelPage({ params }: Props) {
   const ip = getClientIp(await headers());
   if (!await checkRateLimit(RATE_LIMIT_PREFIX.readChannel, ip, RATE_LIMITS.readChannel.limit, RATE_LIMITS.readChannel.windowMs)) notFound();
 
-  const channel = await getCachedChannelBySlug(slug);
+  const channel = await getCachedChannelBySlug(slug, locale);
 
   if (!channel) {
-    const targetSlug = await resolveSlugRedirect(slug);
+    const targetSlug = await resolveSlugRedirect(slug, locale);
     if (targetSlug) {
       redirect(`/${locale}/channels/${targetSlug}`);
     }

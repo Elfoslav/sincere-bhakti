@@ -41,6 +41,7 @@ const identities: AuthorableIdentity[] = [
 
 function mockRequest(body?: unknown, cookieChannelId?: string) {
   return {
+    url: "http://localhost:3000/api/identity",
     json: () => Promise.resolve(body),
     headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }),
     cookies: {

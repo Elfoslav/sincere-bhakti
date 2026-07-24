@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { canManageChannelSettings, getChannelBySlug, isNormalizedNameTaken } from "@/lib/services/channel";
-import { CHANNEL_ROLE_ADMIN } from "@/lib/channel-roles";
+import { canManageChannelSettings, getChannelBySlug, isNormalizedNameTaken, renameChannelTranslation } from "@/lib/services/channel";
+
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { validateOrigin } from "@/lib/csrf";
-import { logServerError, logValidationError } from "@/lib/server-log";
-import { createChannelSchema, normalizeName, isBrandNameBlocked, slugifyName, MAX_RENAME_COUNT } from "@/lib/validation";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_SERVER_ERROR, ERROR_TOO_MANY_REQUESTS, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN } from "@/lib/error-messages";
-import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { requireAuth } from "@/lib/require-auth";
+import { parseBody } from "@/lib/parse-body";
+import { handlePrismaCollision, serverError } from "@/lib/error-handlers";
+import { createChannelSchema, normalizeName, isBrandNameBlocked, slugifyName, MAX_RENAME_COUNT, isNameUnchanged } from "@/lib/validation";
+import { ERROR_NOT_FOUND, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 
 export async function GET(
   request: NextRequest,
@@ -19,8 +19,10 @@ export async function GET(
     if (!await checkRateLimit(RATE_LIMIT_PREFIX.readChannel, ip, RATE_LIMITS.readChannel.limit, RATE_LIMITS.readChannel.windowMs)) {
       return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
     }
+
     const { slug } = await params;
-    const channel = await getChannelBySlug(slug);
+    const language = new URL(request.url).searchParams.get("language") ?? "en";
+    const channel = await getChannelBySlug(slug, language);
 
     if (!channel) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
@@ -28,8 +30,7 @@ export async function GET(
 
     return NextResponse.json(channel);
   } catch (error) {
-    logServerError("GET /api/channels/[slug] failed", error);
-    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return serverError("GET /api/channels/[slug]", error);
   }
 }
 
@@ -37,30 +38,28 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  if (!validateOrigin(request)) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
+  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.updateChannel, RATE_LIMITS.updateChannel);
+  if (auth.response) return auth.response;
+  const session = auth.session;
   const { slug } = await params;
 
-  if (!await checkRateLimit(RATE_LIMIT_PREFIX.updateChannel, session.user.id, RATE_LIMITS.updateChannel.limit, RATE_LIMITS.updateChannel.windowMs)) {
-    return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
-  }
-
   try {
-    const channel = await prisma.channel.findUnique({
+    const translation = await prisma.channelTranslation.findUnique({
       where: { slug },
-      select: { id: true, name: true, ownerId: true, isPersonal: true, slug: true, avatarUrl: true, renameCount: true },
+      include: {
+        channel: {
+          select: { id: true, ownerId: true, isPersonal: true, avatarUrl: true, renameCount: true, defaultLanguage: true },
+        },
+      },
     });
 
-    if (!channel) {
+    if (!translation) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
+
+    const channel = translation.channel;
+    const currentName = translation.name;
+    const currentSlug = translation.slug;
 
     if (!await canManageChannelSettings(channel.id, session.user.id)) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
@@ -71,27 +70,19 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const parsed = createChannelSchema.safeParse(body);
-
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0];
-      logValidationError("PATCH /api/channels/[slug]", issue, body);
-      return NextResponse.json(
-        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: HTTP_BAD_REQUEST }
-      );
-    }
+    const parsed = parseBody(body, createChannelSchema, "PATCH /api/channels/[slug]");
+    if (parsed.response) return parsed.response;
 
     const { name } = parsed.data;
 
     const normalizedTarget = normalizeName(name);
 
     // Renaming to the same name is a no-op — don't count or write history
-    if (normalizedTarget === normalizeName(channel.name)) {
+    if (isNameUnchanged(name, currentName)) {
       return NextResponse.json({
         id: channel.id,
-        name: channel.name,
-        slug: channel.slug,
+        name: currentName,
+        slug: currentSlug,
         avatarUrl: channel.avatarUrl,
         ownerId: channel.ownerId,
         renameCount: channel.renameCount,
@@ -107,90 +98,41 @@ export async function PATCH(
       return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
 
-    // Check if the new name is already taken by another channel
+    // Check if the new name is already taken by another translation
     if (await isNormalizedNameTaken(normalizedTarget, channel.id)) {
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
     const newSlug = slugifyName(name);
-    const oldSlug = channel.slug;
 
-    const updated = await prisma.$transaction(async (tx): Promise<"name_taken" | "limit_reached" | {
-      id: string;
-      name: string;
-      slug: string;
-      avatarUrl: string | null;
-      ownerId: string;
-      renameCount: number;
-    } | null> => {
-      if (newSlug !== oldSlug) {
-        const slugTaken = await tx.channel.findFirst({
-          where: { slug: newSlug, id: { not: channel.id } },
-          select: { id: true },
-        });
-        if (slugTaken) {
-          return "name_taken";
-        }
-
-        const historySlugTaken = await tx.channelSlugHistory.findFirst({
-          where: { oldSlug: newSlug, channelId: { not: channel.id } },
-          select: { id: true },
-        });
-        if (historySlugTaken) {
-          return "name_taken";
-        }
-      }
-
-      const result = await tx.channel.updateMany({
-        where: {
-          id: channel.id,
-          renameCount: { lt: MAX_RENAME_COUNT },
-          OR: [
-            { ownerId: session.user.id },
-            { editors: { some: { userId: session.user.id, role: CHANNEL_ROLE_ADMIN } } },
-          ],
-        },
-        data: { name, normalizedName: normalizedTarget, slug: newSlug, renameCount: { increment: 1 } },
-      });
-
-      if (result.count === 0) {
-        return "limit_reached";
-      }
-
-      if (newSlug !== oldSlug) {
-        // Avoid P2002 if oldSlug is already in history (e.g. rename A→B→A→C).
-        const oldInHistory = await tx.channelSlugHistory.findFirst({
-          where: { oldSlug, channelId: channel.id },
-          select: { id: true },
-        });
-        if (!oldInHistory) {
-          await tx.channelSlugHistory.create({
-            data: { oldSlug, oldNormalizedName: normalizeName(channel.name), channelId: channel.id },
-          });
-        }
-      }
-
-      return tx.channel.findUnique({
-        where: { id: channel.id },
-        select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true, renameCount: true },
-      });
-    });
+    const updated = await prisma.$transaction((tx) => renameChannelTranslation(tx, {
+      channelId: channel.id,
+      userId: session.user.id,
+      oldSlug: currentSlug,
+      oldName: currentName,
+      newName: name,
+      newSlug,
+      normalizedNewName: normalizedTarget,
+      translationId: translation.id,
+      currentRenameCount: channel.renameCount,
+    }));
 
     if (updated === "name_taken") {
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
-    if (!updated || updated === "limit_reached") {
+    if (updated === "limit_reached") {
       return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
 
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      ...updated,
+      avatarUrl: channel.avatarUrl,
+      ownerId: channel.ownerId,
+    });
   } catch (error) {
-    if ((error as { code?: string })?.code === "P2002") {
-      logServerError("PATCH /api/channels/[slug] P2002 collision", error);
-      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
-    }
-    logServerError("PATCH /api/channels/[slug] failed", error);
-    return NextResponse.json({ error: ERROR_SERVER_ERROR }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    const collision = handlePrismaCollision(error, "PATCH /api/channels/[slug]");
+    if (collision) return collision;
+    return serverError("PATCH /api/channels/[slug]", error);
   }
 }

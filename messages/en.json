@@ -179,6 +179,10 @@
 		"delete": "Delete post",
 		"openPost": "Open post",
 		"editPost": "Edit post",
+		"dropdownOpen": "Open",
+		"dropdownEdit": "Edit",
+		"dropdownDelete": "Delete",
+		"dropdownCopyLink": "Copy link",
 		"anonymous": "Anonymous",
 		"youtubeVideo": "YouTube video",
 		"postMedia": "Post media",
@@ -207,6 +211,8 @@
 		"postCount": "{count} posts",
 		"loading": "Loading channels...",
 		"loadMore": "Load more",
+		"loadError": "Failed to load channels. Please try again.",
+		"retry": "Retry",
 		"metaTitle": "Channels | Sincere Bhakti",
 		"metaDescription": "Browse all channels on Sincere Bhakti"
 	},
@@ -258,6 +264,23 @@
 		"cannotAddOwner": "The channel owner already has full access.",
 		"tooManyRequests": "You're doing that too quickly. Please wait a moment and try again.",
 		"validationError": "Enter a valid email and role.",
+		"translationsTitle": "Channel languages",
+		"translationsSubtitle": "Manage translated names for this channel in different languages.",
+		"addTranslation": "Add translation",
+		"editTranslation": "Edit translation",
+		"deleteTranslation": "Remove",
+		"confirmDeleteTranslation": "Are you sure you want to remove the {language} translation?",
+		"languageLabel": "Language",
+		"nameLabel": "Name",
+		"translationNamePlaceholder": "Channel name",
+		"translationsNameTaken": "A channel with this name already exists.",
+		"translationsSaveError": "Failed to save translation",
+		"translationsDeleteError": "Failed to remove translation",
+		"noTranslations": "No translations yet. Add one to make this channel visible in another language.",
+		"cannotRemoveLastTranslation": "Cannot remove the last translation.",
+		"translationAdded": "Translation added",
+		"translationUpdated": "Translation updated",
+		"translationDeleted": "Translation removed",
 		"saveError": "Something went wrong"
 	},
 	"Common": {
@@ -267,7 +290,8 @@
 		"terms": "Terms & Conditions",
 		"tooManyRequests": "You're doing that too quickly. Please wait a moment and try again.",
 		"renameCountInfo": "Number of renames is limited:",
-		"renameCount": "{count} / {max}"
+		"renameCount": "{count} / {max}",
+		"renameLimitReached": "You have reached the rename limit for this channel."
 	},
 	"ErrorPages": {
 		"backToPosts": "← Back to posts",
