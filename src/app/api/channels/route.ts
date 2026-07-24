@@ -83,7 +83,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       items,
-      nextCursor: channels.length === 20 ? channels[channels.length - 1].id : null,
+      // Search results are capped at the first 20 matched channelIds with no
+      // cursor, so they can't be paginated — only emit a cursor when browsing.
+      nextCursor: !query && channels.length === 20 ? channels[channels.length - 1].id : null,
     });
   } catch (error) {
     return serverError("GET /api/channels", error);

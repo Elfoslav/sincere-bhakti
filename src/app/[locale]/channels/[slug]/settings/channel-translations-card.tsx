@@ -37,8 +37,14 @@ export default function ChannelTranslationsCard({
   const availableLocales = locales.filter((loc) => !usedLanguages.has(loc));
   const renameLocked = renameCount >= MAX_RENAME_COUNT;
 
+  // The `channelSlug` prop is the page-locale slug at load time; renaming that
+  // translation moves its slug to history, so reusing the prop would 404 the
+  // next request. The live `translations` state always holds a current slug that
+  // still resolves the channel, so derive the lookup slug from it.
+  const lookupSlug = translations[0]?.slug ?? channelSlug;
+
   async function handleSave(data: { language: string; name: string }, existingId?: string) {
-    const response = await fetch(`/api/channels/${channelSlug}/translations`, {
+    const response = await fetch(`/api/channels/${lookupSlug}/translations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ language: data.language, name: data.name }),
@@ -85,7 +91,7 @@ export default function ChannelTranslationsCard({
     if (!deletingTranslation) return;
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/channels/${channelSlug}/translations?language=${deletingTranslation.language}`, {
+      const response = await fetch(`/api/channels/${lookupSlug}/translations?language=${deletingTranslation.language}`, {
         method: "DELETE",
       });
 

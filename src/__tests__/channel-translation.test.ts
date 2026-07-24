@@ -13,9 +13,14 @@ describe("resolveTranslation", () => {
     expect(result).toEqual({ language: "cs", name: "České jméno", slug: "cesky-slug" });
   });
 
-  it("returns the first translation when no exact language match exists", () => {
+  it("falls back deterministically to the lowest language code when no exact match exists", () => {
     const result = resolveTranslation(translations, "de");
-    expect(result).toEqual({ language: "en", name: "English Name", slug: "english-slug" });
+    expect(result).toEqual({ language: "cs", name: "České jméno", slug: "cesky-slug" });
+  });
+
+  it("returns the same fallback regardless of input row order", () => {
+    const shuffled = [translations[2], translations[0], translations[1]];
+    expect(resolveTranslation(shuffled, "de")).toEqual(resolveTranslation(translations, "de"));
   });
 
   it("returns null for an empty array", () => {

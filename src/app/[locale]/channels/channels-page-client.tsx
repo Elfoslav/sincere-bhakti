@@ -26,6 +26,11 @@ export default function ChannelsPageClient() {
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Guards against out-of-order responses: rapid search input or a locale change
+  // can leave multiple fetches in flight, and the last one to resolve must not
+  // overwrite the newest request's results. Every load captures an id and only
+  // applies its result if it is still the latest.
+  const requestIdRef = useRef(0);
 
   const fetchChannels = useCallback(async (q: string, c?: string) => {
     const params = new URLSearchParams();
@@ -38,11 +43,13 @@ export default function ChannelsPageClient() {
   }, [locale]);
 
   const loadChannels = useCallback(() => {
+    const requestId = ++requestIdRef.current;
     Promise.resolve().then(() => {
       setLoading(true);
       setError(false);
     });
     fetchChannels(search).then((data) => {
+      if (requestId !== requestIdRef.current) return;
       if (data) {
         setChannels(data.items);
         setCursor(data.nextCursor);
@@ -68,9 +75,10 @@ export default function ChannelsPageClient() {
 
   async function handleLoadMore() {
     if (!cursor || loadingMore) return;
+    const requestId = ++requestIdRef.current;
     setLoadingMore(true);
     const data = await fetchChannels(search, cursor);
-    if (data) {
+    if (requestId === requestIdRef.current && data) {
       setChannels((prev) => [...prev, ...data.items]);
       setCursor(data.nextCursor);
     }

@@ -77,7 +77,7 @@ export function IdentityProvider({
     setActiveChannelId(channelId);
     setSwitching(true);
     try {
-      const res = await fetch("/api/identity", {
+      const res = await fetch(`/api/identity?language=${locale}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelId }),
@@ -93,7 +93,7 @@ export function IdentityProvider({
     } finally {
       setSwitching(false);
     }
-  }, [activeChannelId, applyResponse, session?.user?.id]);
+  }, [activeChannelId, applyResponse, locale, session?.user?.id]);
 
   const visibleIdentities = useMemo(
     () => fetchedUserId === session?.user?.id ? identities : [],
