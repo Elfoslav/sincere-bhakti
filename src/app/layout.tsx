@@ -8,6 +8,7 @@ import { ACTIVE_IDENTITY_COOKIE } from "@/lib/active-identity";
 import { resolveActiveIdentityState } from "@/lib/identity";
 import { getAuthorableChannels } from "@/lib/services/channel";
 import type { InitialIdentityState } from "@/types/identity";
+import { routing } from "@/i18n/routing";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,11 +40,11 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.ico" },
 };
 
-async function getInitialIdentityState(userId: string, fallbackChannelId?: string): Promise<InitialIdentityState | null> {
+async function getInitialIdentityState(userId: string, locale: string, fallbackChannelId?: string): Promise<InitialIdentityState | null> {
   try {
     const [cookieStore, identities] = await Promise.all([
       cookies(),
-      getAuthorableChannels(userId),
+      getAuthorableChannels(userId, locale),
     ]);
 
     return resolveActiveIdentityState({
@@ -64,14 +65,17 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  const cookieStore = await cookies();
+  const locale = cookieStore.get("NEXT_LOCALE")?.value ?? routing.defaultLocale;
+
   const initialIdentityState = session?.user?.id
-    ? await getInitialIdentityState(session.user.id, session.user.channelId)
+    ? await getInitialIdentityState(session.user.id, locale, session.user.channelId)
     : null;
 
   return (
     <html lang="en" className={`${geistSans.variable} ${headingFont.variable} h-full`}>
       <body className="min-h-full flex flex-col">
-        <Providers session={session} initialIdentityState={initialIdentityState}>{children}</Providers>
+        <Providers session={session} initialIdentityState={initialIdentityState} locale={locale}>{children}</Providers>
       </body>
     </html>
   );

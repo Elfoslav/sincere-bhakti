@@ -22,8 +22,9 @@ export async function GET(
     }
 
     const { id } = await params;
+    const language = new URL(request.url).searchParams.get("language") ?? "en";
 
-    const post = await getPostById(id);
+    const post = await getPostById(id, language);
     if (!post) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }

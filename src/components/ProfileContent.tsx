@@ -49,7 +49,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 	useEffect(() => {
 		if (!authorId) return;
 		let mounted = true;
-		fetch(`/api/users/${authorId}`)
+		fetch(`/api/users/${authorId}?language=${locale}`)
 			.then((r) => (r.ok ? r.json() : null))
 			.then((data) => {
 				if (mounted && data) {
@@ -63,7 +63,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 		return () => {
 			mounted = false;
 		};
-	}, [authorId]);
+	}, [authorId, locale]);
 
 	async function handleSave() {
 		if (!newName.trim() || !profile) return;

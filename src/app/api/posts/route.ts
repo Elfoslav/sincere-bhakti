@@ -34,11 +34,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
       }
 
-      const result = await getPosts(parsed.data, session.user.id);
+      const result = await getPosts({ ...parsed.data, requestLanguage: parsed.data.language ?? "en" }, session.user.id);
       return NextResponse.json(result);
     }
 
-    const result = await getPosts(parsed.data);
+    const result = await getPosts({ ...parsed.data, requestLanguage: parsed.data.language ?? "en" });
     return NextResponse.json(result);
   } catch (error) {
     return serverError("GET /api/posts", error, "failed_to_fetch_posts");

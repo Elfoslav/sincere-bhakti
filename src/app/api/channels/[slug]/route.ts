@@ -21,7 +21,8 @@ export async function GET(
     }
 
     const { slug } = await params;
-    const channel = await getChannelBySlug(slug);
+    const language = new URL(request.url).searchParams.get("language") ?? "en";
+    const channel = await getChannelBySlug(slug, language);
 
     if (!channel) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });

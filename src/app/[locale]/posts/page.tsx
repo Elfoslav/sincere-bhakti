@@ -53,7 +53,7 @@ export default async function PostsPage({ params }: Props) {
   let initialPublic: { posts: Post[]; hasMore: boolean } | undefined;
   if (allowed) {
     try {
-      const result = await getPosts({ scope: "public", language: locale, limit: 10 });
+      const result = await getPosts({ scope: "public", language: locale, requestLanguage: locale, limit: 10 });
       initialPublic = JSON.parse(JSON.stringify(result)) as { posts: Post[]; hasMore: boolean };
     } catch {
       initialPublic = undefined;

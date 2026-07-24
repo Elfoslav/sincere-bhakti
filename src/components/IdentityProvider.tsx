@@ -23,9 +23,11 @@ interface IdentityResponse {
 export function IdentityProvider({
   children,
   initialState = null,
+  locale = "en",
 }: {
   children: React.ReactNode;
   initialState?: InitialIdentityState | null;
+  locale?: string;
 }) {
   const { data: session, status } = useSession();
   const [identities, setIdentities] = useState<AuthorableIdentity[]>(initialState?.identities ?? []);
@@ -43,16 +45,16 @@ export function IdentityProvider({
     const userId = session?.user?.id;
     if (status !== "authenticated" || !userId) return;
 
-    const res = await fetch("/api/identity");
+    const res = await fetch(`/api/identity?language=${locale}`);
     if (res.ok) applyResponse(await res.json(), userId);
-  }, [applyResponse, session?.user?.id, status]);
+  }, [applyResponse, locale, session?.user?.id, status]);
 
   useEffect(() => {
     const userId = session?.user?.id;
     if (status !== "authenticated" || !userId) return;
 
     let cancelled = false;
-    fetch("/api/identity")
+    fetch(`/api/identity?language=${locale}`)
       .then((res) => res.ok ? res.json() as Promise<IdentityResponse> : null)
       .then((data) => {
         if (data && !cancelled) applyResponse(data, userId);
@@ -64,7 +66,7 @@ export function IdentityProvider({
     return () => {
       cancelled = true;
     };
-  }, [applyResponse, session?.user?.id, status]);
+  }, [applyResponse, locale, session?.user?.id, status]);
 
   const switchIdentity = useCallback(async (channelId: string) => {
     const previous = activeChannelId;

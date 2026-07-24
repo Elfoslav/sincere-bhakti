@@ -26,7 +26,7 @@ import { canAuthorChannel } from "@/lib/services/channel";
 import { GET, DELETE, PATCH } from "@/app/api/posts/[id]/route";
 
 function mockRequest(): any {
-  return { headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }) } as any;
+  return { url: "http://localhost:3000/api/posts/post-1", headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }) } as any;
 }
 
 const basePost = {

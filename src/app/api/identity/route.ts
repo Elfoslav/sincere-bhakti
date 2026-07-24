@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
     if (auth.response) return auth.response;
     const session = auth.session;
 
-    const identities = await getAuthorableChannels(session.user.id);
+    const language = new URL(request.url).searchParams.get("language") ?? "en";
+    const identities = await getAuthorableChannels(session.user.id, language);
     const cookieChannelId = getActiveIdentityCookie(request);
     const identityState = resolveActiveIdentityState({
       userId: session.user.id,
@@ -48,7 +49,8 @@ export async function PATCH(request: NextRequest) {
     const parsed = parseBody(body, updateActiveIdentitySchema, "PATCH /api/identity");
     if (parsed.response) return parsed.response;
 
-    const identities = await getAuthorableChannels(session.user.id);
+    const language = new URL(request.url).searchParams.get("language") ?? "en";
+    const identities = await getAuthorableChannels(session.user.id, language);
     const activeIdentity = identities.find((identity) => identity.id === parsed.data.channelId);
     if (!activeIdentity) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });

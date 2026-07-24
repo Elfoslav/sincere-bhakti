@@ -11,6 +11,10 @@ vi.mock("next-auth/react", () => ({
   useSession: useSessionMock,
 }));
 
+vi.mock("next-intl", () => ({
+  useLocale: () => "en",
+}));
+
 const identities = [
   {
     id: "channel-1",
