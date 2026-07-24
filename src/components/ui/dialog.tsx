@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 
 const dialogActionsClassName = "flex gap-2 *:flex-1 sm:*:flex-none sm:flex-wrap sm:items-center sm:justify-end";
-const dialogActionButtonClassName = "flex-1 sm:flex-none sm:min-w-24";
+const dialogActionButtonClassName = "flex-1 sm:flex-none sm:min-w-24 max-sm:w-full";
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
 	return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -159,7 +159,7 @@ function DialogFooter({
 
 function DialogActions({ className, ...props }: React.ComponentProps<"div">) {
 	return (
-		<div data-slot="dialog-actions" className={cn(dialogActionsClassName, className)} {...props} />
+		<div data-slot="dialog-actions" className={cn("w-full", dialogActionsClassName, className)} {...props} />
 	);
 }
 
