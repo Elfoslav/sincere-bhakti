@@ -190,6 +190,7 @@ describe("POST /api/posts", () => {
     expect(createPost).toHaveBeenCalledWith(
       { content: "Hare Krishna!", media: [], isPublic: true, language: "en", channelId: "channel-1" },
       "user-1",
+      "en",
     );
   });
 
@@ -212,6 +213,7 @@ describe("POST /api/posts", () => {
     expect(createPost).toHaveBeenCalledWith(
       { content: "From channel", media: [], isPublic: true, language: "en", channelId: "channel-2" },
       "user-1",
+      "en",
     );
   });
 
@@ -234,6 +236,7 @@ describe("POST /api/posts", () => {
     expect(createPost).toHaveBeenCalledWith(
       { content: "Fallback", media: [], isPublic: true, language: "en", channelId: "channel-1" },
       "user-1",
+      "en",
     );
     expect(res.headers.get("set-cookie")).toContain("sb_active_channel_id=channel-1");
   });

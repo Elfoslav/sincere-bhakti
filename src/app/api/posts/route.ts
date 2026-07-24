@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     const post = await createPost({
       ...parsed.data,
       channelId,
-    }, session.user.id);
+    }, session.user.id, parsed.data.language);
     const response = NextResponse.json(post, { status: HTTP_CREATED });
     if (resolved.shouldRefreshPreference) {
       setActiveIdentityCookie(response, channelId);

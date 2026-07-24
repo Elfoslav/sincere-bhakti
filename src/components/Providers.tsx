@@ -10,16 +10,14 @@ export default function Providers({
   children,
   session,
   initialIdentityState,
-  locale = "en",
 }: {
   children: React.ReactNode;
   session: Session | null;
   initialIdentityState: InitialIdentityState | null;
-  locale?: string;
 }) {
   return (
     <SessionProvider session={session}>
-      <IdentityProvider initialState={initialIdentityState} locale={locale}>
+      <IdentityProvider initialState={initialIdentityState}>
         <TooltipProvider>{children}</TooltipProvider>
       </IdentityProvider>
     </SessionProvider>

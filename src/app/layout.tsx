@@ -3,12 +3,12 @@ import localFont from "next/font/local";
 import type { Viewport, Metadata } from "next";
 import { cookies } from "next/headers";
 import Providers from "@/components/Providers";
+import { routing } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 import { ACTIVE_IDENTITY_COOKIE } from "@/lib/active-identity";
 import { resolveActiveIdentityState } from "@/lib/identity";
 import { getAuthorableChannels } from "@/lib/services/channel";
 import type { InitialIdentityState } from "@/types/identity";
-import { routing } from "@/i18n/routing";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -75,7 +75,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${headingFont.variable} h-full`}>
       <body className="min-h-full flex flex-col">
-        <Providers session={session} initialIdentityState={initialIdentityState} locale={locale}>{children}</Providers>
+        <Providers session={session} initialIdentityState={initialIdentityState}>{children}</Providers>
       </body>
     </html>
   );

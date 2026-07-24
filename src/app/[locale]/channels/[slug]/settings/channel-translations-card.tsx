@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { locales, localeFlags } from "@/i18n/routing";
 import { MAX_RENAME_COUNT } from "@/lib/validation";
 import type { ChannelSettingsTranslation } from "@/types/channel";
@@ -29,6 +30,8 @@ export default function ChannelTranslationsCard({
   const [renameCount, setRenameCount] = useState(initialRenameCount);
   const [editing, setEditing] = useState<ChannelSettingsTranslation | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [deletingTranslation, setDeletingTranslation] = useState<ChannelSettingsTranslation | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const usedLanguages = new Set(translations.map((tr) => tr.language));
   const availableLocales = locales.filter((loc) => !usedLanguages.has(loc));
@@ -70,25 +73,34 @@ export default function ChannelTranslationsCard({
     return true;
   }
 
-  async function handleDelete(translation: ChannelSettingsTranslation) {
+  function handleDeleteClick(translation: ChannelSettingsTranslation) {
     if (translations.length <= 1) {
       toast.error(t("cannotRemoveLastTranslation"));
       return;
     }
-    if (!confirm(t("confirmDeleteTranslation", { language: translation.language }))) return;
+    setDeletingTranslation(translation);
+  }
 
-    const response = await fetch(`/api/channels/${channelSlug}/translations?language=${translation.language}`, {
-      method: "DELETE",
-    });
+  async function handleDeleteConfirm() {
+    if (!deletingTranslation) return;
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/channels/${channelSlug}/translations?language=${deletingTranslation.language}`, {
+        method: "DELETE",
+      });
 
-    if (!response.ok) {
-      const result = await response.json();
-      toast.error(result.error === "cannot_remove_last_translation" ? t("cannotRemoveLastTranslation") : t("translationsDeleteError"));
-      return;
+      if (!response.ok) {
+        const result = await response.json();
+        toast.error(result.error === "cannot_remove_last_translation" ? t("cannotRemoveLastTranslation") : t("translationsDeleteError"));
+        return;
+      }
+
+      setTranslations((current) => current.filter((tr) => tr.id !== deletingTranslation.id));
+      toast.success(t("translationDeleted") ?? "Translation removed");
+    } finally {
+      setIsDeleting(false);
+      setDeletingTranslation(null);
     }
-
-    setTranslations((current) => current.filter((tr) => tr.id !== translation.id));
-    toast.success(t("translationDeleted") ?? "Translation removed");
   }
 
   return (
@@ -136,21 +148,33 @@ export default function ChannelTranslationsCard({
                 >
                   <Pencil className="size-4" />
                 </Button>
-                {translations.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t("deleteTranslation")}
-                    onClick={() => handleDelete(tr)}
-                  >
-                    <Trash2 className="size-4 text-red" />
-                  </Button>
-                )}
+                  {translations.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t("deleteTranslation")}
+                      onClick={() => handleDeleteClick(tr)}
+                    >
+                      <Trash2 className="size-4 text-red" />
+                    </Button>
+                  )}
               </div>
             ))}
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={!!deletingTranslation}
+        onOpenChange={(open) => { if (!open) setDeletingTranslation(null); }}
+        title={t("deleteTranslation")}
+        description={deletingTranslation ? t("confirmDeleteTranslation", { language: deletingTranslation.language }) : ""}
+        confirmLabel={t("deleteTranslation")}
+        cancelLabel={common("cancel")}
+        onConfirm={handleDeleteConfirm}
+        variant="destructive"
+        loading={isDeleting}
+      />
 
       {(showAdd || editing) && (
         <EditTranslationDialog

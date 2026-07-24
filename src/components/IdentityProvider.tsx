@@ -2,6 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
+import { locales } from "@/i18n/routing";
 import type { AuthorableIdentity, InitialIdentityState } from "@/types/identity";
 
 interface IdentityContextValue {
@@ -23,13 +25,13 @@ interface IdentityResponse {
 export function IdentityProvider({
   children,
   initialState = null,
-  locale = "en",
 }: {
   children: React.ReactNode;
   initialState?: InitialIdentityState | null;
-  locale?: string;
 }) {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
+  const locale = pathname.match(new RegExp(`^/(${locales.join("|")})(/|$)`))?.[1] ?? "en";
   const [identities, setIdentities] = useState<AuthorableIdentity[]>(initialState?.identities ?? []);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(initialState?.activeChannelId ?? null);
   const [fetchedUserId, setFetchedUserId] = useState<string | null>(initialState?.userId ?? null);

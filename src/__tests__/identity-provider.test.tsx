@@ -11,8 +11,8 @@ vi.mock("next-auth/react", () => ({
   useSession: useSessionMock,
 }));
 
-vi.mock("next-intl", () => ({
-  useLocale: () => "en",
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/identity",
 }));
 
 const identities = [
