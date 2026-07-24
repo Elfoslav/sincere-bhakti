@@ -71,6 +71,13 @@ export default async function ChannelPage({ params }: Props) {
     notFound();
   }
 
+  // The slug in the URL may belong to a different locale's translation.
+  // Redirect to the correct slug for the requested locale so the address bar
+  // matches the resolved translation.
+  if (channel.slug !== slug) {
+    redirect(`/${locale}/channels/${channel.slug}`);
+  }
+
   const [t, channelsT] = await Promise.all([
     getTranslations({ locale, namespace: "ChannelPage" }),
     getTranslations({ locale, namespace: "ChannelsPage" }),

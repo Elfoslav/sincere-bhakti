@@ -175,6 +175,10 @@ export const createChannelSchema = z.object({
   language: z.string().min(1).max(10).optional(),
 });
 
+export const createChannelTranslationSchema = createChannelSchema.extend({
+  language: z.string().min(1).max(10),
+});
+
 export const addChannelMemberSchema = z.object({
   action: z.enum(CHANNEL_MEMBER_ACTIONS),
   email: z

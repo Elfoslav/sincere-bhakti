@@ -59,5 +59,5 @@ export async function requireAuth(
   }
 
   if (opts?.skipAuth) return { session: undefined, response: undefined };
-  return { session: session!, response: undefined };
+  return { session: session as SessionUser, response: undefined };
 }

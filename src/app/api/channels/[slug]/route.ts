@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canManageChannelSettings, getChannelBySlug, isNormalizedNameTaken, renameChannelTranslation } from "@/lib/services/channel";
+import { canManageChannelSettings, getChannelBySlug, isNormalizedNameTaken, renameChannelTranslation, NameTakenError, RenameLimitError } from "@/lib/services/channel";
 
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { requireAuth } from "@/lib/require-auth";
@@ -108,6 +108,7 @@ export async function PATCH(
     const updated = await prisma.$transaction((tx) => renameChannelTranslation(tx, {
       channelId: channel.id,
       userId: session.user.id,
+      ownerId: channel.ownerId,
       oldSlug: currentSlug,
       oldName: currentName,
       newName: name,
@@ -117,20 +118,18 @@ export async function PATCH(
       currentRenameCount: translation.renameCount,
     }));
 
-    if (updated === "name_taken") {
-      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
-    }
-
-    if (updated === "limit_reached") {
-      return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
-    }
-
     return NextResponse.json({
       ...updated,
       avatarUrl: channel.avatarUrl,
       ownerId: channel.ownerId,
     });
   } catch (error) {
+    if (error instanceof NameTakenError) {
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
+    }
+    if (error instanceof RenameLimitError) {
+      return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
+    }
     const collision = handlePrismaCollision(error, "PATCH /api/channels/[slug]");
     if (collision) return collision;
     return serverError("PATCH /api/channels/[slug]", error);

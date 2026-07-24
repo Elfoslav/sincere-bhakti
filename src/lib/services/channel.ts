@@ -38,6 +38,12 @@ export class ChannelMemberAlreadyExistsError extends Error {
 export class ChannelMemberTransactionConflictError extends Error {
   name = "ChannelMemberTransactionConflictError" as const;
 }
+export class RenameLimitError extends Error {
+  name = "RenameLimitError" as const;
+}
+export class CannotRenamePersonalChannelError extends Error {
+  name = "CannotRenamePersonalChannelError" as const;
+}
 
 const CHANNEL_MEMBER_TRANSACTION_MAX_ATTEMPTS = 3;
 const PRISMA_TRANSACTION_CONFLICT_CODE = "P2034";
@@ -717,16 +723,19 @@ export async function createChannel(
   throw new Error("unreachable");
 }
 
-type RenameTranslationResult =
-  | { id: string; name: string; slug: string; renameCount: number }
-  | "name_taken"
-  | "limit_reached";
+type RenameTranslationResult = {
+  id: string;
+  name: string;
+  slug: string;
+  renameCount: number;
+};
 
 export async function renameChannelTranslation(
   tx: Prisma.TransactionClient,
   params: {
     channelId: string;
     userId: string;
+    ownerId: string;
     oldSlug: string;
     oldName: string;
     newName: string;
@@ -736,36 +745,30 @@ export async function renameChannelTranslation(
     currentRenameCount: number;
   },
 ): Promise<RenameTranslationResult> {
-  const { channelId, userId, oldSlug, oldName, newName, newSlug, normalizedNewName, translationId, currentRenameCount } = params;
+  const { channelId, userId, ownerId, oldSlug, oldName, newName, newSlug, normalizedNewName, translationId, currentRenameCount } = params;
 
   // Check new slug not taken by another active translation
   const slugTaken = await tx.channelTranslation.findUnique({
     where: { slug: newSlug },
     select: { id: true },
   });
-  if (slugTaken && slugTaken.id !== translationId) return "name_taken";
+  if (slugTaken && slugTaken.id !== translationId) throw new NameTakenError();
 
   // Check new slug not in history for a different channel
   const historySlugTaken = await tx.channelSlugHistory.findFirst({
     where: { oldSlug: newSlug, channelId: { not: channelId } },
     select: { id: true },
   });
-  if (historySlugTaken) return "name_taken";
+  if (historySlugTaken) throw new NameTakenError();
 
-  // Check ownership
-  const channel = await tx.channel.findUnique({
-    where: { id: channelId },
-    select: { ownerId: true },
-  });
-  if (!channel) return "limit_reached";
-
-  const isOwner = channel.ownerId === userId;
+  // Check ownership (caller provides ownerId to avoid a roundtrip)
+  const isOwner = ownerId === userId;
   if (!isOwner) {
     const editor = await tx.channelEditor.findUnique({
       where: { channelId_userId: { channelId, userId } },
       select: { role: true },
     });
-    if (!editor || editor.role !== CHANNEL_ROLE_ADMIN) return "limit_reached";
+    if (!editor || editor.role !== CHANNEL_ROLE_ADMIN) throw new RenameLimitError();
   }
 
   // Check if this normalized name was used before for this translation
@@ -773,7 +776,7 @@ export async function renameChannelTranslation(
     where: { id: translationId },
     select: { previousNormalizedNames: true, normalizedName: true },
   });
-  if (!prev) return "limit_reached";
+  if (!prev) throw new RenameLimitError();
 
   const nameWasUsedBefore = prev.previousNormalizedNames.includes(normalizedNewName);
 
@@ -800,7 +803,7 @@ export async function renameChannelTranslation(
         previousNormalizedNames: { push: [prev.normalizedName] },
       },
     });
-    if (result.count === 0) return "limit_reached";
+    if (result.count === 0) throw new RenameLimitError();
   }
 
   // Record old slug so it cannot be reclaimed by other channels

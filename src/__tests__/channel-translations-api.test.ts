@@ -39,11 +39,14 @@ vi.mock("@/lib/prisma", () => ({
           update: (...args: any[]) => (outer.channelTranslation.update as any)(...args),
           updateMany: (...args: any[]) => (outer.channelTranslation.updateMany as any)(...args),
           create: (...args: any[]) => (outer.channelTranslation.create as any)(...args),
+          count: (...args: any[]) => (outer.channelTranslation.count as any)(...args),
+          deleteMany: (...args: any[]) => (outer.channelTranslation.deleteMany as any)(...args),
         },
         channelSlugHistory: {
           findFirst: (...args: any[]) => (outer.channelSlugHistory.findFirst as any)(...args),
           create: (...args: any[]) => (outer.channelSlugHistory.create as any)(...args),
         },
+        $executeRaw: vi.fn(async () => []),
       });
     }),
   },
@@ -75,10 +78,11 @@ vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { POST } from "@/app/api/channels/[slug]/translations/route";
+import { POST, DELETE } from "@/app/api/channels/[slug]/translations/route";
 
-function mockRequest(body?: unknown): any {
+function mockRequest(body?: unknown, url?: string): any {
   return {
+    url: url ?? "http://localhost:3000/api/channels/my-channel/translations",
     json: () => Promise.resolve(body),
     headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }),
   } as any;
@@ -126,7 +130,6 @@ describe("POST /api/channels/[slug]/translations", () => {
       .mockResolvedValueOnce({ id: "trans-cs", normalizedName: "old name", previousNormalizedNames: [] } as any); // fetch prev names inside service
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null); // owner check — not an editor
-    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
     vi.mocked(prisma.channelTranslation.updateMany).mockResolvedValue({ count: 1 } as any);
     vi.mocked(prisma.channelTranslation.update).mockResolvedValue({
       id: "trans-cs", language: "cs", name: "New Name", slug: "new-name",
@@ -182,7 +185,6 @@ describe("POST /api/channels/[slug]/translations", () => {
       .mockResolvedValueOnce(null as any)    // slug not taken
       .mockResolvedValueOnce({ id: "trans-cs", normalizedName: "old name", previousNormalizedNames: [] } as any); // fetch prev names inside service
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
     vi.mocked(prisma.channelTranslation.updateMany).mockResolvedValue({ count: 0 } as any);
 
     const res = await POST(mockRequest({ name: "New Name", language: "cs" }), params);
@@ -220,7 +222,7 @@ describe("POST /api/channels/[slug]/translations", () => {
     const json = await res.json();
 
     expect(res.status).toBe(400);
-    expect(json.error).toBe("validation_error:language:required");
+    expect(json.error).toBe("validation_error:language:invalid_type");
   });
 
   it("returns 409 when name is taken by another channel", async () => {
@@ -254,5 +256,56 @@ describe("POST /api/channels/[slug]/translations", () => {
 
     expect(res.status).toBe(409);
     expect(json.error).toBe("name_taken");
+  });
+});
+
+describe("DELETE /api/channels/[slug]/translations", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("deletes a translation", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
+      id: "trans-cs", slug: "my-channel",
+      channel: { id: "ch-1" },
+    } as any);
+    vi.mocked(prisma.channelTranslation.count).mockResolvedValue(2);
+    vi.mocked(prisma.channelTranslation.deleteMany).mockResolvedValue({ count: 1 } as any);
+
+    const res = await DELETE(mockRequest({}, "http://localhost:3000/api/channels/my-channel/translations?language=cs"), { params: Promise.resolve({ slug: "my-channel" }) } as any);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(prisma.channelTranslation.deleteMany).toHaveBeenCalledWith({
+      where: { channelId: "ch-1", language: "cs" },
+    });
+  });
+
+  it("returns 400 when trying to delete the last translation", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
+      id: "trans-cs", slug: "my-channel",
+      channel: { id: "ch-1" },
+    } as any);
+    vi.mocked(prisma.channelTranslation.count).mockResolvedValue(1);
+
+    const res = await DELETE(mockRequest({}, "http://localhost:3000/api/channels/my-channel/translations?language=cs"), { params: Promise.resolve({ slug: "my-channel" }) } as any);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("cannot_remove_last_translation");
+    expect(prisma.channelTranslation.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 on missing language query param", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+
+    const res = await DELETE(mockRequest({}, "http://localhost:3000/api/channels/my-channel/translations"), { params: Promise.resolve({ slug: "my-channel" }) } as any);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("validation_error:language:required");
   });
 });
