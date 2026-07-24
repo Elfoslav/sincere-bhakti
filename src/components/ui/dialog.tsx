@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 
-const dialogActionsClassName = "flex gap-2 sm:flex-wrap sm:items-center sm:justify-end";
+const dialogActionsClassName = "flex gap-2 *:flex-1 sm:*:flex-none sm:flex-wrap sm:items-center sm:justify-end";
 const dialogActionButtonClassName = "flex-1 sm:flex-none sm:min-w-24";
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {

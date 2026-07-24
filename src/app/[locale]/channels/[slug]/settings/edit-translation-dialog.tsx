@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogClose, dialogActionButtonClassName } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { localeFlags } from "@/i18n/routing";
@@ -98,10 +98,11 @@ export default function EditTranslationDialog({
         </form>
 
         <DialogFooter>
-          <DialogClose render={<Button variant="outline">{t("cancel")}</Button>} />
+          <DialogClose render={<Button variant="outline" className={dialogActionButtonClassName}>{t("cancel")}</Button>} />
           <Button
             type="submit"
             form="translation-form"
+            className={dialogActionButtonClassName}
             disabled={submitting || !name.trim() || !language}
           >
             {submitting ? t("saving") : isEditing ? t("saveChanges") : t("addTranslation")}
