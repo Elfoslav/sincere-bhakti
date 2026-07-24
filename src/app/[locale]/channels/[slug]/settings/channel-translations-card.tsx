@@ -44,7 +44,7 @@ export default function ChannelTranslationsCard({
 
     if (!response.ok) {
       if (result.error === "name_taken") {
-        toast.error(t("translationsSaveError"));
+        toast.error(t("translationsNameTaken"));
         return false;
       }
       if (result.error === "rename_limit_reached") {

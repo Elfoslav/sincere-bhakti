@@ -269,6 +269,7 @@
 		"languageLabel": "Language",
 		"nameLabel": "Name",
 		"translationNamePlaceholder": "Channel name",
+		"translationsNameTaken": "A channel with this name already exists.",
 		"translationsSaveError": "Failed to save translation",
 		"translationsDeleteError": "Failed to remove translation",
 		"noTranslations": "No translations yet. Add one to make this channel visible in another language.",

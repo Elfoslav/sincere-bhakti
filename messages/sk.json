@@ -269,6 +269,7 @@
 		"languageLabel": "Jazyk",
 		"nameLabel": "Názov",
 		"translationNamePlaceholder": "Názov kanálu",
+		"translationsNameTaken": "Kanál s týmto názvom už existuje.",
 		"translationsSaveError": "Nepodarilo sa uložiť preklad",
 		"translationsDeleteError": "Nepodarilo sa odobrať preklad",
 		"noTranslations": "Zatiaľ žiadne preklady. Pridajte preklad, aby bol kanál viditeľný v ďalšom jazyku.",
