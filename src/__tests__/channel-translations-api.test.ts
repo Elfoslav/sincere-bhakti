@@ -11,6 +11,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       findFirst: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       create: vi.fn(),
       count: vi.fn(),
       deleteMany: vi.fn(),
@@ -26,12 +27,17 @@ vi.mock("@/lib/prisma", () => ({
       const outer = prisma;
       return cb({
         channel: {
+          findUnique: (...args: any[]) => (outer.channel.findUnique as any)(...args),
           updateMany: (...args: any[]) => (outer.channel.updateMany as any)(...args),
+        },
+        channelEditor: {
+          findUnique: (...args: any[]) => (outer.channelEditor.findUnique as any)(...args),
         },
         channelTranslation: {
           findFirst: (...args: any[]) => (outer.channelTranslation.findFirst as any)(...args),
           findUnique: (...args: any[]) => (outer.channelTranslation.findUnique as any)(...args),
           update: (...args: any[]) => (outer.channelTranslation.update as any)(...args),
+          updateMany: (...args: any[]) => (outer.channelTranslation.updateMany as any)(...args),
           create: (...args: any[]) => (outer.channelTranslation.create as any)(...args),
         },
         channelSlugHistory: {
@@ -90,7 +96,7 @@ describe("POST /api/channels/[slug]/translations", () => {
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "existing-trans", slug: "my-channel", language: "en",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, renameCount: 2 },
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false },
       } as any)
       .mockResolvedValueOnce(null as any);    // no existing translation → create
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
@@ -104,8 +110,8 @@ describe("POST /api/channels/[slug]/translations", () => {
     expect(res.status).toBe(201);
     expect(json.name).toBe("Můj kanál");
     expect(json.slug).toBe("muj-kanal");
-    expect(json.renameCount).toBe(2);
-    expect(prisma.channel.updateMany).not.toHaveBeenCalled();
+    expect(json.renameCount).toBe(0);
+    expect(prisma.channelTranslation.updateMany).not.toHaveBeenCalled();
   });
 
   it("updates an existing translation and increments renameCount when name changes", async () => {
@@ -113,12 +119,15 @@ describe("POST /api/channels/[slug]/translations", () => {
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "existing-trans", slug: "my-channel", language: "en",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, renameCount: 1 },
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false },
       } as any)
-      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Old Name", slug: "old-name" } as any) // existing translation
-      .mockResolvedValueOnce(null as any);    // slug not taken
+      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Old Name", slug: "old-name", renameCount: 1 } as any) // existing translation
+      .mockResolvedValueOnce(null as any)    // slug not taken
+      .mockResolvedValueOnce({ id: "trans-cs", normalizedName: "old name", previousNormalizedNames: [] } as any); // fetch prev names inside service
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channel.updateMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null); // owner check — not an editor
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
+    vi.mocked(prisma.channelTranslation.updateMany).mockResolvedValue({ count: 1 } as any);
     vi.mocked(prisma.channelTranslation.update).mockResolvedValue({
       id: "trans-cs", language: "cs", name: "New Name", slug: "new-name",
     } as any);
@@ -130,17 +139,13 @@ describe("POST /api/channels/[slug]/translations", () => {
     expect(json.name).toBe("New Name");
     expect(json.slug).toBe("new-name");
     expect(json.renameCount).toBe(2);
-    expect(prisma.channel.updateMany).toHaveBeenCalledWith(
+    expect(prisma.channelTranslation.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          id: "ch-1",
+        where: {
+          id: "trans-cs",
           renameCount: { lt: 3 },
-          OR: [
-            { ownerId: "user-1" },
-            { editors: { some: { userId: "user-1", role: CHANNEL_ROLE_ADMIN } } },
-          ],
-        }),
-        data: { renameCount: { increment: 1 } },
+        },
+        data: { renameCount: { increment: 1 }, name: "New Name", normalizedName: "new name", slug: "new-name", previousNormalizedNames: { push: ["old name"] } },
       }),
     );
   });
@@ -150,9 +155,9 @@ describe("POST /api/channels/[slug]/translations", () => {
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "existing-trans", slug: "my-channel", language: "en",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, renameCount: 2 },
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false },
       } as any)
-      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Same Name", slug: "same-name" } as any); // existing translation
+      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Same Name", slug: "same-name", renameCount: 2 } as any); // existing translation
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelTranslation.update).mockResolvedValue({
       id: "trans-cs", language: "cs", name: "Same Name", slug: "same-name",
@@ -163,7 +168,7 @@ describe("POST /api/channels/[slug]/translations", () => {
 
     expect(res.status).toBe(201);
     expect(json.renameCount).toBe(2);
-    expect(prisma.channel.updateMany).not.toHaveBeenCalled();
+    expect(prisma.channelTranslation.updateMany).not.toHaveBeenCalled();
   });
 
   it("returns 400 when rename limit is reached", async () => {
@@ -171,12 +176,14 @@ describe("POST /api/channels/[slug]/translations", () => {
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "existing-trans", slug: "my-channel", language: "en",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, renameCount: 3 },
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false },
       } as any)
-      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Old Name", slug: "old-name" } as any) // existing translation
-      .mockResolvedValueOnce(null as any);    // slug not taken
+      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Old Name", slug: "old-name", renameCount: 3 } as any) // existing translation
+      .mockResolvedValueOnce(null as any)    // slug not taken
+      .mockResolvedValueOnce({ id: "trans-cs", normalizedName: "old name", previousNormalizedNames: [] } as any); // fetch prev names inside service
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channel.updateMany).mockResolvedValue({ count: 0 } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
+    vi.mocked(prisma.channelTranslation.updateMany).mockResolvedValue({ count: 0 } as any);
 
     const res = await POST(mockRequest({ name: "New Name", language: "cs" }), params);
     const json = await res.json();
@@ -190,7 +197,7 @@ describe("POST /api/channels/[slug]/translations", () => {
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "existing-trans", slug: "my-channel", language: "en",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: true, renameCount: 0 },
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: true },
       } as any)
       .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Old Name", slug: "old-name" } as any); // existing translation
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
@@ -206,7 +213,7 @@ describe("POST /api/channels/[slug]/translations", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "existing-trans", slug: "my-channel",
-      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, renameCount: 0 },
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false },
     } as any);
 
     const res = await POST(mockRequest({ name: "Name" }), params);
@@ -220,7 +227,7 @@ describe("POST /api/channels/[slug]/translations", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValueOnce({
       id: "existing-trans", slug: "my-channel",
-      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, renameCount: 0 },
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false },
     } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue({ id: "taken" } as any);
 
@@ -236,7 +243,7 @@ describe("POST /api/channels/[slug]/translations", () => {
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "existing-trans", slug: "my-channel", language: "en",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, renameCount: 0 },
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false },
       } as any)
       .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Old Name", slug: "old-name" } as any) // existing translation
       .mockResolvedValueOnce({ id: "some-other-trans" } as any); // slug held by another row → real collision

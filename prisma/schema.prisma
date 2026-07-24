@@ -46,13 +46,15 @@ model Channel {
 }
 
 model ChannelTranslation {
-  id             String   @id @default(cuid())
-  channelId      String
-  language       String
-  name           String
-  normalizedName String   @unique
-  slug           String   @unique
-  channel        Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  id                       String   @id @default(cuid())
+  channelId                String
+  language                 String
+  name                     String
+  normalizedName           String   @unique
+  renameCount              Int      @default(0)
+  previousNormalizedNames  String[] @default([])
+  slug                     String   @unique
+  channel                  Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   @@unique([channelId, language])
   @@index([language])

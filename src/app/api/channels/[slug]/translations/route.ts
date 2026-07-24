@@ -23,7 +23,7 @@ export async function POST(
     const translation = await prisma.channelTranslation.findUnique({
       where: { slug },
       include: {
-        channel: { select: { id: true, ownerId: true, isPersonal: true, renameCount: true } },
+        channel: { select: { id: true, ownerId: true, isPersonal: true } },
       },
     });
     if (!translation) {
@@ -31,7 +31,6 @@ export async function POST(
     }
 
     const channelId = translation.channel.id;
-    const channelInfo = translation.channel;
     if (!await canManageChannelSettings(channelId, session.user.id)) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
@@ -68,11 +67,11 @@ export async function POST(
             language: existingTranslation.language,
             name: existingTranslation.name,
             slug: existingTranslation.slug,
-            renameCount: channelInfo.renameCount,
+            renameCount: existingTranslation.renameCount,
           };
         }
 
-        if (channelInfo.isPersonal) {
+        if (translation.channel.isPersonal) {
           throw new Error("cannot_rename_personal_channel");
         }
 
@@ -85,7 +84,7 @@ export async function POST(
           newSlug,
           normalizedNewName: normalizedTarget,
           translationId: existingTranslation.id,
-          currentRenameCount: channelInfo.renameCount,
+          currentRenameCount: existingTranslation.renameCount,
         });
 
         if (typeof result === "string") {
@@ -106,7 +105,7 @@ export async function POST(
         language: created.language,
         name: created.name,
         slug: created.slug,
-        renameCount: channelInfo.renameCount,
+        renameCount: 0,
       };
     });
 

@@ -36,6 +36,7 @@ export interface ChannelSettingsTranslation {
   language: string;
   name: string;
   slug: string;
+  renameCount: number;
 }
 
 export interface ChannelSettings {

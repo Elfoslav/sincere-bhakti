@@ -16,18 +16,15 @@ import EditTranslationDialog from "./edit-translation-dialog";
 export default function ChannelTranslationsCard({
   translations: initialTranslations,
   channelSlug,
-  renameCount: initialRenameCount,
   isPersonal,
 }: {
   translations: ChannelSettingsTranslation[];
   channelSlug: string;
-  renameCount: number;
   isPersonal: boolean;
 }) {
   const t = useTranslations("ChannelSettingsPage");
   const common = useTranslations("Common");
   const [translations, setTranslations] = useState<ChannelSettingsTranslation[]>(initialTranslations);
-  const [renameCount, setRenameCount] = useState(initialRenameCount);
   const [editing, setEditing] = useState<ChannelSettingsTranslation | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [deletingTranslation, setDeletingTranslation] = useState<ChannelSettingsTranslation | null>(null);
@@ -35,7 +32,6 @@ export default function ChannelTranslationsCard({
 
   const usedLanguages = new Set(translations.map((tr) => tr.language));
   const availableLocales = locales.filter((loc) => !usedLanguages.has(loc));
-  const renameLocked = renameCount >= MAX_RENAME_COUNT;
 
   // The `channelSlug` prop is the page-locale slug at load time; renaming that
   // translation moves its slug to history, so reusing the prop would 404 the
@@ -70,11 +66,10 @@ export default function ChannelTranslationsCard({
 
     setTranslations((current) => {
       if (existingId) {
-        return current.map((tr) => (tr.id === existingId ? { id: result.id, language: result.language, name: result.name, slug: result.slug } : tr));
+        return current.map((tr) => (tr.id === existingId ? { id: result.id, language: result.language, name: result.name, slug: result.slug, renameCount: result.renameCount } : tr));
       }
-      return [...current, { id: result.id, language: result.language, name: result.name, slug: result.slug }];
+      return [...current, { id: result.id, language: result.language, name: result.name, slug: result.slug, renameCount: result.renameCount }];
     });
-    setRenameCount(result.renameCount);
     toast.success(existingId ? t("translationUpdated") : t("translationAdded"));
     return true;
   }
@@ -119,9 +114,9 @@ export default function ChannelTranslationsCard({
           <div className="min-w-0 flex-1">
             <Heading as="h2" className="text-lg">{t("translationsTitle")}</Heading>
             <p className="text-sm text-deep/50">{t("translationsSubtitle")}</p>
-            {!isPersonal && (
+            {!isPersonal && Object.keys(localeFlags).length > 0 && (
               <p className="mt-1 text-xs text-deep/40">
-                {common("renameCountInfo")} {common("renameCount", { count: renameCount, max: MAX_RENAME_COUNT })}
+                {common("renameCountInfo")}
               </p>
             )}
           </div>
@@ -144,12 +139,17 @@ export default function ChannelTranslationsCard({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-deep">{tr.name}</p>
                   <p className="text-xs text-deep/40">/{tr.slug}</p>
+                  {!isPersonal && (
+                    <p className="mt-0.5 text-xs text-deep/40">
+                      {common("renameCount", { count: tr.renameCount, max: MAX_RENAME_COUNT })}
+                    </p>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   aria-label={t("editTranslation")}
-                  disabled={renameLocked}
+                  disabled={tr.renameCount >= MAX_RENAME_COUNT}
                   onClick={() => setEditing(tr)}
                 >
                   <Pencil className="size-4" />
@@ -186,7 +186,7 @@ export default function ChannelTranslationsCard({
         <EditTranslationDialog
           translation={editing}
           availableLocales={showAdd ? availableLocales : []}
-          renameCount={renameCount}
+          renameCount={editing?.renameCount ?? 0}
           onSave={handleSave}
           onClose={() => {
             setShowAdd(false);

@@ -395,7 +395,7 @@ export async function getChannelSettingsBySlug(
 
   const allTranslations = await prisma.channelTranslation.findMany({
     where: { channelId: channel.id },
-    select: { id: true, language: true, name: true, slug: true },
+    select: { id: true, language: true, name: true, slug: true, renameCount: true },
   });
 
   const resolved = resolveTranslation(allTranslations, language) ?? translation;
@@ -752,26 +752,56 @@ export async function renameChannelTranslation(
   });
   if (historySlugTaken) return "name_taken";
 
-  // Increment renameCount with ownership guard
-  const result = await tx.channel.updateMany({
-    where: {
-      id: channelId,
-      renameCount: { lt: MAX_RENAME_COUNT },
-      OR: [
-        { ownerId: userId },
-        { editors: { some: { userId, role: CHANNEL_ROLE_ADMIN } } },
-      ],
-    },
-    data: { renameCount: { increment: 1 } },
+  // Check ownership
+  const channel = await tx.channel.findUnique({
+    where: { id: channelId },
+    select: { ownerId: true },
   });
+  if (!channel) return "limit_reached";
 
-  if (result.count === 0) return "limit_reached";
+  const isOwner = channel.ownerId === userId;
+  if (!isOwner) {
+    const editor = await tx.channelEditor.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+      select: { role: true },
+    });
+    if (!editor || editor.role !== CHANNEL_ROLE_ADMIN) return "limit_reached";
+  }
 
-  // Update the translation
-  await tx.channelTranslation.update({
+  // Check if this normalized name was used before for this translation
+  const prev = await tx.channelTranslation.findUnique({
     where: { id: translationId },
-    data: { name: newName, normalizedName: normalizedNewName, slug: newSlug },
+    select: { previousNormalizedNames: true, normalizedName: true },
   });
+  if (!prev) return "limit_reached";
+
+  const nameWasUsedBefore = prev.previousNormalizedNames.includes(normalizedNewName);
+
+  if (nameWasUsedBefore) {
+    // Reverting to a previously used name — don't count the rename
+    await tx.channelTranslation.update({
+      where: { id: translationId },
+      data: {
+        name: newName,
+        normalizedName: normalizedNewName,
+        slug: newSlug,
+        previousNormalizedNames: { push: [prev.normalizedName] },
+      },
+    });
+  } else {
+    // Genuinely new name — increment rename count (with limit guard)
+    const result = await tx.channelTranslation.updateMany({
+      where: { id: translationId, renameCount: { lt: MAX_RENAME_COUNT } },
+      data: {
+        renameCount: { increment: 1 },
+        name: newName,
+        normalizedName: normalizedNewName,
+        slug: newSlug,
+        previousNormalizedNames: { push: [prev.normalizedName] },
+      },
+    });
+    if (result.count === 0) return "limit_reached";
+  }
 
   // Record old slug so it cannot be reclaimed by other channels
   if (newSlug !== oldSlug) {
@@ -790,6 +820,6 @@ export async function renameChannelTranslation(
     id: translationId,
     name: newName,
     slug: newSlug,
-    renameCount: currentRenameCount + 1,
+    renameCount: nameWasUsedBefore ? currentRenameCount : currentRenameCount + 1,
   };
 }

@@ -48,7 +48,7 @@ export async function PATCH(
       where: { slug },
       include: {
         channel: {
-          select: { id: true, ownerId: true, isPersonal: true, avatarUrl: true, renameCount: true, defaultLanguage: true },
+          select: { id: true, ownerId: true, isPersonal: true, avatarUrl: true, defaultLanguage: true },
         },
       },
     });
@@ -85,7 +85,7 @@ export async function PATCH(
         slug: currentSlug,
         avatarUrl: channel.avatarUrl,
         ownerId: channel.ownerId,
-        renameCount: channel.renameCount,
+        renameCount: translation.renameCount,
       });
     }
 
@@ -94,7 +94,7 @@ export async function PATCH(
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
-    if (channel.renameCount >= MAX_RENAME_COUNT) {
+    if (translation.renameCount >= MAX_RENAME_COUNT) {
       return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
 
@@ -114,7 +114,7 @@ export async function PATCH(
       newSlug,
       normalizedNewName: normalizedTarget,
       translationId: translation.id,
-      currentRenameCount: channel.renameCount,
+      currentRenameCount: translation.renameCount,
     }));
 
     if (updated === "name_taken") {

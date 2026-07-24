@@ -17,6 +17,7 @@ vi.mock("@/lib/prisma", () => ({
       findFirst: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       findMany: vi.fn(),
       upsert: vi.fn(),
     },
@@ -44,6 +45,7 @@ vi.mock("@/lib/prisma", () => ({
           findFirst: (...args: any[]) => (outer.channelTranslation.findFirst as any)(...args),
           findUnique: (...args: any[]) => (outer.channelTranslation.findUnique as any)(...args),
           update: (...args: any[]) => (outer.channelTranslation.update as any)(...args),
+          updateMany: (...args: any[]) => (outer.channelTranslation.updateMany as any)(...args),
           findMany: (...args: any[]) => (outer.channelTranslation.findMany as any)(...args),
           upsert: (...args: any[]) => (outer.channelTranslation.upsert as any)(...args),
         },
@@ -473,14 +475,15 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
-        id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 0, defaultLanguage: "en" },
+        id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1", renameCount: 0,
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
       } as any)
-      .mockResolvedValueOnce(null as any);
+      .mockResolvedValueOnce(null as any)
+      .mockResolvedValueOnce({ id: "trans-1", normalizedName: "old name", previousNormalizedNames: [] } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channel.updateMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(prisma.channelTranslation.updateMany).mockResolvedValue({ count: 1 } as any);
     vi.mocked(prisma.channelTranslation.update).mockResolvedValue({} as any);
     vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
 
@@ -490,17 +493,13 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("New Name");
     expect(json.slug).toBe("new-name");
-    expect(prisma.channel.updateMany).toHaveBeenCalledWith(
+    expect(prisma.channelTranslation.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          id: "ch-1",
+          id: "trans-1",
           renameCount: { lt: 3 },
-          OR: [
-            { ownerId: "user-1" },
-            { editors: { some: { userId: "user-1", role: CHANNEL_ROLE_ADMIN } } },
-          ],
         },
-        data: { renameCount: { increment: 1 } },
+        data: { renameCount: { increment: 1 }, name: "New Name", normalizedName: "new name", slug: "new-name", previousNormalizedNames: { push: ["old name"] } },
       }),
     );
     expect(prisma.channelSlugHistory.create).toHaveBeenCalledWith(
@@ -512,15 +511,16 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "admin-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
-        id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1",
-        channel: { id: "ch-1", ownerId: "owner-1", isPersonal: false, avatarUrl: null, renameCount: 0, defaultLanguage: "en" },
+        id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1", renameCount: 0,
+        channel: { id: "ch-1", ownerId: "owner-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
       } as any)
-      .mockResolvedValueOnce(null as any);
+      .mockResolvedValueOnce(null as any)
+      .mockResolvedValueOnce({ id: "trans-1", normalizedName: "old name", previousNormalizedNames: [] } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as any);
     vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_ADMIN } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channel.updateMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(prisma.channelTranslation.updateMany).mockResolvedValue({ count: 1 } as any);
     vi.mocked(prisma.channelTranslation.update).mockResolvedValue({} as any);
     vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
 
@@ -539,8 +539,8 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
-        id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: "https://example.com/avatar.png", renameCount: 1, defaultLanguage: "en" },
+        id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1", renameCount: 1,
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: "https://example.com/avatar.png", defaultLanguage: "en" },
       } as any)
       .mockResolvedValueOnce(null as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
@@ -553,15 +553,15 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(json.slug).toBe("old-name");
     expect(json.avatarUrl).toBe("https://example.com/avatar.png");
     expect(json.renameCount).toBe(1);
-    expect(prisma.channel.updateMany).not.toHaveBeenCalled();
+    expect(prisma.channelTranslation.updateMany).not.toHaveBeenCalled();
     expect(prisma.channelSlugHistory.create).not.toHaveBeenCalled();
   });
 
   it("returns 200 for an unchanged brand name even after the rename cap is reached", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "someone@example.com" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
-      id: "trans-1", language: "en", name: "Sincere Bhakti", slug: "sincere-bhakti", normalizedName: "sincere bhakti", channelId: "ch-1",
-      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: MAX_RENAME_COUNT, defaultLanguage: "en" },
+      id: "trans-1", language: "en", name: "Sincere Bhakti", slug: "sincere-bhakti", normalizedName: "sincere bhakti", channelId: "ch-1", renameCount: MAX_RENAME_COUNT,
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
     } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
 
@@ -571,7 +571,7 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("Sincere Bhakti");
     expect(json.renameCount).toBe(MAX_RENAME_COUNT);
-    expect(prisma.channel.updateMany).not.toHaveBeenCalled();
+    expect(prisma.channelTranslation.updateMany).not.toHaveBeenCalled();
     expect(prisma.channelSlugHistory.create).not.toHaveBeenCalled();
   });
 
@@ -579,14 +579,15 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
-        id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 2, defaultLanguage: "en" },
+        id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1", renameCount: 2,
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
       } as any)
-      .mockResolvedValueOnce(null as any);
+      .mockResolvedValueOnce(null as any)
+      .mockResolvedValueOnce({ id: "trans-1", normalizedName: "old name", previousNormalizedNames: [] } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channel.updateMany).mockResolvedValue({ count: 0 } as any);
+    vi.mocked(prisma.channelTranslation.updateMany).mockResolvedValue({ count: 0 } as any);
     vi.mocked(prisma.channelTranslation.update).mockResolvedValue({} as any);
 
     const res = await PATCH(mockRequest({ name: "New Name" }), params);
@@ -600,8 +601,8 @@ describe("PATCH /api/channels/[slug]", () => {
   it("returns 200 without incrementing count when name differs only by case", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
-      id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1",
-      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 1, defaultLanguage: "en" },
+      id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1", renameCount: 1,
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
     } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
 
@@ -611,7 +612,7 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(res.status).toBe(200);
     expect(json.name).toBe("Old Name");
     expect(json.renameCount).toBe(1);
-    expect(prisma.channel.updateMany).not.toHaveBeenCalled();
+    expect(prisma.channelTranslation.updateMany).not.toHaveBeenCalled();
     expect(prisma.channelSlugHistory.create).not.toHaveBeenCalled();
   });
 
@@ -630,7 +631,7 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-2" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "trans-1", language: "en", name: "Old", slug: "my-channel", normalizedName: "old", channelId: "ch-1",
-      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 0, defaultLanguage: "en" },
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
     } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
     vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
@@ -667,7 +668,7 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "trans-1", language: "en", name: "Old", slug: "my-channel", normalizedName: "old", channelId: "ch-1",
-      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 0, defaultLanguage: "en" },
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
     } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
 
@@ -682,7 +683,7 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "trans-1", language: "en", name: "Personal", slug: "personal-channel", normalizedName: "personal", channelId: "ch-1",
-      channel: { id: "ch-1", ownerId: "user-1", isPersonal: true, avatarUrl: null, renameCount: 0, defaultLanguage: "en" },
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: true, avatarUrl: null, defaultLanguage: "en" },
     } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
 
@@ -701,13 +702,14 @@ describe("PATCH /api/channels/[slug]", () => {
       vi.mocked(prisma.channelTranslation.findUnique)
         .mockResolvedValueOnce({
           id: "trans-1", language: "en", name: "Old", slug: "my-channel", normalizedName: "old", channelId: "ch-1",
-          channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 0, defaultLanguage: "en" },
+          channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
         } as any)
-        .mockResolvedValueOnce(null as any);
+        .mockResolvedValueOnce(null as any)
+        .mockResolvedValueOnce({ id: "trans-1", normalizedName: "old", previousNormalizedNames: [] } as any);
       vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
       vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
-      vi.mocked(prisma.channel.updateMany).mockResolvedValue({ count: 1 } as any);
+      vi.mocked(prisma.channelTranslation.updateMany).mockResolvedValue({ count: 1 } as any);
       vi.mocked(prisma.channelTranslation.update).mockResolvedValue({} as any);
       vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
 
@@ -726,7 +728,7 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "trans-1", language: "en", name: "Old", slug: "my-channel", normalizedName: "old", channelId: "ch-1",
-      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 0, defaultLanguage: "en" },
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
     } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue({ id: "ch-2-trans" } as any);
@@ -745,7 +747,7 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "trans-1", language: "en", name: "Old", slug: "my-channel", normalizedName: "old", channelId: "ch-1",
-      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 0, defaultLanguage: "en" },
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
     } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
 
@@ -776,13 +778,14 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "trans-1", language: "en", name: "Old", slug: "my-channel", normalizedName: "old", channelId: "ch-1",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 0, defaultLanguage: "en" },
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
       } as any)
-      .mockResolvedValueOnce(null as any);
+      .mockResolvedValueOnce(null as any)
+      .mockResolvedValueOnce({ id: "trans-1", normalizedName: "old", previousNormalizedNames: [] } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channel.updateMany).mockRejectedValue(new Error("DB down"));
+    vi.mocked(prisma.channelTranslation.updateMany).mockRejectedValue(new Error("DB down"));
 
     const res = await PATCH(mockRequest({ name: "New" }), params);
     const json = await res.json();
@@ -795,17 +798,18 @@ describe("PATCH /api/channels/[slug]", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
-        id: "trans-1", language: "en", name: "A", slug: "a", normalizedName: "a", channelId: "ch-1",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 1, defaultLanguage: "en" },
+        id: "trans-1", language: "en", name: "A", slug: "a", normalizedName: "a", channelId: "ch-1", renameCount: 1,
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
       } as any)
-      .mockResolvedValueOnce(null as any);
+      .mockResolvedValueOnce(null as any)
+      .mockResolvedValueOnce({ id: "trans-1", normalizedName: "a", previousNormalizedNames: [] } as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ id: "hist-1" } as any);
-    vi.mocked(prisma.channel.updateMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(prisma.channelTranslation.updateMany).mockResolvedValue({ count: 1 } as any);
     vi.mocked(prisma.channelTranslation.update).mockResolvedValue({} as any);
 
     const res = await PATCH(mockRequest({ name: "Ca" }), params);
@@ -816,9 +820,9 @@ describe("PATCH /api/channels/[slug]", () => {
     expect(prisma.channelSlugHistory.create).not.toHaveBeenCalled();
   });
 
-  it("rolls back renameCount increment when channelTranslation.update fails inside the transaction", async () => {
-    const updateManySpy = vi.mocked(prisma.channel.updateMany);
-    const translationUpdateSpy = vi.mocked(prisma.channelTranslation.update);
+  it("rolls back renameCount increment when channelSlugHistory.create fails inside the transaction", async () => {
+    const updateManySpy = vi.mocked(prisma.channelTranslation.updateMany);
+    const slugHistoryCreateSpy = vi.mocked(prisma.channelSlugHistory.create);
 
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     const findUniqueSpy = vi.mocked(prisma.channelTranslation.findUnique);
@@ -827,25 +831,24 @@ describe("PATCH /api/channels/[slug]", () => {
       findUniqueCallCount++;
       if (findUniqueCallCount === 1) {
         return Promise.resolve({
-          id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1",
-          channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, renameCount: 1, defaultLanguage: "en" },
+          id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1", renameCount: 1,
+          channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
         } as any);
       }
-      return Promise.resolve(null as any);
+      if (findUniqueCallCount === 2) return Promise.resolve(null as any); // slug not taken
+      return Promise.resolve({ id: "trans-1", normalizedName: "old name", previousNormalizedNames: [] } as any);
     }) as any);
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
 
-    // channel.updateMany succeeds, but channelTranslation.update throws
+    // updateMany succeeds, but slugHistory.create throws → transaction rolls back
     updateManySpy.mockResolvedValue({ count: 1 } as any);
-    translationUpdateSpy.mockRejectedValue(new Error("DB failure"));
+    slugHistoryCreateSpy.mockRejectedValue(new Error("DB failure"));
 
     const res = await PATCH(mockRequest({ name: "New Name" }), params);
     expect(res.status).toBe(500);
-    // Both were called inside the transaction, but Prisma rolls back
-    // the entire transaction on any throw:
     expect(updateManySpy).toHaveBeenCalled();
-    expect(translationUpdateSpy).toHaveBeenCalled();
+    expect(slugHistoryCreateSpy).toHaveBeenCalled();
   });
 });
