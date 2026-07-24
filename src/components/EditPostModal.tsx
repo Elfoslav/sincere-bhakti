@@ -120,7 +120,6 @@ export default function EditPostModal({
               post={previewPost}
               currentUserId={post.channel.ownerId}
               hideEdit
-              hideExternalLink
             />
 
             <DialogActions className="mt-4 border-t border-sand pt-4">

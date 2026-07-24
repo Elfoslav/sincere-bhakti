@@ -80,7 +80,6 @@ function EditPostHarnessContent() {
         currentUserId={TEST_USER_ID}
         manageableChannelIds={[post.channel.id]}
         onEdit={setEditingPostId}
-        hideExternalLink
       />
       <EditPostModal
         post={editingPostId ? post : null}

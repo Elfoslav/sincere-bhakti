@@ -20,10 +20,9 @@ export default function PostLayout({
           { label: postsT("title"), href: "/posts" },
           { label: title },
         ]}
-        className="mb-4"
+        className="mb-6"
+        lastClassName="text-lg"
       />
-
-      <h1 className="mb-6 text-2xl font-bold text-deep">{title}</h1>
 
       {children}
     </div>

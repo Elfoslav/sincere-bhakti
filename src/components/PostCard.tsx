@@ -120,14 +120,13 @@ export default function PostCard({
               icon={<Trash2 />}
             />
           )}
-          {hideExternalLink ? (
-            <Button
-              onClick={handleCopyLink}
-              title={t("copyLink")}
-              aria-label={t("copyLink")}
-              icon={<LinkIcon />}
-            />
-          ) : (
+          <Button
+            onClick={handleCopyLink}
+            title={t("copyLink")}
+            aria-label={t("copyLink")}
+            icon={<LinkIcon />}
+          />
+          {!hideExternalLink && (
             <Button
               href={`/posts/${post.id}`}
               title={t("openPost")}

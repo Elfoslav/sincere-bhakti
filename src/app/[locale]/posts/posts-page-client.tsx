@@ -63,7 +63,12 @@ export default function PostsPageClient({
 
 	const handleEditSuccess = useCallback((updatedPost: Post) => {
 		setMyPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
-		setPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+		setPosts((prev) => {
+			if (updatedPost.isPublic) {
+				return prev.map((p) => (p.id === updatedPost.id ? updatedPost : p));
+			}
+			return prev.filter((p) => p.id !== updatedPost.id);
+		});
 		setEditingPost(null);
 	}, [setMyPosts, setPosts]);
 
