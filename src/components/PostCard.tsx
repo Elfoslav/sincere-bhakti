@@ -300,16 +300,33 @@ function ActionsRow({
             />
             {showMobileActions && (
               <div className="absolute right-0 top-full mt-1 z-50 w-max min-w-28 rounded-lg border border-sand bg-white py-1 shadow-lg">
-                {allActions.map((a) => (
-                  <button
-                    key={a.key}
-                    onClick={() => { setShowMobileActions(false); a.onAction?.(); }}
-                    className="flex w-full items-center gap-2.5 whitespace-nowrap border-b border-sand/50 px-3 py-1.5 text-sm text-deep last:border-b-0 hover:bg-sand/40"
-                  >
-                    <span className="size-4 shrink-0 text-deep/40 [&>svg]:size-4">{a.icon}</span>
-                    {a.dropdownLabel}
-                  </button>
-                ))}
+                {allActions.map((a) => {
+                  const itemClassName = "flex w-full items-center gap-2.5 whitespace-nowrap border-b border-sand/50 px-3 py-1.5 text-sm text-deep last:border-b-0 hover:bg-sand/40";
+                  const itemContent = (
+                    <>
+                      <span className="size-4 shrink-0 text-deep/40 [&>svg]:size-4">{a.icon}</span>
+                      {a.dropdownLabel}
+                    </>
+                  );
+                  return a.href ? (
+                    <Link
+                      key={a.key}
+                      href={a.href}
+                      onClick={() => setShowMobileActions(false)}
+                      className={itemClassName}
+                    >
+                      {itemContent}
+                    </Link>
+                  ) : (
+                    <button
+                      key={a.key}
+                      onClick={() => { setShowMobileActions(false); a.onAction?.(); }}
+                      className={itemClassName}
+                    >
+                      {itemContent}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
