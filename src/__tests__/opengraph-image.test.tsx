@@ -111,7 +111,7 @@ describe("post opengraph image", () => {
     // Logo fetch fails → plain ivory canvas; no network needed in tests.
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
 
-    const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
+    const response = await Image({ params: Promise.resolve({ locale: "en", shortId: "post-1" }) });
 
     expect(checkRateLimit).toHaveBeenCalledWith("read-post-og-image", "203.0.113.10", 240, 60_000);
     expect(getCachedPostById).not.toHaveBeenCalled();
@@ -127,7 +127,7 @@ describe("post opengraph image", () => {
     vi.mocked(getCachedPostById).mockResolvedValue(null as any);
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
 
-    const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
+    const response = await Image({ params: Promise.resolve({ locale: "en", shortId: "post-1" }) });
 
     expect(getCachedPostById).toHaveBeenCalledWith("post-1", "en");
     await expectJpegResponse(response);
@@ -147,7 +147,7 @@ describe("post opengraph image", () => {
     } as any);
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("upstream down"));
 
-    const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
+    const response = await Image({ params: Promise.resolve({ locale: "en", shortId: "post-1" }) });
 
     await expectJpegResponse(response);
     // A transient blip must not pin the logo fallback on a real post's card.
@@ -176,7 +176,7 @@ describe("post opengraph image", () => {
       }),
     );
 
-    const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
+    const response = await Image({ params: Promise.resolve({ locale: "en", shortId: "post-1" }) });
 
     await expectJpegResponse(response);
     // Mutable user photo: bounded TTL, no day-long stale-while-revalidate, so a

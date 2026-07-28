@@ -369,6 +369,30 @@ describe("createPost", () => {
 
     expect(post.content).toBe("Hare Krishna!");
   });
+
+  it("regenerates the shortId and retries on a shortId collision", async () => {
+    const collision = Object.assign(new Error("unique"), { code: "P2002", meta: { target: ["shortId"] } });
+    vi.mocked(prisma.post.create).mockReset();
+    vi.mocked(prisma.post.create)
+      .mockRejectedValueOnce(collision)
+      .mockResolvedValueOnce(mockPost as any);
+
+    const post = await createPost({ content: "Hare Krishna!", channelId: "channel-1" }, "user-1");
+
+    expect(post.content).toBe("Hare Krishna!");
+    expect(prisma.post.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws a conflict (no retry) on a client-supplied id collision", async () => {
+    const collision = Object.assign(new Error("unique"), { code: "P2002", meta: { target: ["id"] } });
+    vi.mocked(prisma.post.create).mockReset();
+    vi.mocked(prisma.post.create).mockRejectedValue(collision);
+
+    await expect(
+      createPost({ id: "fixed-id", content: "Hello", channelId: "channel-1" }, "user-1"),
+    ).rejects.toThrow("post_id_collision");
+    expect(prisma.post.create).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("deletePost", () => {

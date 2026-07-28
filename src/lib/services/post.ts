@@ -264,6 +264,10 @@ async function validateMediaOwnership(
   }
 }
 
+// How many times to regenerate a colliding server-generated shortId before
+// giving up (a collision on an 8-hex id is already very unlikely).
+const MAX_SHORT_ID_ATTEMPTS = 5;
+
 export async function createPost(
   data: CreatePostData,
   userId: string,
@@ -292,34 +296,46 @@ export async function createPost(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let rawPost: any;
-  try {
-    rawPost = await prisma.post.create({
-      data: {
-        ...(id ? { id } : {}),
-        shortId: generateShortId(),
-        slug: derivePostSlug(content),
-        content: content || null,
-        isPublic,
-        language,
-        channelId,
-        media: {
-          create: media.map((m, i) => ({
-            url: m.url,
-            type: m.type,
-            position: i,
-            width: m.width ?? null,
-            height: m.height ?? null,
-            userId,
-          })),
+  // shortId is a server-generated 8-char id on a UNIQUE column. A collision is
+  // rare but possible, so regenerate and retry a bounded number of times rather
+  // than failing the user's post. A collision on a client-supplied `id` (or
+  // exhausted retries) surfaces as a conflict.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      rawPost = await prisma.post.create({
+        data: {
+          ...(id ? { id } : {}),
+          shortId: generateShortId(),
+          slug: derivePostSlug(content),
+          content: content || null,
+          isPublic,
+          language,
+          channelId,
+          media: {
+            create: media.map((m, i) => ({
+              url: m.url,
+              type: m.type,
+              position: i,
+              width: m.width ?? null,
+              height: m.height ?? null,
+              userId,
+            })),
+          },
         },
-      },
-      include: postInclude,
-    });
-  } catch (error) {
-    if ((error as { code?: string })?.code === "P2002") {
-      throw new ConflictError("post_id_collision");
+        include: postInclude,
+      });
+      break;
+    } catch (error) {
+      if ((error as { code?: string })?.code === "P2002") {
+        const target = (error as { meta?: { target?: string[] | string } }).meta?.target;
+        const onShortId = Array.isArray(target)
+          ? target.includes("shortId")
+          : typeof target === "string" && target.includes("shortId");
+        if (onShortId && attempt < MAX_SHORT_ID_ATTEMPTS) continue;
+        throw new ConflictError("post_id_collision");
+      }
+      throw error;
     }
-    throw error;
   }
 
   // Remove PendingUpload records for the newly created media

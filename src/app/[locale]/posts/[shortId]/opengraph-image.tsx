@@ -101,9 +101,9 @@ async function logoFallback(
 export default async function Image({
   params,
 }: {
-  params: Promise<{ locale: string; id: string }>;
+  params: Promise<{ locale: string; shortId: string }>;
 }) {
-  const { id, locale } = await params;
+  const { shortId, locale } = await params;
   const siteUrl = getSiteUrl();
   const ip = getClientIp(await headers());
 
@@ -111,7 +111,18 @@ export default async function Image({
     return logoFallback(siteUrl, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL);
   }
 
-  const post = await getCachedPostByShortId(id, locale) ?? await getCachedPostById(id, locale);
+  // Resolve by shortId (the URL segment), falling back to the legacy internal id
+  // for old /posts/{id} preview URLs. Guarded: a missing/undefined param or a
+  // lookup error must never throw here — OG routes return the logo fallback,
+  // never a 500 (crawlers cache failures for weeks).
+  let post = null;
+  if (shortId) {
+    try {
+      post = await getCachedPostByShortId(shortId, locale) ?? await getCachedPostById(shortId, locale);
+    } catch {
+      post = null;
+    }
+  }
 
   // Post image available: show it full-bleed with nothing layered on top.
   // Otherwise (no post, private, no image, or fetch failed): logo fallback.
