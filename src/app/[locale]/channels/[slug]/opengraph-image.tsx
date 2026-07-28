@@ -30,7 +30,7 @@ export default async function Image({
     return new ImageResponse(<OgImageTemplate eyebrow={t("channelLabel")} title="Sincere Bhakti" />, rateLimitedInit);
   }
 
-  const channel = await getCachedChannelBySlug(slug);
+  const channel = await getCachedChannelBySlug(slug, locale);
   if (!channel) {
     return new ImageResponse(<OgImageTemplate eyebrow={t("channelLabel")} title="Sincere Bhakti" />, fallbackInit);
   }

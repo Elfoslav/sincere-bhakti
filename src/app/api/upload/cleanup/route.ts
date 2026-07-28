@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { prisma } from "@/lib/prisma";
 import { canonicalizeUrl } from "@/lib/url";
-import { validateOrigin } from "@/lib/csrf";
-import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
+import { RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-log";
 import { isSafeHttpUrl } from "@/lib/validation";
-import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
-import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { requireAuth } from "@/lib/require-auth";
+import { serverError } from "@/lib/error-handlers";
+import { ERROR_FORBIDDEN, ERROR_UNAUTHORIZED } from "@/lib/error-messages";
+import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST, HTTP_UNAUTHORIZED } from "@/lib/error-codes";
 import { z } from "zod";
 
 const cleanupSchema = z.object({
@@ -16,20 +16,9 @@ const cleanupSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  if (!validateOrigin(request)) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    if (!await checkRateLimit(RATE_LIMIT_PREFIX.upload, session.user.id, RATE_LIMITS.upload.limit, RATE_LIMITS.upload.windowMs)) {
-      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
-    }
-  }
+  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.upload, RATE_LIMITS.upload, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED, skipRateLimit: process.env.NODE_ENV !== "production" });
+  if (auth.response) return auth.response;
+  const session = auth.session;
 
   // Tidy expired PendingUpload rows (1h TTL) so the table doesn't grow unboundedly.
   await prisma.pendingUpload.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch((err) => logServerError("PendingUpload cleanup failed", err));
@@ -95,7 +84,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, deleted: abandoned.length });
   } catch (error) {
-    logServerError("POST /api/upload/cleanup failed", error);
-    return NextResponse.json({ error: "cleanup_failed" }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return serverError("POST /api/upload/cleanup", error, "cleanup_failed");
   }
 }

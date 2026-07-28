@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import sharp from "sharp";
-import { getCachedPostById } from "@/lib/services/post";
+import { getCachedPostById, getCachedPostByShortId } from "@/lib/services/post";
 import { getSiteUrl } from "@/lib/url";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { POST_OG_IMAGE, OG_POST_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL, OG_IMAGE_TRANSIENT_CACHE_CONTROL } from "@/lib/seo";
@@ -101,9 +101,9 @@ async function logoFallback(
 export default async function Image({
   params,
 }: {
-  params: Promise<{ locale: string; id: string }>;
+  params: Promise<{ locale: string; shortId: string }>;
 }) {
-  const { id } = await params;
+  const { shortId, locale } = await params;
   const siteUrl = getSiteUrl();
   const ip = getClientIp(await headers());
 
@@ -111,7 +111,18 @@ export default async function Image({
     return logoFallback(siteUrl, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL);
   }
 
-  const post = await getCachedPostById(id);
+  // Resolve by shortId (the URL segment), falling back to the legacy internal id
+  // for old /posts/{id} preview URLs. Guarded: a missing/undefined param or a
+  // lookup error must never throw here — OG routes return the logo fallback,
+  // never a 500 (crawlers cache failures for weeks).
+  let post: Awaited<ReturnType<typeof getCachedPostByShortId>> = null;
+  if (shortId) {
+    try {
+      post = await getCachedPostByShortId(shortId, locale) ?? await getCachedPostById(shortId, locale);
+    } catch {
+      post = null;
+    }
+  }
 
   // Post image available: show it full-bleed with nothing layered on top.
   // Otherwise (no post, private, no image, or fetch failed): logo fallback.

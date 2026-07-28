@@ -6,6 +6,11 @@ export const PASSWORD_MIN_LENGTH = 8;
 export const BCRYPT_SALT_ROUNDS = 12;
 export const NAME_MAX_LENGTH = 50;
 export const MAX_RENAME_COUNT = 3;
+// Max length of a post's URL slug (derived from its content). Kept in the
+// SEO-friendly ~50-60 range; the permanent shortId is the real identifier, so
+// the slug is cosmetic. Must stay in sync with the slug backfill in
+// prisma/migrations/20260728120000_add_post_shortid_slug.
+export const POST_SLUG_MAX_LENGTH = 60;
 
 // Only http(s) URLs are allowed for user-supplied media. This blocks
 // dangerous schemes like `javascript:` and `data:` that would otherwise
@@ -172,6 +177,11 @@ export const createChannelSchema = z.object({
     .trim()
     .min(1)
     .max(NAME_MAX_LENGTH),
+  language: z.string().min(1).max(10).optional(),
+});
+
+export const createChannelTranslationSchema = createChannelSchema.extend({
+  language: z.string().min(1).max(10),
 });
 
 export const addChannelMemberSchema = z.object({
@@ -187,7 +197,7 @@ export const addChannelMemberSchema = z.object({
 
 export const paginationSchema = z.object({
   scope: z.enum(["public", "private"]).optional(),
-  cursor: z.string().min(1).optional(),
+  cursor: z.string().min(1).trim().optional(),
   limit: z.coerce.number().int().min(1).max(50).default(10),
   channelId: z.string().min(1).optional(),
   language: z.enum(locales).optional(),
@@ -228,14 +238,27 @@ export const compressSchema = z.object({
   key: z.string().min(1).max(500),
 });
 
+// Folds diacritics to base ASCII via Unicode NFD decomposition, then drops the
+// combining marks. Handles Czech/Slovak (ž→z, ě→e, ý→y, …) and IAST/Sanskrit
+// (ā→a, ṛ→r, ś→s, ṇ→n, ḥ→h, …). Shared by name normalization and
+// slug derivation so both fold diacritics identically.
+function stripDiacritics(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 // Strips diacritics and lowercases for fuzzy-unique name comparison.
 // "Taruṇa Govinda Dāsa" and "Taruna Govinda Dasa" both normalize to "taruna govinda dasa".
 export function normalizeName(name: string): string {
-  return name
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+  return stripDiacritics(name.trim()).toLowerCase();
+}
+
+// Lowercases, folds diacritics, and collapses non-alphanumeric runs to single
+// dashes (no length limit). The building block for post slugs.
+function slugifyText(text: string): string {
+  return stripDiacritics(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 // Converts a display name into a URL-safe slug by normalizing diacritics and
@@ -243,10 +266,51 @@ export function normalizeName(name: string): string {
 //   "Tomáš Hromník (Taruna)" → "tomas-hromnik-taruna"
 //   "Hello World!" → "hello-world"
 export function slugifyName(name: string): string {
-  return normalizeName(name)
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 80) || "channel";
+  return slugifyText(name).slice(0, 80) || "channel";
+}
+
+// Builds a URL slug from post content. Folds diacritics (so "když" → "kdyz",
+// "Śrī" → "sri"), lowercases, and joins words with dashes. When the content is
+// longer than POST_SLUG_MAX_LENGTH it prefers to END ON A SENTENCE BOUNDARY:
+// it accumulates whole sentences (split on . ! ? and line breaks) while they
+// fit, so the slug reads as complete thoughts instead of cutting mid-sentence
+// or trailing off into the start of the next one. Falls back to a word-boundary
+// cut when even the first sentence exceeds the limit, and to a hard cut for a
+// single word longer than the limit.
+export function derivePostSlug(content: string | null | undefined): string | undefined {
+  if (!content) return undefined;
+
+  const full = slugifyText(content);
+  if (!full) return undefined;
+  if (full.length <= POST_SLUG_MAX_LENGTH) return full;
+
+  // Accumulate whole sentences while they still fit within the limit.
+  const sentences = content
+    .split(/[.!?\n\r]+/)
+    .map((sentence) => slugifyText(sentence))
+    .filter(Boolean);
+
+  let accumulated = "";
+  for (const sentence of sentences) {
+    const candidate = accumulated ? `${accumulated}-${sentence}` : sentence;
+    if (candidate.length <= POST_SLUG_MAX_LENGTH) {
+      accumulated = candidate;
+    } else {
+      break;
+    }
+  }
+  // Prefer the sentence boundary, but only when it fills a reasonable share of
+  // the limit. If accumulation stopped far short — e.g. a tiny first sentence
+  // ("Hi.") followed by one long sentence — fall through to the word-boundary
+  // cut below so the slug stays useful instead of collapsing to a few chars.
+  if (accumulated.length >= POST_SLUG_MAX_LENGTH / 2) return accumulated;
+
+  // First sentence alone exceeds the limit (or accumulation was too short): cut
+  // the full text back to the last whole word, or hard-cut a single over-long
+  // word.
+  const truncated = full.slice(0, POST_SLUG_MAX_LENGTH);
+  const lastDash = truncated.lastIndexOf("-");
+  return (lastDash > 0 ? truncated.slice(0, lastDash) : truncated) || undefined;
 }
 
 // Checks whether `name` contains all words from the brand name (case-insensitive).
@@ -271,4 +335,8 @@ export function isBrandNameBlocked(name: string, callerEmail: string | null | un
     return isBrandName(name, process.env.SINCERE_BHAKTI_NAME);
   }
   return false;
+}
+
+export function isNameUnchanged(newName: string, currentName: string): boolean {
+  return normalizeName(newName) === normalizeName(currentName);
 }

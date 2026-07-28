@@ -84,17 +84,23 @@ export async function createUserWithPersonalChannel({
   const user = await prisma.user.create({
     data: { name, email, password: hashedPassword },
   });
+  const slug = slugifyName(name);
   const channel = await prisma.channel.create({
     data: {
-      name,
-      normalizedName: normalizeName(name),
-      slug: slugifyName(name),
       ownerId: user.id,
       isPersonal: true,
+      translations: {
+        create: {
+          name,
+          normalizedName: normalizeName(name),
+          slug,
+          language: "en",
+        },
+      },
     },
   });
 
-  return { user, channel };
+  return { user, channel, slug };
 }
 
 export async function loginViaUi(page: Page, email: string, password = TEST_PASSWORD) {
@@ -128,6 +134,9 @@ export async function createPostForChannel({
       content,
       isPublic,
       language,
+      // shortId is required (NOT NULL, unique); mirror the app's generator
+      // (crypto.randomUUID().slice(0, 8)) so seeded posts are valid.
+      shortId: crypto.randomUUID().slice(0, 8),
     },
     select: { id: true },
   });

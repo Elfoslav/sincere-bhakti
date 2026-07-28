@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { routing } from "@/i18n/routing";
 import { prisma } from "@/lib/prisma";
 import { getLanguageAlternates, getLocalizedUrl } from "@/lib/seo";
+import { getPostUrl } from "@/lib/post-url";
 
 export const revalidate = 900;
 
@@ -37,43 +38,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     prisma.channel.findMany({
       where: { posts: { some: { isPublic: true } } },
       select: {
-        slug: true,
+        id: true,
         createdAt: true,
-        owner: { select: { id: true, createdAt: true } },
         posts: {
           where: { isPublic: true },
           select: { createdAt: true },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
         },
+        translations: { select: { language: true, slug: true } },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 5000,
     }),
     prisma.post.findMany({
       where: { isPublic: true },
-      select: { id: true, language: true, createdAt: true },
+      select: { id: true, shortId: true, slug: true, language: true, createdAt: true },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 5000,
     }),
   ]);
 
-  const latestPublicPostByOwner = new Map<string, { createdAt: Date; ownerCreatedAt: Date }>();
-
   for (const channel of channels) {
-    const path = `/channels/${channel.slug}`;
     const latestPublicPostAt = channel.posts[0]?.createdAt ?? channel.createdAt;
-    const ownerActivity = latestPublicPostByOwner.get(channel.owner.id);
-    if (!ownerActivity || ownerActivity.createdAt < latestPublicPostAt) {
-      latestPublicPostByOwner.set(channel.owner.id, {
-        createdAt: latestPublicPostAt,
-        ownerCreatedAt: channel.owner.createdAt,
-      });
-    }
 
-    for (const locale of routing.locales) {
+    for (const translation of channel.translations) {
+      const path = `/channels/${translation.slug}`;
       entries.push({
-        url: getLocalizedUrl(locale, path),
+        url: getLocalizedUrl(translation.language, path),
         lastModified: latestPublicPostAt,
         changeFrequency: "weekly",
         priority: 0.7,
@@ -86,26 +78,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   for (const post of posts) {
     entries.push({
-      url: getLocalizedUrl(post.language, `/posts/${post.id}`),
+      url: getLocalizedUrl(post.language, getPostUrl(post.shortId, post.slug)),
       lastModified: post.createdAt,
       changeFrequency: "monthly",
       priority: 0.6,
     });
-  }
-
-  for (const [userId, activity] of latestPublicPostByOwner) {
-    const path = `/profile/${userId}`;
-    for (const locale of routing.locales) {
-      entries.push({
-        url: getLocalizedUrl(locale, path),
-        lastModified: activity.createdAt ?? activity.ownerCreatedAt,
-        changeFrequency: "weekly",
-        priority: 0.4,
-        alternates: {
-          languages: getLanguageAlternates(path),
-        },
-      });
-    }
   }
 
   return entries;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Hash, FileText } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -17,34 +17,53 @@ interface ChannelsResponse {
 
 export default function ChannelsPageClient() {
   const t = useTranslations("ChannelsPage");
+  const locale = useLocale();
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Guards against out-of-order responses: rapid search input or a locale change
+  // can leave multiple fetches in flight, and the last one to resolve must not
+  // overwrite the newest request's results. Every load captures an id and only
+  // applies its result if it is still the latest.
+  const requestIdRef = useRef(0);
 
   const fetchChannels = useCallback(async (q: string, c?: string) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (c) params.set("cursor", c);
+    params.set("language", locale);
     const res = await fetch(`/api/channels?${params}`);
     if (!res.ok) return null;
     return res.json() as Promise<ChannelsResponse>;
-  }, []);
+  }, [locale]);
 
-  useEffect(() => {
-    let mounted = true;
+  const loadChannels = useCallback(() => {
+    const requestId = ++requestIdRef.current;
+    Promise.resolve().then(() => {
+      setLoading(true);
+      setError(false);
+    });
     fetchChannels(search).then((data) => {
-      if (mounted && data) {
+      if (requestId !== requestIdRef.current) return;
+      if (data) {
         setChannels(data.items);
         setCursor(data.nextCursor);
+        setError(false);
+      } else {
+        setError(true);
       }
-      if (mounted) setLoading(false);
+      setLoading(false);
     });
-    return () => { mounted = false; };
   }, [search, fetchChannels]);
+
+  useEffect(() => {
+    loadChannels();
+  }, [loadChannels]);
 
   function handleSearchChange(value: string) {
     setQuery(value);
@@ -56,9 +75,10 @@ export default function ChannelsPageClient() {
 
   async function handleLoadMore() {
     if (!cursor || loadingMore) return;
+    const requestId = ++requestIdRef.current;
     setLoadingMore(true);
     const data = await fetchChannels(search, cursor);
-    if (data) {
+    if (requestId === requestIdRef.current && data) {
       setChannels((prev) => [...prev, ...data.items]);
       setCursor(data.nextCursor);
     }
@@ -85,6 +105,12 @@ return (
             <Skeleton className="h-24 w-full rounded-lg hidden sm:block" />
             <Skeleton className="h-24 w-full rounded-lg hidden sm:block" />
           </>
+      ) : error ? (
+          <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+            <Hash className="w-12 h-12 text-deep/20 mx-auto mb-4" />
+            <p className="text-deep/50 text-lg mb-4">{t("loadError")}</p>
+            <Button variant="outline" onClick={loadChannels}>{t("retry")}</Button>
+          </div>
       ) : channels.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
             <Hash className="w-12 h-12 text-deep/20 mx-auto mb-4" />

@@ -70,7 +70,7 @@ describe("GET /api/posts", () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(getPosts).mockResolvedValue({
       posts: [
-        { id: "post-1", content: "Hello", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
+        { id: "post-1", shortId: "shortid1", slug: null, content: "Hello", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
       ],
       hasMore: false,
     });
@@ -81,7 +81,7 @@ describe("GET /api/posts", () => {
     expect(res.status).toBe(200);
     expect(json.posts).toHaveLength(1);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: undefined, cursor: undefined, limit: 10, channelId: undefined, language: undefined },
+      { scope: undefined, cursor: undefined, limit: 10, channelId: undefined, language: undefined, requestLanguage: "en" },
       "user-1",
     );
   });
@@ -100,7 +100,7 @@ describe("GET /api/posts", () => {
   it("returns public posts with scope=public", async () => {
     vi.mocked(getPosts).mockResolvedValue({
       posts: [
-        { id: "post-1", content: "Public", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
+        { id: "post-1", shortId: "shortid1", slug: null, content: "Public", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
       ],
       hasMore: false,
     });
@@ -111,14 +111,14 @@ describe("GET /api/posts", () => {
     expect(res.status).toBe(200);
     expect(json.posts).toHaveLength(1);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: undefined, limit: 10, channelId: undefined, language: undefined },
+      { scope: "public", cursor: undefined, limit: 10, channelId: undefined, language: undefined, requestLanguage: "en" },
     );
     expect(auth).not.toHaveBeenCalled();
   });
 
   it("paginates with cursor", async () => {
     vi.mocked(getPosts).mockResolvedValue({
-      posts: [{ id: "post-3", content: "Next page", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] }],
+      posts: [{ id: "post-3", shortId: "shortid3", slug: null, content: "Next page", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] }],
       hasMore: false,
     });
 
@@ -126,7 +126,7 @@ describe("GET /api/posts", () => {
 
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: "post-2", limit: 2, channelId: undefined, language: undefined },
+      { scope: "public", cursor: "post-2", limit: 2, channelId: undefined, language: undefined, requestLanguage: "en" },
     );
   });
 
@@ -136,7 +136,7 @@ describe("GET /api/posts", () => {
     const res = await GET(mockGetRequest({ scope: "public", channelId: "channel-1" }));
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: undefined, limit: 10, channelId: "channel-1", language: undefined },
+      { scope: "public", cursor: undefined, limit: 10, channelId: "channel-1", language: undefined, requestLanguage: "en" },
     );
   });
 
@@ -174,6 +174,8 @@ describe("POST /api/posts", () => {
     vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-1", shouldRefreshPreference: false, explicitForbidden: false });
     vi.mocked(createPost).mockResolvedValue({
       id: "post-1",
+      shortId: "shortid1",
+      slug: "hare-krishna",
       content: "Hare Krishna!",
       isPublic: true,
       language: "en",
@@ -190,6 +192,7 @@ describe("POST /api/posts", () => {
     expect(createPost).toHaveBeenCalledWith(
       { content: "Hare Krishna!", media: [], isPublic: true, language: "en", channelId: "channel-1" },
       "user-1",
+      "en",
     );
   });
 
@@ -198,6 +201,8 @@ describe("POST /api/posts", () => {
     vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-2", shouldRefreshPreference: false, explicitForbidden: false });
     vi.mocked(createPost).mockResolvedValue({
       id: "post-2",
+      shortId: "shortid2",
+      slug: "from-channel",
       content: "From channel",
       isPublic: true,
       language: "en",
@@ -212,6 +217,7 @@ describe("POST /api/posts", () => {
     expect(createPost).toHaveBeenCalledWith(
       { content: "From channel", media: [], isPublic: true, language: "en", channelId: "channel-2" },
       "user-1",
+      "en",
     );
   });
 
@@ -220,6 +226,8 @@ describe("POST /api/posts", () => {
     vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-1", shouldRefreshPreference: true, explicitForbidden: false });
     vi.mocked(createPost).mockResolvedValue({
       id: "post-3",
+      shortId: "shortid3",
+      slug: "fallback",
       content: "Fallback",
       isPublic: true,
       language: "en",
@@ -234,6 +242,7 @@ describe("POST /api/posts", () => {
     expect(createPost).toHaveBeenCalledWith(
       { content: "Fallback", media: [], isPublic: true, language: "en", channelId: "channel-1" },
       "user-1",
+      "en",
     );
     expect(res.headers.get("set-cookie")).toContain("sb_active_channel_id=channel-1");
   });

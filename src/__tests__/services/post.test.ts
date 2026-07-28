@@ -37,15 +37,22 @@ import { prisma } from "@/lib/prisma";
 import { CHANNEL_AUTHOR_ROLES, CHANNEL_ROLE_EDITOR, CHANNEL_ROLE_OWNER } from "@/lib/channel-roles";
 import { getPosts, getPostById, createPost, deletePost, updatePost, UnauthorizedError, NotFoundError, ForbiddenError } from "@/lib/services/post";
 
-const basePost = {
+const mockPost = {
   id: "post-1",
+  shortId: "shortid1",
+  slug: "hare-krishna",
   content: "Hare Krishna!",
   isPublic: true,
   language: "en",
   channelId: "channel-1",
   createdAt: new Date("2026-07-01"),
-  channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
+  channel: { id: "channel-1", avatarUrl: null, ownerId: "user-1", translations: [{ language: "en", name: "Devotee", slug: "devotee" }] },
   media: [],
+};
+
+const basePost = {
+  ...mockPost,
+  channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
 };
 
 describe("getPosts", () => {
@@ -57,7 +64,7 @@ describe("getPosts", () => {
   });
 
   it("returns public posts with hasMore=false when under limit", async () => {
-    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 
     const result = await getPosts({ scope: "public", limit: 10 });
 
@@ -85,7 +92,7 @@ describe("getPosts", () => {
   });
 
   it("passes cursor for pagination", async () => {
-    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 
     await getPosts({ scope: "public", cursor: "post-0", limit: 10 });
 
@@ -99,7 +106,7 @@ describe("getPosts", () => {
   });
 
   it("filters by channelId", async () => {
-    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 
     await getPosts({ scope: "public", channelId: "channel-1" });
 
@@ -111,7 +118,7 @@ describe("getPosts", () => {
   });
 
   it("filters by language", async () => {
-    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 
     await getPosts({ scope: "public", language: "cs" });
 
@@ -123,7 +130,7 @@ describe("getPosts", () => {
   });
 
   it("returns own posts when no scope", async () => {
-    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 
     const result = await getPosts({}, "user-1");
 
@@ -149,7 +156,7 @@ describe("getPosts", () => {
   it("returns own channel posts with no scope (non-owner returns public only)", async () => {
     // User-2 requests channel-1's posts — gets only public ones
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "channel-1", ownerId: "user-1" } as any);
-    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 
     await getPosts({ channelId: "channel-1" }, "user-2");
 
@@ -163,7 +170,7 @@ describe("getPosts", () => {
   it("returns all channel posts when requester is channel editor", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "channel-1", ownerId: "user-1" } as any);
     vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
-    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 
     await getPosts({ channelId: "channel-1" }, "user-2");
 
@@ -176,7 +183,7 @@ describe("getPosts", () => {
 
   it("returns all posts when scope is own channelId", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "channel-1", ownerId: "user-1" } as any);
-    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 
     await getPosts({ channelId: "channel-1" }, "user-1");
 
@@ -189,7 +196,7 @@ describe("getPosts", () => {
 
   it("returns private posts for own channelId with private scope", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "channel-1", ownerId: "user-1" } as any);
-    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 
     await getPosts({ channelId: "channel-1", scope: "private" }, "user-1");
 
@@ -211,7 +218,7 @@ describe("getPosts", () => {
   it("returns private posts when private scope requested by channel editor", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "channel-1", ownerId: "user-1" } as any);
     vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
-    vi.mocked(prisma.post.findMany).mockResolvedValue([basePost]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 
     await getPosts({ channelId: "channel-1", scope: "private" }, "user-2");
 
@@ -225,7 +232,7 @@ describe("getPosts", () => {
 
 describe("getPostById", () => {
   it("returns post when found", async () => {
-    vi.mocked(prisma.post.findUnique).mockResolvedValue(basePost);
+    vi.mocked(prisma.post.findUnique).mockResolvedValue(mockPost);
 
     const post = await getPostById("post-1");
     expect(post).toEqual(basePost);
@@ -246,7 +253,7 @@ describe("createPost", () => {
 
   it("creates post with text and media, persisting dimensions", async () => {
     const media = [{ url: "https://r2.dev/img.jpg", type: "image", width: 1600, height: 900 }];
-    vi.mocked(prisma.post.create).mockResolvedValue(basePost as any);
+    vi.mocked(prisma.post.create).mockResolvedValue(mockPost as any);
 
     const post = await createPost({ content: "Hare Krishna!", media, channelId: "channel-1" }, "user-1");
 
@@ -266,7 +273,7 @@ describe("createPost", () => {
 
   it("defaults missing dimensions to null", async () => {
     const media = [{ url: "https://r2.dev/img.jpg", type: "image" }];
-    vi.mocked(prisma.post.create).mockResolvedValue(basePost as any);
+    vi.mocked(prisma.post.create).mockResolvedValue(mockPost as any);
 
     await createPost({ media, channelId: "channel-1" }, "user-1");
 
@@ -282,7 +289,7 @@ describe("createPost", () => {
   });
 
   it("defaults isPublic to true", async () => {
-    vi.mocked(prisma.post.create).mockResolvedValue(basePost as any);
+    vi.mocked(prisma.post.create).mockResolvedValue(mockPost as any);
 
     await createPost({ content: "Hello", channelId: "channel-1" }, "user-1");
 
@@ -294,7 +301,7 @@ describe("createPost", () => {
   });
 
   it("sets private post", async () => {
-    vi.mocked(prisma.post.create).mockResolvedValue({ ...basePost, isPublic: false } as any);
+    vi.mocked(prisma.post.create).mockResolvedValue({ ...mockPost, isPublic: false } as any);
 
     await createPost({ content: "Secret", isPublic: false, channelId: "channel-1" }, "user-1");
 
@@ -306,7 +313,7 @@ describe("createPost", () => {
   });
 
   it("defaults language to en", async () => {
-    vi.mocked(prisma.post.create).mockResolvedValue(basePost as any);
+    vi.mocked(prisma.post.create).mockResolvedValue(mockPost as any);
 
     await createPost({ content: "Hello", channelId: "channel-1" }, "user-1");
 
@@ -318,7 +325,7 @@ describe("createPost", () => {
   });
 
   it("stores specified language", async () => {
-    vi.mocked(prisma.post.create).mockResolvedValue(basePost as any);
+    vi.mocked(prisma.post.create).mockResolvedValue(mockPost as any);
 
     await createPost({ content: "Ahoj", language: "cs", channelId: "channel-1" }, "user-1");
 
@@ -356,11 +363,35 @@ describe("createPost", () => {
   it("allows post creation for channel editors", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-2" } as any);
     vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
-    vi.mocked(prisma.post.create).mockResolvedValue(basePost as any);
+    vi.mocked(prisma.post.create).mockResolvedValue(mockPost as any);
 
     const post = await createPost({ content: "Editor post", channelId: "channel-1" }, "user-1");
 
     expect(post.content).toBe("Hare Krishna!");
+  });
+
+  it("regenerates the shortId and retries on a shortId collision", async () => {
+    const collision = Object.assign(new Error("unique"), { code: "P2002", meta: { target: ["shortId"] } });
+    vi.mocked(prisma.post.create).mockReset();
+    vi.mocked(prisma.post.create)
+      .mockRejectedValueOnce(collision)
+      .mockResolvedValueOnce(mockPost as any);
+
+    const post = await createPost({ content: "Hare Krishna!", channelId: "channel-1" }, "user-1");
+
+    expect(post.content).toBe("Hare Krishna!");
+    expect(prisma.post.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws a conflict (no retry) on a client-supplied id collision", async () => {
+    const collision = Object.assign(new Error("unique"), { code: "P2002", meta: { target: ["id"] } });
+    vi.mocked(prisma.post.create).mockReset();
+    vi.mocked(prisma.post.create).mockRejectedValue(collision);
+
+    await expect(
+      createPost({ id: "fixed-id", content: "Hello", channelId: "channel-1" }, "user-1"),
+    ).rejects.toThrow("post_id_collision");
+    expect(prisma.post.create).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -375,7 +406,7 @@ describe("deletePost", () => {
       ...basePost,
       channel: { ownerId: "user-1" },
     } as any);
-    vi.mocked(prisma.post.delete).mockResolvedValue({ ...basePost, channel: { ownerId: "user-1" } } as any);
+    vi.mocked(prisma.post.delete).mockResolvedValue({ ...mockPost, channel: { ownerId: "user-1" } } as any);
 
     await deletePost("post-1", "user-1");
 
@@ -421,7 +452,7 @@ describe("deletePost", () => {
   });
 
   it("throws when not the author", async () => {
-    vi.mocked(prisma.post.findUnique).mockResolvedValue({ ...basePost, channel: { ownerId: "user-1" } } as any);
+    vi.mocked(prisma.post.findUnique).mockResolvedValue({ ...mockPost, channel: { ownerId: "user-1" } } as any);
 
     await expect(deletePost("post-1", "user-2")).rejects.toThrow(ForbiddenError);
   });
@@ -450,7 +481,7 @@ describe("updatePost", () => {
           { channel: { editors: { some: { userId: "user-1", role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
         ],
       },
-      data: { content: "Updated!" },
+      data: { content: "Updated!", slug: "updated" },
     });
   });
 

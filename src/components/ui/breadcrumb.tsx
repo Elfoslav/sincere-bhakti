@@ -10,9 +10,10 @@ type BreadcrumbItem = {
 
 interface BreadcrumbProps extends ComponentProps<"nav"> {
   items: BreadcrumbItem[];
+  lastClassName?: string;
 }
 
-export function Breadcrumb({ items, className, ...props }: BreadcrumbProps) {
+export function Breadcrumb({ items, className, lastClassName, ...props }: BreadcrumbProps) {
   return (
     <nav aria-label="Breadcrumb" className={cn("flex items-center gap-1.5 text-sm text-deep/60", className)} {...props}>
       {items.map((item, i) => {
@@ -25,7 +26,7 @@ export function Breadcrumb({ items, className, ...props }: BreadcrumbProps) {
                 {item.label}
               </Link>
             ) : (
-              <span className={isLast ? "text-deep font-semibold" : ""}>{item.label}</span>
+              <span className={cn(isLast ? "text-deep font-semibold" : "", isLast ? lastClassName : "")}>{item.label}</span>
             )}
           </span>
         );
