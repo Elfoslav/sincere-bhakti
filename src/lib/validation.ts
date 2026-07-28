@@ -242,7 +242,7 @@ export const compressSchema = z.object({
 // combining marks. Handles Czech/Slovak (ž→z, ě→e, ý→y, …) and IAST/Sanskrit
 // (ā→a, ṛ→r, ś→s, ṇ→n, ḥ→h, …). Shared by name normalization and
 // slug derivation so both fold diacritics identically.
-export function stripDiacritics(text: string): string {
+function stripDiacritics(text: string): string {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
@@ -266,10 +266,7 @@ function slugifyText(text: string): string {
 //   "Tomáš Hromník (Taruna)" → "tomas-hromnik-taruna"
 //   "Hello World!" → "hello-world"
 export function slugifyName(name: string): string {
-  return normalizeName(name)
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 80) || "channel";
+  return slugifyText(name).slice(0, 80) || "channel";
 }
 
 // Builds a URL slug from post content. Folds diacritics (so "když" → "kdyz",
@@ -302,10 +299,15 @@ export function derivePostSlug(content: string | null | undefined): string | und
       break;
     }
   }
-  if (accumulated) return accumulated;
+  // Prefer the sentence boundary, but only when it fills a reasonable share of
+  // the limit. If accumulation stopped far short — e.g. a tiny first sentence
+  // ("Hi.") followed by one long sentence — fall through to the word-boundary
+  // cut below so the slug stays useful instead of collapsing to a few chars.
+  if (accumulated.length >= POST_SLUG_MAX_LENGTH / 2) return accumulated;
 
-  // First sentence alone exceeds the limit: cut back to the last whole word, or
-  // hard-cut a single over-long word.
+  // First sentence alone exceeds the limit (or accumulation was too short): cut
+  // the full text back to the last whole word, or hard-cut a single over-long
+  // word.
   const truncated = full.slice(0, POST_SLUG_MAX_LENGTH);
   const lastDash = truncated.lastIndexOf("-");
   return (lastDash > 0 ? truncated.slice(0, lastDash) : truncated) || undefined;

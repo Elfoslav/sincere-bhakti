@@ -115,7 +115,7 @@ export default async function Image({
   // for old /posts/{id} preview URLs. Guarded: a missing/undefined param or a
   // lookup error must never throw here — OG routes return the logo fallback,
   // never a 500 (crawlers cache failures for weeks).
-  let post = null;
+  let post: Awaited<ReturnType<typeof getCachedPostByShortId>> = null;
   if (shortId) {
     try {
       post = await getCachedPostByShortId(shortId, locale) ?? await getCachedPostById(shortId, locale);

@@ -89,6 +89,19 @@ describe("derivePostSlug — diacritics & sentence boundaries", () => {
     expect(slug.split("-").every((w) => w.length > 0)).toBe(true);
   });
 
+  it("does not collapse to a tiny slug when a short first sentence precedes a long one", () => {
+    const slug = derivePostSlug(
+      "Hi. The eternal glories of devotional service to the supreme lord unfold here",
+    )!;
+    // Must NOT be just the 2-char first sentence; falls back to a word-boundary
+    // cut of the full text so the slug stays useful.
+    expect(slug).not.toBe("hi");
+    expect(slug.length).toBeGreaterThan(POST_SLUG_MAX_LENGTH / 2);
+    expect(slug.length).toBeLessThanOrEqual(POST_SLUG_MAX_LENGTH);
+    expect(slug.endsWith("-")).toBe(false);
+    expect(slug.startsWith("hi-the-eternal")).toBe(true);
+  });
+
   it("never exceeds POST_SLUG_MAX_LENGTH and never ends with a dash across varied inputs", () => {
     const inputs = [
       "Krátký text.",
