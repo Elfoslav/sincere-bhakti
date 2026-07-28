@@ -196,7 +196,8 @@
 	"SinglePost": {
 		"title": "Post",
 		"notFound": "Post not found",
-		"loadError": "Something went wrong loading the post. Please try again."
+		"loadError": "Something went wrong loading the post. Please try again.",
+		"showInLanguage": "Show in language: {language}"
 	},
 	"EditPost": {
 		"title": "Edit post",

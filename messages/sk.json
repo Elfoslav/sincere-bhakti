@@ -196,7 +196,8 @@
 	"SinglePost": {
 		"title": "Príspevok",
 		"notFound": "Príspevok nenájdený",
-		"loadError": "Pri načítavaní príspevku došlo k chybe. Skúste to prosím znova."
+		"loadError": "Pri načítavaní príspevku došlo k chybe. Skúste to prosím znova.",
+		"showInLanguage": "Zobraziť v jazyku: {language}"
 	},
 	"EditPost": {
 		"title": "Upraviť príspevok",

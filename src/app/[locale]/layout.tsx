@@ -75,7 +75,7 @@ export default async function LocaleLayout({ children, params }: Props) {
         <Navbar />
         <main className="flex-1 flex flex-col">{children}</main>
         <Toaster position="bottom-right" richColors closeButton />
-        <footer className="bg-deep text-white/50 text-sm py-4 border-t border-sand/20">
+        <footer className="bg-deep text-white/80 text-sm py-4 border-t border-sand/20">
           <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
             <Link
               href="/terms"
