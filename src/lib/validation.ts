@@ -238,14 +238,27 @@ export const compressSchema = z.object({
   key: z.string().min(1).max(500),
 });
 
+// Folds diacritics to base ASCII via Unicode NFD decomposition, then drops the
+// combining marks. Handles Czech/Slovak (ž→z, ě→e, ý→y, …) and IAST/Sanskrit
+// (ā→a, ṛ→r, ś→s, ṇ→n, ḥ→h, …). Shared by name normalization and
+// slug derivation so both fold diacritics identically.
+export function stripDiacritics(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 // Strips diacritics and lowercases for fuzzy-unique name comparison.
 // "Taruṇa Govinda Dāsa" and "Taruna Govinda Dasa" both normalize to "taruna govinda dasa".
 export function normalizeName(name: string): string {
-  return name
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+  return stripDiacritics(name.trim()).toLowerCase();
+}
+
+// Lowercases, folds diacritics, and collapses non-alphanumeric runs to single
+// dashes (no length limit). The building block for post slugs.
+function slugifyText(text: string): string {
+  return stripDiacritics(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 // Converts a display name into a URL-safe slug by normalizing diacritics and
@@ -259,19 +272,41 @@ export function slugifyName(name: string): string {
     .slice(0, 80) || "channel";
 }
 
+// Builds a URL slug from post content. Folds diacritics (so "když" → "kdyz",
+// "Śrī" → "sri"), lowercases, and joins words with dashes. When the content is
+// longer than POST_SLUG_MAX_LENGTH it prefers to END ON A SENTENCE BOUNDARY:
+// it accumulates whole sentences (split on . ! ? and line breaks) while they
+// fit, so the slug reads as complete thoughts instead of cutting mid-sentence
+// or trailing off into the start of the next one. Falls back to a word-boundary
+// cut when even the first sentence exceeds the limit, and to a hard cut for a
+// single word longer than the limit.
 export function derivePostSlug(content: string | null | undefined): string | undefined {
   if (!content) return undefined;
-  const base = content
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  if (!base) return undefined;
-  if (base.length <= POST_SLUG_MAX_LENGTH) return base;
-  // Truncate to the limit, then cut back to the last word boundary so the slug
-  // never ends mid-word. Fall back to the hard cut for a single word that is
-  // itself longer than the limit.
-  const truncated = base.slice(0, POST_SLUG_MAX_LENGTH);
+
+  const full = slugifyText(content);
+  if (!full) return undefined;
+  if (full.length <= POST_SLUG_MAX_LENGTH) return full;
+
+  // Accumulate whole sentences while they still fit within the limit.
+  const sentences = content
+    .split(/[.!?\n\r]+/)
+    .map((sentence) => slugifyText(sentence))
+    .filter(Boolean);
+
+  let accumulated = "";
+  for (const sentence of sentences) {
+    const candidate = accumulated ? `${accumulated}-${sentence}` : sentence;
+    if (candidate.length <= POST_SLUG_MAX_LENGTH) {
+      accumulated = candidate;
+    } else {
+      break;
+    }
+  }
+  if (accumulated) return accumulated;
+
+  // First sentence alone exceeds the limit: cut back to the last whole word, or
+  // hard-cut a single over-long word.
+  const truncated = full.slice(0, POST_SLUG_MAX_LENGTH);
   const lastDash = truncated.lastIndexOf("-");
   return (lastDash > 0 ? truncated.slice(0, lastDash) : truncated) || undefined;
 }

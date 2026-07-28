@@ -13,10 +13,13 @@
 ALTER TABLE "Post" ADD COLUMN "shortId" TEXT;
 ALTER TABLE "Post" ADD COLUMN "slug" TEXT;
 
--- Step 2a: backfill slug (exact port of derivePostSlug). NULL content or a
--- value that reduces to an empty string stays NULL. Slugs longer than 60 chars
--- are cut back to the last word boundary (drop the final "-word" segment) so
--- they never end mid-word.
+-- Step 2a: backfill slug (best-effort legacy backfill). Folds diacritics (NFD
+-- decomposition + strip combining marks U+0300-U+036F, matching stripDiacritics
+-- in validation.ts, e.g. "když"->"kdyz"), lowercases, collapses non-alphanumeric
+-- runs to dashes, and cuts back to a word boundary at 60 chars. The application's
+-- derivePostSlug is authoritative and additionally prefers sentence boundaries;
+-- editing a post recomputes its slug with that logic. NULL content or a value
+-- that reduces to empty stays NULL.
 UPDATE "Post" p
 SET "slug" = NULLIF(
   CASE
@@ -26,7 +29,11 @@ SET "slug" = NULLIF(
   ''
 )
 FROM (
-  SELECT "id", TRIM(BOTH '-' FROM regexp_replace(lower(TRIM("content")), '[^a-z0-9]+', '-', 'g')) AS base
+  SELECT "id",
+    TRIM(BOTH '-' FROM regexp_replace(
+      regexp_replace(normalize(lower(TRIM("content")), NFD), '[̀-ͯ]', '', 'g'),
+      '[^a-z0-9]+', '-', 'g'
+    )) AS base
   FROM "Post"
   WHERE "content" IS NOT NULL
 ) b
