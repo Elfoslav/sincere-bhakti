@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
-import { Link, useRouter } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
@@ -325,14 +325,6 @@ export default function ChannelPageClient({
           <span aria-hidden="true" className="text-deep/25">·</span>
           <span>{t("postCount", { count: channel.postCount })}</span>
         </div>
-        {isOwner && (
-          <p className="mt-1 text-sm text-deep/50">
-            <span>{t("ownerLabel")}: </span>
-            <Link href={`/profile/${channel.ownerId}`} className="font-medium text-deep/70 hover:text-gold">
-              {channel.ownerName}
-            </Link>
-          </p>
-        )}
       </Card>
 
       {canAuthorChannel && (

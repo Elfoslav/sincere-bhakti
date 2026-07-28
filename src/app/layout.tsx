@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import type { Viewport, Metadata } from "next";
 import { cookies } from "next/headers";
 import Providers from "@/components/Providers";
+import { routing } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 import { ACTIVE_IDENTITY_COOKIE } from "@/lib/active-identity";
 import { resolveActiveIdentityState } from "@/lib/identity";
@@ -39,11 +40,11 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.ico" },
 };
 
-async function getInitialIdentityState(userId: string, fallbackChannelId?: string): Promise<InitialIdentityState | null> {
+async function getInitialIdentityState(userId: string, locale: string, fallbackChannelId?: string): Promise<InitialIdentityState | null> {
   try {
     const [cookieStore, identities] = await Promise.all([
       cookies(),
-      getAuthorableChannels(userId),
+      getAuthorableChannels(userId, locale),
     ]);
 
     return resolveActiveIdentityState({
@@ -64,8 +65,11 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  const cookieStore = await cookies();
+  const locale = cookieStore.get("NEXT_LOCALE")?.value ?? routing.defaultLocale;
+
   const initialIdentityState = session?.user?.id
-    ? await getInitialIdentityState(session.user.id, session.user.channelId)
+    ? await getInitialIdentityState(session.user.id, locale, session.user.channelId)
     : null;
 
   return (

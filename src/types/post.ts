@@ -18,6 +18,8 @@ export interface PostChannel {
 
 export interface Post {
   id: string;
+  shortId: string;
+  slug: string | null;
   content: string | null;
   media: PostMedia[];
   isPublic: boolean;

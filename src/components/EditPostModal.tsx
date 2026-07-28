@@ -65,6 +65,8 @@ export default function EditPostModal({
   const previewPost: Post = previewValues
     ? {
         id: post.id,
+        shortId: post.shortId,
+        slug: post.slug,
         content: previewValues.content || null,
         media: previewValues.mediaPreviews.map((m, i) => ({
           url: m.url,
@@ -120,7 +122,6 @@ export default function EditPostModal({
               post={previewPost}
               currentUserId={post.channel.ownerId}
               hideEdit
-              hideExternalLink
             />
 
             <DialogActions className="mt-4 border-t border-sand pt-4">

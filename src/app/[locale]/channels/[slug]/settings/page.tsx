@@ -31,20 +31,20 @@ export default async function ChannelSettingsPage({ params }: Props) {
 
   // Check if the channel exists first (without permission check) to avoid
   // leaking slug-migration info when the user simply lacks access.
-  const channel = await prisma.channel.findUnique({
+  const channel = await prisma.channelTranslation.findUnique({
     where: { slug },
-    select: { id: true },
+    select: { channelId: true },
   });
 
   if (!channel) {
-    const targetSlug = await resolveSlugRedirect(slug);
+    const targetSlug = await resolveSlugRedirect(slug, locale);
     if (targetSlug) {
       redirect(`/${locale}/channels/${targetSlug}/settings`);
     }
     notFound();
   }
 
-  const settings = await getChannelSettingsBySlug(slug, session.user.id);
+  const settings = await getChannelSettingsBySlug(slug, session.user.id, locale);
   if (!settings) {
     notFound();
   }

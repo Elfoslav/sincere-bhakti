@@ -1,50 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { createUploadUrl } from "@/lib/services/upload";
 import { batchUploadUrlSchema, MAX_TOTAL_UPLOAD_SIZE_BYTES, maxUploadSizeForContentType } from "@/lib/validation";
-import { checkRateLimit, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { validateOrigin } from "@/lib/csrf";
+import { RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { resolveAuthorableChannelId } from "@/lib/services/channel";
 import { getActiveIdentityCookie, setActiveIdentityCookie } from "@/lib/active-identity";
-import { logServerError, logValidationError } from "@/lib/server-log";
-import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
-import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR } from "@/lib/error-codes";
+import { parseBody } from "@/lib/parse-body";
+import { requireAuth } from "@/lib/require-auth";
+import { serverError } from "@/lib/error-handlers";
+import { ERROR_FORBIDDEN, ERROR_UNAUTHORIZED } from "@/lib/error-messages";
+import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST, HTTP_UNAUTHORIZED } from "@/lib/error-codes";
 
 export async function POST(request: NextRequest) {
-  if (!validateOrigin(request)) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    if (!await checkRateLimit(RATE_LIMIT_PREFIX.upload, session.user.id, RATE_LIMITS.upload.limit, RATE_LIMITS.upload.windowMs)) {
-      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
-    }
-  }
+  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.upload, RATE_LIMITS.upload, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED, skipRateLimit: process.env.NODE_ENV !== "production" });
+  if (auth.response) return auth.response;
+  const session = auth.session;
 
   try {
     const body = await request.json();
-    const parsed = batchUploadUrlSchema.safeParse(body);
-
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0];
-      logValidationError("POST /api/upload-url/batch", issue, body);
-      return NextResponse.json(
-        { error: `validation_error:${issue.path.join(".")}:${issue.code}` },
-        { status: HTTP_BAD_REQUEST },
-      );
-    }
+    const parsed = parseBody(body, batchUploadUrlSchema, "POST /api/upload-url/batch");
+    if (parsed.response) return parsed.response;
 
     const { postId, files } = parsed.data;
     const resolved = await resolveAuthorableChannelId({
       explicitChannelId: parsed.data.channelId,
       preferredChannelId: getActiveIdentityCookie(request),
-      fallbackChannelId: session.user.channelId,
+      fallbackChannelId: session.user.channelId ?? undefined,
       userId: session.user.id,
     });
     if (resolved.explicitForbidden) {
@@ -87,7 +68,6 @@ export async function POST(request: NextRequest) {
     }
     return response;
   } catch (error) {
-    logServerError("POST /api/upload-url/batch failed", error);
-    return NextResponse.json({ error: "failed_to_generate_upload_urls" }, { status: HTTP_INTERNAL_SERVER_ERROR });
+    return serverError("POST /api/upload-url/batch", error, "failed_to_generate_upload_urls");
   }
 }

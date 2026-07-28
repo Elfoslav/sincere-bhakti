@@ -8,6 +8,7 @@ import PostCard from "@/components/PostCard";
 import PostLayout from "@/components/PostLayout";
 import EditPostModal from "@/components/EditPostModal";
 import { useIdentity } from "@/components/IdentityProvider";
+import { getPostUrl } from "@/lib/post-url";
 import type { Post } from "@/types/post";
 
 export default function PostDetailClient({
@@ -33,9 +34,17 @@ export default function PostDetailClient({
   }, [displayedPost]);
 
   const handleEditSuccess = useCallback((updatedPost: Post) => {
+    // Editing the text recomputes the slug server-side. Keep the address bar in
+    // sync by replacing the URL with the post's new canonical path when the slug
+    // changed (the old-slug URL still resolves via shortId, but the browser
+    // should show the current one). replace, not push — same post, not history.
+    const current = editedPost ?? initialPost;
+    if (current && current.slug !== updatedPost.slug) {
+      router.replace(getPostUrl(updatedPost.shortId, updatedPost.slug));
+    }
     setEditedPost(updatedPost);
     setEditingPost(null);
-  }, []);
+  }, [editedPost, initialPost, router]);
   const manageableChannelIds = useMemo(() => identities.map((identity) => identity.id), [identities]);
 
   if (!displayedPost) {

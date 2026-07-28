@@ -21,6 +21,15 @@ vi.mock("@/lib/prisma", () => ({
     },
     channelSlugHistory: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    channelTranslation: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      create: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
     },
     $transaction: vi.fn((cb: (tx: any) => any) =>
       cb({
@@ -44,6 +53,15 @@ vi.mock("@/lib/prisma", () => ({
         },
         channelSlugHistory: {
           findFirst: (...args: any[]) => (prisma.channelSlugHistory.findFirst as any)(...args),
+          findUnique: (...args: any[]) => (prisma.channelSlugHistory.findUnique as any)(...args),
+        },
+        channelTranslation: {
+          findFirst: (...args: any[]) => (prisma.channelTranslation.findFirst as any)(...args),
+          findUnique: (...args: any[]) => (prisma.channelTranslation.findUnique as any)(...args),
+          update: (...args: any[]) => (prisma.channelTranslation.update as any)(...args),
+          create: (...args: any[]) => (prisma.channelTranslation.create as any)(...args),
+          findMany: (...args: any[]) => (prisma.channelTranslation.findMany as any)(...args),
+          upsert: (...args: any[]) => (prisma.channelTranslation.upsert as any)(...args),
         },
       }),
     ),
@@ -67,6 +85,7 @@ import {
   createPersonalChannel,
   getAuthorableChannels,
   resolveAuthorableChannelId,
+  resolveSlugRedirect,
   updateChannelMemberByEmail,
 } from "@/lib/services/channel";
 
@@ -93,6 +112,8 @@ describe("createPersonalChannel", () => {
   it("creates a channel with the user's name when no conflicts", async () => {
     vi.mocked(prisma.channel.count).mockResolvedValue(0);
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channel.create).mockResolvedValue(mockChannel("ch-1", "Krishna Das", "krishna-das") as any);
 
     const result = await createPersonalChannel("user-1", "Krishna Das");
@@ -100,13 +121,13 @@ describe("createPersonalChannel", () => {
     expect(result.name).toBe("Krishna Das");
     expect(result.slug).toBe("krishna-das");
     expect(prisma.channel.create).toHaveBeenCalledWith({
-      data: { name: "Krishna Das", normalizedName: "krishna das", slug: "krishna-das", ownerId: "user-1", isPersonal: true },
+      data: { ownerId: "user-1", isPersonal: true, translations: { create: { language: "en", name: "Krishna Das", normalizedName: "krishna das", slug: "krishna-das" } } },
     });
   });
 
   it("returns existing channel if user already has one", async () => {
     vi.mocked(prisma.channel.count).mockResolvedValue(0);
-    const existing = mockChannel("ch-1", "Devotee", "devotee");
+    const existing = { ...mockChannel("ch-1", "Devotee", "devotee"), translations: [{ language: "en", name: "Devotee", slug: "devotee" }] };
     vi.mocked(prisma.channel.findFirst).mockResolvedValue(existing as any);
 
     const result = await createPersonalChannel("user-1", "Krishna Das");
@@ -117,10 +138,13 @@ describe("createPersonalChannel", () => {
 
   it("appends suffix when slug is taken", async () => {
     vi.mocked(prisma.channel.count).mockResolvedValue(0);
-    vi.mocked(prisma.channel.findFirst)
-      .mockResolvedValueOnce(null)           // owner check
-      .mockResolvedValueOnce({ id: "taken" } as any) // slugTaken for krishna-das
-      .mockResolvedValueOnce(null);          // slugTaken for krishna-das-2
+    vi.mocked(prisma.channel.findFirst).mockResolvedValueOnce(null);
+    vi.mocked(prisma.channelTranslation.findUnique)
+      .mockResolvedValueOnce({ id: "taken" } as any)
+      .mockResolvedValueOnce(null);
+    vi.mocked(prisma.channelSlugHistory.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
     vi.mocked(prisma.channel.create).mockResolvedValue(mockChannel("ch-2", "Krishna Das", "krishna-das-2") as any);
 
     const result = await createPersonalChannel("user-2", "Krishna Das");
@@ -130,11 +154,11 @@ describe("createPersonalChannel", () => {
 
   it("falls back to UUID suffix when retries are exhausted", async () => {
     vi.mocked(prisma.channel.count).mockResolvedValue(0);
-    vi.mocked(prisma.channel.findFirst)
-      .mockResolvedValueOnce(null)           // existing check
-      .mockResolvedValue({ id: "taken" } as any); // all slugTaken return taken
+    vi.mocked(prisma.channel.findFirst).mockResolvedValueOnce(null);
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({ id: "taken" } as any);
     const fallbackSlug = "test-abc12345";
     vi.mocked(prisma.channel.create).mockResolvedValue(mockChannel("ch-99", "Test", fallbackSlug) as any);
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("abc12345-0000-0000-0000-000000000000");
 
     const result = await createPersonalChannel("user-99", "Test");
 
@@ -150,27 +174,27 @@ describe("getAuthorableChannels", () => {
 
   it("returns owned channels and editable channels without duplicates", async () => {
     vi.mocked(prisma.channel.findMany).mockResolvedValue([
-      { id: "ch-1", name: "Personal", slug: "personal", avatarUrl: null, ownerId: "user-1", isPersonal: true },
-      { id: "ch-2", name: "Owned", slug: "owned", avatarUrl: null, ownerId: "user-1", isPersonal: false },
+      { id: "ch-1", name: "Personal", slug: "personal", avatarUrl: null, ownerId: "user-1", isPersonal: true, translations: [{ language: "en", name: "Personal", slug: "personal" }] },
+      { id: "ch-2", name: "Owned", slug: "owned", avatarUrl: null, ownerId: "user-1", isPersonal: false, translations: [{ language: "en", name: "Owned", slug: "owned" }] },
     ] as any);
     vi.mocked(prisma.channelEditor.findMany).mockResolvedValue([
       {
         channelId: "ch-2",
         userId: "user-1",
         role: CHANNEL_ROLE_EDITOR,
-        channel: { id: "ch-2", name: "Owned", slug: "owned", avatarUrl: null, ownerId: "user-1", isPersonal: false },
+        channel: { id: "ch-2", name: "Owned", slug: "owned", avatarUrl: null, ownerId: "user-1", isPersonal: false, translations: [{ language: "en", name: "Owned", slug: "owned" }] },
       },
       {
         channelId: "ch-3",
         userId: "user-1",
         role: CHANNEL_ROLE_ADMIN,
-        channel: { id: "ch-3", name: "Admin", slug: "admin", avatarUrl: null, ownerId: "user-2", isPersonal: false },
+        channel: { id: "ch-3", name: "Admin", slug: "admin", avatarUrl: null, ownerId: "user-2", isPersonal: false, translations: [{ language: "en", name: "Admin", slug: "admin" }] },
       },
       {
         channelId: "ch-4",
         userId: "user-1",
         role: CHANNEL_ROLE_EDITOR,
-        channel: { id: "ch-4", name: "Editable", slug: "editable", avatarUrl: null, ownerId: "user-3", isPersonal: false },
+        channel: { id: "ch-4", name: "Editable", slug: "editable", avatarUrl: null, ownerId: "user-3", isPersonal: false, translations: [{ language: "en", name: "Editable", slug: "editable" }] },
       },
     ] as any);
 
@@ -568,18 +592,108 @@ describe("resolveAuthorableChannelId", () => {
   });
 });
 
+describe("resolveSlugRedirect", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns null when no history entry exists", async () => {
+    vi.mocked(prisma.channelSlugHistory.findUnique).mockResolvedValue(null);
+    const result = await resolveSlugRedirect("nonexistent");
+    expect(result).toBeNull();
+  });
+
+  it("returns the matching translation slug when language is provided", async () => {
+    vi.mocked(prisma.channelSlugHistory.findUnique).mockResolvedValue({
+      id: "hist-1",
+      oldSlug: "old-slug",
+      oldNormalizedName: "old name",
+      channelId: "ch-1",
+      createdAt: new Date(),
+      channel: {
+        id: "ch-1",
+        translations: [
+          { language: "en", slug: "english-slug" },
+          { language: "cs", slug: "cesky-slug" },
+        ],
+      },
+    } as any);
+
+    const result = await resolveSlugRedirect("old-slug", "cs");
+    expect(result).toBe("cesky-slug");
+  });
+
+  it("falls back to first translation slug when language has no match", async () => {
+    vi.mocked(prisma.channelSlugHistory.findUnique).mockResolvedValue({
+      id: "hist-1",
+      oldSlug: "old-slug",
+      oldNormalizedName: "old name",
+      channelId: "ch-1",
+      createdAt: new Date(),
+      channel: {
+        id: "ch-1",
+        translations: [
+          { language: "en", slug: "english-slug" },
+          { language: "cs", slug: "cesky-slug" },
+        ],
+      },
+    } as any);
+
+    const result = await resolveSlugRedirect("old-slug", "de");
+    expect(result).toBe("english-slug");
+  });
+
+  it("returns first translation slug when no language param given", async () => {
+    vi.mocked(prisma.channelSlugHistory.findUnique).mockResolvedValue({
+      id: "hist-1",
+      oldSlug: "old-slug",
+      oldNormalizedName: "old name",
+      channelId: "ch-1",
+      createdAt: new Date(),
+      channel: {
+        id: "ch-1",
+        translations: [
+          { language: "en", slug: "english-slug" },
+          { language: "cs", slug: "cesky-slug" },
+        ],
+      },
+    } as any);
+
+    const result = await resolveSlugRedirect("old-slug");
+    expect(result).toBe("english-slug");
+  });
+
+  it("returns null when channel has no translations", async () => {
+    vi.mocked(prisma.channelSlugHistory.findUnique).mockResolvedValue({
+      id: "hist-1",
+      oldSlug: "old-slug",
+      oldNormalizedName: "old name",
+      channelId: "ch-1",
+      createdAt: new Date(),
+      channel: {
+        id: "ch-1",
+        translations: [],
+      },
+    } as any);
+
+    const result = await resolveSlugRedirect("old-slug", "en");
+    expect(result).toBeNull();
+  });
+});
+
 describe("createChannel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(prisma.channel.count).mockResolvedValue(0);
+    delete process.env.MAX_CHANNELS_PER_USER;
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
   });
 
   it("creates a non-personal channel with the given name", async () => {
-    vi.mocked(prisma.channel.count).mockResolvedValue(0);
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.channel.create).mockResolvedValue({
-      id: "ch-1", name: "My Devotees", normalizedName: "my devotees", slug: "my-devotees", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
+      id: "ch-1", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
     } as any);
 
     const result = await createChannel("user-1", "My Devotees");
@@ -588,28 +702,25 @@ describe("createChannel", () => {
     expect(result.slug).toBe("my-devotees");
     expect(result.postCount).toBe(0);
     expect(prisma.channel.create).toHaveBeenCalledWith({
-      data: { name: "My Devotees", normalizedName: "my devotees", slug: "my-devotees", ownerId: "user-1", isPersonal: false },
+      data: { ownerId: "user-1", isPersonal: false, translations: { create: { language: "en", name: "My Devotees", normalizedName: "my devotees", slug: "my-devotees" } } },
     });
   });
 
   it("throws NameTakenError when normalizedName is taken by an active channel", async () => {
-    vi.mocked(prisma.channel.count).mockResolvedValue(0);
-    vi.mocked(prisma.channel.findFirst)
-      .mockResolvedValueOnce({ id: "taken" } as any);
-    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findFirst)
+      .mockResolvedValue({ id: "taken" } as any);
 
     await expect(createChannel("user-1", "My Devotees")).rejects.toThrow(NameTakenError);
   });
 
   it("appends suffix when slug is taken", async () => {
-    vi.mocked(prisma.channel.count).mockResolvedValue(0);
-    vi.mocked(prisma.channel.findFirst)
-      .mockResolvedValueOnce(null)                  // i=1: normalizedName free
-      .mockResolvedValueOnce({ id: "taken" } as any) // i=1: slug collision for my-devotees
-      .mockResolvedValueOnce(null);                  // i=2: slot free
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValueOnce(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findUnique)
+      .mockResolvedValueOnce({ id: "taken" } as any)
+      .mockResolvedValueOnce(null);
     vi.mocked(prisma.channel.create).mockResolvedValue({
-      id: "ch-3", name: "My Devotees (2)", normalizedName: "my devotees (2)", slug: "my-devotees-2", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
+      id: "ch-3", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
     } as any);
 
     const result = await createChannel("user-1", "My Devotees");
@@ -637,19 +748,6 @@ describe("createChannel", () => {
             assertActive();
             return 0;
           }),
-          findFirst: vi.fn(async (args: { where: Record<string, any> }) => {
-            assertActive();
-            if ("normalizedName" in args.where) return null;
-            if ("oldNormalizedName" in args.where) return null;
-            if ("oldSlug" in args.where) return null;
-            if (args.where.slug === "my-devotees") {
-              return slugTakenOnFirstSlug ? { id: "taken" } as any : null;
-            }
-            if (args.where.slug === "my-devotees-2") {
-              return null;
-            }
-            return null;
-          }),
           create: vi.fn(async () => {
             assertActive();
             if (failCreate) {
@@ -658,14 +756,27 @@ describe("createChannel", () => {
             }
             return {
               id: "ch-2",
-              name: "My Devotees (2)",
-              normalizedName: "my devotees (2)",
-              slug: "my-devotees-2",
               avatarUrl: null,
               ownerId: "user-1",
               isPersonal: false,
               createdAt: new Date(),
             } as any;
+          }),
+        },
+        channelTranslation: {
+          findFirst: vi.fn(async () => {
+            assertActive();
+            return null;
+          }),
+          findUnique: vi.fn(async (args: { where: Record<string, any> }) => {
+            assertActive();
+            if (args.where.slug === "my-devotees") {
+              return slugTakenOnFirstSlug ? { id: "taken" } as any : null;
+            }
+            if (args.where.slug === "my-devotees-2") {
+              return null;
+            }
+            return null;
           }),
         },
         channelSlugHistory: {
@@ -692,14 +803,13 @@ describe("createChannel", () => {
   });
 
   it("falls back to UUID suffix when retries are exhausted", async () => {
-    vi.mocked(prisma.channel.count).mockResolvedValue(0);
-    vi.mocked(prisma.channel.findFirst)
-      .mockResolvedValueOnce(null)           // normalizedName free
-      .mockResolvedValue({ id: "taken" } as any); // all slug collisions
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValueOnce(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({ id: "taken" } as any);
     vi.mocked(prisma.channel.create).mockResolvedValue({
-      id: "ch-99", name: "Test (abc12345)", normalizedName: "test (abc12345)", slug: "test-abc12345", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
+      id: "ch-99", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
     } as any);
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("abc12345-0000-0000-0000-000000000000");
 
     const result = await createChannel("user-1", "Test");
 

@@ -65,18 +65,18 @@ test("channel settings are available to owners and admins, not editors or outsid
 
   try {
     await loginViaUi(page, adminEmail);
-    await page.goto(`/channels/${owner.channel.slug}/settings`);
+    await page.goto(`/channels/${owner.slug}/settings`);
     await expect(page.getByRole("heading", { name: "Channel settings" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Admins and editors" })).toBeVisible();
 
     await clearSession(page);
     await loginViaUi(page, editorEmail);
-    await page.goto(`/channels/${owner.channel.slug}/settings`);
+    await page.goto(`/channels/${owner.slug}/settings`);
     await expect(page.getByRole("heading", { name: "404" })).toBeVisible();
 
     await clearSession(page);
     await loginViaUi(page, outsiderEmail);
-    await page.goto(`/channels/${owner.channel.slug}/settings`);
+    await page.goto(`/channels/${owner.slug}/settings`);
     await expect(page.getByRole("heading", { name: "404" })).toBeVisible();
   } finally {
     await page.close();

@@ -4,6 +4,9 @@ import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { canonicalizeUrl } from "@/lib/url";
 import { isChannelEditor } from "@/lib/services/channel";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
+import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
+import { generateShortId } from "@/lib/id";
+import { derivePostSlug } from "@/lib/validation";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
 
@@ -44,6 +47,8 @@ export interface PostMedia {
 
 export interface PostResponse {
   id: string;
+  shortId: string;
+  slug: string | null;
   content: string | null;
   isPublic: boolean;
   language: string;
@@ -58,6 +63,7 @@ export interface GetPostsParams {
   limit?: number;
   channelId?: string;
   language?: string;
+  requestLanguage?: string;
 }
 
 export interface GetPostsResult {
@@ -89,15 +95,38 @@ export interface UpdatePostData {
 }
 
 const postInclude = {
-  channel: { select: { id: true, name: true, slug: true, avatarUrl: true, ownerId: true } },
+  channel: {
+    include: {
+      translations: { select: { language: true, name: true, slug: true } },
+    },
+  },
   media: { orderBy: { position: "asc" as const } },
 };
+
+function toPostResponse<Raw extends { channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] } }>(
+  raw: Raw,
+  language: string,
+): Omit<Raw, "channel"> & { channel: PostChannel } {
+  const t = raw.channel.translations
+    ? resolveTranslation(raw.channel.translations, language)
+    : null;
+  return {
+    ...raw,
+    channel: {
+      id: raw.channel.id,
+      name: t?.name ?? "",
+      slug: t?.slug ?? "",
+      avatarUrl: raw.channel.avatarUrl,
+      ownerId: raw.channel.ownerId,
+    },
+  };
+}
 
 export async function getPosts(
   params: GetPostsParams,
   currentUserId?: string,
 ): Promise<GetPostsResult> {
-  const { scope, cursor, limit = 10, channelId, language } = params;
+  const { scope, cursor, limit = 10, channelId, language, requestLanguage } = params;
 
   const where: Prisma.PostWhereInput = {};
   if (language) where.language = language;
@@ -155,21 +184,37 @@ export async function getPosts(
   const hasMore = posts.length > limit;
   if (hasMore) posts.pop();
 
-  return { posts, hasMore };
+  const resolvedLanguage = requestLanguage ?? "en";
+  return {
+    posts: posts.map((p) => toPostResponse(p, resolvedLanguage)),
+    hasMore,
+  };
 }
 
-export async function getPostById(id: string): Promise<PostResponse | null> {
+export async function getPostById(id: string, language?: string): Promise<PostResponse | null> {
   const post = await prisma.post.findUnique({
     where: { id },
     include: postInclude,
   });
 
-  return post;
+  if (!post) return null;
+  return toPostResponse(post, language ?? "en");
+}
+
+export async function getPostByShortId(shortId: string, language?: string): Promise<PostResponse | null> {
+  const post = await prisma.post.findUnique({
+    where: { shortId },
+    include: postInclude,
+  });
+
+  if (!post) return null;
+  return toPostResponse(post, language ?? "en");
 }
 
 // `generateMetadata` and the page body both need the same post data. React's
 // cache memoizes the lookup within a request so we don't double-hit Prisma.
 export const getCachedPostById = cache(getPostById);
+export const getCachedPostByShortId = cache(getPostByShortId);
 
 async function validateMediaOwnership(
   media: MediaInput[],
@@ -219,9 +264,14 @@ async function validateMediaOwnership(
   }
 }
 
+// How many times to regenerate a colliding server-generated shortId before
+// giving up (a collision on an 8-hex id is already very unlikely).
+const MAX_SHORT_ID_ATTEMPTS = 5;
+
 export async function createPost(
   data: CreatePostData,
   userId: string,
+  requestLanguage?: string,
 ): Promise<PostResponse> {
   const { id, content, media = [], isPublic = true, language = "en", channelId } = data;
   await validateMediaOwnership(media, userId);
@@ -244,39 +294,54 @@ export async function createPost(
     }
   }
 
-  let post: PostResponse;
-  try {
-    post = await prisma.post.create({
-      data: {
-        ...(id ? { id } : {}),
-        content: content || null,
-        isPublic,
-        language,
-        channelId,
-        media: {
-          create: media.map((m, i) => ({
-            url: m.url,
-            type: m.type,
-            position: i,
-            width: m.width ?? null,
-            height: m.height ?? null,
-            userId,
-          })),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rawPost: any;
+  // shortId is a server-generated 8-char id on a UNIQUE column. A collision is
+  // rare but possible, so regenerate and retry a bounded number of times rather
+  // than failing the user's post. A collision on a client-supplied `id` (or
+  // exhausted retries) surfaces as a conflict.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      rawPost = await prisma.post.create({
+        data: {
+          ...(id ? { id } : {}),
+          shortId: generateShortId(),
+          slug: derivePostSlug(content),
+          content: content || null,
+          isPublic,
+          language,
+          channelId,
+          media: {
+            create: media.map((m, i) => ({
+              url: m.url,
+              type: m.type,
+              position: i,
+              width: m.width ?? null,
+              height: m.height ?? null,
+              userId,
+            })),
+          },
         },
-      },
-      include: postInclude,
-    });
-  } catch (error) {
-    if ((error as { code?: string })?.code === "P2002") {
-      throw new ConflictError("post_id_collision");
+        include: postInclude,
+      });
+      break;
+    } catch (error) {
+      if ((error as { code?: string })?.code === "P2002") {
+        const target = (error as { meta?: { target?: string[] | string } }).meta?.target;
+        const onShortId = Array.isArray(target)
+          ? target.includes("shortId")
+          : typeof target === "string" && target.includes("shortId");
+        if (onShortId && attempt < MAX_SHORT_ID_ATTEMPTS) continue;
+        throw new ConflictError("post_id_collision");
+      }
+      throw error;
     }
-    throw error;
   }
 
   // Remove PendingUpload records for the newly created media
   await deletePendingUploads(media.map((m) => m.url));
 
-  return post;
+  return toPostResponse(rawPost, requestLanguage ?? "en") as PostResponse;
 }
 
 export async function deletePost(
@@ -324,6 +389,7 @@ export async function updatePost(
   id: string,
   userId: string,
   data: UpdatePostData,
+  requestLanguage?: string,
 ): Promise<PostResponse> {
   const existing = await prisma.post.findUnique({
     where: { id },
@@ -334,9 +400,16 @@ export async function updatePost(
     throw new NotFoundError();
   }
 
-  const { media, ...postData } = data;
+  const { media, ...rest } = data;
   if (media !== undefined) {
     await validateMediaOwnership(media, userId, existing.media.map((m) => m.url));
+  }
+
+  const postData: Prisma.PostUpdateManyMutationInput = { ...rest };
+  if (rest.content !== undefined) {
+    // Recompute the slug whenever content changes; clear it (null) when the new
+    // content has no slug-able characters.
+    postData.slug = derivePostSlug(rest.content) ?? null;
   }
 
   const post = await prisma.$transaction(async (tx) => {
@@ -404,5 +477,5 @@ export async function updatePost(
     await deleteMediaFiles(orphaned);
   }
 
-  return post!;
+  return toPostResponse(post!, requestLanguage ?? "en");
 }

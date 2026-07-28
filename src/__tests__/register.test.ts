@@ -7,9 +7,11 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn(),
     },
     channel: {
-      findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+    },
+    channelTranslation: {
+      findFirst: vi.fn(),
     },
     channelSlugHistory: {
       findFirst: vi.fn(),
@@ -20,9 +22,11 @@ vi.mock("@/lib/prisma", () => ({
           create: (...args: any[]) => (prisma.user.create as any)(...args),
         },
         channel: {
-          findFirst: (...args: any[]) => (prisma.channel.findFirst as any)(...args),
           create: (...args: any[]) => (prisma.channel.create as any)(...args),
           update: (...args: any[]) => (prisma.channel.update as any)(...args),
+        },
+        channelTranslation: {
+          findFirst: (...args: any[]) => (prisma.channelTranslation.findFirst as any)(...args),
         },
         channelSlugHistory: {
           findFirst: (...args: any[]) => (prisma.channelSlugHistory.findFirst as any)(...args),
@@ -35,6 +39,7 @@ vi.mock("bcryptjs", () => ({ default: { hash: vi.fn() }, hash: vi.fn() }));
 vi.mock("@/lib/csrf", () => ({
   validateOrigin: vi.fn(() => true),
 }));
+vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -56,8 +61,8 @@ describe("POST /api/register", () => {
   });
 
   it("creates a new user", async () => {
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channel.create).mockResolvedValue({ id: "ch-1", name: "Krishna Das", normalizedName: "krishna das", slug: "krishna-das", avatarUrl: null, createdAt: new Date(), ownerId: "user-1" } as any);
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channel.create).mockResolvedValue({ id: "ch-1", avatarUrl: null, createdAt: new Date(), ownerId: "user-1" } as any);
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
     vi.mocked(bcrypt.hash).mockResolvedValue("hashed-password" as never);
     vi.mocked(prisma.user.create).mockResolvedValue({
@@ -87,7 +92,7 @@ describe("POST /api/register", () => {
   });
 
   it("returns a generic 400 on duplicate email without revealing which field collided", async () => {
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(bcrypt.hash).mockResolvedValue("hashed-password" as never);
     // Prisma throws a unique-constraint error (P2002) when the email already exists.
     vi.mocked(prisma.user.create).mockRejectedValue(
@@ -131,7 +136,7 @@ describe("POST /api/register", () => {
   });
 
   it("returns 500 on a genuine server error", async () => {
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(bcrypt.hash).mockResolvedValue("hashed-password" as never);
     vi.mocked(prisma.user.create).mockRejectedValue(new Error("DB down"));
 
@@ -164,13 +169,13 @@ describe("POST /api/register", () => {
     const prev = process.env.SINCERE_BHAKTI_EMAIL;
     try {
       process.env.SINCERE_BHAKTI_EMAIL = "owner@sincerebhakti.com";
-      vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
       vi.mocked(bcrypt.hash).mockResolvedValue("hashed-pw" as never);
       vi.mocked(prisma.user.create).mockResolvedValue({
         id: "owner-1", name: "Sincere Bhakti", email: "owner@sincerebhakti.com",
       } as any);
       vi.mocked(prisma.channel.create).mockResolvedValue({
-        id: "ch-1", name: "Sincere Bhakti", normalizedName: "sincere bhakti", slug: "sincere-bhakti", avatarUrl: null, ownerId: "owner-1", isPersonal: true, createdAt: new Date(),
+        id: "ch-1", avatarUrl: null, ownerId: "owner-1", isPersonal: true, createdAt: new Date(),
       } as any);
 
       const res = await POST(mockRequest({

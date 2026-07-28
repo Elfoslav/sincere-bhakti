@@ -118,16 +118,12 @@ export function getPostSeoDescription(channelName: string, content: string | nul
   return trimmedContent || `A devotional post from ${channelName}.`;
 }
 
-export function getPostOpenGraphImageUrl(locale: string, postId: string): string {
-  return getLocalizedUrl(locale, `/posts/${postId}/opengraph-image`);
+export function getPostOpenGraphImageUrl(locale: string, shortId: string): string {
+  return getLocalizedUrl(locale, `/posts/${shortId}/opengraph-image`);
 }
 
 export function getChannelOpenGraphImageUrl(locale: string, slug: string): string {
   return getLocalizedUrl(locale, `/channels/${slug}/opengraph-image`);
-}
-
-export function getProfileOpenGraphImageUrl(locale: string, id: string): string {
-  return getLocalizedUrl(locale, `/profile/${id}/opengraph-image`);
 }
 
 export function createJsonLdScript(value: Record<string, unknown> | Array<Record<string, unknown>>) {
@@ -211,33 +207,6 @@ export function createChannelJsonLd({
     image: imageUrl,
     mainEntity: {
       "@type": "Organization",
-      name,
-      url,
-      image: imageUrl,
-    },
-  };
-}
-
-export function createProfileJsonLd({
-  name,
-  description,
-  url,
-  imageUrl,
-}: {
-  name: string;
-  description: string;
-  url: string;
-  imageUrl: string;
-}): Record<string, unknown> {
-  return {
-    "@context": "https://schema.org",
-    "@type": "ProfilePage",
-    name,
-    description,
-    url,
-    image: imageUrl,
-    mainEntity: {
-      "@type": "Person",
       name,
       url,
       image: imageUrl,
