@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import sharp from "sharp";
-import { getCachedPostById } from "@/lib/services/post";
+import { getCachedPostById, getCachedPostByShortId } from "@/lib/services/post";
 import { getSiteUrl } from "@/lib/url";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { POST_OG_IMAGE, OG_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL } from "@/lib/seo";
@@ -111,7 +111,7 @@ export default async function Image({
     return logoFallback(siteUrl, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL);
   }
 
-  const post = await getCachedPostById(id, locale);
+  const post = await getCachedPostByShortId(id, locale) ?? await getCachedPostById(id, locale);
 
   // Post image available: show it full-bleed with nothing layered on top.
   // Otherwise (no post, private, no image, or fetch failed): logo fallback.

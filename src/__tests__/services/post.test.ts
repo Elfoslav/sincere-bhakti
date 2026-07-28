@@ -39,6 +39,8 @@ import { getPosts, getPostById, createPost, deletePost, updatePost, Unauthorized
 
 const mockPost = {
   id: "post-1",
+  shortId: "shortid1",
+  slug: "hare-krishna",
   content: "Hare Krishna!",
   isPublic: true,
   language: "en",
@@ -455,7 +457,7 @@ describe("updatePost", () => {
           { channel: { editors: { some: { userId: "user-1", role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
         ],
       },
-      data: { content: "Updated!" },
+      data: { content: "Updated!", slug: "updated" },
     });
   });
 

@@ -5,6 +5,8 @@ import { canonicalizeUrl } from "@/lib/url";
 import { isChannelEditor } from "@/lib/services/channel";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
 import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
+import { generateShortId } from "@/lib/id";
+import { derivePostSlug } from "@/lib/validation";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
 
@@ -45,6 +47,8 @@ export interface PostMedia {
 
 export interface PostResponse {
   id: string;
+  shortId: string;
+  slug: string | null;
   content: string | null;
   isPublic: boolean;
   language: string;
@@ -197,9 +201,20 @@ export async function getPostById(id: string, language?: string): Promise<PostRe
   return toPostResponse(post, language ?? "en");
 }
 
+export async function getPostByShortId(shortId: string, language?: string): Promise<PostResponse | null> {
+  const post = await prisma.post.findUnique({
+    where: { shortId },
+    include: postInclude,
+  });
+
+  if (!post) return null;
+  return toPostResponse(post, language ?? "en");
+}
+
 // `generateMetadata` and the page body both need the same post data. React's
 // cache memoizes the lookup within a request so we don't double-hit Prisma.
 export const getCachedPostById = cache(getPostById);
+export const getCachedPostByShortId = cache(getPostByShortId);
 
 async function validateMediaOwnership(
   media: MediaInput[],
@@ -281,6 +296,8 @@ export async function createPost(
     rawPost = await prisma.post.create({
       data: {
         ...(id ? { id } : {}),
+        shortId: generateShortId(),
+        slug: derivePostSlug(content),
         content: content || null,
         isPublic,
         language,
@@ -367,9 +384,16 @@ export async function updatePost(
     throw new NotFoundError();
   }
 
-  const { media, ...postData } = data;
+  const { media, ...rest } = data;
   if (media !== undefined) {
     await validateMediaOwnership(media, userId, existing.media.map((m) => m.url));
+  }
+
+  const postData: Prisma.PostUpdateManyMutationInput = { ...rest };
+  if (rest.content !== undefined) {
+    // Recompute the slug whenever content changes; clear it (null) when the new
+    // content has no slug-able characters.
+    postData.slug = derivePostSlug(rest.content) ?? null;
   }
 
   const post = await prisma.$transaction(async (tx) => {

@@ -1,22 +1,24 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { localeFlags } from "@/i18n/routing";
-import { getCachedPostById } from "@/lib/services/post";
+import { getCachedPostById, getCachedPostByShortId } from "@/lib/services/post";
 import { canAuthorChannel } from "@/lib/services/channel";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import PostDetailClient from "./post-detail-client";
+import PostDetailClient from "../post-detail-client";
 import PostLayout from "@/components/PostLayout";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { getPostUrl, getStalePostSlugRedirect } from "@/lib/post-url";
 import {
   POST_OG_IMAGE,
   createBreadcrumbJsonLd,
   createJsonLdScript,
   createPostJsonLd,
+  getLocalizedPath,
   getLocalizedUrl,
   getOpenGraphLocale,
   getPostOpenGraphImageUrl,
@@ -25,22 +27,22 @@ import {
 } from "@/lib/seo";
 import type { Post, MediaType } from "@/types/post";
 
-type Params = { locale: string; id: string };
+type Params = { locale: string; shortId: string; slug?: string[] };
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<Params>;
 }): Promise<Metadata> {
-  const { locale, id } = await params;
+  const { locale, shortId } = await params;
 
-  const post = await getCachedPostById(id, locale);
+  const post = await getCachedPostByShortId(shortId, locale);
   if (!post || !post.isPublic) return {};
 
   const title = getPostSeoTitle(post.channel.name, post.content);
   const description = getPostSeoDescription(post.channel.name, post.content);
-  const canonicalUrl = getLocalizedUrl(post.language || locale, `/posts/${id}`);
-  const imageUrl = getPostOpenGraphImageUrl(post.language || locale, id);
+  const canonicalUrl = getLocalizedUrl(post.language || locale, getPostUrl(post.shortId, post.slug));
+  const imageUrl = getPostOpenGraphImageUrl(post.language || locale, post.shortId);
 
   return {
     title,
@@ -71,15 +73,36 @@ export default async function PostPage({
 }: {
   params: Promise<Params>;
 }) {
-  const { locale, id } = await params;
+  const { locale, shortId, slug } = await params;
 
   const ip = getClientIp(await headers());
   if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) notFound();
 
-  const [post, session] = await Promise.all([getCachedPostById(id, locale), auth()]);
+  // eslint-disable-next-line prefer-const
+  let post = await getCachedPostByShortId(shortId, locale);
+
+  // Backward compatibility: if not found by shortId, try by full ID and redirect
+  if (!post) {
+    const oldPost = await getCachedPostById(shortId, locale);
+    if (oldPost) {
+      redirect(getLocalizedPath(oldPost.language, getPostUrl(oldPost.shortId, oldPost.slug)));
+    }
+  }
+
+  const [session] = await Promise.all([auth()]);
 
   if (!post) notFound();
   if (!post.isPublic && (!session?.user?.id || !await canAuthorChannel(post.channel.id, session.user.id))) notFound();
+
+  // Canonical slug enforcement: the post is looked up by its permanent shortId,
+  // so a stale/old slug segment still resolves here — redirect it to the current
+  // canonical slug. This is what makes an edited post's old URL (with the old
+  // slug) redirect to the new slug once the text — and thus the slug — changes.
+  const canonicalPath = getPostUrl(post.shortId, post.slug);
+  const staleSlugRedirect = getStalePostSlugRedirect(slug?.join("/"), post.shortId, post.slug);
+  if (staleSlugRedirect) {
+    redirect(getLocalizedPath(locale, staleSlugRedirect));
+  }
 
   if (post.language !== locale) {
     const languageName = new Intl.DisplayNames([locale], { type: "language" }).of(post.language) ?? post.language;
@@ -88,8 +111,8 @@ export default async function PostPage({
 
     const title = getPostSeoTitle(post.channel.name, post.content);
     const description = getPostSeoDescription(post.channel.name, post.content);
-    const postUrl = getLocalizedUrl(post.language, `/posts/${id}`);
-    const imageUrl = getPostOpenGraphImageUrl(post.language, id);
+    const postUrl = getLocalizedUrl(post.language, canonicalPath);
+    const imageUrl = getPostOpenGraphImageUrl(post.language, post.shortId);
     const createdAtISO = post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt;
 
     return (
@@ -109,7 +132,7 @@ export default async function PostPage({
             }),
             createBreadcrumbJsonLd([
               { name: postsT("title"), url: getLocalizedUrl(locale, "/posts") },
-              { name: title, url: getLocalizedUrl(locale, `/posts/${id}`) },
+              { name: title, url: getLocalizedUrl(locale, `/${locale}${canonicalPath}`) },
             ]),
           ])}
         />
@@ -142,7 +165,7 @@ export default async function PostPage({
             </div>
             <div className="flex justify-center">
               <Link
-                href={`/posts/${id}`}
+                href={getPostUrl(post.shortId, post.slug)}
                 locale={post.language}
                 className={cn(buttonVariants({ variant: "outline", size: "default" }))}
               >
@@ -162,8 +185,8 @@ export default async function PostPage({
   };
   const title = getPostSeoTitle(post.channel.name, post.content);
   const description = getPostSeoDescription(post.channel.name, post.content);
-  const postUrl = getLocalizedUrl(post.language || locale, `/posts/${id}`);
-  const imageUrl = getPostOpenGraphImageUrl(post.language || locale, id);
+  const postUrl = getLocalizedUrl(post.language || locale, canonicalPath);
+  const imageUrl = getPostOpenGraphImageUrl(post.language || locale, post.shortId);
   const postsT = await getTranslations({ locale, namespace: "PostsPage" });
   const jsonLd = [
     createPostJsonLd({

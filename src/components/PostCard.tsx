@@ -8,6 +8,7 @@ import { Link as LinkIcon, ExternalLink, Pencil, Trash2, MoreHorizontal } from "
 import { toast } from "sonner";
 import { extractYouTubeContent } from "@/lib/video";
 import { replaceEmoticons } from "@/lib/emoticons";
+import { getPostUrl } from "@/lib/post-url";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -56,10 +57,10 @@ export default function PostCard({
   const canManage = !!(currentUserId === post.channel.ownerId || manageableChannelIds?.includes(post.channel.id));
 
   const handleCopyLink = useCallback(() => {
-    const url = `${window.location.origin}/${locale}/posts/${post.id}`;
+    const url = `${window.location.origin}/${locale}${getPostUrl(post.shortId, post.slug)}`;
     navigator.clipboard.writeText(url);
     toast.success(t("linkCopied"));
-  }, [locale, post.id, t]);
+  }, [locale, post.shortId, post.slug, t]);
 
   useEffect(() => {
     if (!showMobileActions) return;
@@ -109,7 +110,7 @@ export default function PostCard({
             <span className="mr-1 text-sm text-deep" title={post.language}>
               {localeFlags[post.language] || post.language}
             </span>
-            <Link href={`/posts/${post.id}`} className="hover:text-gold">
+            <Link href={getPostUrl(post.shortId, post.slug)} className="hover:text-gold">
               {date}
             </Link>
           </p>
@@ -123,6 +124,7 @@ export default function PostCard({
           handleCopyLink={handleCopyLink}
           hideExternalLink={hideExternalLink}
           postId={post.id}
+          postUrl={getPostUrl(post.shortId, post.slug)}
           editPostLabel={t("editPost")}
           deleteLabel={t("delete")}
           copyLinkLabel={t("copyLink")}
@@ -214,6 +216,7 @@ function ActionsRow({
   handleCopyLink,
   hideExternalLink,
   postId,
+  postUrl,
   editPostLabel,
   deleteLabel,
   copyLinkLabel,
@@ -231,6 +234,7 @@ function ActionsRow({
   handleCopyLink: () => void;
   hideExternalLink?: boolean;
   postId: string;
+  postUrl: string;
   editPostLabel: string;
   deleteLabel: string;
   copyLinkLabel: string;
@@ -260,7 +264,7 @@ function ActionsRow({
   }
   allActions.push({ key: "copy", icon: <LinkIcon />, label: copyLinkLabel, dropdownLabel: t("dropdownCopyLink"), onAction: handleCopyLink });
   if (!hideExternalLink) {
-    allActions.push({ key: "open", icon: <ExternalLink />, label: openPostLabel, dropdownLabel: t("dropdownOpen"), href: `/posts/${postId}` });
+    allActions.push({ key: "open", icon: <ExternalLink />, label: openPostLabel, dropdownLabel: t("dropdownOpen"), href: postUrl });
   }
 
   return (

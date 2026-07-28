@@ -37,7 +37,7 @@ describe("sitemap", () => {
       },
     ] as unknown as Awaited<ReturnType<typeof prisma.channel.findMany>>);
     vi.mocked(prisma.post.findMany).mockResolvedValue([
-      { id: "post-1", language: "en", createdAt: firstChannelLatestPostAt },
+      { id: "post-1", shortId: "abc12345", slug: "my-post", language: "en", createdAt: firstChannelLatestPostAt },
     ] as Awaited<ReturnType<typeof prisma.post.findMany>>);
 
     const entries = await sitemap();

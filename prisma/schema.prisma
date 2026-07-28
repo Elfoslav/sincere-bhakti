@@ -85,6 +85,8 @@ model ChannelEditor {
 
 model Post {
   id        String   @id @default(cuid())
+  shortId   String   @unique
+  slug      String?
   content   String?
   isPublic  Boolean  @default(true)
   language  String   @default("en")

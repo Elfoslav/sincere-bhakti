@@ -31,6 +31,8 @@ function mockRequest(): any {
 
 const basePost = {
   id: "post-1",
+  shortId: "shortid1",
+  slug: "hare-krishna",
   content: "Hare Krishna!",
   isPublic: true,
   language: "en",

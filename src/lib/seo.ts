@@ -101,8 +101,8 @@ export function getPostSeoDescription(channelName: string, content: string | nul
   return trimmedContent || `A devotional post from ${channelName}.`;
 }
 
-export function getPostOpenGraphImageUrl(locale: string, postId: string): string {
-  return getLocalizedUrl(locale, `/posts/${postId}/opengraph-image`);
+export function getPostOpenGraphImageUrl(locale: string, shortId: string): string {
+  return getLocalizedUrl(locale, `/posts/${shortId}/opengraph-image`);
 }
 
 export function getChannelOpenGraphImageUrl(locale: string, slug: string): string {

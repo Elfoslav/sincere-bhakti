@@ -65,6 +65,8 @@ export default function EditPostModal({
   const previewPost: Post = previewValues
     ? {
         id: post.id,
+        shortId: post.shortId,
+        slug: post.slug,
         content: previewValues.content || null,
         media: previewValues.mediaPreviews.map((m, i) => ({
           url: m.url,

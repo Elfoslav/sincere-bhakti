@@ -134,6 +134,9 @@ export async function createPostForChannel({
       content,
       isPublic,
       language,
+      // shortId is required (NOT NULL, unique); mirror the app's generator
+      // (crypto.randomUUID().slice(0, 8)) so seeded posts are valid.
+      shortId: crypto.randomUUID().slice(0, 8),
     },
     select: { id: true },
   });

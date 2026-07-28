@@ -5,6 +5,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("@/lib/services/post", () => ({
   getCachedPostById: vi.fn(),
+  getCachedPostByShortId: vi.fn(),
 }));
 vi.mock("@/lib/services/channel", () => ({
   getCachedChannelBySlug: vi.fn(),
@@ -55,7 +56,7 @@ vi.spyOn(console, "error").mockImplementation(() => {});
 import sharp from "sharp";
 import { getCachedPostById } from "@/lib/services/post";
 import { checkRateLimit } from "@/lib/rate-limit";
-import Image, { fetchImageBuffer, MAX_OG_IMAGE_BYTES } from "@/app/[locale]/posts/[id]/opengraph-image";
+import Image, { fetchImageBuffer, MAX_OG_IMAGE_BYTES } from "@/app/[locale]/posts/[shortId]/opengraph-image";
 
 function makeStreamResponse({
   chunks,

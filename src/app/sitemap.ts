@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { routing } from "@/i18n/routing";
 import { prisma } from "@/lib/prisma";
 import { getLanguageAlternates, getLocalizedUrl } from "@/lib/seo";
+import { getPostUrl } from "@/lib/post-url";
 
 export const revalidate = 900;
 
@@ -52,7 +53,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
     prisma.post.findMany({
       where: { isPublic: true },
-      select: { id: true, language: true, createdAt: true },
+      select: { id: true, shortId: true, slug: true, language: true, createdAt: true },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 5000,
     }),
@@ -77,7 +78,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   for (const post of posts) {
     entries.push({
-      url: getLocalizedUrl(post.language, `/posts/${post.id}`),
+      url: getLocalizedUrl(post.language, getPostUrl(post.shortId, post.slug)),
       lastModified: post.createdAt,
       changeFrequency: "monthly",
       priority: 0.6,

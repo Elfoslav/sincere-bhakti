@@ -18,6 +18,8 @@ import {
   normalizeName,
   slugifyName,
   isBrandName,
+  derivePostSlug,
+  POST_SLUG_MAX_LENGTH,
 } from "@/lib/validation";
 
 describe("registerSchema", () => {
@@ -679,5 +681,40 @@ describe("isBrandName", () => {
 
   it("handles empty brand name gracefully", () => {
     expect(isBrandName("anything", "")).toBe(false);
+  });
+});
+
+describe("derivePostSlug", () => {
+  it("returns undefined for empty/nullish or punctuation-only content", () => {
+    expect(derivePostSlug(null)).toBeUndefined();
+    expect(derivePostSlug(undefined)).toBeUndefined();
+    expect(derivePostSlug("")).toBeUndefined();
+    expect(derivePostSlug("!!!")).toBeUndefined();
+  });
+
+  it("lowercases, collapses non-alphanumerics to dashes, and trims", () => {
+    expect(derivePostSlug("  Hello, World!  ")).toBe("hello-world");
+    expect(derivePostSlug("UPPER lower MiXeD")).toBe("upper-lower-mixed");
+  });
+
+  it("keeps short slugs unchanged", () => {
+    const slug = derivePostSlug("Hare Krishna");
+    expect(slug).toBe("hare-krishna");
+    expect(slug!.length).toBeLessThanOrEqual(POST_SLUG_MAX_LENGTH);
+  });
+
+  it("caps long content at POST_SLUG_MAX_LENGTH and never ends mid-word", () => {
+    const slug = derivePostSlug(
+      "The glories of chanting the holy names of the Lord in this age of Kali",
+    )!;
+    expect(slug.length).toBeLessThanOrEqual(POST_SLUG_MAX_LENGTH);
+    expect(slug.endsWith("-")).toBe(false);
+    // cut at a word boundary — the last word must be whole ("in", not "i")
+    expect(slug).toBe("the-glories-of-chanting-the-holy-names-of-the-lord-in-this");
+  });
+
+  it("hard-cuts a single word longer than the limit", () => {
+    const slug = derivePostSlug("a".repeat(70))!;
+    expect(slug).toBe("a".repeat(POST_SLUG_MAX_LENGTH));
   });
 });

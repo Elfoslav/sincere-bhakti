@@ -6,6 +6,11 @@ export const PASSWORD_MIN_LENGTH = 8;
 export const BCRYPT_SALT_ROUNDS = 12;
 export const NAME_MAX_LENGTH = 50;
 export const MAX_RENAME_COUNT = 3;
+// Max length of a post's URL slug (derived from its content). Kept in the
+// SEO-friendly ~50-60 range; the permanent shortId is the real identifier, so
+// the slug is cosmetic. Must stay in sync with the slug backfill in
+// prisma/migrations/20260728120000_add_post_shortid_slug.
+export const POST_SLUG_MAX_LENGTH = 60;
 
 // Only http(s) URLs are allowed for user-supplied media. This blocks
 // dangerous schemes like `javascript:` and `data:` that would otherwise
@@ -252,6 +257,23 @@ export function slugifyName(name: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 80) || "channel";
+}
+
+export function derivePostSlug(content: string | null | undefined): string | undefined {
+  if (!content) return undefined;
+  const base = content
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  if (!base) return undefined;
+  if (base.length <= POST_SLUG_MAX_LENGTH) return base;
+  // Truncate to the limit, then cut back to the last word boundary so the slug
+  // never ends mid-word. Fall back to the hard cut for a single word that is
+  // itself longer than the limit.
+  const truncated = base.slice(0, POST_SLUG_MAX_LENGTH);
+  const lastDash = truncated.lastIndexOf("-");
+  return (lastDash > 0 ? truncated.slice(0, lastDash) : truncated) || undefined;
 }
 
 // Checks whether `name` contains all words from the brand name (case-insensitive).

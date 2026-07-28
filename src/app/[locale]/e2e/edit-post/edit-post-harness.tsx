@@ -22,6 +22,8 @@ const mockSession: Session = {
 
 const initialPost: Post = {
   id: "test-post-1",
+  shortId: "testpost",
+  slug: "test-post-with-media",
   content: "Test post with media",
   isPublic: true,
   language: "en",
