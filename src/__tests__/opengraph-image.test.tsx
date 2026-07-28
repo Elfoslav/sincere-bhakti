@@ -138,6 +138,24 @@ describe("post opengraph image", () => {
     expect(cc).not.toContain("no-store");
   });
 
+  it("does not shared-cache a transient image-fetch failure", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue(true);
+    // Post HAS an image, but fetching it fails (upstream timeout/5xx/etc).
+    vi.mocked(getCachedPostById).mockResolvedValue({
+      isPublic: true,
+      media: [{ type: "image", url: "https://cdn.example.com/photo.jpg", width: 1600, height: 900 }],
+    } as any);
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("upstream down"));
+
+    const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
+
+    await expectJpegResponse(response);
+    // A transient blip must not pin the logo fallback on a real post's card.
+    const cc = response.headers.get("Cache-Control") ?? "";
+    expect(cc).toContain("no-store");
+    expect(cc).not.toContain("public");
+  });
+
   it("serves the post image as a 1200x630 cover-cropped JPEG", async () => {
     vi.mocked(checkRateLimit).mockResolvedValue(true);
     vi.mocked(getCachedPostById).mockResolvedValue({
@@ -161,6 +179,11 @@ describe("post opengraph image", () => {
     const response = await Image({ params: Promise.resolve({ locale: "en", id: "post-1" }) });
 
     await expectJpegResponse(response);
+    // Mutable user photo: bounded TTL, no day-long stale-while-revalidate, so a
+    // post going private / changing media propagates within minutes.
+    const cc = response.headers.get("Cache-Control") ?? "";
+    expect(cc).toContain("s-maxage=300");
+    expect(cc).not.toContain("stale-while-revalidate");
   });
 
   it("keeps the abort timeout active until the image body is read", async () => {
