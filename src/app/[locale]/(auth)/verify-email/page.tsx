@@ -3,12 +3,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function VerifyEmailPage() {
   const t = useTranslations("Auth.verifyEmail");
+  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   // Derive the initial state from the token so we don't setState synchronously
@@ -53,7 +54,7 @@ export default function VerifyEmailPage() {
               <Button
                 variant="default"
                 className="w-full mt-6"
-                onClick={() => window.location.href = "/login?verified=true"}
+                onClick={() => router.push("/login?verified=true")}
               >
                 {t("signIn")}
               </Button>

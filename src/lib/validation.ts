@@ -120,7 +120,7 @@ export const registerSchema = z.object({
     .max(128),
   terms: z
     .literal(true, { message: "terms_required" }),
-  language: z.string().optional(),
+  language: z.enum(locales).optional(),
 });
 
 // Intrinsic pixel dimensions are optional metadata detected client-side. They
@@ -246,7 +246,7 @@ export const forgotPasswordSchema = z.object({
     .toLowerCase()
     .email()
     .max(255),
-  language: z.string().optional(),
+  language: z.enum(locales).optional(),
 });
 
 export const resetPasswordSchema = z.object({
