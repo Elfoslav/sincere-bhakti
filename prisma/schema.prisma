@@ -13,18 +13,34 @@ enum ChannelRole {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  password     String
-  image        String?
-  createdAt    DateTime @default(now())
-  renameCount  Int      @default(0)
-  sessionVersion Int    @default(0)
-  channels       Channel[]       @relation("ChannelOwner")
-  editors        ChannelEditor[]
-  media          Media[]
-  pendingUploads PendingUpload[]
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  password        String
+  image           String?
+  emailVerifiedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  renameCount     Int       @default(0)
+  sessionVersion  Int       @default(0)
+  channels        Channel[]       @relation("ChannelOwner")
+  editors         ChannelEditor[]
+  media           Media[]
+  pendingUploads  PendingUpload[]
+  verificationTokens VerificationToken[]
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  type      String   // "verify" | "reset"
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [email], references: [email], onDelete: Cascade)
+
+  @@index([email])
+  @@index([token])
+  @@index([expiresAt])
 }
 
 model Channel {

@@ -94,7 +94,9 @@
 			"noAccount": "Nemáš účet?",
 			"registerLink": "Registrovať",
 			"networkError": "Chyba siete. Skontrolujte pripojenie.",
-			"registeredSuccess": "Účet bol úspešne vytvorený! Prihlás sa a pokračuj."
+			"registeredVerify": "Účet vytvorený! Skontrolujte svoj e-mail pre overovací odkaz.",
+			"verifiedSuccess": "E-mail úspešne overený! Teraz sa môžete prihlásiť.",
+			"forgotPassword": "Zabudli ste heslo?"
 		},
 		"register": {
 			"title": "Pripoj sa k saṅge",
@@ -123,6 +125,46 @@
 			"networkError": "Chyba siete. Skontrolujte pripojenie.",
 			"termsAgreement": "Súhlasím s <link>podmienkami používania</link>",
 			"termsRequired": "Musíte súhlasiť s podmienkami používania"
+		},
+		"verifyEmail": {
+			"title": "Overenie e-mailu",
+			"verifying": "Overujem váš e-mail...",
+			"success": "E-mail úspešne overený!",
+			"successDesc": "Teraz sa môžete prihlásiť k svojmu účtu.",
+			"error": "Overenie zlyhalo",
+			"invalidToken": "Neplatný alebo expirovaný overovací odkaz.",
+			"signIn": "Prihlásiť sa",
+			"unverifiedTitle": "E-mail nie je overený",
+			"unverifiedDesc": "Pred vytváraním príspevkov prosím overte svoj e-mail. Skontrolujte svoju schránku pre overovací odkaz.",
+			"resendButton": "Odoslať overovací e-mail",
+			"resending": "Odosielam...",
+			"resendSent": "Overovací e-mail odoslaný! Skontrolujte svoju schránku."
+		},
+		"forgotPassword": {
+			"title": "Zabudnuté heslo",
+			"subtitle": "Zadajte svoj e-mail a pošleme vám odkaz na obnovenie.",
+			"emailLabel": "E-mail",
+			"emailPlaceholder": "tvoj@email.sk",
+			"button": "Odoslať odkaz",
+			"loading": "Odosielam...",
+			"sent": "Ak účet s týmto e-mailom existuje, odoslali sme odkaz na obnovenie.",
+			"backToLogin": "Späť na prihlásenie",
+			"networkError": "Chyba siete. Skontrolujte pripojenie.",
+			"tooManyRequests": "Príliš veľa pokusov. Skúste to prosím neskôr."
+		},
+		"resetPassword": {
+			"title": "Obnovenie hesla",
+			"subtitle": "Zadajte svoje nové heslo.",
+			"passwordLabel": "Nové heslo",
+			"passwordPlaceholder": "Aspoň 8 znakov",
+			"button": "Obnoviť heslo",
+			"loading": "Obnovujem...",
+			"success": "Heslo úspešne obnovené!",
+			"successDesc": "Teraz sa môžete prihlásiť s novým heslom.",
+			"invalidToken": "Neplatný alebo expirovaný odkaz na obnovenie.",
+			"tooManyRequests": "Príliš veľa pokusov. Skúste to prosím neskôr.",
+			"serverError": "Niečo sa pokazilo. Skúste to prosím znova.",
+			"signIn": "Prihlásiť sa"
 		}
 	},
 	"ProfilePage": {

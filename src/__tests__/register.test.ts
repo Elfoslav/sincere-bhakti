@@ -16,6 +16,10 @@ vi.mock("@/lib/prisma", () => ({
     channelSlugHistory: {
       findFirst: vi.fn(),
     },
+    verificationToken: {
+      create: vi.fn(),
+      deleteMany: vi.fn(),
+    },
     $transaction: vi.fn((cb: (tx: any) => any) =>
       cb({
         user: {
@@ -31,6 +35,9 @@ vi.mock("@/lib/prisma", () => ({
         channelSlugHistory: {
           findFirst: (...args: any[]) => (prisma.channelSlugHistory.findFirst as any)(...args),
         },
+        verificationToken: {
+          create: (...args: any[]) => (prisma.verificationToken.create as any)(...args),
+        },
       }),
     ),
   },
@@ -40,6 +47,9 @@ vi.mock("@/lib/csrf", () => ({
   validateOrigin: vi.fn(() => true),
 }));
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/email", () => ({
+  sendVerificationEmail: vi.fn(async () => {}),
+}));
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -71,6 +81,7 @@ describe("POST /api/register", () => {
       email: "kdas@example.com",
       password: "hashed-password",
       image: null,
+      emailVerifiedAt: null,
       createdAt: new Date(),
       renameCount: 0,
       sessionVersion: 0,

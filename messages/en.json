@@ -94,7 +94,9 @@
 			"noAccount": "Don't have an account?",
 			"registerLink": "Register",
 			"networkError": "Network error. Please check your connection.",
-			"registeredSuccess": "Account created successfully! Sign in to continue."
+			"registeredVerify": "Account created! Check your email for the verification link.",
+			"verifiedSuccess": "Email verified successfully! You can now sign in.",
+			"forgotPassword": "Forgot password?"
 		},
 		"register": {
 			"title": "Join the Saṅga",
@@ -123,6 +125,46 @@
 			"networkError": "Network error. Please check your connection.",
 			"termsAgreement": "I agree with <link>Terms & Conditions</link>",
 			"termsRequired": "You must agree to the Terms & Conditions"
+		},
+		"verifyEmail": {
+			"title": "Verify Email",
+			"verifying": "Verifying your email...",
+			"success": "Email verified successfully!",
+			"successDesc": "You can now sign in to your account.",
+			"error": "Verification failed",
+			"invalidToken": "Invalid or expired verification link.",
+			"signIn": "Sign in",
+			"unverifiedTitle": "Email not verified",
+			"unverifiedDesc": "Please verify your email address before creating posts. Check your inbox for the verification link we sent you.",
+			"resendButton": "Send verification email",
+			"resending": "Sending...",
+			"resendSent": "Verification email sent! Check your inbox."
+		},
+		"forgotPassword": {
+			"title": "Forgot Password",
+			"subtitle": "Enter your email and we'll send you a reset link.",
+			"emailLabel": "Email",
+			"emailPlaceholder": "your@email.com",
+			"button": "Send Reset Link",
+			"loading": "Sending...",
+			"sent": "If an account with that email exists, we've sent a reset link.",
+			"backToLogin": "Back to sign in",
+			"networkError": "Network error. Please check your connection.",
+			"tooManyRequests": "Too many attempts. Please try again later."
+		},
+		"resetPassword": {
+			"title": "Reset Password",
+			"subtitle": "Enter your new password.",
+			"passwordLabel": "New Password",
+			"passwordPlaceholder": "At least 8 characters",
+			"button": "Reset Password",
+			"loading": "Resetting...",
+			"success": "Password reset successfully!",
+			"successDesc": "You can now sign in with your new password.",
+			"invalidToken": "Invalid or expired reset link.",
+			"tooManyRequests": "Too many attempts. Please try again later.",
+			"serverError": "Something went wrong. Please try again.",
+			"signIn": "Sign in"
 		}
 	},
 	"ProfilePage": {
@@ -284,6 +326,7 @@
 		"translationDeleted": "Translation removed",
 		"saveError": "Something went wrong"
 	},
+
 	"Common": {
 		"cancel": "Cancel",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",

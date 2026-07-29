@@ -118,6 +118,7 @@ describe("auth session version", () => {
       image: null,
       password: "hashed-password",
       sessionVersion: 0,
+      emailVerifiedAt: new Date(),
     } as any);
     vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
 

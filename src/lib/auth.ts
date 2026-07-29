@@ -22,7 +22,7 @@ export const authConfig = {
         const email = (credentials.email as string).trim().toLowerCase();
         const user = await prisma.user.findUnique({
           where: { email },
-          select: { id: true, name: true, email: true, image: true, password: true, sessionVersion: true },
+          select: { id: true, name: true, email: true, image: true, password: true, sessionVersion: true, emailVerifiedAt: true },
         });
 
         if (!user) return null;
@@ -40,6 +40,7 @@ export const authConfig = {
           email: user.email,
           image: user.image,
           sessionVersion: user.sessionVersion,
+          emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
         };
       },
     }),
@@ -54,6 +55,7 @@ export const authConfig = {
         token.id = user.id!;
         token.email = user.email!;
         token.sessionVersion = user.sessionVersion ?? 0;
+        token.emailVerifiedAt = user.emailVerifiedAt ?? null;
 
         let channel = await getPersonalChannel(user.id!);
         if (!channel) {
@@ -69,7 +71,7 @@ export const authConfig = {
 
       const current = await prisma.user.findUnique({
         where: { id: token.id as string },
-        select: { sessionVersion: true },
+        select: { sessionVersion: true, emailVerifiedAt: true },
       });
 
       if (!current) {
@@ -82,6 +84,7 @@ export const authConfig = {
         }
 
         token.sessionVersion = current.sessionVersion;
+        token.emailVerifiedAt = current.emailVerifiedAt?.toISOString() ?? null;
         return token;
       }
 
@@ -89,6 +92,7 @@ export const authConfig = {
         return null;
       }
 
+      token.emailVerifiedAt = current.emailVerifiedAt?.toISOString() ?? null;
       return token;
     },
     async session({ session, token }) {
@@ -96,6 +100,7 @@ export const authConfig = {
         session.user.id = token.id as string;
         session.user.email = token.email as string;
         session.user.channelId = token.channelId as string;
+        session.user.emailVerifiedAt = token.emailVerifiedAt as string | null | undefined;
       }
       return session;
     },
