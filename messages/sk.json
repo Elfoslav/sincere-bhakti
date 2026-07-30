@@ -420,5 +420,21 @@
 			}
 		],
 		"backHome": "Späť na úvod"
+	},
+	"Emails": {
+		"verify": {
+			"subject": "Overte svoj e-mail — Sincere Bhakti",
+			"heading": "Overte svoj e-mail",
+			"body": "Ďakujeme za registráciu do Sincere Bhakti. Kliknite na tlačidlo nižšie pre overenie vašej e-mailovej adresy a dokončenie registrácie.",
+			"buttonText": "Overiť e-mail",
+			"footer": "Ak ste si nevytvorili účet na Sincere Bhakti, tento e-mail môžete ignorovať."
+		},
+		"reset": {
+			"subject": "Obnovenie hesla — Sincere Bhakti",
+			"heading": "Obnovenie hesla",
+			"body": "Obdržali sme žiadosť o obnovenie hesla pre váš účet Sincere Bhakti. Kliknite na tlačidlo nižšie pre nastavenie nového hesla.",
+			"buttonText": "Obnoviť heslo",
+			"footer": "Ak ste o obnovenie hesla nežiadali, tento e-mail môžete ignorovať. Vaše heslo zostane nezmenené."
+		}
 	}
 }

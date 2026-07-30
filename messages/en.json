@@ -421,5 +421,21 @@
 			}
 		],
 		"backHome": "Back to home"
+	},
+	"Emails": {
+		"verify": {
+			"subject": "Verify your email — Sincere Bhakti",
+			"heading": "Verify your email",
+			"body": "Thank you for registering on Sincere Bhakti. Click the button below to verify your email address and complete your registration.",
+			"buttonText": "Verify Email",
+			"footer": "If you did not create an account on Sincere Bhakti, you can ignore this email."
+		},
+		"reset": {
+			"subject": "Reset your password — Sincere Bhakti",
+			"heading": "Reset your password",
+			"body": "We received a request to reset the password for your Sincere Bhakti account. Click the button below to set a new password.",
+			"buttonText": "Reset Password",
+			"footer": "If you did not request a password reset, you can ignore this email. Your password will remain unchanged."
+		}
 	}
 }

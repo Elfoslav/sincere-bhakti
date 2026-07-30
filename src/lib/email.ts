@@ -9,100 +9,30 @@ const ses = new SESv2Client({
   },
 });
 
-type EmailTemplate = "verify" | "reset";
+type EmailTemplateParts = {
+  subject: string;
+  heading: string;
+  body: string;
+  buttonText: string;
+  footer: string;
+};
 
-function emailTemplate(
-  template: EmailTemplate,
-  params: { link: string; locale: string },
-): { subject: string; html: string } {
-  const siteUrl = getSiteUrl();
-  const logoSrc = `${siteUrl}/images/sincere-bhakti-logo-200x137-transparent.png`;
-
-  if (template === "verify") {
-    const subject =
-      params.locale === "cs"
-        ? "Ověřte svůj e-mail — Sincere Bhakti"
-        : params.locale === "sk"
-          ? "Overte svoj e-mail — Sincere Bhakti"
-          : "Verify your email — Sincere Bhakti";
-
-    const heading =
-      params.locale === "cs"
-        ? "Ověřte svůj e-mail"
-        : params.locale === "sk"
-          ? "Overte svoj e-mail"
-          : "Verify your email";
-
-    const body =
-      params.locale === "cs"
-        ? "Děkujeme za registraci do Sincere Bhakti. Klikněte na tlačítko níže pro ověření vaší e-mailové adresy a dokončení registrace."
-        : params.locale === "sk"
-          ? "Ďakujeme za registráciu do Sincere Bhakti. Kliknite na tlačidlo nižšie pre overenie vašej e-mailovej adresy a dokončenie registrácie."
-          : "Thank you for registering on Sincere Bhakti. Click the button below to verify your email address and complete your registration.";
-
-    const buttonText =
-      params.locale === "cs"
-        ? "Ověřit e-mail"
-        : params.locale === "sk"
-          ? "Overiť e-mail"
-          : "Verify Email";
-
-    const footer =
-      params.locale === "cs"
-        ? "Pokud jste si nevytvořili účet na Sincere Bhakti, můžete tento e-mail ignorovat."
-        : params.locale === "sk"
-          ? "Ak ste si nevytvorili účet na Sincere Bhakti, tento e-mail môžete ignorovať."
-          : "If you did not create an account on Sincere Bhakti, you can ignore this email.";
-
-    return {
-      subject,
-      html: buildHtml({ logoSrc, heading, body, buttonText, link: params.link, footer }),
-    };
+async function loadEmailTranslations(
+  locale: string,
+  template: "verify" | "reset",
+): Promise<EmailTemplateParts> {
+  try {
+    const messages = (await import(`../../messages/${locale}.json`)).default;
+    const parts = messages.Emails?.[template];
+    if (parts?.subject && parts?.heading) return parts;
+  } catch {
+    // fall through to en
   }
-
-  // reset
-  const subject =
-    params.locale === "cs"
-      ? "Obnovení hesla — Sincere Bhakti"
-      : params.locale === "sk"
-        ? "Obnovenie hesla — Sincere Bhakti"
-        : "Reset your password — Sincere Bhakti";
-
-  const heading =
-    params.locale === "cs"
-      ? "Obnovení hesla"
-      : params.locale === "sk"
-        ? "Obnovenie hesla"
-        : "Reset your password";
-
-  const body =
-    params.locale === "cs"
-      ? "Obdrželi jsme žádost o obnovení hesla pro váš účet Sincere Bhakti. Klikněte na tlačítko níže pro nastavení nového hesla."
-      : params.locale === "sk"
-        ? "Obdržali sme žiadosť o obnovenie hesla pre váš účet Sincere Bhakti. Kliknite na tlačidlo nižšie pre nastavenie nového hesla."
-        : "We received a request to reset the password for your Sincere Bhakti account. Click the button below to set a new password.";
-
-  const buttonText =
-    params.locale === "cs"
-      ? "Obnovit heslo"
-      : params.locale === "sk"
-        ? "Obnoviť heslo"
-        : "Reset Password";
-
-  const footer =
-    params.locale === "cs"
-      ? "Pokud jste o obnovení hesla nežádali, můžete tento e-mail ignorovat. Vaše heslo zůstane beze změny."
-      : params.locale === "sk"
-        ? "Ak ste o obnovenie hesla nežiadali, tento e-mail môžete ignorovať. Vaše heslo zostane nezmenené."
-        : "If you did not request a password reset, you can ignore this email. Your password will remain unchanged.";
-
-  return {
-    subject,
-    html: buildHtml({ logoSrc, heading, body, buttonText, link: params.link, footer }),
-  };
+  const fallback = (await import(`../../messages/en.json`)).default;
+  return fallback.Emails[template];
 }
 
-function buildHtml(opts: {
+export function buildHtml(opts: {
   logoSrc: string;
   heading: string;
   body: string;
@@ -173,33 +103,11 @@ function buildHtml(opts: {
 </html>`;
 }
 
-export async function sendVerificationEmail(
-  to: string,
-  token: string,
-  locale: string,
-): Promise<void> {
-  const siteUrl = getSiteUrl();
-  const link = `${siteUrl}/${locale}/verify-email?token=${encodeURIComponent(token)}`;
-  await sendEmail(to, "verify", { link, locale });
-}
-
-export async function sendPasswordResetEmail(
-  to: string,
-  token: string,
-  locale: string,
-): Promise<void> {
-  const siteUrl = getSiteUrl();
-  const link = `${siteUrl}/${locale}/reset-password?token=${encodeURIComponent(token)}`;
-  await sendEmail(to, "reset", { link, locale });
-}
-
 async function sendEmail(
   to: string,
-  template: EmailTemplate,
-  params: { link: string; locale: string },
+  subject: string,
+  html: string,
 ): Promise<void> {
-  const { subject, html } = emailTemplate(template, params);
-
   await ses.send(
     new SendEmailCommand({
       FromEmailAddress: process.env.MAIL_FROM,
@@ -212,4 +120,30 @@ async function sendEmail(
       },
     }),
   );
+}
+
+export async function sendVerificationEmail(
+  to: string,
+  token: string,
+  locale: string,
+): Promise<void> {
+  const t = await loadEmailTranslations(locale, "verify");
+  const siteUrl = getSiteUrl();
+  const logoSrc = `${siteUrl}/images/sincere-bhakti-logo-200x137-transparent.png`;
+  const link = `${siteUrl}/${locale}/verify-email?token=${encodeURIComponent(token)}`;
+  const html = buildHtml({ logoSrc, heading: t.heading, body: t.body, buttonText: t.buttonText, link, footer: t.footer });
+  await sendEmail(to, t.subject, html);
+}
+
+export async function sendPasswordResetEmail(
+  to: string,
+  token: string,
+  locale: string,
+): Promise<void> {
+  const t = await loadEmailTranslations(locale, "reset");
+  const siteUrl = getSiteUrl();
+  const logoSrc = `${siteUrl}/images/sincere-bhakti-logo-200x137-transparent.png`;
+  const link = `${siteUrl}/${locale}/reset-password?token=${encodeURIComponent(token)}`;
+  const html = buildHtml({ logoSrc, heading: t.heading, body: t.body, buttonText: t.buttonText, link, footer: t.footer });
+  await sendEmail(to, t.subject, html);
 }
