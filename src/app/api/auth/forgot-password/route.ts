@@ -44,13 +44,11 @@ export async function POST(request: NextRequest) {
           const resetToken = crypto.randomBytes(32).toString("hex");
           const resetExpires = new Date(Date.now() + 60 * 60 * 1000);
 
-          // Delete any existing reset tokens for this email to prevent accumulation.
-          await prisma.verificationToken.deleteMany({
-            where: { email, type: "reset" },
-          });
-
-          await prisma.verificationToken.create({
-            data: { email, token: resetToken, type: "reset", expiresAt: resetExpires },
+          // Upsert is atomic vs deleteMany+create — no race on (email, type) unique.
+          await prisma.verificationToken.upsert({
+            where: { email_type: { email, type: "reset" } },
+            create: { email, token: resetToken, type: "reset", expiresAt: resetExpires },
+            update: { token: resetToken, expiresAt: resetExpires },
           });
 
           await sendPasswordResetEmail(email, resetToken, language ?? "en");

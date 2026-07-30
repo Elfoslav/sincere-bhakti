@@ -38,6 +38,7 @@ model VerificationToken {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [email], references: [email], onDelete: Cascade)
 
+  @@unique([email, type])
   @@index([email])
   @@index([token])
   @@index([expiresAt])

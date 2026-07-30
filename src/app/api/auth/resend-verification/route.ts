@@ -34,17 +34,15 @@ export async function POST(request: NextRequest) {
     const verifyToken = crypto.randomBytes(32).toString("hex");
     const verifyExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    await prisma.verificationToken.deleteMany({
-      where: { email: user.email, type: "verify" },
-    });
-
-    await prisma.verificationToken.create({
-      data: {
+    await prisma.verificationToken.upsert({
+      where: { email_type: { email: user.email, type: "verify" } },
+      create: {
         email: user.email,
         token: verifyToken,
         type: "verify",
         expiresAt: verifyExpires,
       },
+      update: { token: verifyToken, expiresAt: verifyExpires },
     });
 
     try {
