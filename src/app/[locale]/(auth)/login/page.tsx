@@ -17,6 +17,7 @@ export default function LoginPage() {
   const t = useTranslations("Auth.login");
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get("registered") === "true";
+  const justVerified = searchParams.get("verified") === "true";
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -71,7 +72,13 @@ export default function LoginPage() {
 
         {justRegistered && (
           <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg p-3 mb-4 text-center">
-            {t("registeredSuccess")}
+            {t("registeredVerify")}
+          </div>
+        )}
+
+        {justVerified && (
+          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg p-3 mb-4 text-center">
+            {t("verifiedSuccess")}
           </div>
         )}
 
@@ -97,6 +104,11 @@ export default function LoginPage() {
               required
               placeholder={t("passwordPlaceholder")}
             />
+            <div className="text-right mt-1">
+              <Link href="/forgot-password" className="text-xs text-gold hover:underline font-medium">
+                {t("forgotPassword")}
+              </Link>
+            </div>
           </div>
 
           {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}

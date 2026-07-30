@@ -170,7 +170,7 @@ describe("POST /api/posts", () => {
   });
 
   it("creates a post with text only", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-1", shouldRefreshPreference: false, explicitForbidden: false });
     vi.mocked(createPost).mockResolvedValue({
       id: "post-1",
@@ -197,7 +197,7 @@ describe("POST /api/posts", () => {
   });
 
   it("creates a post with the active identity cookie channel", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-2", shouldRefreshPreference: false, explicitForbidden: false });
     vi.mocked(createPost).mockResolvedValue({
       id: "post-2",
@@ -222,7 +222,7 @@ describe("POST /api/posts", () => {
   });
 
   it("falls back and refreshes stale active identity cookie", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-1", shouldRefreshPreference: true, explicitForbidden: false });
     vi.mocked(createPost).mockResolvedValue({
       id: "post-3",
@@ -248,7 +248,7 @@ describe("POST /api/posts", () => {
   });
 
   it("returns 403 for explicit non-authorable channel", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: undefined, shouldRefreshPreference: false, explicitForbidden: true });
 
     const res = await POST(mockPostRequest({ content: "Nope", channelId: "channel-2" }));
@@ -258,14 +258,14 @@ describe("POST /api/posts", () => {
   });
 
   it("rejects empty content", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
 
     const res = await POST(mockPostRequest({}));
     expect(res.status).toBe(400);
   });
 
   it("returns 500 on service error", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", channelId: "channel-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-1", shouldRefreshPreference: false, explicitForbidden: false });
     vi.mocked(createPost).mockRejectedValue(new Error("DB down"));
 

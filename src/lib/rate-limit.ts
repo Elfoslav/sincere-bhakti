@@ -47,6 +47,14 @@ export const RATE_LIMITS = {
   readIdentity: { limit: 120, windowMs: 60_000 },
   // Switch active identity: 60 requests per hour per user
   updateIdentity: { limit: 60, windowMs: 3_600_000 },
+  // Email verification: 10 attempts per 15 minutes per IP
+  verifyEmail: { limit: 10, windowMs: 900_000 },
+  // Forgot password: 3 attempts per 15 minutes per IP
+  forgotPassword: { limit: 3, windowMs: 900_000 },
+  // Reset password: 10 attempts per 15 minutes per IP
+  resetPassword: { limit: 10, windowMs: 900_000 },
+  // Resend verification: 3 attempts per 15 minutes per user
+  resendVerification: { limit: 3, windowMs: 900_000 },
 } as const;
 
 // Rate-limit key prefixes — shared across API routes and SSR pages so every
@@ -75,6 +83,10 @@ export const RATE_LIMIT_PREFIX = {
   changePassword: "change-password",
   readIdentity: "read-identity",
   updateIdentity: "update-identity",
+  verifyEmail: "verify-email",
+  forgotPassword: "forgot-password",
+  resetPassword: "reset-password",
+  resendVerification: "resend-verification",
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;
