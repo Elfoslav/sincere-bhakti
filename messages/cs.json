@@ -133,6 +133,7 @@
 			"successDesc": "Nyní se můžete přihlásit ke svému účtu.",
 			"successAuthenticated": "Nyní můžete vytvářet příspěvky.",
 			"showPosts": "Zobrazit příspěvky",
+			"home": "Domů",
 			"error": "Ověření selhalo",
 			"invalidToken": "Neplatný nebo prošlý ověřovací odkaz.",
 			"signIn": "Přihlásit se",

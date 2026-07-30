@@ -83,12 +83,21 @@ export default function VerifyEmailPage() {
               <div className="text-4xl mb-4">❌</div>
               <h1 className="text-2xl font-bold text-deep">{t("error")}</h1>
               <p className="text-deep/60 text-sm mt-2">{t("invalidToken")}</p>
-              <Link
-                href="/login"
-                className="text-gold hover:underline font-medium text-sm mt-4 inline-block"
-              >
-                {t("signIn")}
-              </Link>
+              {authStatus === "authenticated" ? (
+                <Link
+                  href="/"
+                  className="text-gold hover:underline font-medium text-sm mt-4 inline-block"
+                >
+                  {t("home")}
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  className="text-gold hover:underline font-medium text-sm mt-4 inline-block"
+                >
+                  {t("signIn")}
+                </Link>
+              )}
             </>
           )}
         </div>

@@ -133,6 +133,7 @@
 			"successDesc": "You can now sign in to your account.",
 			"successAuthenticated": "You can create posts now.",
 			"showPosts": "Show posts",
+			"home": "Home",
 			"error": "Verification failed",
 			"invalidToken": "Invalid or expired verification link.",
 			"signIn": "Sign in",

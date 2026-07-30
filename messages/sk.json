@@ -133,6 +133,7 @@
 			"successDesc": "Teraz sa môžete prihlásiť k svojmu účtu.",
 			"successAuthenticated": "Teraz môžete vytvárať príspevky.",
 			"showPosts": "Zobraziť príspevky",
+			"home": "Domov",
 			"error": "Overenie zlyhalo",
 			"invalidToken": "Neplatný alebo expirovaný overovací odkaz.",
 			"signIn": "Prihlásiť sa",
