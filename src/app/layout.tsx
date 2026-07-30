@@ -2,6 +2,7 @@ import { Geist } from "next/font/google";
 import localFont from "next/font/local";
 import type { Viewport, Metadata } from "next";
 import { cookies } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
 import Providers from "@/components/Providers";
 import { routing } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
@@ -76,6 +77,7 @@ export default async function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${headingFont.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <Providers session={session} initialIdentityState={initialIdentityState}>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
