@@ -39,7 +39,6 @@ model VerificationToken {
   user      User     @relation(fields: [email], references: [email], onDelete: Cascade)
 
   @@unique([email, type])
-  @@index([email])
   @@index([token])
   @@index([expiresAt])
 }
