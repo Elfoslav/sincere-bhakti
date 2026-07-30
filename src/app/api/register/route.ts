@@ -10,6 +10,7 @@ import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
 import { ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED } from "@/lib/error-codes";
+import { generateVerificationTokenValue, VERIFY_TOKEN_TTL_MS } from "@/lib/verification-token";
 import { sendVerificationEmail } from "@/lib/email";
 
 type RegistrationTx = {
@@ -115,8 +116,8 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
-    const verifyToken = crypto.randomBytes(32).toString("hex");
-    const verifyExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const verifyToken = generateVerificationTokenValue();
+    const verifyExpires = new Date(Date.now() + VERIFY_TOKEN_TTL_MS);
 
     const user = await prisma.$transaction(async (tx) => {
       const createdUser = await tx.user.create({

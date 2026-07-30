@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { issueVerificationToken, VERIFY_TOKEN_TTL_MS } from "@/lib/verification-token";
 import { requireAuth } from "@/lib/require-auth";
 import { RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { serverError } from "@/lib/error-handlers";
@@ -31,19 +31,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ verified: true }, { status: HTTP_OK });
     }
 
-    const verifyToken = crypto.randomBytes(32).toString("hex");
-    const verifyExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-    await prisma.verificationToken.upsert({
-      where: { email_type: { email: user.email, type: "verify" } },
-      create: {
-        email: user.email,
-        token: verifyToken,
-        type: "verify",
-        expiresAt: verifyExpires,
-      },
-      update: { token: verifyToken, expiresAt: verifyExpires },
-    });
+    const verifyToken = await issueVerificationToken(user.email, "verify", VERIFY_TOKEN_TTL_MS);
 
     try {
       await sendVerificationEmail(user.email, verifyToken, locale);

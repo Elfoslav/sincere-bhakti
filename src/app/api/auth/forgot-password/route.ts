@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { issueVerificationToken, RESET_TOKEN_TTL_MS } from "@/lib/verification-token";
 import { forgotPasswordSchema } from "@/lib/validation";
 import { validateOrigin } from "@/lib/csrf";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
@@ -41,16 +41,7 @@ export async function POST(request: NextRequest) {
     if (user) {
       after(async () => {
         try {
-          const resetToken = crypto.randomBytes(32).toString("hex");
-          const resetExpires = new Date(Date.now() + 60 * 60 * 1000);
-
-          // Upsert is atomic vs deleteMany+create — no race on (email, type) unique.
-          await prisma.verificationToken.upsert({
-            where: { email_type: { email, type: "reset" } },
-            create: { email, token: resetToken, type: "reset", expiresAt: resetExpires },
-            update: { token: resetToken, expiresAt: resetExpires },
-          });
-
+          const resetToken = await issueVerificationToken(email, "reset", RESET_TOKEN_TTL_MS);
           await sendPasswordResetEmail(email, resetToken, language ?? "en");
         } catch (error) {
           logServerError("POST /api/auth/forgot-password reset", error);

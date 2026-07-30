@@ -1,5 +1,6 @@
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 import { getSiteUrl } from "@/lib/url";
+import { locales, routing } from "@/i18n/routing";
 
 const ses = new SESv2Client({
   region: process.env.AWS_REGION,
@@ -17,6 +18,20 @@ type EmailTemplateParts = {
   footer: string;
 };
 
+// Only ever build links/import message files for a known locale. Any other
+// value (e.g. an unvalidated request field) falls back to the default so it
+// can't inject into the email HTML or the message-file import path.
+function normalizeLocale(locale: string): string {
+  return (locales as readonly string[]).includes(locale) ? locale : routing.defaultLocale;
+}
+
+// All five fields must be present — the template renders every one, so a
+// partial translation must fall back rather than interpolate `undefined`.
+function isCompleteTemplate(parts: unknown): parts is EmailTemplateParts {
+  const p = parts as Partial<EmailTemplateParts> | undefined;
+  return !!(p?.subject && p?.heading && p?.body && p?.buttonText && p?.footer);
+}
+
 async function loadEmailTranslations(
   locale: string,
   template: "verify" | "reset",
@@ -24,12 +39,16 @@ async function loadEmailTranslations(
   try {
     const messages = (await import(`../../messages/${locale}.json`)).default;
     const parts = messages.Emails?.[template];
-    if (parts?.subject && parts?.heading) return parts;
+    if (isCompleteTemplate(parts)) return parts;
   } catch {
     // fall through to en
   }
   const fallback = (await import(`../../messages/en.json`)).default;
-  return fallback.Emails[template];
+  const parts = fallback.Emails?.[template];
+  if (isCompleteTemplate(parts)) return parts;
+  // en is expected to always be complete; fail loudly rather than send an
+  // email with `undefined` fields (callers catch + log, so no mail is sent).
+  throw new Error(`Missing or incomplete "${template}" email translations`);
 }
 
 export function buildHtml(opts: {
@@ -127,10 +146,11 @@ export async function sendVerificationEmail(
   token: string,
   locale: string,
 ): Promise<void> {
-  const t = await loadEmailTranslations(locale, "verify");
+  const safeLocale = normalizeLocale(locale);
+  const t = await loadEmailTranslations(safeLocale, "verify");
   const siteUrl = getSiteUrl();
   const logoSrc = `${siteUrl}/images/sincere-bhakti-logo-200x137-transparent.png`;
-  const link = `${siteUrl}/${locale}/verify-email?token=${encodeURIComponent(token)}`;
+  const link = `${siteUrl}/${safeLocale}/verify-email?token=${encodeURIComponent(token)}`;
   const html = buildHtml({ logoSrc, heading: t.heading, body: t.body, buttonText: t.buttonText, link, footer: t.footer });
   await sendEmail(to, t.subject, html);
 }
@@ -140,10 +160,11 @@ export async function sendPasswordResetEmail(
   token: string,
   locale: string,
 ): Promise<void> {
-  const t = await loadEmailTranslations(locale, "reset");
+  const safeLocale = normalizeLocale(locale);
+  const t = await loadEmailTranslations(safeLocale, "reset");
   const siteUrl = getSiteUrl();
   const logoSrc = `${siteUrl}/images/sincere-bhakti-logo-200x137-transparent.png`;
-  const link = `${siteUrl}/${locale}/reset-password?token=${encodeURIComponent(token)}`;
+  const link = `${siteUrl}/${safeLocale}/reset-password?token=${encodeURIComponent(token)}`;
   const html = buildHtml({ logoSrc, heading: t.heading, body: t.body, buttonText: t.buttonText, link, footer: t.footer });
   await sendEmail(to, t.subject, html);
 }
