@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SessionProvider, useSession } from "next-auth/react";
+import { isAuthenticated } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import EditPostModal from "@/components/EditPostModal";
 import PostCard from "@/components/PostCard";
@@ -65,7 +66,7 @@ function EditPostHarnessContent() {
   const { status } = useSession();
   const [post, setPost] = useState<Post>(initialPost);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
-  const isAuthenticated = status === "authenticated";
+  const authenticated = isAuthenticated(status);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-8">
@@ -73,7 +74,7 @@ function EditPostHarnessContent() {
         onClick={() => setEditingPostId(post.id)}
         aria-label="Edit post"
         data-testid="open-edit-modal"
-        disabled={!isAuthenticated}
+        disabled={!authenticated}
       >
         Edit post
       </Button>

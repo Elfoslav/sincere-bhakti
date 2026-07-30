@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AUTHENTICATED } from "@/lib/session";
+import { isAuthenticated } from "@/lib/session";
 
 export default function VerifyEmailPage() {
   const t = useTranslations("Auth.verifyEmail");
@@ -53,7 +53,7 @@ export default function VerifyEmailPage() {
             <>
               <div className="text-4xl mb-4">✅</div>
               <h1 className="text-2xl font-bold text-deep">{t("success")}</h1>
-              {authStatus === AUTHENTICATED ? (
+              {isAuthenticated(authStatus) ? (
                 <>
                   <p className="text-deep/60 text-sm mt-2">{t("successAuthenticated")}</p>
                   <Button
@@ -84,7 +84,7 @@ export default function VerifyEmailPage() {
               <div className="text-4xl mb-4">❌</div>
               <h1 className="text-2xl font-bold text-deep">{t("error")}</h1>
               <p className="text-deep/60 text-sm mt-2">{t("invalidToken")}</p>
-              {authStatus === AUTHENTICATED ? (
+              {isAuthenticated(authStatus) ? (
                 <Link
                   href="/"
                   className="text-gold hover:underline font-medium text-sm mt-4 inline-block"

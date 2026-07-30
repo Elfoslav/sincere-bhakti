@@ -237,7 +237,8 @@ Hard-won rules — violating any of these silently breaks previews on WhatsApp/M
 - **Import types with `type` prefix** when only the type is needed: `import type { Foo } from "@/types/foo"`.
 
 ## Auth / Session
-- Use `status === "authenticated"` (from `useSession()`) for conditional rendering of auth-gated UI (profile link, logout button). The `status` string is stable during client-side navigation and doesn't flash. Do NOT use `session &&` — the `session` object can briefly become `null` during re-renders triggered by locale navigation, causing visible flicker.
+- Use `isAuthenticated(status)` from `@/lib/session` for checking session auth state. Never inline `status === "authenticated"` — always use the shared function.
+- The `status` string from `useSession()` is stable during client-side navigation and doesn't flash. Do NOT use `session &&` — the `session` object can briefly become `null` during re-renders triggered by locale navigation, causing visible flicker.
 ## Trimming User Input
 - Every string field from user input (name, email, password, content, etc.) must be `.trim()`ed before being stored or used in comparisons.
 - In Zod schemas, always use `.trim()` on string fields — never rely on the caller to trim. The parsed output is already trimmed, so downstream code receives clean values.
