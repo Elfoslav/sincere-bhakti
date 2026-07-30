@@ -118,6 +118,17 @@ describe("sendVerificationEmail", () => {
     const cmd = vi.mocked(SendEmailCommand).mock.calls[0][0];
     expect(cmd.Content?.Simple?.Subject?.Data).toBe("Verify your email — Sincere Bhakti");
   });
+
+  it("sanitizes an invalid/malicious locale out of the link (no HTML injection)", async () => {
+    await sendVerificationEmail("user@example.com", "tok", '"><img src=x onerror=alert(1)>');
+
+    const cmd = vi.mocked(SendEmailCommand).mock.calls[0][0];
+    const html = cmd.Content?.Simple?.Body?.Html?.Data ?? "";
+    // The bogus locale is coerced to the default, so nothing is injected and the
+    // link is well-formed.
+    expect(html).not.toContain("<img src=x");
+    expect(html).toContain("/en/verify-email?token=tok");
+  });
 });
 
 describe("sendPasswordResetEmail", () => {
