@@ -5,5 +5,6 @@ export type SessionUser = {
     email?: string | null;
     image?: string | null;
     channelId?: string;
+    emailVerifiedAt?: string | null;
   };
 };

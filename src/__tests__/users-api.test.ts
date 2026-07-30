@@ -64,6 +64,7 @@ const baseUser = {
   email: "devotee@example.com",
   password: "hashed-pw",
   image: null,
+  emailVerifiedAt: null,
   createdAt: new Date("2026-01-01"),
   renameCount: 0,
   sessionVersion: 0,

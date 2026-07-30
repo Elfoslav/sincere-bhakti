@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DialogActions, dialogActionButtonClassName } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { InfoBox } from "@/components/ui/info-box";
 import { GripVertical, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getYouTubeEmbedUrl } from "@/lib/video";
@@ -81,6 +82,28 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   const locale = useLocale();
   const t = useTranslations("PostsPage");
   const common = useTranslations("Common");
+  const verifyT = useTranslations("Auth.verifyEmail");
+  const isVerified = !!session?.user?.emailVerifiedAt;
+  const [verifyingSending, setVerifyingSending] = useState(false);
+  const [verifyingSent, setVerifyingSent] = useState(false);
+
+  async function handleResendVerification() {
+    setVerifyingSending(true);
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale }),
+      });
+      if (res.ok) {
+        setVerifyingSent(true);
+      }
+    } catch {
+      // ignore
+    }
+    setVerifyingSending(false);
+  }
+
   const [content, setContent] = useState(initialContent);
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>(
@@ -335,138 +358,160 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
         </div>
       )}
 
-      <Textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder={mode === "edit" ? undefined : t("composePlaceholder")}
-        rows={3}
-      />
-
-      {detectedVideo && (
-        <div className="mt-3 aspect-video rounded-md overflow-hidden bg-deep/5">
-          <iframe
-            key={detectedVideo}
-            src={detectedVideo}
-            className="w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            title={t("youtubePreview")}
-          />
-        </div>
-      )}
-
-      {mediaItems.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {mediaItems.map((item, i) => (
-            <div
-              key={item.id}
-              draggable
-              onDragStart={() => handleDragStart(item.id)}
-              onDragOver={(e) => handleDragOver(e, i)}
-              onDragEnd={handleDragEnd}
-              className="relative group flex items-center gap-2 bg-deep/5 rounded-md p-1 cursor-grab active:cursor-grabbing"
+      {mode === "create" && !isVerified ? (
+        <InfoBox variant="warning" title={verifyT("unverifiedTitle")} className="mt-4">
+          <p>{verifyT("unverifiedDesc")}</p>
+          {verifyingSent ? (
+            <p className="text-amber-700 font-medium mt-2">{verifyT("resendSent")}</p>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              disabled={verifyingSending}
+              onClick={handleResendVerification}
             >
-              <GripVertical className="w-4 h-4 text-deep/30 shrink-0" />
-              <div className="w-16 h-12 rounded overflow-hidden shrink-0 bg-deep/10">
-                {(item.file ? item.previewUrl : item.url) && (
-                  item.file?.type.startsWith("video/") || item.type.startsWith("video") ? (
-                    <video src={item.file ? item.previewUrl : item.url} className="w-full h-full object-cover" />
-                  ) : (
-                    <img src={item.file ? item.previewUrl! : item.url!} alt="" className="w-full h-full object-cover" />
-                  )
-                )}
-              </div>
-              <span className="text-xs text-deep/60 truncate flex-1 min-w-0 hidden md:block">
-                {item.file ? item.file.name : item.url?.split("/").pop()}
-              </span>
-              {item.file && (
-                <span className="text-[10px] text-deep/40 shrink-0 tabular-nums">
-                  {formatBytes(item.file.size)}
-                </span>
-              )}
-              <Button
-                type="button"
-                onClick={() => removeMedia(item.id)}
-                variant="icon-destructive"
-                size="icon-xs"
-                className="ml-auto text-deep/30"
-                aria-label={t("removeMedia")}
-                icon={<X />}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col gap-0.5">
-            <label className="flex items-center gap-2 text-sm text-deep/70 cursor-pointer hover:text-deep">
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept={getAcceptString()}
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <span className="text-xl">📎</span>
-              {mediaItems.length > 0 ? `${t("attachMedia")} (${mediaItems.length})` : t("attachMedia")}
-            </label>
-            {totalUploadSize > 0 && (
-              <>
-                <span className="text-[11px] text-deep/40 ml-8 tabular-nums">
-                  {formatBytes(totalUploadSize)} / {formatBytes(MAX_TOTAL_UPLOAD_SIZE_BYTES)}
-                </span>
-                <div className="ml-8 w-28 h-1.5 rounded-full bg-deep/10 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-300"
-                    style={{
-                      width: `${Math.min((totalUploadSize / MAX_TOTAL_UPLOAD_SIZE_BYTES) * 100, 100)}%`,
-                      backgroundColor: totalUploadSize > MAX_TOTAL_UPLOAD_SIZE_BYTES * 0.9 ? "#ef4444" : "#db8637",
-                    }}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-
-          <label className="flex items-center gap-3 cursor-pointer">
-            <Switch
-              checked={isPublic}
-              onCheckedChange={(checked) => setIsPublic(checked)}
-            />
-            <span className="text-sm font-medium">
-              {isPublic ? (
-                <span className="text-tulsi">{t("public")}</span>
-              ) : (
-                <span className="text-saffron">{t("private")}</span>
-              )}
-            </span>
-          </label>
-        </div>
-
-        <DialogActions className={onCancel ? undefined : "flex grid-cols-none items-center justify-end"}>
-          {onCancel && (
-            <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={onCancel}>
-              {t("cancel")}
+              {verifyingSending ? verifyT("resending") : verifyT("resendButton")}
             </Button>
           )}
-          <Button
-            type="submit"
-            variant="default"
-            className={onCancel ? dialogActionButtonClassName : "px-6 py-2"}
-            disabled={submitting || (mode === "create" && !activeChannelId) || (!content.trim() && mediaItems.length === 0)}
-          >
-            {submitting
-              ? t("posting")
-              : mode === "edit"
-                ? t("saveButton")
-                : t("postButton")}
-          </Button>
-        </DialogActions>
-      </div>
+        </InfoBox>
+      ) : (
+        <>
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={mode === "edit" ? undefined : t("composePlaceholder")}
+            rows={3}
+          />
+
+          {detectedVideo && (
+            <div className="mt-3 aspect-video rounded-md overflow-hidden bg-deep/5">
+              <iframe
+                key={detectedVideo}
+                src={detectedVideo}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                title={t("youtubePreview")}
+              />
+            </div>
+          )}
+
+          {mediaItems.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {mediaItems.map((item, i) => (
+                <div
+                  key={item.id}
+                  draggable
+                  onDragStart={() => handleDragStart(item.id)}
+                  onDragOver={(e) => handleDragOver(e, i)}
+                  onDragEnd={handleDragEnd}
+                  className="relative group flex items-center gap-2 bg-deep/5 rounded-md p-1 cursor-grab active:cursor-grabbing"
+                >
+                  <GripVertical className="w-4 h-4 text-deep/30 shrink-0" />
+                  <div className="w-16 h-12 rounded overflow-hidden shrink-0 bg-deep/10">
+                    {(item.file ? item.previewUrl : item.url) && (
+                      item.file?.type.startsWith("video/") || item.type.startsWith("video") ? (
+                        <video src={item.file ? item.previewUrl : item.url} className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={item.file ? item.previewUrl! : item.url!} alt="" className="w-full h-full object-cover" />
+                      )
+                    )}
+                  </div>
+                  <span className="text-xs text-deep/60 truncate flex-1 min-w-0 hidden md:block">
+                    {item.file ? item.file.name : item.url?.split("/").pop()}
+                  </span>
+                  {item.file && (
+                    <span className="text-[10px] text-deep/40 shrink-0 tabular-nums">
+                      {formatBytes(item.file.size)}
+                    </span>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={() => removeMedia(item.id)}
+                    variant="icon-destructive"
+                    size="icon-xs"
+                    className="ml-auto text-deep/30"
+                    aria-label={t("removeMedia")}
+                    icon={<X />}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
+            <div className="flex items-center gap-4">
+              <div className="flex flex-col gap-0.5">
+                <label className="flex items-center gap-2 text-sm text-deep/70 cursor-pointer hover:text-deep">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept={getAcceptString()}
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <span className="text-xl">📎</span>
+                  {mediaItems.length > 0 ? `${t("attachMedia")} (${mediaItems.length})` : t("attachMedia")}
+                </label>
+                {totalUploadSize > 0 && (
+                  <>
+                    <span className="text-[11px] text-deep/40 ml-8 tabular-nums">
+                      {formatBytes(totalUploadSize)} / {formatBytes(MAX_TOTAL_UPLOAD_SIZE_BYTES)}
+                    </span>
+                    <div className="ml-8 w-28 h-1.5 rounded-full bg-deep/10 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{
+                          width: `${Math.min((totalUploadSize / MAX_TOTAL_UPLOAD_SIZE_BYTES) * 100, 100)}%`,
+                          backgroundColor: totalUploadSize > MAX_TOTAL_UPLOAD_SIZE_BYTES * 0.9 ? "#ef4444" : "#db8637",
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <label className="flex items-center gap-3 cursor-pointer">
+                <Switch
+                  checked={isPublic}
+                  onCheckedChange={(checked) => setIsPublic(checked)}
+                />
+                <span className="text-sm font-medium">
+                  {isPublic ? (
+                    <span className="text-tulsi">{t("public")}</span>
+                  ) : (
+                    <span className="text-saffron">{t("private")}</span>
+                  )}
+                </span>
+              </label>
+            </div>
+
+            <DialogActions className={onCancel ? undefined : "flex grid-cols-none items-center justify-end"}>
+              {onCancel && (
+                <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={onCancel}>
+                  {t("cancel")}
+                </Button>
+              )}
+              <Button
+                type="submit"
+                variant="default"
+                className={onCancel ? dialogActionButtonClassName : "px-6 py-2"}
+                disabled={submitting || (mode === "create" && !activeChannelId) || (!content.trim() && mediaItems.length === 0)}
+              >
+                {submitting
+                  ? t("posting")
+                  : mode === "edit"
+                    ? t("saveButton")
+                    : t("postButton")}
+              </Button>
+            </DialogActions>
+          </div>
+        </>
+      )}
     </form>
   );
 });

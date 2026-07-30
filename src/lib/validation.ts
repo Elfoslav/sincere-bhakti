@@ -120,6 +120,7 @@ export const registerSchema = z.object({
     .max(128),
   terms: z
     .literal(true, { message: "terms_required" }),
+  language: z.enum(locales).optional(),
 });
 
 // Intrinsic pixel dimensions are optional metadata detected client-side. They
@@ -232,6 +233,29 @@ export const batchUploadUrlSchema = z.object({
 
 export const updateActiveIdentitySchema = z.object({
   channelId: z.string().min(1),
+});
+
+export const verifyEmailSchema = z.object({
+  token: z.string().trim().min(1),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email()
+    .max(255),
+  language: z.enum(locales).optional(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().trim().min(1),
+  password: z
+    .string()
+    .trim()
+    .min(PASSWORD_MIN_LENGTH)
+    .max(128),
 });
 
 export const compressSchema = z.object({

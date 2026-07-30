@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
@@ -9,6 +10,8 @@ import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
 import { ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED } from "@/lib/error-codes";
+import { generateVerificationTokenValue, VERIFY_TOKEN_TTL_MS } from "@/lib/verification-token";
+import { sendVerificationEmail } from "@/lib/email";
 
 type RegistrationTx = {
   channel: {
@@ -29,6 +32,7 @@ async function createPersonalChannelForRegistration(
   tx: RegistrationTx,
   userId: string,
   userName: string,
+  language: string = "en",
 ): Promise<void> {
   const slug = slugifyName(userName);
 
@@ -52,7 +56,7 @@ async function createPersonalChannelForRegistration(
           ownerId: userId,
           isPersonal: true,
           translations: {
-            create: { language: "en", name, normalizedName: normalized, slug: finalSlug },
+            create: { language, name, normalizedName: normalized, slug: finalSlug },
           },
         },
       });
@@ -69,7 +73,7 @@ async function createPersonalChannelForRegistration(
       ownerId: userId,
       isPersonal: true,
       translations: {
-        create: { language: "en", name: `${userName} (${uuid})`, normalizedName: normalizeName(`${userName} (${uuid})`), slug: `${slug}-${uuid}` },
+        create: { language, name: `${userName} (${uuid})`, normalizedName: normalizeName(`${userName} (${uuid})`), slug: `${slug}-${uuid}` },
       },
     },
   });
@@ -87,7 +91,7 @@ export async function POST(request: NextRequest) {
     const parsed = parseBody(body, registerSchema, "POST /api/register");
     if (parsed.response) return parsed.response;
 
-    const { name, email, password } = parsed.data;
+    const { name, email, password, language } = parsed.data;
 
     // Only the SINCERE_BHAKTI_EMAIL owner may use the brand name
     if (isBrandNameBlocked(name, email)) {
@@ -112,6 +116,9 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
+    const verifyToken = generateVerificationTokenValue();
+    const verifyExpires = new Date(Date.now() + VERIFY_TOKEN_TTL_MS);
+
     const user = await prisma.$transaction(async (tx) => {
       const createdUser = await tx.user.create({
         data: { name, email, password: hashedPassword },
@@ -120,12 +127,30 @@ export async function POST(request: NextRequest) {
 
       // Create the personal channel inside the same transaction so a channel
       // failure cannot leave behind a half-created user account.
-      await createPersonalChannelForRegistration(tx as RegistrationTx, createdUser.id, createdUser.name);
+      await createPersonalChannelForRegistration(tx as RegistrationTx, createdUser.id, createdUser.name, language ?? "en");
+
+      await tx.verificationToken.create({
+        data: {
+          email: createdUser.email,
+          token: verifyToken,
+          type: "verify",
+          expiresAt: verifyExpires,
+        },
+      });
+
       return createdUser;
     });
 
+    // Send verification email outside the transaction — a transient SES failure
+    // should not roll back the user account.
+    try {
+      await sendVerificationEmail(user.email, verifyToken, parsed.data.language ?? "en");
+    } catch (error) {
+      logServerError("POST /api/register sendVerificationEmail", error);
+    }
+
     return NextResponse.json(
-      { id: user.id, name: user.name, email: user.email },
+      { id: user.id, name: user.name, email: user.email, emailSent: true },
       { status: HTTP_CREATED }
     );
   } catch (error) {

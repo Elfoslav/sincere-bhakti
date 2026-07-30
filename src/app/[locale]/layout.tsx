@@ -76,14 +76,14 @@ export default async function LocaleLayout({ children, params }: Props) {
         <main className="flex-1 flex flex-col">{children}</main>
         <Toaster position="bottom-right" richColors closeButton />
         <footer className="bg-deep text-white/80 text-sm py-4 border-t border-sand/20">
-          <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+          <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center sm:gap-4 relative">
             <Link
               href="/terms"
-              className="hover:text-gold-light transition-colors order-first sm:order-none shrink-0"
+              className="hover:text-gold-light transition-colors order-first sm:absolute sm:left-4 mb-2 sm:mb-0"
             >
               {commonT("terms")}
             </Link>
-            <div className="flex-1 text-center">
+            <div className="text-center">
               <p>{commonT("footerLine1", { year: String(new Date().getFullYear()) })}</p>
               <p>{commonT("footerLine2")}</p>
             </div>

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ const initialErrors: FieldErrors = { name: null, email: null, password: null, te
 
 export default function RegisterPage() {
   const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations("Auth.register");
   const common = useTranslations("Common");
   const [errors, setErrors] = useState<FieldErrors>(initialErrors);
@@ -116,7 +117,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, terms: true }),
+        body: JSON.stringify({ name, email, password, terms: true, language: locale }),
       });
 
       if (!res.ok) {

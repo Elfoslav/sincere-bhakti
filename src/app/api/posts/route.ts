@@ -50,6 +50,10 @@ export async function POST(request: NextRequest) {
   if (auth.response) return auth.response;
   const session = auth.session;
 
+  if (!session.user.emailVerifiedAt) {
+    return NextResponse.json({ error: "email_not_verified" }, { status: HTTP_FORBIDDEN });
+  }
+
   try {
     const body = await request.json();
     const parsed = parseBody(body, createPostSchema, "POST /api/posts");
