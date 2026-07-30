@@ -7,8 +7,7 @@ import { useSession } from "next-auth/react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-const AUTHENTICATED = "authenticated";
+import { AUTHENTICATED } from "@/lib/session";
 
 export default function VerifyEmailPage() {
   const t = useTranslations("Auth.verifyEmail");
