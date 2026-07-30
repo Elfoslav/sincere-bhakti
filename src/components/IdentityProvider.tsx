@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { locales } from "@/i18n/routing";
+import { isAuthenticated } from "@/lib/session";
 import type { AuthorableIdentity, InitialIdentityState } from "@/types/identity";
 
 interface IdentityContextValue {
@@ -45,7 +46,7 @@ export function IdentityProvider({
 
   const refreshIdentities = useCallback(async () => {
     const userId = session?.user?.id;
-    if (status !== "authenticated" || !userId) return;
+    if (!isAuthenticated(status) || !userId) return;
 
     const res = await fetch(`/api/identity?language=${locale}`);
     if (res.ok) applyResponse(await res.json(), userId);
@@ -53,7 +54,7 @@ export function IdentityProvider({
 
   useEffect(() => {
     const userId = session?.user?.id;
-    if (status !== "authenticated" || !userId) return;
+    if (!isAuthenticated(status) || !userId) return;
 
     let cancelled = false;
     fetch(`/api/identity?language=${locale}`)

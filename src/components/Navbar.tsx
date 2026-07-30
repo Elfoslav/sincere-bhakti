@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { CircleUserRound, Hash, LogIn, LogOut, Newspaper } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { isAuthenticated } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import IdentitySwitcher from "@/components/IdentitySwitcher";
@@ -66,7 +67,7 @@ export default function Navbar() {
 							<Link href="/channels" className="hover:text-gold-light transition-colors">
 								{t("channels")}
 							</Link>
-							{status === "authenticated" && (
+							{isAuthenticated(status) && (
 								<Link
 									href="/profile"
 									className="hover:text-gold-light transition-colors"
@@ -77,7 +78,7 @@ export default function Navbar() {
 						</div>
 					</div>
 
-					{status === "authenticated" && (
+					{isAuthenticated(status) && (
 						<div className="pointer-events-none absolute inset-x-20 bottom-0 top-0 z-10 flex items-center justify-center md:hidden">
 							<IdentitySwitcher mobileNav />
 						</div>
@@ -97,7 +98,7 @@ export default function Navbar() {
 
 						<div className="hidden md:flex items-center gap-4">
 							<LanguageSwitcher />
-							{status === "authenticated" ? (
+							{isAuthenticated(status) ? (
 								<>
 									<IdentitySwitcher />
 									<Button onClick={() => signOut()} variant="default">
@@ -129,13 +130,13 @@ export default function Navbar() {
 					<MobileLink href="/channels" onClick={close} icon={<Hash className="size-4" />}>
 						{t("channels")}
 					</MobileLink>
-					{status === "authenticated" && (
+					{isAuthenticated(status) && (
 						<MobileLink href="/profile" onClick={close} icon={<CircleUserRound className="size-4" />}>
 							{t("profile")}
 						</MobileLink>
 					)}
 					<div className="flex items-center gap-2 pt-2">
-						{status === "authenticated" ? (
+						{isAuthenticated(status) ? (
 							<Button
 								onClick={() => {
 									signOut();

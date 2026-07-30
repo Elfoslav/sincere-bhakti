@@ -3,12 +3,15 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useSession } from "next-auth/react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { isAuthenticated } from "@/lib/session";
 
 export default function VerifyEmailPage() {
   const t = useTranslations("Auth.verifyEmail");
+  const { status: authStatus } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -50,14 +53,29 @@ export default function VerifyEmailPage() {
             <>
               <div className="text-4xl mb-4">✅</div>
               <h1 className="text-2xl font-bold text-deep">{t("success")}</h1>
-              <p className="text-deep/60 text-sm mt-2">{t("successDesc")}</p>
-              <Button
-                variant="default"
-                className="w-full mt-6"
-                onClick={() => router.push("/login?verified=true")}
-              >
-                {t("signIn")}
-              </Button>
+              {isAuthenticated(authStatus) ? (
+                <>
+                  <p className="text-deep/60 text-sm mt-2">{t("successAuthenticated")}</p>
+                  <Button
+                    variant="default"
+                    className="w-full mt-6"
+                    onClick={() => router.push("/posts")}
+                  >
+                    {t("showPosts")}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-deep/60 text-sm mt-2">{t("successDesc")}</p>
+                  <Button
+                    variant="default"
+                    className="w-full mt-6"
+                    onClick={() => router.push("/login?verified=true")}
+                  >
+                    {t("signIn")}
+                  </Button>
+                </>
+              )}
             </>
           )}
 
@@ -66,12 +84,21 @@ export default function VerifyEmailPage() {
               <div className="text-4xl mb-4">❌</div>
               <h1 className="text-2xl font-bold text-deep">{t("error")}</h1>
               <p className="text-deep/60 text-sm mt-2">{t("invalidToken")}</p>
-              <Link
-                href="/login"
-                className="text-gold hover:underline font-medium text-sm mt-4 inline-block"
-              >
-                {t("signIn")}
-              </Link>
+              {isAuthenticated(authStatus) ? (
+                <Link
+                  href="/"
+                  className="text-gold hover:underline font-medium text-sm mt-4 inline-block"
+                >
+                  {t("home")}
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  className="text-gold hover:underline font-medium text-sm mt-4 inline-block"
+                >
+                  {t("signIn")}
+                </Link>
+              )}
             </>
           )}
         </div>
