@@ -6,6 +6,7 @@
 
 @theme {
   --color-deep: #1a1a2e;
+  --color-deep-brass: color-mix(in oklab, var(--color-brass) 80%, transparent);
   --color-gold: #d4a843;
   --color-gold-light: #e8c36a;
   --color-saffron: #e08a2e;

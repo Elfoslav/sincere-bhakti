@@ -53,7 +53,7 @@ export default async function Home({ params }: Props) {
 							style={{ width: 230, height: 158 }}
 						/>
 					</div>
-					<h1 className="text-4xl md:text-5xl font-medium text-deep leading-tight mb-4 text-balance">
+					<h1 className="text-4xl md:text-5xl font-medium text-deep-brass leading-tight mb-4 text-balance">
 						&ldquo;{t("subtitle")}&rdquo;
 					</h1>
 					<p className="text-lg text-deep/60 mb-8 max-w-xl">
@@ -63,7 +63,7 @@ export default async function Home({ params }: Props) {
 						<Button href="/register" variant="default" size="hero">
 							{t("ctaJoin")}
 						</Button>
-						<Button href="/posts" variant="outline-deep" size="hero">
+						<Button href="/posts" variant="outline-deep" size="hero" className="text-deep-brass">
 							{t("ctaPosts")}
 						</Button>
 					</div>
@@ -71,18 +71,18 @@ export default async function Home({ params }: Props) {
 
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
 					<Card variant="flat">
-						<Heart className="mb-3 text-deep" size={28} aria-hidden="true" />
-						<h3 className="text-lg font-semibold text-deep mb-2">{t("cardBhaktiTitle")}</h3>
+						<Heart className="mb-3 text-deep-brass" size={28} aria-hidden="true" />
+						<h3 className="text-lg font-semibold text-deep-brass mb-2">{t("cardBhaktiTitle")}</h3>
 						<p className="text-sm text-deep/60">{t("cardBhaktiDesc")}</p>
 					</Card>
 					<Card variant="flat">
-						<ImageIcon className="mb-3 text-deep" size={28} aria-hidden="true" />
-						<h3 className="text-lg font-semibold text-deep mb-2">{t("cardMediaTitle")}</h3>
+						<ImageIcon className="mb-3 text-deep-brass" size={28} aria-hidden="true" />
+						<h3 className="text-lg font-semibold text-deep-brass mb-2">{t("cardMediaTitle")}</h3>
 						<p className="text-sm text-deep/60">{t("cardMediaDesc")}</p>
 					</Card>
 					<Card variant="flat">
-						<Users className="mb-3 text-deep" size={28} aria-hidden="true" />
-						<h3 className="text-lg font-semibold text-deep mb-2">{t("cardSangaTitle")}</h3>
+						<Users className="mb-3 text-deep-brass" size={28} aria-hidden="true" />
+						<h3 className="text-lg font-semibold text-deep-brass mb-2">{t("cardSangaTitle")}</h3>
 						<p className="text-sm text-deep/60">{t("cardSangaDesc")}</p>
 					</Card>
 				</div>

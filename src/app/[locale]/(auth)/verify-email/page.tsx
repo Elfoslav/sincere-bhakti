@@ -11,7 +11,7 @@ import { isAuthenticated } from "@/lib/session";
 
 export default function VerifyEmailPage() {
   const t = useTranslations("Auth.verifyEmail");
-  const { status: authStatus } = useSession();
+  const { status: authStatus, update: updateSession } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -30,12 +30,20 @@ export default function VerifyEmailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
     })
-      .then((res) => {
-        if (res.ok) setStatus("success");
-        else setStatus("error");
+      .then(async (res) => {
+        if (!res.ok) {
+          setStatus("error");
+          return;
+        }
+        // The verify-email route updates the DB; refetch the session so the
+        // client's emailVerifiedAt reflects it (the JWT callback refreshes it
+        // from the DB on refetch) and the posts page unlocks post creation.
+        // A session-refetch failure must not downgrade a verified email.
+        await updateSession().catch(() => {});
+        setStatus("success");
       })
       .catch(() => setStatus("error"));
-  }, [token]);
+  }, [token, updateSession]);
 
   return (
     <div className="w-full max-w-md">
