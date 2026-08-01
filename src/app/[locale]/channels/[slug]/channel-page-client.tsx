@@ -26,6 +26,7 @@ import PostCard from "@/components/PostCard";
 import PostForm from "@/components/PostForm";
 import EditPostModal from "@/components/EditPostModal";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import ChannelVisibilityNotice from "./channel-visibility-notice";
 import { useIdentity } from "@/components/IdentityProvider";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
@@ -225,6 +226,13 @@ export default function ChannelPageClient({
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8">
+      <ChannelVisibilityNotice
+        key={channel.id}
+        channelId={channel.id}
+        channelSlug={channel.slug}
+        availableLanguages={channel.availableLanguages}
+        show={canManageSettings}
+      />
       <Breadcrumb
         items={[
           { label: channelsT("title"), href: "/channels" },

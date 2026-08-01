@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
 import type { ReactNode } from "react";
 
 type InfoBoxVariant = "info" | "warning" | "error" | "success";
@@ -28,6 +29,8 @@ export function InfoBox({
   children,
   className,
   action,
+  onClose,
+  closeLabel,
 }: {
   variant?: InfoBoxVariant;
   icon?: string;
@@ -35,6 +38,8 @@ export function InfoBox({
   children: ReactNode;
   className?: string;
   action?: ReactNode;
+  onClose?: () => void;
+  closeLabel?: string;
 }) {
   return (
     <div
@@ -52,6 +57,16 @@ export function InfoBox({
           )}
           <div>{children}</div>
         </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={closeLabel}
+            className="shrink-0 rounded p-1 opacity-60 transition-opacity hover:opacity-100 hover:bg-black/5"
+          >
+            <X className="size-4" />
+          </button>
+        )}
       </div>
       {action && (
         <div className="ml-8">
