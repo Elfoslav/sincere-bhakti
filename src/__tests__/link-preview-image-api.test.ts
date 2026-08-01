@@ -46,6 +46,26 @@ describe("GET /api/link-preview/image", () => {
     expect(res.headers.get("content-type")).toBe("image/png");
   });
 
+  it("uses image/x-icon for a .ico url", async () => {
+    vi.mocked(fetchRemoteBytes).mockResolvedValue(Buffer.from([0x00, 0x00, 0x01, 0x00]));
+    const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image?url=https%3A%2F%2Fcdn.example.com%2Ffavicon.ico"));
+    expect(res.headers.get("content-type")).toBe("image/x-icon");
+  });
+
+  it("rejects svg urls so the proxy cannot serve script-bearing svg", async () => {
+    const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image?url=https%3A%2F%2Fevil.example.com%2Fx.svg"));
+    const json = await res.json();
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("bad_request");
+    expect(fetchRemoteBytes).not.toHaveBeenCalled();
+  });
+
+  it("rejects svg urls with query strings", async () => {
+    const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image?url=https%3A%2F%2Fevil.example.com%2Fx.svg%3Fv%3D1"));
+    expect(res.status).toBe(400);
+    expect(fetchRemoteBytes).not.toHaveBeenCalled();
+  });
+
   it("returns 400 for a missing url", async () => {
     const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image"));
     const json = await res.json();

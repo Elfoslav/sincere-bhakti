@@ -30,7 +30,8 @@ const IMG_TAG = /<img\b[^>]*>/gi;
 const ICON_TAG = /<link\b[^>]*rel=["'](?:shortcut icon|icon|apple-touch-icon)(?:["'])[^>]*>/gi;
 
 function attrValue(html: string, name: string): string | null {
-  const match = html.match(new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`, "i"));
+  // Lookbehind prevents matching data-src / data-href / data-width etc.
+  const match = html.match(new RegExp(`(?<![\\w-])${name}\\s*=\\s*(["'])(.*?)\\1`, "i"));
   return match ? match[2] : null;
 }
 

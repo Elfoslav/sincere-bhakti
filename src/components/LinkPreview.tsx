@@ -9,9 +9,22 @@ import type { LinkPreviewData } from "@/lib/link-preview";
  * content. The image is served through /api/link-preview/image so the browser
  * CSP (img-src 'self') keeps allowing it without widening to arbitrary hosts.
  * Renders nothing when there is no URL, the fetch fails, or no og data exists.
+ *
+ * The URL is debounced before fetching: while the user types, getFirstUrl
+ * returns partial URLs (https://exa, https://exampl, …) which would otherwise
+ * remount the card and fire a /api/link-preview request per keystroke,
+ * exhausting the per-IP rate limit. PostCard text is static so the only cost
+ * there is a short delay before the card appears.
  */
 export default function LinkPreview({ text }: { text: string | null | undefined }) {
-  const url = getFirstUrl(text);
+  const [debouncedText, setDebouncedText] = useState(text);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedText(text), 400);
+    return () => clearTimeout(id);
+  }, [text]);
+
+  const url = getFirstUrl(debouncedText);
   if (!url) return null;
   return <LinkPreviewCard key={url} url={url} />;
 }

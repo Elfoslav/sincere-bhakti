@@ -12,13 +12,26 @@ import { serverError } from "@/lib/error-handlers";
 
 const CACHE_CONTROL = "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400";
 
+// SVG is deliberately not proxied: an SVG served top-level from our origin
+// could run inline scripts (the global CSP keeps 'unsafe-inline' for hydration),
+// turning the proxy into a stored-XSS vector.
+const isSvgUrl = (url: string): boolean => {
+  try {
+    return /\.svg(?:$|\?)/i.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+};
+
+// Everything else defaults to image/jpeg — many og:image URLs have no image
+// extension (query-string only).
 function contentTypeFromUrl(url: string): string {
   try {
     const { pathname } = new URL(url);
     if (/\.png$/i.test(pathname)) return "image/png";
     if (/\.webp$/i.test(pathname)) return "image/webp";
     if (/\.gif$/i.test(pathname)) return "image/gif";
-    if (/\.svg$/i.test(pathname)) return "image/svg+xml";
+    if (/\.ico$/i.test(pathname)) return "image/x-icon";
   } catch {
     // fall through
   }
@@ -34,6 +47,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get("url")?.trim();
   if (!url || !isSafeHttpUrl(url)) {
+    return NextResponse.json({ error: ERROR_BAD_REQUEST }, { status: HTTP_BAD_REQUEST });
+  }
+  if (isSvgUrl(url)) {
     return NextResponse.json({ error: ERROR_BAD_REQUEST }, { status: HTTP_BAD_REQUEST });
   }
 

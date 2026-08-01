@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, waitFor } from "@testing-library/react";
 
 const { fetchMock } = vi.hoisted(() => ({
   fetchMock: vi.fn(),
@@ -28,9 +28,39 @@ describe("LinkPreview", () => {
     global.fetch = fetchMock;
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("renders nothing when there is no url in the text", () => {
     const { container } = render(<LinkPreview text="no links here" />);
     expect(container.innerHTML).toBe("");
+  });
+
+  it("debounces url changes so typing does not fire a request per keystroke", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ preview: null }),
+    });
+
+    // Initial render fires immediately (static text); it is the URL *changes*
+    // that are debounced while typing.
+    const { rerender } = render(<LinkPreview text="check https://exa" />);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    rerender(<LinkPreview text="check https://examp" />);
+    rerender(<LinkPreview text="check https://example.com/post out" />);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/link-preview?url=" + encodeURIComponent("https://example.com/post"),
+    );
   });
 
   it("fetches the preview for the first url and renders the card", async () => {
@@ -41,9 +71,11 @@ describe("LinkPreview", () => {
 
     const { container } = render(<LinkPreview text="check https://example.com/post out" />);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/link-preview?url=" + encodeURIComponent("https://example.com/post"),
-    );
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/link-preview?url=" + encodeURIComponent("https://example.com/post"),
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByText("Hello World")).toBeInTheDocument();

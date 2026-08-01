@@ -59,6 +59,13 @@ describe("parseLinkPreview", () => {
     expect(parseLinkPreview(html, PAGE_URL).image).toBe("https://example.com/large.jpg");
   });
 
+  it("prefers the real src over data-src regardless of attribute order", () => {
+    const srcFirst = '<img src="/real.jpg" data-src="/lazy.jpg" width="800" height="600" />';
+    const dataFirst = '<img data-src="/lazy.jpg" src="/real.jpg" width="800" height="600" />';
+    expect(parseLinkPreview(srcFirst, PAGE_URL).image).toBe("https://example.com/real.jpg");
+    expect(parseLinkPreview(dataFirst, PAGE_URL).image).toBe("https://example.com/real.jpg");
+  });
+
   it("resolves a relative body image against the page URL", () => {
     const html = '<img src="/art/chapter.jpg" width="800" height="600" />';
     expect(parseLinkPreview(html, PAGE_URL).image).toBe("https://example.com/art/chapter.jpg");
