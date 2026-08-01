@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { extractYouTubeContent } from "@/lib/video";
 import { replaceEmoticons } from "@/lib/emoticons";
 import { getPostUrl } from "@/lib/post-url";
+import PostContent from "@/components/PostContent";
+import LinkPreview from "@/components/LinkPreview";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -137,7 +139,10 @@ export default function PostCard({
       </div>
 
       {cleanContent && (
-        <p className="text-deep mb-3 whitespace-pre-wrap">{displayContent}</p>
+        <>
+          <PostContent text={displayContent} className="text-deep mb-3 whitespace-pre-wrap" />
+          <LinkPreview text={cleanContent} />
+        </>
       )}
 
       <ImageGallery images={images} t={t} />

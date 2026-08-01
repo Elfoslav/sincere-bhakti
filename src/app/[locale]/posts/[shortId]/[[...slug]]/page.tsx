@@ -10,6 +10,7 @@ import { auth } from "@/lib/auth";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import PostDetailClient from "../post-detail-client";
 import PostLayout from "@/components/PostLayout";
+import PostContent from "@/components/PostContent";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { getPostUrl, getStalePostSlugRedirect } from "@/lib/post-url";
@@ -155,7 +156,10 @@ export default async function PostPage({
                 </div>
               </div>
               {post.content && (
-                <p className="text-sm text-deep/80 whitespace-pre-wrap line-clamp-6">{post.content}</p>
+                <PostContent
+                  text={post.content}
+                  className="text-sm text-deep/80 whitespace-pre-wrap line-clamp-6"
+                />
               )}
               {post.media.length > 0 && (
                 <p className="text-xs text-deep/40 mt-3">

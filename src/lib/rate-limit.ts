@@ -55,6 +55,10 @@ export const RATE_LIMITS = {
   resetPassword: { limit: 10, windowMs: 900_000 },
   // Resend verification: 3 attempts per 15 minutes per user
   resendVerification: { limit: 3, windowMs: 900_000 },
+  // Link preview fetch: 30 requests per 60s per IP
+  readLinkPreview: { limit: 30, windowMs: 60_000 },
+  // Link preview image proxy: 60 requests per 60s per IP
+  readLinkPreviewImage: { limit: 60, windowMs: 60_000 },
 } as const;
 
 // Rate-limit key prefixes — shared across API routes and SSR pages so every
@@ -87,6 +91,8 @@ export const RATE_LIMIT_PREFIX = {
   forgotPassword: "forgot-password",
   resetPassword: "reset-password",
   resendVerification: "resend-verification",
+  readLinkPreview: "read-link-preview",
+  readLinkPreviewImage: "read-link-preview-image",
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;
