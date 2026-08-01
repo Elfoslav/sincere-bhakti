@@ -226,19 +226,19 @@ export default function ChannelPageClient({
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8">
-      <ChannelVisibilityNotice
-        key={channel.id}
-        channelId={channel.id}
-        channelSlug={channel.slug}
-        availableLanguages={channel.availableLanguages}
-        show={canManageSettings}
-      />
       <Breadcrumb
         items={[
           { label: channelsT("title"), href: "/channels" },
           { label: channel.name },
         ]}
         className="mb-4"
+      />
+      <ChannelVisibilityNotice
+        key={channel.id}
+        channelId={channel.id}
+        channelSlug={channel.slug}
+        availableLanguages={channel.availableLanguages}
+        show={canManageSettings}
       />
       <Card variant="default" padding="lg" className="relative mb-8 text-center">
         {canManageSettings && (
