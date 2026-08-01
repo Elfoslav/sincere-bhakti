@@ -1,26 +1,41 @@
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { CircleCheckBig, CircleX, Info, TriangleAlert, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { feedbackContainerClasses, feedbackIconClasses } from "@/components/ui/feedback-palette";
 
 type InfoBoxVariant = "info" | "warning" | "error" | "success";
 
 const variantClasses: Record<InfoBoxVariant, string> = {
-  info:
-    "border-blue-200 bg-blue-50 text-blue-800",
-  warning:
-    "border-amber-200 bg-amber-50 text-amber-800",
-  error:
-    "border-red-200 bg-red-50 text-red-700",
-  success:
-    "border-green-200 bg-green-50 text-green-700",
+  info: feedbackContainerClasses.info,
+  warning: feedbackContainerClasses.warning,
+  error: feedbackContainerClasses.error,
+  success: feedbackContainerClasses.success,
 };
 
-const iconMap: Record<InfoBoxVariant, string> = {
-  info: "ℹ️",
-  warning: "⚠️",
-  error: "❌",
-  success: "✅",
+const iconClasses: Record<InfoBoxVariant, string> = {
+  info: feedbackIconClasses.info,
+  warning: feedbackIconClasses.warning,
+  error: feedbackIconClasses.error,
+  success: feedbackIconClasses.success,
 };
+
+function InfoBoxIcon({ variant }: { variant: NonNullable<InfoBoxVariant> }) {
+  const className = cn("size-4 shrink-0 self-center", iconClasses[variant]);
+
+  if (variant === "success") {
+    return <CircleCheckBig className={className} />;
+  }
+
+  if (variant === "error") {
+    return <CircleX className={className} />;
+  }
+
+  if (variant === "warning") {
+    return <TriangleAlert className={className} />;
+  }
+
+  return <Info className={className} />;
+}
 
 export function InfoBox({
   variant = "info",
@@ -33,7 +48,7 @@ export function InfoBox({
   closeLabel,
 }: {
   variant?: InfoBoxVariant;
-  icon?: string;
+  icon?: ReactNode;
   title?: string;
   children: ReactNode;
   className?: string;
@@ -43,19 +58,23 @@ export function InfoBox({
 }) {
   return (
     <div
+      role={variant === "error" ? "alert" : "status"}
       className={cn(
-        "rounded-lg border p-4 text-sm leading-relaxed flex flex-col gap-2",
+        "flex w-full flex-col gap-2 rounded-xl border px-4 py-3 text-sm",
         variantClasses[variant],
         className,
       )}
     >
       <div className="flex items-start gap-3">
-        <span className="shrink-0 mt-0.5">{icon ?? iconMap[variant]}</span>
+        <span className="shrink-0 mt-0.5">{icon ?? <InfoBoxIcon variant={variant} />}</span>
         <div className="min-w-0 flex-1">
           {title && (
             <p className="font-semibold mb-1">{title}</p>
           )}
           <div>{children}</div>
+          {action && (
+            <div className="mt-2">{action}</div>
+          )}
         </div>
         {onClose && (
           <button
@@ -68,11 +87,6 @@ export function InfoBox({
           </button>
         )}
       </div>
-      {action && (
-        <div className="ml-8">
-          {action}
-        </div>
-      )}
     </div>
   );
 }
