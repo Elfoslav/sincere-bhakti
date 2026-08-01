@@ -21,6 +21,11 @@ export function useInfinitePosts(params?: ApiParams) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(initialData?.hasMore ?? true);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  // Guards loadMore against concurrent invocations. State-based guards are
+  // unreliable here: the IntersectionObserver can fire twice before React
+  // re-renders, so both calls would read loadingMore === false and append the
+  // same cursor page, producing duplicate post ids (React duplicate-key error).
+  const loadingMoreRef = useRef(false);
   // True until the first fetch effect runs once; lets us skip the initial fetch
   // when server-provided initialData already populated state.
   const skipInitialFetch = useRef(Boolean(initialData));
@@ -77,10 +82,12 @@ export function useInfinitePosts(params?: ApiParams) {
   }, [disabled, fetchPosts]);
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
+    if (loadingMoreRef.current || !hasMore) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     const last = posts[posts.length - 1];
     if (!last) {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
       return;
     }
@@ -88,12 +95,19 @@ export function useInfinitePosts(params?: ApiParams) {
     const data = await fetchPosts(last.id);
     if (data) {
       startTransition(() => {
-        setPosts((prev) => [...prev, ...data.posts]);
+        // Dedupe by id: an earlier double-fire of the observer could have
+        // already appended this page, and a create/update could race the fetch.
+        setPosts((prev) => {
+          const seen = new Set(prev.map((p) => p.id));
+          const fresh = data.posts.filter((p) => !seen.has(p.id));
+          return fresh.length ? [...prev, ...fresh] : prev;
+        });
         setHasMore(data.hasMore);
       });
     }
+    loadingMoreRef.current = false;
     setLoadingMore(false);
-  }, [posts, loadingMore, hasMore, fetchPosts]);
+  }, [posts, loadingMoreRef, hasMore, fetchPosts]);
 
   const sentinelRef = useCallback(
     (node: HTMLDivElement | null) => {
