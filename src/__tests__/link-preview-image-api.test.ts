@@ -9,6 +9,7 @@ vi.mock("@/lib/remote-fetch", () => ({
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { fetchRemoteBytes } from "@/lib/remote-fetch";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { GET } from "@/app/api/link-preview/image/route";
 
 function mockRequest(url: string) {
@@ -32,7 +33,7 @@ describe("GET /api/link-preview/image", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/jpeg");
-    expect(res.headers.get("cache-control")).toContain("public");
+    expect(res.headers.get("cache-control")).toBe("public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800");
     expect(body.equals(bytes)).toBe(true);
     expect(fetchRemoteBytes).toHaveBeenCalledWith(
       "https://cdn.example.com/img.jpg",
@@ -79,11 +80,25 @@ describe("GET /api/link-preview/image", () => {
     const json = await res.json();
     expect(res.status).toBe(404);
     expect(json.error).toBe("not_found");
+    // Upstream fetch failure is transient — never shared-cached.
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
   });
 
   it("returns 500 on server error", async () => {
     vi.mocked(fetchRemoteBytes).mockRejectedValue(new Error("boom"));
     const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image?url=https%3A%2F%2Fcdn.example.com%2Fimg.jpg"));
     expect(res.status).toBe(500);
+  });
+
+  it("returns 429 and never shared-caches when rate limited", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue(false);
+    const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image?url=https%3A%2F%2Fcdn.example.com%2Fimg.jpg"));
+    const json = await res.json();
+    expect(res.status).toBe(429);
+    expect(json.error).toBe("too_many_requests");
+    const cc = res.headers.get("cache-control") ?? "";
+    expect(cc).toContain("no-store");
+    expect(cc).not.toContain("public");
+    expect(fetchRemoteBytes).not.toHaveBeenCalled();
   });
 });

@@ -9,6 +9,7 @@ vi.mock("@/lib/remote-fetch", () => ({
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { fetchRemoteBytes } from "@/lib/remote-fetch";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { GET } from "@/app/api/link-preview/route";
 
 const HTML = `
@@ -41,6 +42,7 @@ describe("GET /api/link-preview", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("public, s-maxage=86400, stale-while-revalidate=604800");
     expect(json.preview).toEqual({
       url: "https://example.com/post",
       title: "Hello World",
@@ -75,6 +77,8 @@ describe("GET /api/link-preview", () => {
     const json = await res.json();
     expect(res.status).toBe(200);
     expect(json.preview).toBeNull();
+    // Upstream fetch failure is transient — never shared-cached.
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
   });
 
   it("returns null preview when nothing usable is extracted", async () => {
@@ -83,11 +87,26 @@ describe("GET /api/link-preview", () => {
     const json = await res.json();
     expect(res.status).toBe(200);
     expect(json.preview).toBeNull();
+    // A page without og tags IS the correct response for the URL — brief
+    // shared cache lets it self-heal if the page later adds tags.
+    expect(res.headers.get("cache-control")).toBe("public, max-age=60, s-maxage=300");
   });
 
   it("returns 500 on server error", async () => {
     vi.mocked(fetchRemoteBytes).mockRejectedValue(new Error("boom"));
     const res = await GET(mockRequest("http://localhost:3000/api/link-preview?url=https%3A%2F%2Fexample.com"));
     expect(res.status).toBe(500);
+  });
+
+  it("returns 429 and never shared-caches when rate limited", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue(false);
+    const res = await GET(mockRequest("http://localhost:3000/api/link-preview?url=https%3A%2F%2Fexample.com"));
+    const json = await res.json();
+    expect(res.status).toBe(429);
+    expect(json.error).toBe("too_many_requests");
+    const cc = res.headers.get("cache-control") ?? "";
+    expect(cc).toContain("no-store");
+    expect(cc).not.toContain("public");
+    expect(fetchRemoteBytes).not.toHaveBeenCalled();
   });
 });

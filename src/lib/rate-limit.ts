@@ -55,10 +55,14 @@ export const RATE_LIMITS = {
   resetPassword: { limit: 10, windowMs: 900_000 },
   // Resend verification: 3 attempts per 15 minutes per user
   resendVerification: { limit: 3, windowMs: 900_000 },
-  // Link preview fetch: 30 requests per 60s per IP
-  readLinkPreview: { limit: 30, windowMs: 60_000 },
-  // Link preview image proxy: 60 requests per 60s per IP
-  readLinkPreviewImage: { limit: 60, windowMs: 60_000 },
+  // Link preview fetch: 120 requests per 60s per IP. Responses are edge-cached
+  // by URL, so this only guards origin cold-misses (a feed of linked posts
+  // fires one request per unique URL, all otherwise served from the CDN).
+  readLinkPreview: { limit: 120, windowMs: 60_000 },
+  // Link preview image proxy: 240 requests per 60s per IP. Each card can fetch
+  // up to two images (og:image + favicon); edge caching serves repeat URLs, so
+  // this only bounds cold-miss upstream fetches.
+  readLinkPreviewImage: { limit: 240, windowMs: 60_000 },
 } as const;
 
 // Rate-limit key prefixes — shared across API routes and SSR pages so every

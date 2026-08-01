@@ -5,12 +5,16 @@ import { fetchRemoteBytes, MAX_LINK_PREVIEW_IMAGE_BYTES } from "@/lib/remote-fet
 import { ERROR_BAD_REQUEST, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 import { serverError } from "@/lib/error-handlers";
+import {
+  LINK_PREVIEW_IMAGE_CACHE_CONTROL,
+  LINK_PREVIEW_RATE_LIMITED_CACHE_CONTROL,
+  LINK_PREVIEW_TRANSIENT_CACHE_CONTROL,
+} from "@/lib/seo";
 
 // Proxies a link-preview og:image so browsers can render it under the app's
 // img-src 'self' CSP. The image URL is user-supplied, so it goes through the
-// same SSRF + size guards as the page fetch.
-
-const CACHE_CONTROL = "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400";
+// same SSRF + size guards as the page fetch. Responses are edge-cached by URL
+// (LINK_PREVIEW_IMAGE_CACHE_CONTROL) so repeated cards don't hit the origin.
 
 // SVG is deliberately not proxied: an SVG served top-level from our origin
 // could run inline scripts (the global CSP keeps 'unsafe-inline' for hydration),
@@ -41,7 +45,10 @@ function contentTypeFromUrl(url: string): string {
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request.headers);
   if (!await checkRateLimit(RATE_LIMIT_PREFIX.readLinkPreviewImage, ip, RATE_LIMITS.readLinkPreviewImage.limit, RATE_LIMITS.readLinkPreviewImage.windowMs)) {
-    return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
+    return NextResponse.json(
+      { error: ERROR_TOO_MANY_REQUESTS },
+      { status: HTTP_TOO_MANY_REQUESTS, headers: { "Cache-Control": LINK_PREVIEW_RATE_LIMITED_CACHE_CONTROL } },
+    );
   }
 
   const { searchParams } = new URL(request.url);
@@ -56,12 +63,18 @@ export async function GET(request: NextRequest) {
   try {
     const bytes = await fetchRemoteBytes(url, { maxBytes: MAX_LINK_PREVIEW_IMAGE_BYTES });
     if (!bytes) {
-      return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
+      // Upstream fetch failed — transient, not a property of the URL. Never
+      // shared-cache it, or one upstream blip would pin the missing image for
+      // every other visitor.
+      return NextResponse.json(
+        { error: ERROR_NOT_FOUND },
+        { status: HTTP_NOT_FOUND, headers: { "Cache-Control": LINK_PREVIEW_TRANSIENT_CACHE_CONTROL } },
+      );
     }
     return new Response(new Uint8Array(bytes), {
       headers: {
         "Content-Type": contentTypeFromUrl(url),
-        "Cache-Control": CACHE_CONTROL,
+        "Cache-Control": LINK_PREVIEW_IMAGE_CACHE_CONTROL,
       },
     });
   } catch (error) {
