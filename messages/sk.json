@@ -236,8 +236,7 @@
 		"linkCopied": "Odkaz na príspevok skopírovaný do schránky",
 		"deleteConfirm": "Naozaj chcete zmazať tento príspevok? Túto akciu nemožno vrátiť.",
 		"deleteSuccess": "Príspevok zmazaný",
-		"deleteFailed": "Nepodarilo sa zmazať príspevok",
-		"externalLink": "Externý odkaz"
+		"deleteFailed": "Nepodarilo sa zmazať príspevok"
 	},
 	"SinglePost": {
 		"title": "Príspevok",

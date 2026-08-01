@@ -18,6 +18,7 @@ import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { useIdentity } from "@/components/IdentityProvider";
+import LinkPreview from "@/components/LinkPreview";
 import type { Post } from "@/types/post";
 import type { MediaInput } from "@/lib/services/post";
 import {
@@ -384,6 +385,12 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
             placeholder={mode === "edit" ? undefined : t("composePlaceholder")}
             rows={3}
           />
+
+          {!detectedVideo && (
+            <div className="mt-3">
+              <LinkPreview text={content} />
+            </div>
+          )}
 
           {detectedVideo && (
             <div className="mt-3 aspect-video rounded-md overflow-hidden bg-deep/5">

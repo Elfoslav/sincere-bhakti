@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
 import { getFirstUrl } from "@/lib/autolink";
 import type { LinkPreviewData } from "@/lib/link-preview";
 
@@ -18,7 +17,6 @@ export default function LinkPreview({ text }: { text: string | null | undefined 
 }
 
 function LinkPreviewCard({ url }: { url: string }) {
-  const t = useTranslations("PostCard");
   const [preview, setPreview] = useState<LinkPreviewData | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -49,6 +47,20 @@ function LinkPreviewCard({ url }: { url: string }) {
     ? `/api/link-preview/image?url=${encodeURIComponent(preview.image)}`
     : null;
 
+  // https://www.example.com/path -> www.example.com
+  let host: string;
+  try {
+    host = new URL(preview.url).hostname;
+  } catch {
+    host = preview.url;
+  }
+
+  // Favicons are external arbitrary images, so they're proxied like og:images
+  // to stay under the img-src 'self' CSP.
+  const faviconSrc = preview.favicon
+    ? `/api/link-preview/image?url=${encodeURIComponent(preview.favicon)}`
+    : null;
+
   return (
     <a
       href={preview.url}
@@ -72,7 +84,13 @@ function LinkPreviewCard({ url }: { url: string }) {
         {preview.description && (
           <p className="text-xs text-deep/70 line-clamp-2 mt-1">{preview.description}</p>
         )}
-        <p className="text-xs text-deep/40 mt-2 truncate">{preview.siteName ?? t("externalLink")}</p>
+        <p className="flex items-center gap-1.5 text-xs text-deep/40 mt-2">
+          {faviconSrc && (
+            // eslint-disable-next-line @next/next/no-img-element -- proxied favicon; arbitrary host, must not be fetched directly
+            <img src={faviconSrc} alt="" loading="lazy" className="size-3.5 rounded-sm" />
+          )}
+          <span className="truncate">{host}</span>
+        </p>
       </div>
     </a>
   );

@@ -18,6 +18,7 @@ const PREVIEW = {
     description: "A description",
     image: "https://cdn.example.com/img.jpg",
     siteName: "Example",
+    favicon: "https://example.com/favicon.ico",
   },
 };
 
@@ -48,11 +49,13 @@ describe("LinkPreview", () => {
       expect(screen.getByText("Hello World")).toBeInTheDocument();
     });
     expect(screen.getByText("A description")).toBeInTheDocument();
-    expect(screen.getByText("Example")).toBeInTheDocument();
+    expect(screen.getByText("example.com")).toBeInTheDocument();
 
-    const img = container.querySelector("img") as HTMLImageElement;
-    expect(img.src).toContain("/api/link-preview/image?url=");
-    expect(img.src).toContain(encodeURIComponent("https://cdn.example.com/img.jpg"));
+    const imgs = container.querySelectorAll("img");
+    expect(imgs.length).toBe(2);
+    expect((imgs[0] as HTMLImageElement).src).toContain("/api/link-preview/image?url=");
+    expect((imgs[0] as HTMLImageElement).src).toContain(encodeURIComponent("https://cdn.example.com/img.jpg"));
+    expect((imgs[1] as HTMLImageElement).src).toContain(encodeURIComponent("https://example.com/favicon.ico"));
 
     const link = screen.getByRole("link");
     expect(link).toHaveAttribute("href", "https://example.com/post");
@@ -83,7 +86,7 @@ describe("LinkPreview", () => {
       ok: true,
       json: () =>
         Promise.resolve({
-          preview: { url: "https://example.com/post", title: "T", description: null, image: null, siteName: null },
+          preview: { url: "https://example.com/post", title: "T", description: null, image: null, siteName: null, favicon: null },
         }),
     });
     render(<LinkPreview text="check https://example.com/post out" />);

@@ -47,6 +47,7 @@ describe("GET /api/link-preview", () => {
       description: "A description",
       image: "https://cdn.example.com/img.jpg",
       siteName: "Example",
+      favicon: null,
     });
     expect(fetchRemoteBytes).toHaveBeenCalledWith(
       "https://example.com/post",
