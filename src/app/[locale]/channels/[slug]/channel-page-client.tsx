@@ -141,7 +141,9 @@ export default function ChannelPageClient({
     setSaving(true);
     setNameError("");
     try {
-      const res = await fetch(`/api/channels/${channel.slug}`, {
+      // The slug is unique per-language; tell the server which locale's slug
+      // this is so it renames the matching translation.
+      const res = await fetch(`/api/channels/${channel.slug}?language=${encodeURIComponent(locale)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),

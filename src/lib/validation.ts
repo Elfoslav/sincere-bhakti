@@ -270,10 +270,13 @@ function stripDiacritics(text: string): string {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-// Strips diacritics and lowercases for fuzzy-unique name comparison.
-// "Taruṇa Govinda Dāsa" and "Taruna Govinda Dasa" both normalize to "taruna govinda dasa".
+// Canonical form for fuzzy-unique name comparison: strips diacritics,
+// lowercases, and collapses ALL whitespace runs (spaces, tabs, newlines) to a
+// single space so visually-equivalent names compare equal.
+// "Taruṇa Govinda Dāsa" and "Taruna  Govinda\tDasa" both normalize to
+// "taruna govinda dasa".
 export function normalizeName(name: string): string {
-  return stripDiacritics(name.trim()).toLowerCase();
+  return stripDiacritics(name.trim().replace(/\s+/g, " ")).toLowerCase();
 }
 
 // Lowercases, folds diacritics, and collapses non-alphanumeric runs to single

@@ -95,8 +95,9 @@ import { auth } from "@/lib/auth";
 import { GET, POST } from "@/app/api/channels/route";
 import { PATCH } from "@/app/api/channels/[slug]/route";
 
-function mockRequest(body?: unknown): any {
+function mockRequest(body?: unknown, url = "http://localhost:3000/api/channels/my-channel?language=en"): any {
   return {
+    url,
     json: () => Promise.resolve(body),
     headers: new Headers({ host: "localhost:3000", origin: "http://localhost:3000" }),
   } as any;
@@ -193,6 +194,12 @@ describe("POST /api/channels", () => {
 
     expect(res.status).toBe(409);
     expect(json.error).toBe("name_taken");
+    // The name-ownership check MUST be language-agnostic: a name taken in ANY
+    // language blocks a new channel. Guard against a regression that scopes it
+    // to a single language.
+    expect(prisma.channelTranslation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { normalizedName: "my name" } }),
+    );
   });
 
   it("returns 400 on invalid name", async () => {
@@ -503,7 +510,7 @@ describe("PATCH /api/channels/[slug]", () => {
       }),
     );
     expect(prisma.channelSlugHistory.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { oldSlug: "old-name", oldNormalizedName: "old name", channelId: "ch-1" } }),
+      expect.objectContaining({ data: { language: "en", oldSlug: "old-name", oldNormalizedName: "old name", channelId: "ch-1" } }),
     );
   });
 

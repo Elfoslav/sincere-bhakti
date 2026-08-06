@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
@@ -17,15 +16,6 @@ type RegistrationTx = {
   channel: {
     create: typeof prisma.channel.create;
   };
-  channelTranslation: {
-    findFirst: typeof prisma.channelTranslation.findFirst;
-  };
-  channelSlugHistory: {
-    findFirst: typeof prisma.channelSlugHistory.findFirst;
-  };
-  user: {
-    create: typeof prisma.user.create;
-  };
 };
 
 async function createPersonalChannelForRegistration(
@@ -34,46 +24,17 @@ async function createPersonalChannelForRegistration(
   userName: string,
   language: string = "en",
 ): Promise<void> {
-  const slug = slugifyName(userName);
-
-  for (let i = 1; i <= 10; i++) {
-    const finalSlug = i === 1 ? slug : `${slug}-${i}`;
-    const name = i === 1 ? userName : `${userName} (${i})`;
-    const normalized = normalizeName(name);
-
-    const slugTaken = await tx.channelTranslation.findFirst({ where: { slug: finalSlug }, select: { id: true } });
-    if (slugTaken) continue;
-
-    const slugInHistory = await tx.channelSlugHistory.findFirst({ where: { oldSlug: finalSlug }, select: { id: true } });
-    if (slugInHistory) continue;
-
-    const nameInHistory = await tx.channelSlugHistory.findFirst({ where: { oldNormalizedName: normalized }, select: { id: true } });
-    if (nameInHistory) continue;
-
-    try {
-      await tx.channel.create({
-        data: {
-          ownerId: userId,
-          isPersonal: true,
-          translations: {
-            create: { language, name, normalizedName: normalized, slug: finalSlug },
-          },
-        },
-      });
-      return;
-    } catch (error) {
-      if ((error as { code?: string })?.code === "P2002") continue;
-      throw error;
-    }
-  }
-
-  const uuid = crypto.randomUUID().slice(0, 8);
+  // Name and slug collisions are rejected up front in the POST handler (see the
+  // pre-transaction checks), so this creates the personal channel with the
+  // user's name and its derived slug directly — no auto-suffixing. A concurrent
+  // race that slips past the pre-checks surfaces as a P2002 and rolls the whole
+  // registration back to a generic "registration_failed".
   await tx.channel.create({
     data: {
       ownerId: userId,
       isPersonal: true,
       translations: {
-        create: { language, name: `${userName} (${uuid})`, normalizedName: normalizeName(`${userName} (${uuid})`), slug: `${slug}-${uuid}` },
+        create: { language, name: userName, normalizedName: normalizeName(userName), slug: slugifyName(userName) },
       },
     },
   });
@@ -114,6 +75,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
+    // Name and slug BOTH gate uniqueness (reject, don't auto-suffix): also block
+    // when the personal-channel slug is already taken in this language — even if
+    // the name itself is free (e.g. "Devotees!" vs an existing "Devotees").
+    const registrationLanguage = language ?? "en";
+    const targetSlug = slugifyName(name);
+    const slugTaken = await prisma.channelTranslation.findFirst({
+      where: { language: registrationLanguage, slug: targetSlug },
+      select: { id: true },
+    });
+    if (slugTaken) {
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
+    }
+    const slugInHistory = await prisma.channelSlugHistory.findFirst({
+      where: { language: registrationLanguage, oldSlug: targetSlug },
+      select: { id: true },
+    });
+    if (slugInHistory) {
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
+    }
+
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
     const verifyToken = generateVerificationTokenValue();
@@ -127,7 +108,7 @@ export async function POST(request: NextRequest) {
 
       // Create the personal channel inside the same transaction so a channel
       // failure cannot leave behind a half-created user account.
-      await createPersonalChannelForRegistration(tx as RegistrationTx, createdUser.id, createdUser.name, language ?? "en");
+      await createPersonalChannelForRegistration(tx as RegistrationTx, createdUser.id, createdUser.name, registrationLanguage);
 
       await tx.verificationToken.create({
         data: {

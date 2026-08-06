@@ -192,25 +192,28 @@ export async function PATCH(
         const oldSlug = personalTranslation.slug;
 
         if (oldSlug !== newSlug) {
+          // Slugs are unique per-language; scope collision checks to the
+          // personal channel translation's own language.
+          const language = personalTranslation.language;
           const slugTaken = await tx.channelTranslation.findUnique({
-            where: { slug: newSlug },
+            where: { language_slug: { language, slug: newSlug } },
             select: { id: true },
           });
           if (slugTaken) throw new NameTakenError();
 
           const historySlugTaken = await tx.channelSlugHistory.findFirst({
-            where: { oldSlug: newSlug, channelId: { not: personalTranslation.channelId } },
+            where: { language, oldSlug: newSlug, channelId: { not: personalTranslation.channelId } },
             select: { id: true },
           });
           if (historySlugTaken) throw new NameTakenError();
 
           const oldInHistory = await tx.channelSlugHistory.findFirst({
-            where: { oldSlug, channelId: personalTranslation.channelId },
+            where: { language, oldSlug, channelId: personalTranslation.channelId },
             select: { id: true },
           });
           if (!oldInHistory) {
             await tx.channelSlugHistory.create({
-              data: { oldSlug, oldNormalizedName: normalizeName(personalTranslation.name), channelId: personalTranslation.channelId },
+              data: { language, oldSlug, oldNormalizedName: normalizeName(personalTranslation.name), channelId: personalTranslation.channelId },
             });
           }
         }
