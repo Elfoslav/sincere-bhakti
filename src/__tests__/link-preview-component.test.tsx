@@ -63,6 +63,34 @@ describe("LinkPreview", () => {
     );
   });
 
+  it("embeds a YouTube watch link without fetching", () => {
+    const { container } = render(<LinkPreview text="watch https://www.youtube.com/watch?v=dQw4w9WgXcQ" />);
+
+    const iframe = container.querySelector("iframe");
+    expect(iframe).not.toBeNull();
+    expect(iframe).toHaveAttribute("src", "https://www.youtube.com/embed/dQw4w9WgXcQ");
+    expect(container.querySelector("a")).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("embeds a YouTube player from a short youtu.be link without fetching", () => {
+    const { container } = render(<LinkPreview text="see https://youtu.be/dQw4w9WgXcQ" />);
+
+    const iframe = container.querySelector("iframe");
+    expect(iframe).not.toBeNull();
+    expect(iframe).toHaveAttribute("src", "https://www.youtube.com/embed/dQw4w9WgXcQ");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("embeds a YouTube Shorts player without fetching", () => {
+    const { container } = render(<LinkPreview text="short https://youtube.com/shorts/dQw4w9WgXcQ" />);
+
+    const iframe = container.querySelector("iframe");
+    expect(iframe).not.toBeNull();
+    expect(iframe).toHaveAttribute("src", "https://www.youtube.com/embed/dQw4w9WgXcQ");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("fetches the preview for the first url and renders the card", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

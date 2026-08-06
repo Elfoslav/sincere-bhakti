@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { getFirstUrl } from "@/lib/autolink";
+import { getYouTubeEmbedUrl } from "@/lib/video";
 import type { LinkPreviewData } from "@/lib/link-preview";
 
 /**
- * Fetches and renders an Open Graph preview for the first URL in a post's
- * content. The image is served through /api/link-preview/image so the browser
- * CSP (img-src 'self') keeps allowing it without widening to arbitrary hosts.
- * Renders nothing when there is no URL, the fetch fails, or no og data exists.
+ * Renders an Open Graph preview for the first URL in a post's content, or an
+ * embedded YouTube player when that URL is a YouTube link. The og:image is
+ * served through /api/link-preview/image so the browser CSP (img-src 'self')
+ * keeps allowing it without widening to arbitrary hosts. Renders nothing when
+ * there is no URL, the fetch fails, or no og data exists.
  *
  * The URL is debounced before fetching: while the user types, getFirstUrl
- * returns partial URLs (https://exa, https://exampl, …) which would otherwise
+ * returns partial text (https://exa, https://exampl, …) which would otherwise
  * remount the card and fire a /api/link-preview request per keystroke,
  * exhausting the per-IP rate limit. PostCard text is static so the only cost
  * there is a short delay before the card appears.
@@ -26,7 +29,29 @@ export default function LinkPreview({ text }: { text: string | null | undefined 
 
   const url = getFirstUrl(debouncedText);
   if (!url) return null;
+
+  // A YouTube link embeds the player directly instead of a card — this is
+  // cheap (no fetch, no rate-limit cost) and gives an instant live preview.
+  const embedUrl = getYouTubeEmbedUrl(url);
+  if (embedUrl) return <YouTubeEmbed key={embedUrl} src={embedUrl} />;
+
   return <LinkPreviewCard key={url} url={url} />;
+}
+
+function YouTubeEmbed({ src }: { src: string }) {
+  const t = useTranslations("PostsPage");
+  return (
+    <div className="mb-3 aspect-video rounded-md overflow-hidden bg-deep/5">
+      <iframe
+        src={src}
+        className="w-full h-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin"
+        title={t("youtubePreview")}
+      />
+    </div>
+  );
 }
 
 function LinkPreviewCard({ url }: { url: string }) {
