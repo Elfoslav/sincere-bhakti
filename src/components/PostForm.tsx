@@ -369,7 +369,8 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={mode === "edit" ? undefined : t("composePlaceholder")}
-            rows={3}
+            size="compose"
+            autoResize
           />
 
           <div className="mt-3">

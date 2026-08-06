@@ -269,6 +269,28 @@ function FormsSection() {
           <Textarea rows={4} placeholder="Write something…" aria-label="Textarea" />
         </div>
       </VariantGroup>
+      <VariantGroup label="Post composer — desktop (md+)">
+        <div className="w-full max-w-2xl rounded-2xl border border-sand bg-white p-4 shadow-sm">
+          <Textarea
+            size="compose"
+            autoResize
+            placeholder="Write a post… auto-grows as you type."
+            aria-label="Post composer desktop"
+            defaultValue="The compose variant starts tall (min-h-40 on desktop) and grows with the content."
+          />
+        </div>
+      </VariantGroup>
+      <VariantGroup label="Post composer — mobile">
+        <div className="w-full max-w-[22rem] rounded-2xl border border-sand bg-white p-3 shadow-sm">
+          <Textarea
+            size="compose"
+            autoResize
+            placeholder="Write a post…"
+            aria-label="Post composer mobile"
+            defaultValue="On mobile it is more compact (min-h-28) and uses 16px text so iOS never auto-zooms."
+          />
+        </div>
+      </VariantGroup>
       <VariantGroup label="Switch">
         <button
           type="button"
