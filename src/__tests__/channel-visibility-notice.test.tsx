@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 vi.mock("next-intl", () => ({
-  useTranslations: vi.fn(() => (key: string, values?: Record<string, string>) => {
+  useTranslations: vi.fn(() => (key: string, values?: Record<string, React.ReactNode>) => {
     const messages: Record<string, string> = {
       visibilityNoticeTitle: "Channel is not visible in all languages",
       visibilityNoticeBody: "This channel is currently only visible in some languages. Add a translation to make it appear in the other language listings: {languages}",
@@ -10,10 +10,8 @@ vi.mock("next-intl", () => ({
       visibilityNoticeDismiss: "Dismiss",
     };
     const message = messages[key] ?? key;
-    if (values) {
-      return message.replace(/\{(\w+)\}/g, (_, name: string) => values[name] ?? `{${name}}`);
-    }
-    return message;
+    if (!values) return message;
+    return message.split(/\{(\w+)\}/).map((part, i) => (i % 2 === 1 ? values[part] : part));
   }),
   useLocale: vi.fn(() => "en"),
 }));
@@ -74,7 +72,7 @@ describe("ChannelVisibilityNotice", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText((content, element) =>
-        element?.tagName === "P" && content.includes("🇨🇿") && content.includes("🇸🇰")
+        element?.tagName === "SPAN" && content.includes("🇨🇿") && content.includes("🇸🇰")
           ? true
           : false,
       ),

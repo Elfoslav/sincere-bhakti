@@ -286,7 +286,7 @@
 		"changeNameInProfile": "Change your name in profile settings",
 		"settings": "Channel settings",
 		"visibilityNoticeTitle": "Channel is not visible in all languages",
-		"visibilityNoticeBody": "This channel is currently only visible in some languages. Add a translation to make it appear in the other language listings: {languages}",
+		"visibilityNoticeBody": "This channel is currently only visible in some languages. Add a translation to make it appear in the other language listings:",
 		"visibilityNoticeAction": "Add translation",
 		"visibilityNoticeDismiss": "Dismiss"
 	},

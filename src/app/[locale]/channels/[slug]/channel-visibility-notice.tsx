@@ -66,7 +66,12 @@ export default function ChannelVisibilityNotice({
         </Button>
       }
     >
-      <p>{t("visibilityNoticeBody", { languages: missingFlags })}</p>
+      <p>
+        {t("visibilityNoticeBody")}
+        <span className="ml-1 inline-flex items-center gap-1.5 align-middle text-xl leading-none">
+          {missingFlags}
+        </span>
+      </p>
     </InfoBox>
   );
 }
