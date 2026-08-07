@@ -304,6 +304,36 @@ describe("POST /api/channels/[slug]/translations", () => {
     );
   });
 
+  it("resolves the anchor by the URL slug's language (slugLanguage) so it can't hit another channel", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    // Composite (language, slug) lookup returns THIS channel's anchor directly.
+    vi.mocked(prisma.channelTranslation.findUnique)
+      .mockResolvedValueOnce({
+        id: "trans-en", slug: "my-channel", language: "en",
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: false },
+      } as any) // anchor via language_slug
+      .mockResolvedValueOnce(null as any) // no cs translation yet → create branch
+      .mockResolvedValueOnce(null as any); // slug free in cs
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null); // name check
+    vi.mocked(prisma.channelTranslation.create).mockResolvedValue({
+      id: "trans-cs", language: "cs", name: "Devotees", slug: "devotees",
+    } as any);
+
+    const res = await POST(
+      mockRequest({ name: "Devotees", language: "cs" }, "http://localhost:3000/api/channels/my-channel/translations?slugLanguage=en"),
+      params,
+    );
+
+    expect(res.status).toBe(201);
+    // The anchor was resolved via the composite key, not the ambiguous findFirst(slug).
+    expect(prisma.channelTranslation.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { language_slug: { language: "en", slug: "my-channel" } } }),
+    );
+    expect(prisma.channelTranslation.findFirst).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: { slug: "my-channel" } }),
+    );
+  });
+
   it("rejects (409) when the derived slug is already taken in that language (no auto-suffix)", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findFirst)

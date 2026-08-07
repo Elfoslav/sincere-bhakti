@@ -18,11 +18,14 @@ export async function POST(
   if (auth.response) return auth.response;
   const session = auth.session;
   const { slug } = await params;
+  // Slugs are unique per-language; the client sends the URL slug's language so
+  // the anchor resolves to the exact channel (never a different channel that
+  // shares the slug string in another language). `slugLanguage`, not `language`,
+  // because the request body's `language` is the NEW translation's language.
+  const slugLanguage = new URL(request.url).searchParams.get("slugLanguage") ?? undefined;
 
   try {
-    // The URL slug only identifies which channel to add a translation to; any
-    // of its per-language slugs resolves the same channel.
-    const translation = await findManageableTranslationBySlug(slug);
+    const translation = await findManageableTranslationBySlug(slug, slugLanguage);
     if (!translation) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
@@ -130,13 +133,15 @@ export async function DELETE(
   if (auth.response) return auth.response;
   const session = auth.session;
   const { slug } = await params;
-  const language = new URL(request.url).searchParams.get("language");
+  const searchParams = new URL(request.url).searchParams;
+  const language = searchParams.get("language"); // the translation to delete
+  const slugLanguage = searchParams.get("slugLanguage") ?? undefined; // the URL slug's language
   if (!language) {
     return NextResponse.json({ error: "validation_error:language:required" }, { status: HTTP_BAD_REQUEST });
   }
 
   try {
-    const translation = await findManageableTranslationBySlug(slug);
+    const translation = await findManageableTranslationBySlug(slug, slugLanguage);
     if (!translation) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }

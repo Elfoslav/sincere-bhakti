@@ -36,11 +36,17 @@ export default function ChannelTranslationsCard({
   // The `channelSlug` prop is the page-locale slug at load time; renaming that
   // translation moves its slug to history, so reusing the prop would 404 the
   // next request. The live `translations` state always holds a current slug that
-  // still resolves the channel, so derive the lookup slug from it.
-  const lookupSlug = translations[0]?.slug ?? channelSlug;
+  // still resolves the channel, so derive the lookup slug from it. Slugs are
+  // unique per-language, so also pass that translation's language so the server
+  // resolves the exact channel (never a different channel that happens to share
+  // the slug string in another language).
+  const lookupTranslation = translations[0];
+  const lookupSlug = lookupTranslation?.slug ?? channelSlug;
+  const slugLanguageParam = lookupTranslation ? `slugLanguage=${encodeURIComponent(lookupTranslation.language)}` : "";
 
   async function handleSave(data: { language: string; name: string }, existingId?: string) {
-    const response = await fetch(`/api/channels/${lookupSlug}/translations`, {
+    const query = slugLanguageParam ? `?${slugLanguageParam}` : "";
+    const response = await fetch(`/api/channels/${lookupSlug}/translations${query}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ language: data.language, name: data.name }),
@@ -86,7 +92,7 @@ export default function ChannelTranslationsCard({
     if (!deletingTranslation) return;
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/channels/${lookupSlug}/translations?language=${deletingTranslation.language}`, {
+      const response = await fetch(`/api/channels/${lookupSlug}/translations?language=${deletingTranslation.language}${slugLanguageParam ? `&${slugLanguageParam}` : ""}`, {
         method: "DELETE",
       });
 
