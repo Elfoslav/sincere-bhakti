@@ -25,6 +25,38 @@ describe("parseLinkPreview", () => {
     });
   });
 
+  it("parses meta tags regardless of attribute order (content before property/name)", () => {
+    const html = `
+      <html>
+        <head>
+          <meta content="A Great Post" property="og:title" />
+          <meta content="Short description" property="og:description">
+          <meta content="https://cdn.example.com/img.jpg" property="og:image"/>
+          <meta content="Example Site" property="og:site_name" />
+          <meta content="Tweet desc" name="twitter:description" />
+        </head>
+      </html>
+    `;
+    expect(parseLinkPreview(html, PAGE_URL)).toEqual({
+      url: PAGE_URL,
+      title: "A Great Post",
+      description: "Short description",
+      image: "https://cdn.example.com/img.jpg",
+      siteName: "Example Site",
+      favicon: null,
+    });
+  });
+
+  it("ignores charset/http-equiv meta and keeps the first occurrence of a key", () => {
+    const html = `
+      <meta charset="utf-8" />
+      <meta http-equiv="content-type" content="text/html" />
+      <meta content="First" property="og:title" />
+      <meta property="og:title" content="Second" />
+    `;
+    expect(parseLinkPreview(html, PAGE_URL).title).toBe("First");
+  });
+
   it("resolves relative og:image against the page URL", () => {
     const html = '<meta property="og:image" content="/static/og.jpg" />';
     expect(parseLinkPreview(html, PAGE_URL).image).toBe("https://example.com/static/og.jpg");

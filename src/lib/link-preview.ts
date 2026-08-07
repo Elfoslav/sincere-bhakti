@@ -9,8 +9,10 @@ export interface LinkPreviewData {
   favicon: string | null;
 }
 
-const META_CONTENT =
-  /<meta[^>]+(?:property|name)=["']([^"']+)["'][^>]*content=["']([^"']*)["']/gi;
+// Match each <meta> tag; property/name + content are then pulled with attrValue
+// so attribute ORDER doesn't matter. Many pages emit content before the key,
+// e.g. <meta content="…" property="og:title">, which an ordered regex misses.
+const META_TAG = /<meta\b[^>]*>/gi;
 
 // Fall back to a stripped <title> when no og:title meta exists.
 const TITLE_TAG = /<title[^>]*>([^<]*)<\/title>/i;
@@ -147,12 +149,15 @@ function cleanValue(value: string | undefined | null): string | null {
  */
 export function parseLinkPreview(html: string, pageUrl: string): LinkPreviewData {
   const meta: Record<string, string> = {};
-  for (const match of html.matchAll(META_CONTENT)) {
-    const key = match[1].toLowerCase();
-    const value = match[2];
-    if (key && !(key in meta)) {
-      meta[key] = value;
-    }
+  for (const match of html.matchAll(META_TAG)) {
+    const tag = match[0];
+    const key = (attrValue(tag, "property") ?? attrValue(tag, "name"))?.toLowerCase();
+    // Skip charset/http-equiv meta (no property/name) and content-less tags.
+    // First occurrence wins, matching the previous behavior.
+    if (!key || key in meta) continue;
+    const content = attrValue(tag, "content");
+    if (content === null) continue;
+    meta[key] = content;
   }
 
   let image: string | null =
