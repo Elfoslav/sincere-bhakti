@@ -83,6 +83,7 @@ import {
   canManageChannelSettings,
   createChannel,
   createPersonalChannel,
+  findManageableTranslationBySlug,
   getAuthorableChannels,
   resolveAuthorableChannelId,
   resolveSlugRedirect,
@@ -644,7 +645,8 @@ describe("resolveSlugRedirect", () => {
   });
 
   it("returns first translation slug when no language param given", async () => {
-    vi.mocked(prisma.channelSlugHistory.findUnique).mockResolvedValue({
+    // With no language, resolution falls back to a language-agnostic findFirst.
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue({
       id: "hist-1",
       oldSlug: "old-slug",
       oldNormalizedName: "old name",
@@ -681,6 +683,45 @@ describe("resolveSlugRedirect", () => {
   });
 });
 
+describe("findManageableTranslationBySlug", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("prefers the requested language via the composite (language, slug) key", async () => {
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({ id: "trans-cs", language: "cs" } as any);
+
+    const result = await findManageableTranslationBySlug("devotees", "cs");
+
+    expect(result).toEqual({ id: "trans-cs", language: "cs" });
+    expect(prisma.channelTranslation.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { language_slug: { language: "cs", slug: "devotees" } } }),
+    );
+    expect(prisma.channelTranslation.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("falls back to any language when the requested language has no match", async () => {
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue({ id: "trans-en", language: "en" } as any);
+
+    const result = await findManageableTranslationBySlug("devotees", "cs");
+
+    expect(result).toEqual({ id: "trans-en", language: "en" });
+    expect(prisma.channelTranslation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { slug: "devotees" } }),
+    );
+  });
+
+  it("uses findFirst directly when no language is given", async () => {
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue({ id: "trans-en", language: "en" } as any);
+
+    const result = await findManageableTranslationBySlug("devotees");
+
+    expect(result).toEqual({ id: "trans-en", language: "en" });
+    expect(prisma.channelTranslation.findUnique).not.toHaveBeenCalled();
+  });
+});
+
 describe("createChannel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -711,110 +752,25 @@ describe("createChannel", () => {
       .mockResolvedValue({ id: "taken" } as any);
 
     await expect(createChannel("user-1", "My Devotees")).rejects.toThrow(NameTakenError);
+    // The name-ownership check is global across ALL languages (no language
+    // filter) — a name used in any language blocks a new channel.
+    expect(prisma.channelTranslation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { normalizedName: "my devotees" } }),
+    );
   });
 
-  it("appends suffix when slug is taken", async () => {
-    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValueOnce(null);
-    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channelTranslation.findUnique)
-      .mockResolvedValueOnce({ id: "taken" } as any)
-      .mockResolvedValueOnce(null);
-    vi.mocked(prisma.channel.create).mockResolvedValue({
-      id: "ch-3", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
-    } as any);
+  it("throws NameTakenError when the derived slug is already taken in that language (no auto-suffix)", async () => {
+    // Name is free, but the per-language slug is taken (e.g. another channel
+    // named "My Devotees!"). Creation is rejected rather than suffixed.
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null); // name free
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null); // name history free
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({ id: "slug-owner" } as any); // slug active in "en"
 
-    const result = await createChannel("user-1", "My Devotees");
-
-    expect(result.slug).toBe("my-devotees-2");
-    expect(result.name).toBe("My Devotees (2)");
-  });
-
-  it("retries the whole transaction after a P2002 and succeeds on the next suffix", async () => {
-    const transactionMock = vi.mocked(prisma.$transaction);
-    const p2002 = Object.assign(new Error("unique conflict"), { code: "P2002" });
-
-    function createTx({ slugTakenOnFirstSlug, failCreate }: { slugTakenOnFirstSlug: boolean; failCreate: boolean }) {
-      let aborted = false;
-      const assertActive = () => {
-        if (aborted) throw new Error("transaction_aborted");
-      };
-
-      return {
-        $executeRaw: vi.fn(async () => {
-          assertActive();
-        }),
-        channel: {
-          count: vi.fn(async () => {
-            assertActive();
-            return 0;
-          }),
-          create: vi.fn(async () => {
-            assertActive();
-            if (failCreate) {
-              aborted = true;
-              throw p2002;
-            }
-            return {
-              id: "ch-2",
-              avatarUrl: null,
-              ownerId: "user-1",
-              isPersonal: false,
-              createdAt: new Date(),
-            } as any;
-          }),
-        },
-        channelTranslation: {
-          findFirst: vi.fn(async () => {
-            assertActive();
-            return null;
-          }),
-          findUnique: vi.fn(async (args: { where: Record<string, any> }) => {
-            assertActive();
-            if (args.where.slug === "my-devotees") {
-              return slugTakenOnFirstSlug ? { id: "taken" } as any : null;
-            }
-            if (args.where.slug === "my-devotees-2") {
-              return null;
-            }
-            return null;
-          }),
-        },
-        channelSlugHistory: {
-          findFirst: vi.fn(async () => {
-            assertActive();
-            return null;
-          }),
-        },
-      };
-    }
-
-    transactionMock
-      .mockImplementationOnce((cb: (tx: any) => any) => cb(createTx({ slugTakenOnFirstSlug: false, failCreate: true })))
-      .mockImplementationOnce((cb: (tx: any) => any) => cb(createTx({ slugTakenOnFirstSlug: true, failCreate: false })));
-
-    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
-
-    const result = await createChannel("user-1", "My Devotees");
-
-    expect(transactionMock).toHaveBeenCalledTimes(2);
-    expect(result.slug).toBe("my-devotees-2");
-    expect(result.name).toBe("My Devotees (2)");
-  });
-
-  it("falls back to UUID suffix when retries are exhausted", async () => {
-    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValueOnce(null);
-    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({ id: "taken" } as any);
-    vi.mocked(prisma.channel.create).mockResolvedValue({
-      id: "ch-99", avatarUrl: null, ownerId: "user-1", isPersonal: false, createdAt: new Date(),
-    } as any);
-    vi.spyOn(crypto, "randomUUID").mockReturnValue("abc12345-0000-0000-0000-000000000000");
-
-    const result = await createChannel("user-1", "Test");
-
-    expect(result.slug).toBe("test-abc12345");
-    expect(result.name).toBe("Test (abc12345)");
+    await expect(createChannel("user-1", "My Devotees")).rejects.toThrow(NameTakenError);
+    expect(prisma.channelTranslation.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { language_slug: { language: "en", slug: "my-devotees" } } }),
+    );
+    expect(prisma.channel.create).not.toHaveBeenCalled();
   });
 
   it("throws ChannelLimitError when the user has too many additional channels", async () => {

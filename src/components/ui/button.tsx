@@ -32,15 +32,14 @@ const buttonVariants = cva(
       variant: {
         default:
           "rounded-full bg-saffron text-white font-semibold shadow-[0_2px_8px_rgba(200,116,39,0.24)] hover:bg-saffron-dark hover:shadow-[0_3px_10px_rgba(200,116,39,0.28)] active:bg-saffron-dark",
-        gold: "bg-gold hover:bg-gold-light text-deep font-medium",
         outline:
           "rounded-full border-border bg-background hover:bg-sand/40 hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         "outline-deep":
           "rounded-full border-[1.5px] border-brass/50 text-deep font-semibold hover:border-brass hover:bg-sand/40",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "rounded-full bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "rounded-full hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         icon:
           "text-deep/40 hover:bg-sand/40 hover:text-gold aria-expanded:bg-sand/40 aria-expanded:text-gold",
         "icon-destructive":

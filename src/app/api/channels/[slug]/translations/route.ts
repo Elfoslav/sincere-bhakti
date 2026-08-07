@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/require-auth";
 import { parseBody } from "@/lib/parse-body";
 import { handlePrismaCollision, serverError } from "@/lib/error-handlers";
 import { createChannelTranslationSchema, normalizeName, slugifyName, isBrandNameBlocked, isNameUnchanged } from "@/lib/validation";
-import { canManageChannelSettings, isNormalizedNameTaken, renameChannelTranslation, NameTakenError, RenameLimitError, CannotRenamePersonalChannelError } from "@/lib/services/channel";
+import { canManageChannelSettings, findManageableTranslationBySlug, isNormalizedNameTaken, isPerLanguageSlugTaken, renameChannelTranslation, NameTakenError, RenameLimitError, CannotRenamePersonalChannelError } from "@/lib/services/channel";
 
 import { ERROR_NOT_FOUND, ERROR_NAME_TAKEN, ERROR_RENAME_LIMIT } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_NOT_FOUND } from "@/lib/error-codes";
@@ -18,14 +18,14 @@ export async function POST(
   if (auth.response) return auth.response;
   const session = auth.session;
   const { slug } = await params;
+  // Slugs are unique per-language; the client sends the URL slug's language so
+  // the anchor resolves to the exact channel (never a different channel that
+  // shares the slug string in another language). `slugLanguage`, not `language`,
+  // because the request body's `language` is the NEW translation's language.
+  const slugLanguage = new URL(request.url).searchParams.get("slugLanguage") ?? undefined;
 
   try {
-    const translation = await prisma.channelTranslation.findUnique({
-      where: { slug },
-      include: {
-        channel: { select: { id: true, ownerId: true, isPersonal: true } },
-      },
-    });
+    const translation = await findManageableTranslationBySlug(slug, slugLanguage);
     if (!translation) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
@@ -76,6 +76,7 @@ export async function POST(
           channelId,
           userId: session.user.id,
           ownerId: translation.channel.ownerId,
+          language: existingTranslation.language,
           oldSlug: existingTranslation.slug,
           oldName: existingTranslation.name,
           newName: name,
@@ -91,6 +92,10 @@ export async function POST(
         };
       }
 
+      // Name and slug BOTH gate uniqueness: reject if the derived slug is
+      // already taken in this language (even when the name is free), rather than
+      // auto-suffixing — consistent with createChannel and rename.
+      if (await isPerLanguageSlugTaken(tx, language, newSlug)) throw new NameTakenError();
       const created = await tx.channelTranslation.create({
         data: { channelId, language, name, normalizedName: normalizedTarget, slug: newSlug },
       });
@@ -128,18 +133,15 @@ export async function DELETE(
   if (auth.response) return auth.response;
   const session = auth.session;
   const { slug } = await params;
-  const language = new URL(request.url).searchParams.get("language");
+  const searchParams = new URL(request.url).searchParams;
+  const language = searchParams.get("language"); // the translation to delete
+  const slugLanguage = searchParams.get("slugLanguage") ?? undefined; // the URL slug's language
   if (!language) {
     return NextResponse.json({ error: "validation_error:language:required" }, { status: HTTP_BAD_REQUEST });
   }
 
   try {
-    const translation = await prisma.channelTranslation.findUnique({
-      where: { slug },
-      include: {
-        channel: { select: { id: true } },
-      },
-    });
+    const translation = await findManageableTranslationBySlug(slug, slugLanguage);
     if (!translation) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }

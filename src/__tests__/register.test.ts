@@ -102,6 +102,32 @@ describe("POST /api/register", () => {
     expect(prisma.$transaction).toHaveBeenCalled();
   });
 
+  it("returns 409 when the personal-channel slug is already taken, even if the name is free", async () => {
+    // Name check passes (unique normalizedName), but the derived slug collides
+    // in this language (e.g. registering "Krishna Das!" when "Krishna Das"
+    // exists). Registration is rejected — name AND slug both gate uniqueness.
+    vi.mocked(prisma.channelTranslation.findFirst)
+      .mockResolvedValueOnce(null) // name check → free
+      .mockResolvedValueOnce({ id: "slug-owner" } as any); // slug check → taken
+    vi.mocked(prisma.user.create).mockResolvedValue({ id: "user-x" } as any);
+
+    const res = await POST(mockRequest({
+      name: "Krishna Das!",
+      email: "kdas2@example.com",
+      password: "secret123",
+      terms: true,
+    }));
+    const json = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(json.error).toBe("name_taken");
+    expect(prisma.channelTranslation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { language: "en", slug: "krishna-das" } }),
+    );
+    // Rejected before any write.
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
   it("returns a generic 400 on duplicate email without revealing which field collided", async () => {
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(bcrypt.hash).mockResolvedValue("hashed-password" as never);

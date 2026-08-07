@@ -118,7 +118,7 @@ export async function createPersonalChannel(
       for (let i = 1; i <= 10; i++) {
         const finalSlug = i === 1 ? properSlug : `${properSlug}-${i}`;
         try {
-          const slugTaken = await prisma.channelTranslation.findUnique({ where: { slug: finalSlug } });
+          const slugTaken = await prisma.channelTranslation.findUnique({ where: { language_slug: { language, slug: finalSlug } } });
           if (slugTaken) continue;
 
           await prisma.channelTranslation.upsert({
@@ -166,10 +166,13 @@ export async function createPersonalChannel(
     const name = i === 1 ? userName : `${userName} (${i})`;
     const normalized = normalizeName(name);
 
-    const slugTaken = await prisma.channelTranslation.findUnique({ where: { slug: finalSlug } });
+    const slugTaken = await prisma.channelTranslation.findUnique({ where: { language_slug: { language, slug: finalSlug } } });
     if (slugTaken) continue;
 
-    const slugInHistory = await prisma.channelSlugHistory.findFirst({ where: { oldSlug: finalSlug }, select: { id: true } });
+    // Slug history is scoped per-language (a retired slug only blocks reuse in
+    // its own language). Name history stays global — a name belongs to one
+    // channel across ALL languages.
+    const slugInHistory = await prisma.channelSlugHistory.findFirst({ where: { language, oldSlug: finalSlug }, select: { id: true } });
     if (slugInHistory) continue;
 
     const nameInHistory = await prisma.channelSlugHistory.findFirst({ where: { oldNormalizedName: normalized }, select: { id: true } });
@@ -229,10 +232,19 @@ export async function getChannelBySlug(slug: string, language: string = "en"): P
   defaultLanguage: string;
   availableLanguages: string[];
 } | null> {
-  const translation = await prisma.channelTranslation.findUnique({
-    where: { slug },
-    select: { id: true, channelId: true, language: true, name: true, slug: true },
-  });
+  // Slugs are unique per-language, so the same slug string can exist in more
+  // than one language. Resolve the requested language first; fall back to any
+  // language so cross-locale links (e.g. /cs/channels/<en-slug>) still resolve
+  // — the caller redirects to the correct localized slug afterwards.
+  const translation =
+    (await prisma.channelTranslation.findUnique({
+      where: { language_slug: { language, slug } },
+      select: { id: true, channelId: true, language: true, name: true, slug: true },
+    })) ??
+    (await prisma.channelTranslation.findFirst({
+      where: { slug },
+      select: { id: true, channelId: true, language: true, name: true, slug: true },
+    }));
   if (!translation) return null;
 
   const channel = await prisma.channel.findUnique({
@@ -298,6 +310,44 @@ export async function getChannelBySlug(slug: string, language: string = "en"): P
 // cache ensures only one Prisma query within the same request.
 export const getCachedChannelBySlug = cache(getChannelBySlug);
 
+// Resolve a channel translation from a URL slug for management routes (rename,
+// translations, delete). Slugs are unique per-language, so the same slug string
+// can belong to more than one language. Prefer the given language, then fall
+// back to any language so the lookup still resolves for cross-locale links.
+export async function findManageableTranslationBySlug(slug: string, language?: string) {
+  const include = {
+    channel: {
+      select: { id: true, ownerId: true, isPersonal: true, avatarUrl: true, defaultLanguage: true },
+    },
+  } satisfies Prisma.ChannelTranslationInclude;
+
+  const preferred = language
+    ? await prisma.channelTranslation.findUnique({ where: { language_slug: { language, slug } }, include })
+    : null;
+  return preferred ?? (await prisma.channelTranslation.findFirst({ where: { slug }, include }));
+}
+
+// True if `slug` is already used in `language` by an active translation or a
+// retired (history) slug. Slugs are unique per-language, so both probes are
+// scoped to the language. Callers reject on a hit — creation never auto-suffixes
+// a user-chosen slug (see AGENTS.md "Channels & Translations").
+export async function isPerLanguageSlugTaken(
+  client: Prisma.TransactionClient,
+  language: string,
+  slug: string,
+): Promise<boolean> {
+  const active = await client.channelTranslation.findUnique({
+    where: { language_slug: { language, slug } },
+    select: { id: true },
+  });
+  if (active) return true;
+  const historical = await client.channelSlugHistory.findFirst({
+    where: { language, oldSlug: slug },
+    select: { id: true },
+  });
+  return !!historical;
+}
+
 // Check if a normalizedName is taken by any active channel or slug history,
 // optionally excluding a specific channel (e.g. the one being renamed).
 export async function isNormalizedNameTaken(
@@ -319,10 +369,21 @@ export async function isNormalizedNameTaken(
 
 // Resolve an old slug to the channel's current slug, or return null.
 export async function resolveSlugRedirect(oldSlug: string, language?: string): Promise<string | null> {
-  const entry = await prisma.channelSlugHistory.findUnique({
-    where: { oldSlug },
-    include: { channel: { include: { translations: { select: { language: true, slug: true } } } } },
-  });
+  const historyInclude = { channel: { include: { translations: { select: { language: true, slug: true } } } } };
+  // Retired slugs are unique per-language. Prefer the requested language, then
+  // fall back to any language so an old slug still redirects regardless of the
+  // locale it was originally retired in.
+  const entry =
+    (language
+      ? await prisma.channelSlugHistory.findUnique({
+          where: { language_oldSlug: { language, oldSlug } },
+          include: historyInclude,
+        })
+      : null) ??
+    (await prisma.channelSlugHistory.findFirst({
+      where: { oldSlug },
+      include: historyInclude,
+    }));
   if (!entry) return null;
   const translations = entry.channel.translations;
   if (language) {
@@ -378,10 +439,15 @@ export async function getChannelSettingsBySlug(
   userId: string,
   language: string = "en",
 ): Promise<ChannelSettings | null> {
-  const translation = await prisma.channelTranslation.findUnique({
-    where: { slug },
-    select: { id: true, channelId: true, language: true, name: true, slug: true },
-  });
+  const translation =
+    (await prisma.channelTranslation.findUnique({
+      where: { language_slug: { language, slug } },
+      select: { id: true, channelId: true, language: true, name: true, slug: true },
+    })) ??
+    (await prisma.channelTranslation.findFirst({
+      where: { slug },
+      select: { id: true, channelId: true, language: true, name: true, slug: true },
+    }));
   if (!translation) return null;
 
   const channel = await prisma.channel.findUnique({
@@ -645,82 +711,49 @@ export async function createChannel(
   const normalized = normalizeName(channelName);
   const maxChannelsPerUser = getMaxChannelsPerUser();
 
-  const maxTransactionRetries = 3;
+  return await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT 1 FROM "User" WHERE id = ${userId} FOR UPDATE`;
 
-  for (let attempt = 1; attempt <= maxTransactionRetries; attempt++) {
-    try {
-      return await prisma.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT 1 FROM "User" WHERE id = ${userId} FOR UPDATE`;
-
-        const additionalChannelCount = await tx.channel.count({
-          where: { ownerId: userId, isPersonal: false },
-        });
-        if (additionalChannelCount >= maxChannelsPerUser) {
-          throw new ChannelLimitError();
-        }
-
-        // Fail if a translation already has this name
-        const nameTaken = await tx.channelTranslation.findFirst({
-          where: { normalizedName: normalized },
-          select: { id: true },
-        });
-        if (nameTaken) throw new NameTakenError();
-
-        const historyNameTaken = await tx.channelSlugHistory.findFirst({
-          where: { oldNormalizedName: normalized },
-          select: { id: true },
-        });
-        if (historyNameTaken) throw new NameTakenError();
-
-        for (let i = 1; i <= 10; i++) {
-          const finalSlug = i === 1 ? slug : `${slug}-${i}`;
-          const name = i === 1 ? channelName : `${channelName} (${i})`;
-
-          const slugTaken = await tx.channelTranslation.findUnique({
-            where: { slug: finalSlug },
-            select: { id: true },
-          });
-          if (slugTaken) continue;
-
-          const historySlugTaken = await tx.channelSlugHistory.findFirst({
-            where: { oldSlug: finalSlug },
-            select: { id: true },
-          });
-          if (historySlugTaken) continue;
-
-          const channel = await tx.channel.create({
-            data: {
-              ownerId: userId,
-              isPersonal: false,
-              translations: {
-                create: { language, name, normalizedName: normalizeName(name), slug: finalSlug },
-              },
-            },
-          });
-          return { ...toPostChannel(channel, [{ language, name, slug: finalSlug }], language), postCount: 0 };
-        }
-
-        const uuid = crypto.randomUUID().slice(0, 8);
-        const channel = await tx.channel.create({
-          data: {
-            ownerId: userId,
-            isPersonal: false,
-            translations: {
-              create: { language, name: `${channelName} (${uuid})`, normalizedName: normalizeName(`${channelName} (${uuid})`), slug: `${slug}-${uuid}` },
-            },
-          },
-        });
-        return { ...toPostChannel(channel, [{ language, name: `${channelName} (${uuid})`, slug: `${slug}-${uuid}` }], language), postCount: 0 };
-      });
-    } catch (err) {
-      if ((err as { code?: string })?.code === "P2002" && attempt < maxTransactionRetries) {
-        continue;
-      }
-      throw err;
+    const additionalChannelCount = await tx.channel.count({
+      where: { ownerId: userId, isPersonal: false },
+    });
+    if (additionalChannelCount >= maxChannelsPerUser) {
+      throw new ChannelLimitError();
     }
-  }
 
-  throw new Error("unreachable");
+    // A name belongs to one channel across ALL languages: fail if ANY
+    // translation (any language) or any retired name already uses it. This
+    // is the cross-language ownership rule — checked globally, not per-language.
+    const nameTaken = await tx.channelTranslation.findFirst({
+      where: { normalizedName: normalized },
+      select: { id: true },
+    });
+    if (nameTaken) throw new NameTakenError();
+
+    const historyNameTaken = await tx.channelSlugHistory.findFirst({
+      where: { oldNormalizedName: normalized },
+      select: { id: true },
+    });
+    if (historyNameTaken) throw new NameTakenError();
+
+    // Name and slug BOTH gate uniqueness: reject (no auto-suffix) if the derived
+    // slug is already taken in this language — even when the name itself is free.
+    // This blocks near-duplicate names that slugify alike (e.g. "Devotees!" vs
+    // "Devotees"). A concurrent create that wins the race surfaces as a P2002,
+    // which the route maps to the same name_taken conflict.
+    if (await isPerLanguageSlugTaken(tx, language, slug)) throw new NameTakenError();
+
+    const channel = await tx.channel.create({
+      data: {
+        ownerId: userId,
+        isPersonal: false,
+        translations: {
+          create: { language, name: channelName, normalizedName: normalized, slug },
+        },
+      },
+    });
+    return { ...toPostChannel(channel, [{ language, name: channelName, slug }], language), postCount: 0 };
+  });
 }
 
 type RenameTranslationResult = {
@@ -736,6 +769,7 @@ export async function renameChannelTranslation(
     channelId: string;
     userId: string;
     ownerId: string;
+    language: string;
     oldSlug: string;
     oldName: string;
     newName: string;
@@ -745,18 +779,19 @@ export async function renameChannelTranslation(
     currentRenameCount: number;
   },
 ): Promise<RenameTranslationResult> {
-  const { channelId, userId, ownerId, oldSlug, oldName, newName, newSlug, normalizedNewName, translationId, currentRenameCount } = params;
+  const { channelId, userId, ownerId, language, oldSlug, oldName, newName, newSlug, normalizedNewName, translationId, currentRenameCount } = params;
 
-  // Check new slug not taken by another active translation
+  // Slugs are unique per-language: check the new slug isn't taken by another
+  // active translation in the SAME language.
   const slugTaken = await tx.channelTranslation.findUnique({
-    where: { slug: newSlug },
+    where: { language_slug: { language, slug: newSlug } },
     select: { id: true },
   });
   if (slugTaken && slugTaken.id !== translationId) throw new NameTakenError();
 
-  // Check new slug not in history for a different channel
+  // Check the new slug isn't retired in this language for a different channel.
   const historySlugTaken = await tx.channelSlugHistory.findFirst({
-    where: { oldSlug: newSlug, channelId: { not: channelId } },
+    where: { language, oldSlug: newSlug, channelId: { not: channelId } },
     select: { id: true },
   });
   if (historySlugTaken) throw new NameTakenError();
@@ -806,15 +841,15 @@ export async function renameChannelTranslation(
     if (result.count === 0) throw new RenameLimitError();
   }
 
-  // Record old slug so it cannot be reclaimed by other channels
+  // Record old slug so it cannot be reclaimed by other channels in this language
   if (newSlug !== oldSlug) {
     const oldInHistory = await tx.channelSlugHistory.findFirst({
-      where: { oldSlug, channelId },
+      where: { language, oldSlug, channelId },
       select: { id: true },
     });
     if (!oldInHistory) {
       await tx.channelSlugHistory.create({
-        data: { oldSlug, oldNormalizedName: normalizeName(oldName), channelId },
+        data: { language, oldSlug, oldNormalizedName: normalizeName(oldName), channelId },
       });
     }
   }

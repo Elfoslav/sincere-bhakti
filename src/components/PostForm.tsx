@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { InfoBox } from "@/components/ui/info-box";
 import { GripVertical, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { getYouTubeEmbedUrl } from "@/lib/video";
 import { formatBytes } from "@/lib/format";
 import { genId } from "@/lib/id";
 import { getImageDimensions } from "@/lib/client-media";
@@ -18,6 +17,7 @@ import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { useIdentity } from "@/components/IdentityProvider";
+import LinkPreview from "@/components/LinkPreview";
 import type { Post } from "@/types/post";
 import type { MediaInput } from "@/lib/services/post";
 import {
@@ -240,11 +240,6 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
     setSubmitting(true);
     onSubmittingChange?.(true);
 
-    const youtubeUrl = getYouTubeEmbedUrl(trimmed);
-    const postContent = youtubeUrl
-      ? trimmed.replace(/https?:\/\/\S*(?:youtube\.com|youtu\.be)\S*/gi, "").trim()
-      : trimmed;
-
     const targetPostId = mode === "create" ? crypto.randomUUID() : postId!;
 
     try {
@@ -275,15 +270,11 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
         }
       }
 
-      if (youtubeUrl) {
-        media.push({ url: youtubeUrl, type: "youtube" });
-      }
-
       const url = mode === "edit" && postId ? `/api/posts/${postId}` : "/api/posts";
       const method = mode === "edit" ? "PATCH" : "POST";
       const body: Record<string, unknown> = {
         id: mode === "create" ? targetPostId : undefined,
-        content: mode === "edit" ? (postContent || null) : (postContent || undefined),
+        content: mode === "edit" ? (trimmed || null) : (trimmed || undefined),
         isPublic,
         language: mode === "create" ? locale : undefined,
         channelId: mode === "create" ? postingChannelId ?? undefined : undefined,
@@ -336,10 +327,6 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
     onSubmittingChange?.(false);
   }
 
-  const detectedVideo = mediaItems.length === 0
-    ? getYouTubeEmbedUrl(content)
-    : null;
-
   return (
     <form onSubmit={handleSubmit} id={formId}>
       {mode === "create" && postingIdentity && (
@@ -382,22 +369,13 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={mode === "edit" ? undefined : t("composePlaceholder")}
-            rows={3}
+            size="compose"
+            autoResize
           />
 
-          {detectedVideo && (
-            <div className="mt-3 aspect-video rounded-md overflow-hidden bg-deep/5">
-              <iframe
-                key={detectedVideo}
-                src={detectedVideo}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-                title={t("youtubePreview")}
-              />
-            </div>
-          )}
+          <div className="mt-3">
+            <LinkPreview text={content} />
+          </div>
 
           {mediaItems.length > 0 && (
             <div className="mt-3 space-y-2">

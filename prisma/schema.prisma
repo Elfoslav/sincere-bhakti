@@ -66,27 +66,37 @@ model ChannelTranslation {
   channelId                String
   language                 String
   name                     String
-  normalizedName           String   @unique
+  normalizedName           String
   renameCount              Int      @default(0)
   previousNormalizedNames  String[] @default([])
-  slug                     String   @unique
+  slug                     String
   channel                  Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
+  // Names and slugs are unique PER LANGUAGE, not globally: a single channel may
+  // reuse the same name/slug across its language translations, and two different
+  // channels may not share a name/slug within the same language. Cross-language
+  // name ownership (one name belongs to one channel across all languages) is
+  // enforced in application code, not by these constraints.
   @@unique([channelId, language])
+  @@unique([language, normalizedName])
+  @@unique([language, slug])
   @@index([language])
   @@index([channelId])
 }
 
 model ChannelSlugHistory {
   id                String   @id @default(cuid())
-  oldSlug           String   @unique
+  oldSlug           String
   oldNormalizedName String
+  language          String
   channelId         String
   channel           Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   createdAt         DateTime @default(now())
 
+  @@unique([language, oldSlug])
   @@index([channelId])
   @@index([oldNormalizedName])
+  @@index([language])
 }
 
 model ChannelEditor {

@@ -284,7 +284,11 @@
 		"nameTaken": "Tento název již byl obsazen",
 		"nameTooLong": "Název nesmí přesáhnout {max} znaků",
 		"changeNameInProfile": "Změňte své jméno v nastavení profilu",
-		"settings": "Nastavení kanálu"
+		"settings": "Nastavení kanálu",
+		"visibilityNoticeTitle": "Kanál není viditelný ve všech jazycích",
+		"visibilityNoticeBody": "Tento kanál je v současnosti viditelný pouze v některých jazycích. Přidejte překlad, aby se zobrazil i v dalších jazykových verzích seznamů:",
+		"visibilityNoticeAction": "Přidat překlad",
+		"visibilityNoticeDismiss": "Zavřít"
 	},
 	"ChannelSettingsPage": {
 		"metaTitle": "Nastavení kanálu",

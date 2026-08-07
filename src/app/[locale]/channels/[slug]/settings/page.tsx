@@ -30,8 +30,9 @@ export default async function ChannelSettingsPage({ params }: Props) {
   if (!await checkRateLimit(RATE_LIMIT_PREFIX.readChannelMembers, session.user.id, RATE_LIMITS.readChannelMembers.limit, RATE_LIMITS.readChannelMembers.windowMs)) notFound();
 
   // Check if the channel exists first (without permission check) to avoid
-  // leaking slug-migration info when the user simply lacks access.
-  const channel = await prisma.channelTranslation.findUnique({
+  // leaking slug-migration info when the user simply lacks access. Slugs are
+  // unique per-language, so any translation with this slug confirms existence.
+  const channel = await prisma.channelTranslation.findFirst({
     where: { slug },
     select: { channelId: true },
   });
