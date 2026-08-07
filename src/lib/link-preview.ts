@@ -9,10 +9,15 @@ export interface LinkPreviewData {
   favicon: string | null;
 }
 
+// A tag's attribute list up to the closing `>`, treating quoted values as
+// opaque so a literal `>` inside an attribute value (e.g. content="A > B")
+// doesn't end the tag early. Disjoint alternatives keep matching linear.
+const TAG_ATTRS = `(?:[^>"']|"[^"]*"|'[^']*')*`;
+
 // Match each <meta> tag; property/name + content are then pulled with attrValue
 // so attribute ORDER doesn't matter. Many pages emit content before the key,
 // e.g. <meta content="…" property="og:title">, which an ordered regex misses.
-const META_TAG = /<meta\b[^>]*>/gi;
+const META_TAG = new RegExp(`<meta\\b${TAG_ATTRS}>`, "gi");
 
 // Fall back to a stripped <title> when no og:title meta exists.
 const TITLE_TAG = /<title[^>]*>([^<]*)<\/title>/i;
@@ -26,10 +31,18 @@ const HEADING_TAG = /<(h1|h2)\b[^>]*>([^<]*)<\/\1>/gi;
 const TRACKER_HOST_PATTERN =
   /(?:analytics|tracking|doubleclick|adservice|adsystem|google-analytics|googletagmanager|facebook\.tr|pixel|simpleanalytics|snap\.licdn|quantserve|scorecardresearch)/i;
 
-const IMG_TAG = /<img\b[^>]*>/gi;
+const IMG_TAG = new RegExp(`<img\\b${TAG_ATTRS}>`, "gi");
 
-// <link rel="icon|shortcut icon|apple-touch-icon"> for the favicon fallback.
-const ICON_TAG = /<link\b[^>]*rel=["'](?:shortcut icon|icon|apple-touch-icon)(?:["'])[^>]*>/gi;
+// All <link> tags; firstIcon filters by the rel attribute so token order and
+// multi-value rels (e.g. rel="shortcut icon") are handled regardless of layout.
+const LINK_TAG = new RegExp(`<link\\b${TAG_ATTRS}>`, "gi");
+
+// rel values that denote a favicon. Matched as whitespace-separated tokens.
+function isIconRel(rel: string | null): boolean {
+  if (!rel) return false;
+  const tokens = rel.trim().toLowerCase().split(/\s+/);
+  return tokens.includes("icon") || tokens.includes("apple-touch-icon");
+}
 
 function attrValue(html: string, name: string): string | null {
   // Lookbehind prevents matching data-src / data-href / data-width etc.
@@ -40,8 +53,10 @@ function attrValue(html: string, name: string): string | null {
 // Extract the site favicon from <link rel="icon"> tags, resolved against the
 // page URL. Returns null when none is declared.
 function firstIcon(html: string, pageUrl: string): string | null {
-  for (const match of html.matchAll(ICON_TAG)) {
-    const href = cleanValue(attrValue(match[0], "href"));
+  for (const match of html.matchAll(LINK_TAG)) {
+    const tag = match[0];
+    if (!isIconRel(attrValue(tag, "rel"))) continue;
+    const href = cleanValue(attrValue(tag, "href"));
     if (!href) continue;
     try {
       const resolved = new URL(href, pageUrl).href;

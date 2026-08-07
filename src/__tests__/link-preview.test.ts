@@ -124,9 +124,34 @@ describe("parseLinkPreview", () => {
     expect(parseLinkPreview(html, PAGE_URL).image).toBe("https://cdn.example.com/og.jpg");
   });
 
+  it("keeps a literal > inside an attribute value from truncating the tag", () => {
+    const html = `
+      <meta property="og:title" content="Tips &amp; Tricks > A Guide" />
+      <meta content="Faster > slower comparison" property="og:description" />
+      <img src="https://cdn.example.com/real.jpg" alt="width > 0" width="800" height="600" />
+    `;
+    const result = parseLinkPreview(html, PAGE_URL);
+    expect(result.title).toBe("Tips & Tricks > A Guide");
+    expect(result.description).toBe("Faster > slower comparison");
+    expect(result.image).toBe("https://cdn.example.com/real.jpg");
+  });
+
   it("extracts a favicon from link rel=icon", () => {
     const html = '<link rel="icon" href="/favicon.ico" />';
     expect(parseLinkPreview(html, PAGE_URL).favicon).toBe("https://example.com/favicon.ico");
+  });
+
+  it("matches favicon rel regardless of token order or attribute position", () => {
+    const relFirstMultiToken = '<link rel="icon shortcut" href="/a.ico" />';
+    expect(parseLinkPreview(relFirstMultiToken, PAGE_URL).favicon).toBe("https://example.com/a.ico");
+
+    const hrefBeforeRel = '<link href="/b.png" rel="apple-touch-icon" sizes="180x180" />';
+    expect(parseLinkPreview(hrefBeforeRel, PAGE_URL).favicon).toBe("https://example.com/b.png");
+  });
+
+  it("does not treat non-favicon icon-like rels as a favicon", () => {
+    const html = '<link rel="mask-icon" href="/mask.svg" />';
+    expect(parseLinkPreview(html, PAGE_URL).favicon).toBeNull();
   });
 
   it("resolves relative favicon against the page URL", () => {
