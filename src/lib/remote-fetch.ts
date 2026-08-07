@@ -1,8 +1,18 @@
-import { assertPublicHost } from "@/lib/ssrf";
+import { fetch as undiciFetch, Agent } from "undici";
+import { assertPublicHost, guardedLookup } from "@/lib/ssrf";
 
 // Safeguarded fetcher for user-supplied URLs (link previews). Combines an
 // SSRF host check, an HTTP timeout, a redirect cap, and a streamed byte cap so
 // a hostile/endless URL cannot hang or exhaust the server.
+//
+// We use undici's own fetch with a dispatcher whose connect.lookup validates
+// and PINS the resolved address (see guardedLookup). assertPublicHost is only a
+// pre-check; the dispatcher is what guarantees the actual socket connects to a
+// vetted address, defeating DNS rebinding. (Node's built-in fetch rejects an
+// externally-installed undici Agent as a dispatcher, so we call undici's fetch.)
+const guardedAgent = new Agent({
+  connect: { lookup: guardedLookup },
+});
 
 export const MAX_LINK_PREVIEW_HTML_BYTES = 2 * 1024 * 1024;
 export const MAX_LINK_PREVIEW_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -57,11 +67,12 @@ export async function fetchRemoteBytes(
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-    let res: Response;
+    let res: Awaited<ReturnType<typeof undiciFetch>>;
     try {
-      res = await fetch(current, {
+      res = await undiciFetch(current, {
         signal: controller.signal,
         redirect: "manual",
+        dispatcher: guardedAgent,
       });
     } catch {
       clearTimeout(timeout);

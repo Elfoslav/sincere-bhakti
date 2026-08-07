@@ -1,4 +1,5 @@
 import { lookup } from "node:dns/promises";
+import type { LookupAddress, LookupAllOptions, LookupOptions } from "node:dns";
 import { isIP } from "node:net";
 
 // SSRF guard: the link-preview routes fetch arbitrary user-supplied URLs, so
@@ -82,4 +83,56 @@ export async function assertPublicHost(
   if (await resolvesToPrivateIp(hostname, lookupFn)) {
     throw new Error("blocked: host resolves to a private IP");
   }
+}
+
+type GuardedLookupCallback = (
+  err: NodeJS.ErrnoException | null,
+  address: string | LookupAddress[],
+  family?: number,
+) => void;
+
+type AllLookupFn = (
+  hostname: string,
+  options: LookupAllOptions,
+) => Promise<LookupAddress[]>;
+
+/**
+ * A `dns.lookup`-compatible function for use as an undici `connect.lookup`.
+ * It resolves every A/AAAA record, fails closed if ANY is private, and returns
+ * the validated address(es) so the socket connects to EXACTLY what was checked.
+ *
+ * This is the authoritative SSRF guard: `assertPublicHost` only validates a
+ * standalone lookup, but `fetch` performs its own DNS resolution for the real
+ * connection. A DNS-rebinding host can answer public during the pre-check and
+ * private (e.g. 169.254.169.254) for the connection. Pinning the connection to
+ * a validated lookup here closes that TOCTOU gap.
+ */
+export function guardedLookup(
+  hostname: string,
+  options: LookupOptions,
+  callback: GuardedLookupCallback,
+  lookupFn: AllLookupFn = lookup as AllLookupFn,
+): void {
+  lookupFn(hostname, { ...options, all: true }).then(
+    (addresses) => {
+      if (addresses.length === 0) {
+        callback(new Error("blocked: host did not resolve"), "");
+        return;
+      }
+      for (const entry of addresses) {
+        if (isPrivateIp(entry.address)) {
+          callback(new Error("blocked: host resolves to a private IP"), "");
+          return;
+        }
+      }
+      // Return the validated result to the connector, honoring the single vs.
+      // all-addresses contract of the caller.
+      if (options.all) {
+        callback(null, addresses);
+      } else {
+        callback(null, addresses[0].address, addresses[0].family);
+      }
+    },
+    (err) => callback(err as NodeJS.ErrnoException, ""),
+  );
 }

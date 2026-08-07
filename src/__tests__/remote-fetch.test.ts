@@ -1,10 +1,23 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchRemoteBytes } from "@/lib/remote-fetch";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// The fetcher uses undici's fetch (with a guarded dispatcher), not the global
+// fetch, so mock the undici module. Agent is a no-op stub — the guarded
+// connect.lookup logic is unit-tested in ssrf.test.ts.
+const { fetchMock } = vi.hoisted(() => ({ fetchMock: vi.fn() }));
+
+vi.mock("undici", () => ({
+  fetch: fetchMock,
+  Agent: class {
+    constructor(_options?: unknown) {}
+  },
+}));
 
 vi.mock("@/lib/ssrf", () => ({
   assertPublicHost: vi.fn(async () => undefined),
+  guardedLookup: vi.fn(),
 }));
 
+import { fetchRemoteBytes } from "@/lib/remote-fetch";
 import { assertPublicHost } from "@/lib/ssrf";
 
 function makeResponse({
@@ -45,16 +58,10 @@ function makeResponse({
 }
 
 describe("fetchRemoteBytes", () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
-    fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+    vi.mocked(assertPublicHost).mockReset();
+    vi.mocked(assertPublicHost).mockResolvedValue(undefined);
   });
 
   it("returns the response body", async () => {

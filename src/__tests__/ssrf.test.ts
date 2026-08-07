@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isPrivateIp, resolvesToPrivateIp, assertPublicHost } from "@/lib/ssrf";
+import { isPrivateIp, resolvesToPrivateIp, assertPublicHost, guardedLookup } from "@/lib/ssrf";
 
 const lookup = (addresses: Array<{ address: string; family: number }> | Error) =>
   async () => {
@@ -83,5 +83,52 @@ describe("assertPublicHost", () => {
   it("throws for private hostnames", async () => {
     const lookupFn = lookup([{ address: "127.0.0.1", family: 4 }]);
     await expect(assertPublicHost("https://localhost:3000", lookupFn)).rejects.toThrow();
+  });
+});
+
+describe("guardedLookup", () => {
+  const run = (
+    hostname: string,
+    options: { all?: boolean },
+    addresses: Array<{ address: string; family: number }> | Error,
+  ) =>
+    new Promise<{ err: Error | null; address: string | Array<{ address: string; family: number }>; family?: number }>((resolve) => {
+      guardedLookup(hostname, options, (err, address, family) => resolve({ err, address, family }), lookup(addresses) as never);
+    });
+
+  it("returns the validated address for a public host (pinning the connection)", async () => {
+    const { err, address, family } = await run("example.com", {}, [{ address: "93.184.216.34", family: 4 }]);
+    expect(err).toBeNull();
+    expect(address).toBe("93.184.216.34");
+    expect(family).toBe(4);
+  });
+
+  it("fails closed when ANY resolved address is private (rebinding defense)", async () => {
+    const { err, address } = await run("rebind.example", {}, [
+      { address: "93.184.216.34", family: 4 },
+      { address: "169.254.169.254", family: 4 },
+    ]);
+    expect(err).toBeInstanceOf(Error);
+    expect(address).toBe("");
+  });
+
+  it("fails closed when the host does not resolve", async () => {
+    const { err } = await run("empty.example", {}, []);
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it("propagates lookup errors (fails closed)", async () => {
+    const { err } = await run("broken.example", {}, new Error("ENOTFOUND"));
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it("returns all validated addresses when options.all is set", async () => {
+    const addrs = [
+      { address: "93.184.216.34", family: 4 },
+      { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
+    ];
+    const { err, address } = await run("example.com", { all: true }, addrs);
+    expect(err).toBeNull();
+    expect(address).toEqual(addrs);
   });
 });
