@@ -145,6 +145,8 @@ function IdentitySwitcherPlaceholder({ compact = false, mobileNav = false }: { c
 
 function IdentityAvatar({ name, avatarUrl, dark = false }: { name: string; avatarUrl: string | null; dark?: boolean }) {
   if (avatarUrl) {
+    // Using <img> for small identity switcher avatar (32px): no layout shift
+    // risk with fixed size, and simpler than next/image for tiny thumbnails.
     return <img src={avatarUrl} alt="" className="size-8 shrink-0 rounded-full object-cover" />;
   }
 

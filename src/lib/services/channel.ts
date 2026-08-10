@@ -154,9 +154,8 @@ export async function createPersonalChannel(
     return toPostChannel(existing, existing.translations, language);
   }
 
-  logServerError(
+  console.info(
     `[createPersonalChannel] no existing personal channel for userId=${userId} userName="${userName}" — creating new`,
-    new Error("missing_personal_channel"),
   );
 
   const slug = slugifyName(userName);

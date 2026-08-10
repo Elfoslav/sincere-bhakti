@@ -142,6 +142,8 @@ export default async function PostPage({
             <div className="bg-white dark:bg-deep-dark rounded-xl border border-stone/20 p-5">
               <div className="flex items-center gap-3 mb-4">
                 {post.channel.avatarUrl ? (
+                  // Using <img> for R2-hosted avatars: small fixed-size thumbnails
+                  // with explicit dimensions don't benefit from next/image optimization.
                   <img src={post.channel.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-warm flex items-center justify-center">

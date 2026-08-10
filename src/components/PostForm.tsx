@@ -334,6 +334,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
           <span>{t("postingAs")}</span>
           <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-deep/5 py-1 pl-1 pr-3 font-medium text-deep">
             {postingIdentity.avatarUrl ? (
+              // Using <img> for inline identity badge avatar (20px): tiny fixed size.
               <img src={postingIdentity.avatarUrl} alt="" className="size-5 rounded-full object-cover" />
             ) : (
               <span className="flex size-5 items-center justify-center rounded-full bg-gold/20 text-xs text-gold">
@@ -394,6 +395,8 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
                       item.file?.type.startsWith("video/") || item.type.startsWith("video") ? (
                         <video src={item.file ? item.previewUrl : item.url} className="w-full h-full object-cover" />
                       ) : (
+                        // Using <img> for inline media preview thumbnails (64x48px): client-side
+                        // blob URLs or editing mode R2 URLs, fixed tiny size, no optimization needed.
                         <img src={item.file ? item.previewUrl! : item.url!} alt="" className="w-full h-full object-cover" />
                       )
                     )}
