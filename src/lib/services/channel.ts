@@ -216,6 +216,53 @@ export async function getPersonalChannel(userId: string, language: string = "en"
   return toPostChannel(channel, channel.translations, language);
 }
 
+// Select shape reused by both channel-detail and settings lookups.
+const TRANSLATION_SELECT = {
+  id: true,
+  channelId: true,
+  language: true,
+  name: true,
+  slug: true,
+} satisfies Prisma.ChannelTranslationSelect;
+
+/**
+ * Resolve an active ChannelTranslation from a URL slug, language-aware.
+ *
+ * Resolution order:
+ *  1. Exact match for the requested language   (language_slug composite key)
+ *  2. **Locale slug-history check**: if `slug` is a retired slug in `language`,
+ *     return `null` so the caller falls through to `resolveSlugRedirect`.
+ *     Without this step a cross-locale fallback (step 3) could return a
+ *     *different* channel's active translation that happens to share the slug
+ *     string, hiding the rename redirect entirely.
+ *  3. Cross-locale fallback via `findFirst({ where: { slug } })` so
+ *     e.g. `/cs/channels/<en-slug>` still resolves and the page redirects.
+ */
+async function resolveActiveTranslationBySlug(slug: string, language: string) {
+  // Step 1 — exact locale match.
+  const exact = await prisma.channelTranslation.findUnique({
+    where: { language_slug: { language, slug } },
+    select: TRANSLATION_SELECT,
+  });
+  if (exact) return exact;
+
+  // Step 2 — is this slug retired in the requested language?
+  // If yes, return null so the caller reaches resolveSlugRedirect and issues
+  // the proper redirect to the channel's current slug, rather than accidentally
+  // landing on a different channel that holds the same slug in another language.
+  const inHistory = await prisma.channelSlugHistory.findUnique({
+    where: { language_oldSlug: { language, oldSlug: slug } },
+    select: { id: true },
+  });
+  if (inHistory) return null;
+
+  // Step 3 — cross-locale fallback: slug exists in another language.
+  return prisma.channelTranslation.findFirst({
+    where: { slug },
+    select: TRANSLATION_SELECT,
+  });
+}
+
 export async function getChannelBySlug(slug: string, language: string = "en"): Promise<{
   id: string;
   name: string;
@@ -231,19 +278,10 @@ export async function getChannelBySlug(slug: string, language: string = "en"): P
   defaultLanguage: string;
   availableLanguages: string[];
 } | null> {
-  // Slugs are unique per-language, so the same slug string can exist in more
-  // than one language. Resolve the requested language first; fall back to any
-  // language so cross-locale links (e.g. /cs/channels/<en-slug>) still resolve
-  // — the caller redirects to the correct localized slug afterwards.
-  const translation =
-    (await prisma.channelTranslation.findUnique({
-      where: { language_slug: { language, slug } },
-      select: { id: true, channelId: true, language: true, name: true, slug: true },
-    })) ??
-    (await prisma.channelTranslation.findFirst({
-      where: { slug },
-      select: { id: true, channelId: true, language: true, name: true, slug: true },
-    }));
+  // Slugs are unique per-language. resolveActiveTranslationBySlug prefers the
+  // requested language, checks locale slug history before doing a cross-locale
+  // fallback, and returns null for retired slugs so the caller can redirect.
+  const translation = await resolveActiveTranslationBySlug(slug, language);
   if (!translation) return null;
 
   const channel = await prisma.channel.findUnique({
@@ -438,15 +476,7 @@ export async function getChannelSettingsBySlug(
   userId: string,
   language: string = "en",
 ): Promise<ChannelSettings | null> {
-  const translation =
-    (await prisma.channelTranslation.findUnique({
-      where: { language_slug: { language, slug } },
-      select: { id: true, channelId: true, language: true, name: true, slug: true },
-    })) ??
-    (await prisma.channelTranslation.findFirst({
-      where: { slug },
-      select: { id: true, channelId: true, language: true, name: true, slug: true },
-    }));
+  const translation = await resolveActiveTranslationBySlug(slug, language);
   if (!translation) return null;
 
   const channel = await prisma.channel.findUnique({

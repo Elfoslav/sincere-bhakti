@@ -85,6 +85,7 @@ import {
   createPersonalChannel,
   findManageableTranslationBySlug,
   getAuthorableChannels,
+  getChannelBySlug,
   resolveAuthorableChannelId,
   resolveSlugRedirect,
   updateChannelMemberByEmail,
@@ -783,5 +784,84 @@ describe("createChannel", () => {
     } finally {
       process.env.MAX_CHANNELS_PER_USER = previous;
     }
+  });
+});
+
+// Shared channel stub returned by prisma.channel.findUnique in getChannelBySlug tests.
+const channelStub = {
+  id: "ch-1",
+  avatarUrl: null,
+  createdAt: new Date(),
+  ownerId: "owner-1",
+  isPersonal: false,
+  renameCount: 0,
+  defaultLanguage: "en",
+  owner: { id: "owner-1", name: "Owner", image: null },
+  _count: { posts: 3 },
+  translations: [{ language: "en" }, { language: "cs" }],
+} as any;
+
+describe("getChannelBySlug — slug resolution priority", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns the channel when the exact locale translation matches", async () => {
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValueOnce({
+      id: "trans-cs",
+      channelId: "ch-1",
+      language: "cs",
+      name: "Oddaní",
+      slug: "oddani",
+    } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValueOnce(channelStub);
+
+    const result = await getChannelBySlug("oddani", "cs");
+
+    expect(result).not.toBeNull();
+    expect(result?.slug).toBe("oddani");
+    // History must NOT be consulted when the exact match is found.
+    expect(prisma.channelSlugHistory.findUnique).not.toHaveBeenCalled();
+    expect(prisma.channelTranslation.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("returns null when the slug is in the locale's slug history (triggers redirect in caller)", async () => {
+    // Step 1: no exact locale match.
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValueOnce(null);
+    // Step 2: retired slug found in cs history → must return null, not fall through.
+    vi.mocked(prisma.channelSlugHistory.findUnique).mockResolvedValueOnce({ id: "hist-1" } as any);
+
+    const result = await getChannelBySlug("old-cs-slug", "cs");
+
+    expect(result).toBeNull();
+    // Cross-locale fallback must NOT be attempted after a history hit.
+    expect(prisma.channelTranslation.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a cross-locale translation when no exact match and no locale history", async () => {
+    // Step 1: no exact cs match.
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValueOnce(null);
+    // Step 2: slug not in cs history.
+    vi.mocked(prisma.channelSlugHistory.findUnique).mockResolvedValueOnce(null);
+    // Step 3: cross-locale fallback returns the English translation.
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValueOnce({
+      id: "trans-en",
+      channelId: "ch-1",
+      language: "en",
+      name: "Devotees",
+      slug: "devotees",
+    } as any);
+    vi.mocked(prisma.channel.findUnique).mockResolvedValueOnce(channelStub);
+    // All translations for resolveTranslation fallback.
+    vi.mocked(prisma.channelTranslation.findMany).mockResolvedValueOnce([
+      { language: "en", name: "Devotees", slug: "devotees" },
+    ] as any);
+
+    const result = await getChannelBySlug("devotees", "cs");
+
+    expect(result).not.toBeNull();
+    expect(prisma.channelTranslation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { slug: "devotees" } }),
+    );
   });
 });
