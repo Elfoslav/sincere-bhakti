@@ -28,7 +28,7 @@ vi.mock("@/lib/prisma", () => {
       channel,
       channelTranslation,
       channelSlugHistory,
-      $transaction: vi.fn((cb: any) => cb({ user, channel, channelTranslation, channelSlugHistory })),
+      $transaction: vi.fn((cb: any) => cb({ $executeRaw: vi.fn(), user, channel, channelTranslation, channelSlugHistory })),
     },
   };
 });

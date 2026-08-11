@@ -7,6 +7,7 @@ import { logServerError } from "@/lib/server-log";
 import { parseBody } from "@/lib/parse-body";
 import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
+import { claimChannelName, isPerLanguageSlugTaken, NameTakenError } from "@/lib/services/channel";
 import { ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED } from "@/lib/error-codes";
 import { generateVerificationTokenValue, VERIFY_TOKEN_TTL_MS } from "@/lib/verification-token";
@@ -101,6 +102,15 @@ export async function POST(request: NextRequest) {
     const verifyExpires = new Date(Date.now() + VERIFY_TOKEN_TTL_MS);
 
     const user = await prisma.$transaction(async (tx) => {
+      // Authoritative, race-safe ownership check under an advisory lock on the
+      // name (the checks above are a fast, pre-bcrypt path). Two concurrent
+      // registrations of the same name in different languages serialize here so
+      // the second sees the first's channel and is rejected.
+      await claimChannelName(tx, normalizedTarget);
+      if (await isPerLanguageSlugTaken(tx, registrationLanguage, targetSlug)) {
+        throw new NameTakenError();
+      }
+
       const createdUser = await tx.user.create({
         data: { name, email, password: hashedPassword },
         select: { id: true, name: true, email: true },
@@ -135,6 +145,10 @@ export async function POST(request: NextRequest) {
       { status: HTTP_CREATED }
     );
   } catch (error) {
+    // A concurrent registration won the name under the advisory lock.
+    if (error instanceof NameTakenError) {
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
+    }
     // Unique-constraint collision (e.g. email already registered, or a channel
     // name/slug race). Return a generic error without revealing which field
     // collided, to avoid account/email enumeration.

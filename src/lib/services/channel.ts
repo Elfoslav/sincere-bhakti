@@ -386,22 +386,54 @@ export async function isPerLanguageSlugTaken(
 }
 
 // Check if a normalizedName is taken by any active channel or slug history,
-// optionally excluding a specific channel (e.g. the one being renamed).
+// optionally excluding a specific channel (e.g. the one being renamed). Pass the
+// transaction client when this runs under a name lock (see claimChannelName) so
+// the read happens inside the locked transaction.
 export async function isNormalizedNameTaken(
   normalizedName: string,
   excludeChannelId?: string,
+  client: Prisma.TransactionClient = prisma,
 ): Promise<boolean> {
-  const existing = await prisma.channelTranslation.findFirst({
+  const existing = await client.channelTranslation.findFirst({
     where: { normalizedName, channelId: excludeChannelId ? { not: excludeChannelId } : undefined },
     select: { id: true },
   });
   if (existing) return true;
 
-  const historical = await prisma.channelSlugHistory.findFirst({
+  const historical = await client.channelSlugHistory.findFirst({
     where: { oldNormalizedName: normalizedName, channelId: excludeChannelId ? { not: excludeChannelId } : undefined },
     select: { id: true },
   });
   return !!historical;
+}
+
+// Advisory-lock namespace for serializing global channel-name ownership claims.
+// Any fixed int32 that other advisory-lock users in the app won't reuse.
+const CHANNEL_NAME_LOCK_NS = 0x63686e6d | 0; // "chnm"
+
+// Take a transaction-scoped advisory lock keyed by the normalized name. The DB
+// only enforces per-language uniqueness, so the global "one name = one channel"
+// ownership rule is a read-before-write that races between concurrent creators
+// picking different languages. Serializing on the name makes that check-then-
+// insert atomic per name. `_xact_` = auto-released on commit/rollback, which is
+// required for safety under transaction connection pooling. Different names
+// never block each other; hashtext collisions only add rare, harmless waiting.
+export async function lockChannelName(tx: Prisma.TransactionClient, normalizedName: string): Promise<void> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${CHANNEL_NAME_LOCK_NS}::int, hashtext(${normalizedName}))`;
+}
+
+// Lock the normalized name (globally) and reject if another channel already owns
+// it — in ANY language, active or retired. MUST be called inside a transaction,
+// before inserting/renaming a translation, so the ownership check is race-safe.
+export async function claimChannelName(
+  tx: Prisma.TransactionClient,
+  normalizedName: string,
+  excludeChannelId?: string,
+): Promise<void> {
+  await lockChannelName(tx, normalizedName);
+  if (await isNormalizedNameTaken(normalizedName, excludeChannelId, tx)) {
+    throw new NameTakenError();
+  }
 }
 
 // Resolve an old slug to the channel's current slug, or return null.
@@ -750,20 +782,11 @@ export async function createChannel(
       throw new ChannelLimitError();
     }
 
-    // A name belongs to one channel across ALL languages: fail if ANY
-    // translation (any language) or any retired name already uses it. This
-    // is the cross-language ownership rule — checked globally, not per-language.
-    const nameTaken = await tx.channelTranslation.findFirst({
-      where: { normalizedName: normalized },
-      select: { id: true },
-    });
-    if (nameTaken) throw new NameTakenError();
-
-    const historyNameTaken = await tx.channelSlugHistory.findFirst({
-      where: { oldNormalizedName: normalized },
-      select: { id: true },
-    });
-    if (historyNameTaken) throw new NameTakenError();
+    // A name belongs to one channel across ALL languages. Lock the name and
+    // reject if any channel (any language, active or retired) already owns it.
+    // The advisory lock closes the race where two creators pick the same name in
+    // different languages and both pass a read-before-write check.
+    await claimChannelName(tx, normalized);
 
     // Name and slug BOTH gate uniqueness: reject (no auto-suffix) if the derived
     // slug is already taken in this language — even when the name itself is free.
@@ -809,6 +832,11 @@ export async function renameChannelTranslation(
   },
 ): Promise<RenameTranslationResult> {
   const { channelId, userId, ownerId, language, oldSlug, oldName, newName, newSlug, normalizedNewName, translationId, currentRenameCount } = params;
+
+  // Global name ownership is enforced here (inside the txn, under an advisory
+  // lock on the name) so every rename caller is race-safe. Excludes this channel
+  // so it may rename to / revert a name it already owns in another language.
+  await claimChannelName(tx, normalizedNewName, channelId);
 
   // Slugs are unique per-language: check the new slug isn't taken by another
   // active translation in the SAME language.

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canManageChannelSettings, getChannelBySlug, findManageableTranslationBySlug, isNormalizedNameTaken, renameChannelTranslation, NameTakenError, RenameLimitError } from "@/lib/services/channel";
+import { canManageChannelSettings, getChannelBySlug, findManageableTranslationBySlug, renameChannelTranslation, NameTakenError, RenameLimitError } from "@/lib/services/channel";
 
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { requireAuth } from "@/lib/require-auth";
@@ -94,11 +94,8 @@ export async function PATCH(
       return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
 
-    // Check if the new name is already taken by another translation
-    if (await isNormalizedNameTaken(normalizedTarget, channel.id)) {
-      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
-    }
-
+    // Global name-ownership is enforced inside renameChannelTranslation under an
+    // advisory lock (race-safe), so no pre-transaction name check here.
     const newSlug = slugifyName(name);
 
     const updated = await prisma.$transaction((tx) => renameChannelTranslation(tx, {

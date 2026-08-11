@@ -81,9 +81,11 @@ import {
   addChannelMemberByEmail,
   canAuthorChannel,
   canManageChannelSettings,
+  claimChannelName,
   createChannel,
   createPersonalChannel,
   findManageableTranslationBySlug,
+  lockChannelName,
   getAuthorableChannels,
   getChannelBySlug,
   resolveAuthorableChannelId,
@@ -720,6 +722,51 @@ describe("findManageableTranslationBySlug", () => {
 
     expect(result).toEqual({ id: "trans-en", language: "en" });
     expect(prisma.channelTranslation.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("lockChannelName / claimChannelName", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("lockChannelName takes a transaction-scoped advisory lock keyed by the name", async () => {
+    const executeRaw = vi.fn();
+    await lockChannelName({ $executeRaw: executeRaw } as any, "krishna das");
+
+    expect(executeRaw).toHaveBeenCalledTimes(1);
+    const [strings, ...values] = executeRaw.mock.calls[0];
+    expect(strings.join("?")).toContain("pg_advisory_xact_lock");
+    expect(strings.join("?")).toContain("hashtext");
+    // The normalized name is passed as a bound parameter (not interpolated).
+    expect(values).toContain("krishna das");
+  });
+
+  it("claimChannelName locks first, then rejects when another channel owns the name", async () => {
+    const executeRaw = vi.fn();
+    const tx = {
+      $executeRaw: executeRaw,
+      channelTranslation: { findFirst: vi.fn().mockResolvedValue({ id: "other-channel-trans" }) },
+      channelSlugHistory: { findFirst: vi.fn().mockResolvedValue(null) },
+    } as any;
+
+    await expect(claimChannelName(tx, "devotees")).rejects.toThrow(NameTakenError);
+    expect(executeRaw).toHaveBeenCalledTimes(1); // lock acquired before the ownership read
+  });
+
+  it("claimChannelName resolves when the name is free and excludes the given channel", async () => {
+    const findFirst = vi.fn().mockResolvedValue(null);
+    const historyFindFirst = vi.fn().mockResolvedValue(null);
+    const tx = {
+      $executeRaw: vi.fn(),
+      channelTranslation: { findFirst },
+      channelSlugHistory: { findFirst: historyFindFirst },
+    } as any;
+
+    await expect(claimChannelName(tx, "devotees", "ch-1")).resolves.toBeUndefined();
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { normalizedName: "devotees", channelId: { not: "ch-1" } } }),
+    );
   });
 });
 

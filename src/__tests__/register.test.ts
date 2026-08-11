@@ -12,6 +12,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     channelTranslation: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
     },
     channelSlugHistory: {
       findFirst: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     $transaction: vi.fn((cb: (tx: any) => any) =>
       cb({
+        $executeRaw: vi.fn(),
         user: {
           create: (...args: any[]) => (prisma.user.create as any)(...args),
         },
@@ -31,6 +33,7 @@ vi.mock("@/lib/prisma", () => ({
         },
         channelTranslation: {
           findFirst: (...args: any[]) => (prisma.channelTranslation.findFirst as any)(...args),
+          findUnique: (...args: any[]) => (prisma.channelTranslation.findUnique as any)(...args),
         },
         channelSlugHistory: {
           findFirst: (...args: any[]) => (prisma.channelSlugHistory.findFirst as any)(...args),

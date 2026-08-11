@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/require-auth";
 import { parseBody } from "@/lib/parse-body";
 import { handlePrismaCollision, serverError } from "@/lib/error-handlers";
 import { createChannelTranslationSchema, normalizeName, slugifyName, isBrandNameBlocked, isNameUnchanged } from "@/lib/validation";
-import { canManageChannelSettings, findManageableTranslationBySlug, isNormalizedNameTaken, isPerLanguageSlugTaken, renameChannelTranslation, NameTakenError, RenameLimitError, CannotRenamePersonalChannelError } from "@/lib/services/channel";
+import { canManageChannelSettings, claimChannelName, findManageableTranslationBySlug, isPerLanguageSlugTaken, renameChannelTranslation, NameTakenError, RenameLimitError, CannotRenamePersonalChannelError } from "@/lib/services/channel";
 
 import { ERROR_NOT_FOUND, ERROR_NAME_TAKEN, ERROR_RENAME_LIMIT } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED, HTTP_NOT_FOUND } from "@/lib/error-codes";
@@ -45,10 +45,8 @@ export async function POST(
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
-    if (await isNormalizedNameTaken(normalizeName(name), channelId)) {
-      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
-    }
-
+    // Global name-ownership is enforced inside the transaction under an advisory
+    // lock (claimChannelName / renameChannelTranslation), so it's race-safe.
     const newSlug = slugifyName(name);
     const normalizedTarget = normalizeName(name);
 
@@ -92,9 +90,10 @@ export async function POST(
         };
       }
 
-      // Name and slug BOTH gate uniqueness: reject if the derived slug is
-      // already taken in this language (even when the name is free), rather than
-      // auto-suffixing — consistent with createChannel and rename.
+      // New-language translation: lock + reject if another channel owns the name
+      // (any language), then reject if the derived slug is taken in this language.
+      // Name and slug BOTH gate uniqueness — no auto-suffix (see createChannel).
+      await claimChannelName(tx, normalizedTarget, channelId);
       if (await isPerLanguageSlugTaken(tx, language, newSlug)) throw new NameTakenError();
       const created = await tx.channelTranslation.create({
         data: { channelId, language, name, normalizedName: normalizedTarget, slug: newSlug },

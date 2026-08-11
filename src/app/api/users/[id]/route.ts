@@ -9,6 +9,7 @@ import { serverError } from "@/lib/error-handlers";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_RENAME_LIMIT, ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 import { getMaxChannelsPerUser } from "@/lib/channel-limit";
+import { lockChannelName } from "@/lib/services/channel";
 import { resolveTranslation } from "@/lib/channel-translation";
 import type { ChannelMemberRole } from "@/lib/channel-roles";
 
@@ -147,6 +148,11 @@ export async function PATCH(
     // concurrent rename cannot make the personal-channel snapshot or collision
     // checks stale.
     const updated = await prisma.$transaction(async (tx) => {
+      // Serialize concurrent claims of this name across ALL languages so the
+      // name-collision checks below are race-safe (the DB only enforces
+      // per-language uniqueness). Auto-released at commit/rollback.
+      await lockChannelName(tx, normalizedTarget);
+
       const renameResult = await tx.user.updateMany({
         where: { id, renameCount: { lt: MAX_RENAME_COUNT } },
         data: { name: parsed.data.name, renameCount: { increment: 1 } },
