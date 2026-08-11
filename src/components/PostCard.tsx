@@ -3,7 +3,7 @@
 import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { localeFlags } from "@/i18n/routing";
+import { localeFlags, routing } from "@/i18n/routing";
 import { Link as LinkIcon, ExternalLink, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { replaceEmoticons } from "@/lib/emoticons";
@@ -57,7 +57,8 @@ export default function PostCard({
   const canManage = !!(currentUserId === post.channel.ownerId || manageableChannelIds?.includes(post.channel.id));
 
   const handleCopyLink = useCallback(() => {
-    const url = `${window.location.origin}/${locale}${getPostUrl(post.shortId, post.slug)}`;
+    const localePrefix = locale === routing.defaultLocale ? "" : `/${locale}`;
+    const url = `${window.location.origin}${localePrefix}${getPostUrl(post.shortId, post.slug)}`;
     navigator.clipboard.writeText(url);
     toast.success(t("linkCopied"));
   }, [locale, post.shortId, post.slug, t]);
