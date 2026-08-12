@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -7,6 +7,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     pendingUpload: {
       findUnique: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
   },
@@ -35,12 +36,18 @@ function mockRequest(body: unknown) {
 }
 
 describe("POST /api/upload/cleanup", () => {
+  const previousR2 = process.env.R2_PUBLIC_URL;
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.R2_PUBLIC_URL = "https://pub.r2.dev";
+    vi.mocked(prisma.pendingUpload.findMany).mockResolvedValue([]);
     vi.mocked(extractKey).mockImplementation((url: string) => {
       const prefix = "https://pub.r2.dev/";
       return url.startsWith(prefix) ? url.slice(prefix.length) : null;
     });
+  });
+  afterAll(() => {
+    process.env.R2_PUBLIC_URL = previousR2;
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -79,10 +86,10 @@ describe("POST /api/upload/cleanup", () => {
     expect(deleteMediaFiles).not.toHaveBeenCalled();
   });
 
-  it("deletes orphaned URLs with no Media record", async () => {
+  it("deletes an orphaned URL the caller owns via a PendingUpload record", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([]);
-    vi.mocked(prisma.pendingUpload.findUnique).mockResolvedValue({ id: "pu-1", key: "posts/post-1/orphan.jpg", userId: "user-1", channelId: null, createdAt: new Date(), expiresAt: new Date() } as any);
+    vi.mocked(prisma.pendingUpload.findMany).mockResolvedValue([{ key: "posts/post-1/orphan.jpg" }] as any);
 
     const res = await POST(
       mockRequest({ urls: ["https://pub.r2.dev/posts/post-1/orphan.jpg"] }),
@@ -92,21 +99,25 @@ describe("POST /api/upload/cleanup", () => {
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
     expect(deleteMediaFiles).toHaveBeenCalledWith(["https://pub.r2.dev/posts/post-1/orphan.jpg"]);
+    // Ownership query is scoped to the caller.
+    expect(prisma.pendingUpload.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ userId: "user-1" }) }),
+    );
   });
 
-  it("allows deleting legacy orphaned URLs with no PendingUpload record", async () => {
+  it("does NOT delete an orphan URL with no owning PendingUpload record (deny by default)", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([]);
-    vi.mocked(prisma.pendingUpload.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.pendingUpload.findMany).mockResolvedValue([]); // no record owned by caller
 
     const res = await POST(
-      mockRequest({ urls: ["https://pub.r2.dev/posts/post-1/legacy.jpg"] }),
+      mockRequest({ urls: ["https://pub.r2.dev/posts/other/legacy.jpg"] }),
     );
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.deleted).toBe(1);
-    expect(deleteMediaFiles).toHaveBeenCalledWith(["https://pub.r2.dev/posts/post-1/legacy.jpg"]);
+    expect(json.deleted).toBe(0);
+    expect(deleteMediaFiles).not.toHaveBeenCalled();
   });
 
   it("skips deletion when URL has an existing Media record", async () => {
@@ -130,11 +141,7 @@ describe("POST /api/upload/cleanup", () => {
     vi.mocked(prisma.media.findMany).mockResolvedValue([
       { id: "media-3", url: "https://pub.r2.dev/posts/post-1/attached.jpg", type: "image", position: 0, width: null, height: null, createdAt: new Date(), postId: "post-1", userId: "user-1" },
     ]);
-    vi.mocked(prisma.pendingUpload.findUnique).mockImplementation((({ where: { key } }: any) =>
-      key === "posts/post-1/orphan.jpg"
-        ? ({ id: "pu-1", key, userId: "user-1", channelId: null, createdAt: new Date(), expiresAt: new Date(), user: { id: "user-1" } } as any)
-        : null
-    ) as any);
+    vi.mocked(prisma.pendingUpload.findMany).mockResolvedValue([{ key: "posts/post-1/orphan.jpg" }] as any);
 
     const res = await POST(
       mockRequest({

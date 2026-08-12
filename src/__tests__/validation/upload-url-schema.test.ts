@@ -8,19 +8,39 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "photo.jpg",
       contentType: "image/jpeg",
-      postId: "post-123",
+      postId: "11111111-1111-4111-8111-111111111111",
       channelId: "channel-1",
+      contentLength: 12345,
     });
     expect(result.success).toBe(true);
   });
 
+  it("rejects a non-UUID postId (blocks R2 key injection)", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "photo.jpg",
+      contentType: "image/jpeg",
+      postId: "../../evil",
+      contentLength: 12345,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing contentLength (unbounded upload guard)", () => {
+    const result = uploadUrlSchema.safeParse({
+      fileName: "photo.jpg",
+      contentType: "image/jpeg",
+      postId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects missing fileName", () => {
-    const result = uploadUrlSchema.safeParse({ contentType: "image/jpeg", postId: "post-123" });
+    const result = uploadUrlSchema.safeParse({ contentType: "image/jpeg", postId: "11111111-1111-4111-8111-111111111111" });
     expect(result.success).toBe(false);
   });
 
   it("rejects missing contentType", () => {
-    const result = uploadUrlSchema.safeParse({ fileName: "photo.jpg", postId: "post-123" });
+    const result = uploadUrlSchema.safeParse({ fileName: "photo.jpg", postId: "11111111-1111-4111-8111-111111111111" });
     expect(result.success).toBe(false);
   });
 
@@ -33,7 +53,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "",
       contentType: "image/jpeg",
-      postId: "post-123",
+      postId: "11111111-1111-4111-8111-111111111111",
     });
     expect(result.success).toBe(false);
   });
@@ -42,7 +62,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "a".repeat(256),
       contentType: "image/jpeg",
-      postId: "post-123",
+      postId: "11111111-1111-4111-8111-111111111111",
     });
     expect(result.success).toBe(false);
   });
@@ -51,7 +71,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "photo.jpg",
       contentType: "a".repeat(256),
-      postId: "post-123",
+      postId: "11111111-1111-4111-8111-111111111111",
     });
     expect(result.success).toBe(false);
   });
@@ -60,7 +80,8 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "clip.mp4",
       contentType: "video/mp4",
-      postId: "post-123",
+      postId: "11111111-1111-4111-8111-111111111111",
+      contentLength: 12345,
     });
     expect(result.success).toBe(true);
   });
@@ -69,7 +90,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "page.html",
       contentType: "text/html",
-      postId: "post-123",
+      postId: "11111111-1111-4111-8111-111111111111",
     });
     expect(result.success).toBe(false);
   });
@@ -78,7 +99,7 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "image.svg",
       contentType: "image/svg+xml",
-      postId: "post-123",
+      postId: "11111111-1111-4111-8111-111111111111",
     });
     expect(result.success).toBe(false);
   });
@@ -87,7 +108,8 @@ describe("uploadUrlSchema", () => {
     const result = uploadUrlSchema.safeParse({
       fileName: "clip.ogv",
       contentType: "video/ogg",
-      postId: "post-123",
+      postId: "11111111-1111-4111-8111-111111111111",
+      contentLength: 12345,
     });
     expect(result.success).toBe(true);
   });

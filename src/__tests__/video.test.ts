@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseYouTubeUrl, getYouTubeEmbedUrl, extractYouTubeContent } from "@/lib/video";
+import { parseYouTubeUrl, getYouTubeEmbedUrl, isStandaloneYouTubeUrl } from "@/lib/video";
 
 describe("parseYouTubeUrl", () => {
   it("extracts ID from watch URL", () => {
@@ -12,6 +12,14 @@ describe("parseYouTubeUrl", () => {
 
   it("extracts ID from embed URL", () => {
     expect(parseYouTubeUrl("https://youtube.com/embed/dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
+  });
+
+  it("extracts ID from a shorts URL", () => {
+    expect(parseYouTubeUrl("https://youtube.com/shorts/dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
+  });
+
+  it("extracts ID from a shorts URL with params", () => {
+    expect(parseYouTubeUrl("https://www.youtube.com/shorts/dQw4w9WgXcQ?feature=share")).toBe("dQw4w9WgXcQ");
   });
 
   it("extracts ID with extra params", () => {
@@ -33,35 +41,39 @@ describe("getYouTubeEmbedUrl", () => {
       .toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
   });
 
+  it("converts shorts URL to embed URL", () => {
+    expect(getYouTubeEmbedUrl("https://youtube.com/shorts/dQw4w9WgXcQ"))
+      .toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
+  });
+
   it("returns null for non-YouTube URL", () => {
     expect(getYouTubeEmbedUrl("https://example.com")).toBeNull();
   });
 });
 
-describe("extractYouTubeContent", () => {
-  it("returns clean text when no YouTube URL", () => {
-    const result = extractYouTubeContent("Hare Krishna!");
-    expect(result.cleanContent).toBe("Hare Krishna!");
-    expect(result.embedUrl).toBeNull();
+describe("isStandaloneYouTubeUrl", () => {
+  it("is true for a lone watch URL", () => {
+    expect(isStandaloneYouTubeUrl("https://youtube.com/watch?v=dQw4w9WgXcQ")).toBe(true);
   });
 
-  it("extracts embed URL and cleans text", () => {
-    const result = extractYouTubeContent(
-      "Watch this: https://youtube.com/watch?v=dQw4w9WgXcQ Amazing!",
-    );
-    expect(result.cleanContent).toBe("Watch this:  Amazing!");
-    expect(result.embedUrl).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
+  it("is true for a lone youtu.be URL with surrounding whitespace", () => {
+    expect(isStandaloneYouTubeUrl("  https://youtu.be/dQw4w9WgXcQ\n")).toBe(true);
   });
 
-  it("removes trailing URL-only content", () => {
-    const result = extractYouTubeContent("https://youtu.be/dQw4w9WgXcQ");
-    expect(result.cleanContent).toBeNull();
-    expect(result.embedUrl).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
+  it("is true for a lone shorts URL", () => {
+    expect(isStandaloneYouTubeUrl("https://youtube.com/shorts/dQw4w9WgXcQ")).toBe(true);
   });
 
-  it("returns null for null input", () => {
-    const result = extractYouTubeContent(null);
-    expect(result.cleanContent).toBeNull();
-    expect(result.embedUrl).toBeNull();
+  it("is false when the link has surrounding prose", () => {
+    expect(isStandaloneYouTubeUrl("Watch this https://youtube.com/watch?v=dQw4w9WgXcQ")).toBe(false);
+  });
+
+  it("is false for a non-YouTube URL", () => {
+    expect(isStandaloneYouTubeUrl("https://example.com")).toBe(false);
+  });
+
+  it("is false for null or empty input", () => {
+    expect(isStandaloneYouTubeUrl(null)).toBe(false);
+    expect(isStandaloneYouTubeUrl("")).toBe(false);
   });
 });

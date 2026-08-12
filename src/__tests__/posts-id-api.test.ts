@@ -271,21 +271,47 @@ describe("PATCH /api/posts/[id]", () => {
   });
 
   it("updates post media", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(updatePost).mockResolvedValue({
-      ...basePost,
-      media: [{ url: "https://example.com/img.jpg", type: "image", position: 0, width: null, height: null }],
-    });
+    // Media must be storage-origin to pass the (now fail-closed) trust check.
+    const prevR2 = process.env.R2_PUBLIC_URL;
+    process.env.R2_PUBLIC_URL = "https://pub.r2.dev";
+    try {
+      const mediaUrl = "https://pub.r2.dev/posts/11111111-1111-4111-8111-111111111111/img.jpg";
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+      vi.mocked(updatePost).mockResolvedValue({
+        ...basePost,
+        media: [{ url: mediaUrl, type: "image", position: 0, width: null, height: null }],
+      });
 
-    const res = await PATCH(
-      patchRequest({ media: [{ url: "https://example.com/img.jpg", type: "image" }] }),
-      { params: Promise.resolve({ id: "post-1" }) },
-    );
+      const res = await PATCH(
+        patchRequest({ media: [{ url: mediaUrl, type: "image" }] }),
+        { params: Promise.resolve({ id: "post-1" }) },
+      );
 
-    expect(res.status).toBe(200);
-    expect(updatePost).toHaveBeenCalledWith("post-1", "user-1", {
-      media: [{ url: "https://example.com/img.jpg", type: "image" }],
-    });
+      expect(res.status).toBe(200);
+      expect(updatePost).toHaveBeenCalledWith("post-1", "user-1", {
+        media: [{ url: mediaUrl, type: "image" }],
+      });
+    } finally {
+      process.env.R2_PUBLIC_URL = prevR2;
+    }
+  });
+
+  it("rejects untrusted (non-storage) media even when R2 is configured", async () => {
+    const prevR2 = process.env.R2_PUBLIC_URL;
+    process.env.R2_PUBLIC_URL = "https://pub.r2.dev";
+    try {
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+      const res = await PATCH(
+        patchRequest({ media: [{ url: "https://evil.example.com/img.jpg", type: "image" }] }),
+        { params: Promise.resolve({ id: "post-1" }) },
+      );
+      const json = await res.json();
+      expect(res.status).toBe(400);
+      expect(json.error).toContain("untrusted_url");
+      expect(updatePost).not.toHaveBeenCalled();
+    } finally {
+      process.env.R2_PUBLIC_URL = prevR2;
+    }
   });
 
   it("rejects invalid media format", async () => {

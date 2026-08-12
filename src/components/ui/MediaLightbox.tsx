@@ -66,6 +66,8 @@ export default function MediaLightbox({
 			)}
 
 			<div className="bg-[conic-gradient(#e5e5e5_25%,#f5f5f5_0_50%,#e5e5e5_0_75%,#f5f5f5_0)] bg-[length:24px_24px] rounded overflow-hidden">
+				{/* Using <img> for lightbox full-size display: user-uploaded images already
+				    on R2, shown at original resolution, no optimization needed for modal view. */}
 				<img
 					src={img.url}
 					alt=""

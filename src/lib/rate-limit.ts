@@ -55,6 +55,14 @@ export const RATE_LIMITS = {
   resetPassword: { limit: 10, windowMs: 900_000 },
   // Resend verification: 3 attempts per 15 minutes per user
   resendVerification: { limit: 3, windowMs: 900_000 },
+  // Link preview fetch: 120 requests per 60s per IP. Responses are edge-cached
+  // by URL, so this only guards origin cold-misses (a feed of linked posts
+  // fires one request per unique URL, all otherwise served from the CDN).
+  readLinkPreview: { limit: 120, windowMs: 60_000 },
+  // Link preview image proxy: 240 requests per 60s per IP. Each card can fetch
+  // up to two images (og:image + favicon); edge caching serves repeat URLs, so
+  // this only bounds cold-miss upstream fetches.
+  readLinkPreviewImage: { limit: 240, windowMs: 60_000 },
 } as const;
 
 // Rate-limit key prefixes — shared across API routes and SSR pages so every
@@ -87,6 +95,8 @@ export const RATE_LIMIT_PREFIX = {
   forgotPassword: "forgot-password",
   resetPassword: "reset-password",
   resendVerification: "resend-verification",
+  readLinkPreview: "read-link-preview",
+  readLinkPreviewImage: "read-link-preview-image",
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;
@@ -123,6 +133,23 @@ function memRateLimit(
   return { allowed: true, remaining: limit - entry.count, resetIn: entry.resetAt - now };
 }
 
+// Fraction of DB rate-limit writes that trigger an expired-row sweep. ~1%
+// keeps the table bounded (at 120 req/min that's a sweep every ~min per
+// instance) without adding a query to most requests.
+export const RATE_LIMIT_REAP_PROBABILITY = 0.01;
+
+// Delete expired RateLimit rows. Exported for direct testing. Fire-and-forget
+// from the hot path (errors swallowed so cleanup never breaks a request).
+export function reapExpiredRateLimits(now: Date = new Date()): Promise<unknown> {
+  return prisma.rateLimit.deleteMany({ where: { expiresAt: { lt: now } } }).catch(() => undefined);
+}
+
+function maybeReapExpiredRateLimits(now: Date): void {
+  if (Math.random() < RATE_LIMIT_REAP_PROBABILITY) {
+    void reapExpiredRateLimits(now);
+  }
+}
+
 async function dbRateLimit(
   key: string,
   limit: number,
@@ -146,6 +173,13 @@ async function dbRateLimit(
     WHERE "RateLimit"."expiresAt" <= ${now} OR "RateLimit"."count" < ${limit}
     RETURNING "count", "expiresAt"
   `;
+
+  // No cron sweeps this table, and a spoofable IP header can mint unbounded
+  // distinct keys, so a small fraction of writes opportunistically delete
+  // expired rows to bound growth. Fire-and-forget: never blocks or fails the
+  // hot path.
+  maybeReapExpiredRateLimits(now);
+
   const row = rows[0];
 
   // No row returned: the WHERE clause filtered the update out, meaning the

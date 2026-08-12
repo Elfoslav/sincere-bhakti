@@ -59,12 +59,13 @@ export async function PATCH(
     const { content, isPublic, language, media: parsedMedia } = parsed.data;
 
     if (parsedMedia !== undefined) {
-      const storageDomain = process.env.R2_PUBLIC_URL;
-      if (storageDomain) {
-        for (const m of parsedMedia) {
-          if (!isTrustedMediaUrl(m.url, m.type, storageDomain)) {
-            return NextResponse.json({ error: "validation_error:media:untrusted_url" }, { status: HTTP_BAD_REQUEST });
-          }
+      // Fail closed: verify every media URL. image/video/file require a valid
+      // storage origin; youtube is validated independently. Missing
+      // R2_PUBLIC_URL → hosted media is rejected, not trusted.
+      const storageDomain = process.env.R2_PUBLIC_URL ?? "";
+      for (const m of parsedMedia) {
+        if (!isTrustedMediaUrl(m.url, m.type, storageDomain)) {
+          return NextResponse.json({ error: "validation_error:media:untrusted_url" }, { status: HTTP_BAD_REQUEST });
         }
       }
     }

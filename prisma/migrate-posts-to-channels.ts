@@ -23,12 +23,14 @@ function normalizeName(name: string) {
 }
 
 async function ensureUniqueSlug(base: string): Promise<string> {
-  const existing = await prisma.channelTranslation.findUnique({ where: { slug: base } });
+  // Slugs are unique per-language; this one-off script only creates "en"
+  // translations, so a findFirst on the slug is sufficient to avoid collisions.
+  const existing = await prisma.channelTranslation.findFirst({ where: { slug: base } });
   if (!existing) return base;
 
   for (let i = 1; i < 1000; i++) {
     const candidate = `${base}-${i}`;
-    const taken = await prisma.channelTranslation.findUnique({ where: { slug: candidate } });
+    const taken = await prisma.channelTranslation.findFirst({ where: { slug: candidate } });
     if (!taken) return candidate;
   }
   return `${base}-${crypto.randomUUID().slice(0, 8)}`;

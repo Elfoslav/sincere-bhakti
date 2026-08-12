@@ -62,6 +62,28 @@ export const OG_IMAGE_TRANSIENT_CACHE_CONTROL = "private, no-store";
 // purging this URL on post update/delete.
 export const OG_POST_IMAGE_CACHE_CONTROL = "public, s-maxage=300";
 
+// CDN caching for the link-preview API. The client renders one preview card
+// per linked post, so without edge caching a feed of tens of posts would fire
+// tens of upstream HTML fetches per viewer per scroll. With s-maxage the edge
+// serves the first response for each URL to everyone; the origin and the
+// per-IP rate limiter only run on cold misses.
+//
+// - Success: og data is stable → cache long.
+// - No content extracted: this IS the correct response for that URL → brief
+//   shared cache so it self-heals if the page later adds og tags.
+// - Fetch failed / rate-limited: transient per-request state, NOT a property
+//   of the URL → never shared-cache.
+export const LINK_PREVIEW_CACHE_CONTROL = "public, s-maxage=86400, stale-while-revalidate=604800";
+export const LINK_PREVIEW_FALLBACK_CACHE_CONTROL = "public, max-age=60, s-maxage=300";
+export const LINK_PREVIEW_TRANSIENT_CACHE_CONTROL = "private, no-store";
+// A per-IP throttle is NOT a property of the URL — never shared-cache it.
+export const LINK_PREVIEW_RATE_LIMITED_CACHE_CONTROL = "private, no-store";
+
+// Proxied og:images/favicons are more mutable than og metadata but still
+// change rarely; 24h edge cache with SWR keeps the origin cold without
+// serving obviously stale art.
+export const LINK_PREVIEW_IMAGE_CACHE_CONTROL = "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800";
+
 const OG_LOCALES: Record<string, string> = {
   en: "en_US",
   cs: "cs_CZ",

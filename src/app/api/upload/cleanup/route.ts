@@ -54,35 +54,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ deleted: 0 });
     }
 
-    // Verify ownership of abandoned URLs via PendingUpload records.
-    // Only block when a PendingUpload record exists but belongs to someone else.
-    // No PendingUpload record = legacy orphaned file, allow deletion.
+    // Deny by default: an orphan URL is deleted ONLY if the caller owns a
+    // live PendingUpload record for its key. A URL with no record (or someone
+    // else's) is left untouched — an authenticated user must not be able to
+    // delete an arbitrary bucket object just because it lacks a DB row.
     const storageDomain = process.env.R2_PUBLIC_URL;
-    const storageKeys = abandoned
-      .map((u) => (storageDomain ? extractKey(u, storageDomain) : null))
-      .filter((k): k is string => k !== null);
-    if (storageKeys.length > 0) {
-      const pendingRecords = await prisma.pendingUpload.findMany({
-        where: { key: { in: storageKeys } },
-        select: { key: true, userId: true },
-      });
-      const ownerByKey = new Map(pendingRecords.map((r) => [r.key, r.userId]));
-      for (const key of storageKeys) {
-        const owner = ownerByKey.get(key);
-        if (owner && owner !== session.user.id) {
-          return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-        }
-      }
+    if (!storageDomain) {
+      // Can't map URLs to storage keys/owners → nothing verifiably deletable.
+      return NextResponse.json({ success: true, deleted: 0 });
     }
 
-    await deleteMediaFiles(abandoned);
-
-    // Remove PendingUpload records for deleted files
-    if (storageKeys.length > 0) {
-      await prisma.pendingUpload.deleteMany({ where: { key: { in: storageKeys } } });
+    const keyByUrl = new Map<string, string>();
+    for (const u of abandoned) {
+      const k = extractKey(u, storageDomain);
+      if (k) keyByUrl.set(u, k);
+    }
+    const keys = [...keyByUrl.values()];
+    if (keys.length === 0) {
+      return NextResponse.json({ success: true, deleted: 0 });
     }
 
-    return NextResponse.json({ success: true, deleted: abandoned.length });
+    const ownedRecords = await prisma.pendingUpload.findMany({
+      where: { key: { in: keys }, userId: session.user.id },
+      select: { key: true },
+    });
+    const ownedKeys = new Set(ownedRecords.map((r) => r.key));
+
+    const deletableUrls = abandoned.filter((u) => {
+      const k = keyByUrl.get(u);
+      return k !== undefined && ownedKeys.has(k);
+    });
+    if (deletableUrls.length === 0) {
+      return NextResponse.json({ success: true, deleted: 0 });
+    }
+
+    await deleteMediaFiles(deletableUrls);
+    await prisma.pendingUpload.deleteMany({ where: { key: { in: [...ownedKeys] } } });
+
+    return NextResponse.json({ success: true, deleted: deletableUrls.length });
   } catch (error) {
     return serverError("POST /api/upload/cleanup", error, "cleanup_failed");
   }

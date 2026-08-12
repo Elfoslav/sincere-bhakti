@@ -15,7 +15,7 @@ function mergedClasses(opts: Parameters<typeof buttonVariants>[0]): string {
 }
 
 describe("buttonVariants rounded styles", () => {
-  const pillVariants = ["default", "outline-deep", "outline", "destructive"] as const;
+  const pillVariants = ["default", "outline-deep", "outline", "destructive", "secondary", "ghost"] as const;
   const sizesWithOwnRadius = ["xs", "sm", "icon-xs", "icon-sm"] as const;
   const sizesWithoutRadius = ["default", "lg", "xl", "xxl", "hero", "icon", "icon-lg"] as const;
 
@@ -26,15 +26,6 @@ describe("buttonVariants rounded styles", () => {
       expect(classes, `${variant}/${size}`).not.toMatch(/rounded-\[min/);
     }
   });
-
-  it.each(["ghost", "secondary", "gold"] as const)(
-    "non-pill variant %s keeps size-tuned radius at small sizes",
-    (variant) => {
-      const classes = mergedClasses({ variant, size: "sm" });
-      expect(classes).toMatch(/rounded-\[min/);
-      expect(classes).not.toContain("rounded-full");
-    },
-  );
 
   it.each(["icon", "icon-destructive", "icon-light"] as const)(
     "icon variant %s keeps size-tuned radius at small sizes",
@@ -71,7 +62,7 @@ describe("buttonVariants rounded styles", () => {
   });
 
   it("non-pill variants fall back to the base radius at default size", () => {
-    const classes = mergedClasses({ variant: "ghost", size: "default" });
+    const classes = mergedClasses({ variant: "link", size: "default" });
     expect(classes).toContain("rounded-lg");
     expect(classes).not.toContain("rounded-full");
   });

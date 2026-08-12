@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canManageChannelSettings, getChannelBySlug, isNormalizedNameTaken, renameChannelTranslation, NameTakenError, RenameLimitError } from "@/lib/services/channel";
+import { canManageChannelSettings, getChannelBySlug, findManageableTranslationBySlug, renameChannelTranslation, NameTakenError, RenameLimitError } from "@/lib/services/channel";
 
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { requireAuth } from "@/lib/require-auth";
@@ -42,16 +42,12 @@ export async function PATCH(
   if (auth.response) return auth.response;
   const session = auth.session;
   const { slug } = await params;
+  // The URL slug is unique per-language; the client sends the locale it is
+  // viewing so we rename the matching translation (falls back to any language).
+  const slugLanguage = new URL(request.url).searchParams.get("language") ?? undefined;
 
   try {
-    const translation = await prisma.channelTranslation.findUnique({
-      where: { slug },
-      include: {
-        channel: {
-          select: { id: true, ownerId: true, isPersonal: true, avatarUrl: true, defaultLanguage: true },
-        },
-      },
-    });
+    const translation = await findManageableTranslationBySlug(slug, slugLanguage);
 
     if (!translation) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
@@ -98,17 +94,15 @@ export async function PATCH(
       return NextResponse.json({ error: ERROR_RENAME_LIMIT }, { status: HTTP_BAD_REQUEST });
     }
 
-    // Check if the new name is already taken by another translation
-    if (await isNormalizedNameTaken(normalizedTarget, channel.id)) {
-      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
-    }
-
+    // Global name-ownership is enforced inside renameChannelTranslation under an
+    // advisory lock (race-safe), so no pre-transaction name check here.
     const newSlug = slugifyName(name);
 
     const updated = await prisma.$transaction((tx) => renameChannelTranslation(tx, {
       channelId: channel.id,
       userId: session.user.id,
       ownerId: channel.ownerId,
+      language: translation.language,
       oldSlug: currentSlug,
       oldName: currentName,
       newName: name,

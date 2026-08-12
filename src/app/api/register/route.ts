@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema, BCRYPT_SALT_ROUNDS, normalizeName, isBrandNameBlocked, slugifyName } from "@/lib/validation";
@@ -8,23 +7,15 @@ import { logServerError } from "@/lib/server-log";
 import { parseBody } from "@/lib/parse-body";
 import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
+import { claimChannelName, isPerLanguageSlugTaken, NameTakenError } from "@/lib/services/channel";
 import { ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED } from "@/lib/error-codes";
-import { generateVerificationTokenValue, VERIFY_TOKEN_TTL_MS } from "@/lib/verification-token";
+import { generateVerificationTokenValue, hashToken, VERIFY_TOKEN_TTL_MS } from "@/lib/verification-token";
 import { sendVerificationEmail } from "@/lib/email";
 
 type RegistrationTx = {
   channel: {
     create: typeof prisma.channel.create;
-  };
-  channelTranslation: {
-    findFirst: typeof prisma.channelTranslation.findFirst;
-  };
-  channelSlugHistory: {
-    findFirst: typeof prisma.channelSlugHistory.findFirst;
-  };
-  user: {
-    create: typeof prisma.user.create;
   };
 };
 
@@ -34,46 +25,17 @@ async function createPersonalChannelForRegistration(
   userName: string,
   language: string = "en",
 ): Promise<void> {
-  const slug = slugifyName(userName);
-
-  for (let i = 1; i <= 10; i++) {
-    const finalSlug = i === 1 ? slug : `${slug}-${i}`;
-    const name = i === 1 ? userName : `${userName} (${i})`;
-    const normalized = normalizeName(name);
-
-    const slugTaken = await tx.channelTranslation.findFirst({ where: { slug: finalSlug }, select: { id: true } });
-    if (slugTaken) continue;
-
-    const slugInHistory = await tx.channelSlugHistory.findFirst({ where: { oldSlug: finalSlug }, select: { id: true } });
-    if (slugInHistory) continue;
-
-    const nameInHistory = await tx.channelSlugHistory.findFirst({ where: { oldNormalizedName: normalized }, select: { id: true } });
-    if (nameInHistory) continue;
-
-    try {
-      await tx.channel.create({
-        data: {
-          ownerId: userId,
-          isPersonal: true,
-          translations: {
-            create: { language, name, normalizedName: normalized, slug: finalSlug },
-          },
-        },
-      });
-      return;
-    } catch (error) {
-      if ((error as { code?: string })?.code === "P2002") continue;
-      throw error;
-    }
-  }
-
-  const uuid = crypto.randomUUID().slice(0, 8);
+  // Name and slug collisions are rejected up front in the POST handler (see the
+  // pre-transaction checks), so this creates the personal channel with the
+  // user's name and its derived slug directly — no auto-suffixing. A concurrent
+  // race that slips past the pre-checks surfaces as a P2002 and rolls the whole
+  // registration back to a generic "registration_failed".
   await tx.channel.create({
     data: {
       ownerId: userId,
       isPersonal: true,
       translations: {
-        create: { language, name: `${userName} (${uuid})`, normalizedName: normalizeName(`${userName} (${uuid})`), slug: `${slug}-${uuid}` },
+        create: { language, name: userName, normalizedName: normalizeName(userName), slug: slugifyName(userName) },
       },
     },
   });
@@ -114,12 +76,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
     }
 
+    // Name and slug BOTH gate uniqueness (reject, don't auto-suffix): also block
+    // when the personal-channel slug is already taken in this language — even if
+    // the name itself is free (e.g. "Devotees!" vs an existing "Devotees").
+    const registrationLanguage = language ?? "en";
+    const targetSlug = slugifyName(name);
+    const slugTaken = await prisma.channelTranslation.findFirst({
+      where: { language: registrationLanguage, slug: targetSlug },
+      select: { id: true },
+    });
+    if (slugTaken) {
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
+    }
+    const slugInHistory = await prisma.channelSlugHistory.findFirst({
+      where: { language: registrationLanguage, oldSlug: targetSlug },
+      select: { id: true },
+    });
+    if (slugInHistory) {
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
+    }
+
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
     const verifyToken = generateVerificationTokenValue();
     const verifyExpires = new Date(Date.now() + VERIFY_TOKEN_TTL_MS);
 
     const user = await prisma.$transaction(async (tx) => {
+      // Authoritative, race-safe ownership check under an advisory lock on the
+      // name (the checks above are a fast, pre-bcrypt path). Two concurrent
+      // registrations of the same name in different languages serialize here so
+      // the second sees the first's channel and is rejected.
+      await claimChannelName(tx, normalizedTarget);
+      if (await isPerLanguageSlugTaken(tx, registrationLanguage, targetSlug)) {
+        throw new NameTakenError();
+      }
+
       const createdUser = await tx.user.create({
         data: { name, email, password: hashedPassword },
         select: { id: true, name: true, email: true },
@@ -127,12 +118,12 @@ export async function POST(request: NextRequest) {
 
       // Create the personal channel inside the same transaction so a channel
       // failure cannot leave behind a half-created user account.
-      await createPersonalChannelForRegistration(tx as RegistrationTx, createdUser.id, createdUser.name, language ?? "en");
+      await createPersonalChannelForRegistration(tx as RegistrationTx, createdUser.id, createdUser.name, registrationLanguage);
 
       await tx.verificationToken.create({
         data: {
           email: createdUser.email,
-          token: verifyToken,
+          token: hashToken(verifyToken), // stored hashed; the email carries the raw token
           type: "verify",
           expiresAt: verifyExpires,
         },
@@ -154,6 +145,10 @@ export async function POST(request: NextRequest) {
       { status: HTTP_CREATED }
     );
   } catch (error) {
+    // A concurrent registration won the name under the advisory lock.
+    if (error instanceof NameTakenError) {
+      return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
+    }
     // Unique-constraint collision (e.g. email already registered, or a channel
     // name/slug race). Return a generic error without revealing which field
     // collided, to avoid account/email enumeration.

@@ -387,6 +387,8 @@ function ProfileChannelCard({
 			<Card variant="hover">
 				<div className="flex items-center gap-3">
 					{channel.avatarUrl ? (
+						// Using <img> for R2-hosted channel avatars: small fixed-size thumbnails
+						// (40px) with explicit dimensions, simpler CORS than next/image loader.
 						<img
 							src={channel.avatarUrl}
 							alt=""

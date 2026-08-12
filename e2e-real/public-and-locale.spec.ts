@@ -36,7 +36,7 @@ test("anonymous users can open public posts, channel pages, and public profiles"
 test("post lists are filtered by the active locale", async ({ page }) => {
   const email = uniqueE2EEmail("locale-author");
   const name = `E2E Locale Author ${Date.now()}`;
-  const { channel, slug } = await createUserWithPersonalChannel({ name, email });
+  const { channel } = await createUserWithPersonalChannel({ name, email });
   const enContent = `English locale post ${Date.now()}`;
   const csContent = `Czech locale post ${Date.now()}`;
   await Promise.all([
