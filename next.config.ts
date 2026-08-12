@@ -14,20 +14,22 @@ const scriptSrc = isDev
   ? "'self' 'unsafe-eval' 'unsafe-inline'"
   : "'self' 'unsafe-inline'";
 
-// Umami (privacy-friendly, cookieless analytics): the loader is served from,
-// and events are POSTed to, cloud.umami.is — so it needs both script-src (load
-// script.js) and connect-src (POST /api/send). Loaded only in production (see
-// the RootLayout <Script>), but allowlisting the host in all envs is harmless.
-const UMAMI_HOST = "https://cloud.umami.is";
+// Umami (privacy-friendly, cookieless analytics). The loader is served from
+// cloud.umami.is (script-src), but the tracker POSTs events to a SEPARATE host,
+// gateway.umami.is (connect-src) — both must be allowlisted or the browser
+// loads the script yet silently blocks every event. Loaded only in production
+// (see the RootLayout <Script>); allowlisting the hosts in all envs is harmless.
+const UMAMI_SCRIPT_HOST = "https://cloud.umami.is";
+const UMAMI_API_HOST = "https://gateway.umami.is";
 
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src ${scriptSrc} ${UMAMI_HOST}`,
+  `script-src ${scriptSrc} ${UMAMI_SCRIPT_HOST}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.r2.dev https://*.cloudflarestorage.com https://media.sincerebhakti.com",
   "media-src 'self' blob: https://*.r2.dev https://*.cloudflarestorage.com https://media.sincerebhakti.com",
   "frame-src https://www.youtube.com",
-  `connect-src 'self' https://*.r2.dev https://*.cloudflarestorage.com https://o4511292367175680.ingest.de.sentry.io ${UMAMI_HOST}`,
+  `connect-src 'self' https://*.r2.dev https://*.cloudflarestorage.com https://o4511292367175680.ingest.de.sentry.io ${UMAMI_SCRIPT_HOST} ${UMAMI_API_HOST}`,
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
