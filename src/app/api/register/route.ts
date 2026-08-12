@@ -10,7 +10,7 @@ import { serverError } from "@/lib/error-handlers";
 import { claimChannelName, isPerLanguageSlugTaken, NameTakenError } from "@/lib/services/channel";
 import { ERROR_NAME_TAKEN } from "@/lib/error-messages";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED } from "@/lib/error-codes";
-import { generateVerificationTokenValue, VERIFY_TOKEN_TTL_MS } from "@/lib/verification-token";
+import { generateVerificationTokenValue, hashToken, VERIFY_TOKEN_TTL_MS } from "@/lib/verification-token";
 import { sendVerificationEmail } from "@/lib/email";
 
 type RegistrationTx = {
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       await tx.verificationToken.create({
         data: {
           email: createdUser.email,
-          token: verifyToken,
+          token: hashToken(verifyToken), // stored hashed; the email carries the raw token
           type: "verify",
           expiresAt: verifyExpires,
         },

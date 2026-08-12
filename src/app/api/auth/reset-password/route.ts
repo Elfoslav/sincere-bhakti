@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { hashToken } from "@/lib/verification-token";
 import { resetPasswordSchema, BCRYPT_SALT_ROUNDS } from "@/lib/validation";
 import { validateOrigin } from "@/lib/csrf";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     const { token, password } = parsed.data;
 
     const record = await prisma.verificationToken.findUnique({
-      where: { token },
+      where: { token: hashToken(token) },
     });
 
     if (!record) {

@@ -110,7 +110,7 @@ describe("POST /api/channels", () => {
   });
 
   it("creates a new channel", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
@@ -128,8 +128,19 @@ describe("POST /api/channels", () => {
     expect(json.postCount).toBe(0);
   });
 
+  it("returns 403 when the caller's email is not verified", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: null } } as any);
+
+    const res = await POST(mockRequest({ name: "My Devotees" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.error).toBe("email_not_verified");
+    expect(prisma.channel.create).not.toHaveBeenCalled();
+  });
+
   it("creates a channel with the requested language", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
@@ -154,7 +165,7 @@ describe("POST /api/channels", () => {
   });
 
   it("returns 409 when name matches the brand name", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
 
     const res = await POST(mockRequest({ name: "Sincere Bhakti" }));
     const json = await res.json();
@@ -167,7 +178,7 @@ describe("POST /api/channels", () => {
     const prev = process.env.SINCERE_BHAKTI_EMAIL;
     try {
       process.env.SINCERE_BHAKTI_EMAIL = "owner@sincerebhakti.com";
-      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "owner@sincerebhakti.com" } } as any);
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z", email: "owner@sincerebhakti.com" } } as any);
       vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue(null);
       vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
@@ -186,7 +197,7 @@ describe("POST /api/channels", () => {
   });
 
   it("returns 409 when normalized name is taken by an active channel", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue({ id: "existing" } as any);
 
     const res = await POST(mockRequest({ name: "My Name" }));
@@ -203,7 +214,7 @@ describe("POST /api/channels", () => {
   });
 
   it("returns 400 on invalid name", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
 
     const res = await POST(mockRequest({ name: "" }));
     const json = await res.json();
@@ -234,7 +245,7 @@ describe("POST /api/channels", () => {
   });
 
   it("returns 429 when rate limited", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     const { rateLimit } = await import("@/lib/rate-limit");
     vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 3_600_000 } as any);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -249,7 +260,7 @@ describe("POST /api/channels", () => {
   });
 
   it("returns 500 on server error", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockRejectedValue(new Error("DB down"));
 
     const res = await POST(mockRequest({ name: "Channel" }));
@@ -263,7 +274,7 @@ describe("POST /api/channels", () => {
     const previous = process.env.MAX_CHANNELS_PER_USER;
     try {
       process.env.MAX_CHANNELS_PER_USER = "1";
-      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
       // The name claim runs before the limit check; make it pass (name free) so
       // this test exercises the limit branch (clearAllMocks keeps the previous
       // test's mockRejectedValue implementation unless overridden).
@@ -484,7 +495,7 @@ describe("PATCH /api/channels/[slug]", () => {
   const params = { params: Promise.resolve({ slug: "my-channel" }) };
 
   it("renames a channel", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1", renameCount: 0,
@@ -548,7 +559,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("returns 200 without incrementing count when renaming to the same name", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1", renameCount: 1,
@@ -570,7 +581,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("returns 200 for an unchanged brand name even after the rename cap is reached", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "someone@example.com" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z", email: "someone@example.com" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "trans-1", language: "en", name: "Sincere Bhakti", slug: "sincere-bhakti", normalizedName: "sincere bhakti", channelId: "ch-1", renameCount: MAX_RENAME_COUNT,
       channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
@@ -588,7 +599,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("returns 400 when the rename cap is reached during the write", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1", renameCount: 2,
@@ -611,7 +622,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("returns 200 without incrementing count when name differs only by case", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "trans-1", language: "en", name: "Old Name", slug: "old-name", normalizedName: "old name", channelId: "ch-1", renameCount: 1,
       channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
@@ -629,7 +640,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("returns 404 when channel not found", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue(null);
 
     const res = await PATCH(mockRequest({ name: "New" }), params);
@@ -677,7 +688,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("returns 409 when name matches the brand name", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "trans-1", language: "en", name: "Old", slug: "my-channel", normalizedName: "old", channelId: "ch-1",
       channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
@@ -692,7 +703,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("returns 400 when trying to rename a personal channel", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "trans-1", language: "en", name: "Personal", slug: "personal-channel", normalizedName: "personal", channelId: "ch-1",
       channel: { id: "ch-1", ownerId: "user-1", isPersonal: true, avatarUrl: null, defaultLanguage: "en" },
@@ -710,7 +721,7 @@ describe("PATCH /api/channels/[slug]", () => {
     const prev = process.env.SINCERE_BHAKTI_EMAIL;
     try {
       process.env.SINCERE_BHAKTI_EMAIL = "owner@sincerebhakti.com";
-      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", email: "owner@sincerebhakti.com" } } as any);
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z", email: "owner@sincerebhakti.com" } } as any);
       vi.mocked(prisma.channelTranslation.findUnique)
         .mockResolvedValueOnce({
           id: "trans-1", language: "en", name: "Old", slug: "my-channel", normalizedName: "old", channelId: "ch-1",
@@ -737,7 +748,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("returns 409 when normalized name is taken by another channel", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "trans-1", language: "en", name: "Old", slug: "my-channel", normalizedName: "old", channelId: "ch-1",
       channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
@@ -756,7 +767,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("returns 400 on invalid name", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue({
       id: "trans-1", language: "en", name: "Old", slug: "my-channel", normalizedName: "old", channelId: "ch-1",
       channel: { id: "ch-1", ownerId: "user-1", isPersonal: false, avatarUrl: null, defaultLanguage: "en" },
@@ -771,7 +782,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("returns 429 when rate limited", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     const { rateLimit } = await import("@/lib/rate-limit");
     vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetIn: 3_600_000 } as any);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -786,7 +797,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("returns 500 on server error", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "trans-1", language: "en", name: "Old", slug: "my-channel", normalizedName: "old", channelId: "ch-1",
@@ -807,7 +818,7 @@ describe("PATCH /api/channels/[slug]", () => {
   });
 
   it("skips history create when oldSlug already exists in channelSlugHistory (A→B→A→C cycle)", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(prisma.channelTranslation.findUnique)
       .mockResolvedValueOnce({
         id: "trans-1", language: "en", name: "A", slug: "a", normalizedName: "a", channelId: "ch-1", renameCount: 1,
@@ -836,7 +847,7 @@ describe("PATCH /api/channels/[slug]", () => {
     const updateManySpy = vi.mocked(prisma.channelTranslation.updateMany);
     const slugHistoryCreateSpy = vi.mocked(prisma.channelSlugHistory.create);
 
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     const findUniqueSpy = vi.mocked(prisma.channelTranslation.findUnique);
     let findUniqueCallCount = 0;
     findUniqueSpy.mockImplementation((() => {

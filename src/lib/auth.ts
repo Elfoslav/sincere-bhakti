@@ -5,6 +5,11 @@ import { prisma } from "./prisma";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "./rate-limit";
 import { createPersonalChannel, getPersonalChannel } from "@/lib/services/channel";
 
+// A valid bcrypt hash (cost 12) used only to equalize response time on the
+// "no such user" path, so login can't be used as an account-existence oracle
+// via timing. It never matches any real password.
+const DUMMY_PASSWORD_HASH = "$2b$12$7jfLhafaP4FS0zxKRc5fwuOR4pmenexdSFNVVchO91gQNa5YKIQKS";
+
 export const authConfig = {
   providers: [
     Credentials({
@@ -25,7 +30,12 @@ export const authConfig = {
           select: { id: true, name: true, email: true, image: true, password: true, sessionVersion: true, emailVerifiedAt: true },
         });
 
-        if (!user) return null;
+        if (!user) {
+          // Spend the same bcrypt time as the found-user path so response
+          // latency doesn't reveal whether the email is registered.
+          await bcrypt.compare((credentials.password as string).trim(), DUMMY_PASSWORD_HASH);
+          return null;
+        }
 
         const passwordMatch = await bcrypt.compare(
           (credentials.password as string).trim(),

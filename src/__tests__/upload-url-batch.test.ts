@@ -52,7 +52,7 @@ describe("POST /api/upload-url/batch", () => {
   });
 
   it("returns 400 when postId is missing", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-1", shouldRefreshPreference: false, explicitForbidden: false });
 
     const res = await POST(mockRequest({ files: [{ fileName: "test.jpg", contentType: "image/jpeg", size: 1024 }] }));
@@ -63,7 +63,7 @@ describe("POST /api/upload-url/batch", () => {
   });
 
   it("returns 400 when files array is empty", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
 
     const res = await POST(mockRequest({ postId: "11111111-1111-4111-8111-111111111111", files: [] }));
     const json = await res.json();
@@ -73,7 +73,7 @@ describe("POST /api/upload-url/batch", () => {
   });
 
   it("returns 400 when files exceed max of 10", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
 
     const files = Array.from({ length: 11 }, (_, i) => ({
       fileName: `photo-${i}.jpg`,
@@ -88,7 +88,7 @@ describe("POST /api/upload-url/batch", () => {
   });
 
   it("returns 400 when total size exceeds limit", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
 
     const files = Array.from({ length: 10 }, (_, i) => ({
       fileName: `photo-${i}.jpg`,
@@ -103,7 +103,7 @@ describe("POST /api/upload-url/batch", () => {
   });
 
   it("returns upload URLs for all files", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: "channel-2", shouldRefreshPreference: false, explicitForbidden: false });
     vi.mocked(createUploadUrl)
       .mockResolvedValueOnce({
@@ -150,7 +150,7 @@ describe("POST /api/upload-url/batch", () => {
   });
 
   it("returns 403 when channel identity is not authorable", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(resolveAuthorableChannelId).mockResolvedValue({ channelId: undefined, shouldRefreshPreference: false, explicitForbidden: true });
 
     const res = await POST(
@@ -162,7 +162,7 @@ describe("POST /api/upload-url/batch", () => {
   });
 
   it("returns 500 on server error", async () => {
-    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
     vi.mocked(createUploadUrl).mockRejectedValue(new Error("R2 failure"));
 
     const res = await POST(
