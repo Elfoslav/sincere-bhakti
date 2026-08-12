@@ -222,7 +222,12 @@ async function validateMediaOwnership(
   allowedUrls: string[] = [],
 ): Promise<void> {
   const storageDomain = process.env.R2_PUBLIC_URL;
-  if (!storageDomain) return;
+  if (!storageDomain) {
+    // Can't verify ownership of hosted media without the storage origin.
+    // youtube embeds carry no ownership; anything else is rejected (fail closed).
+    if (media.some((m) => m.type !== "youtube")) throw new ForbiddenError();
+    return;
+  }
 
   // Filter to storage-origin URLs using origin comparison (not startsWith)
   const storageUrls: { item: MediaInput; key: string }[] = [];

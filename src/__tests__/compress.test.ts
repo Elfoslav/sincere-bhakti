@@ -58,6 +58,21 @@ describe("POST /api/compress", () => {
     expect(json.error).toContain("key");
   });
 
+  it("fails closed (403) when R2_PUBLIC_URL is not configured", async () => {
+    const prev = process.env.R2_PUBLIC_URL;
+    delete process.env.R2_PUBLIC_URL;
+    try {
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+      const res = await POST(mockRequest({ key: "posts/other/uuid.jpg" }));
+      const json = await res.json();
+      expect(res.status).toBe(403);
+      expect(json.error).toBe("forbidden");
+      expect(prisma.media.findMany).not.toHaveBeenCalled();
+    } finally {
+      process.env.R2_PUBLIC_URL = prev;
+    }
+  });
+
   it("allows compress when no Media record exists (fresh upload)", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.media.findMany).mockResolvedValue([]);

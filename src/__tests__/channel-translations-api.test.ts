@@ -217,6 +217,22 @@ describe("POST /api/channels/[slug]/translations", () => {
     expect(json.error).toBe("cannot_rename_personal_channel");
   });
 
+  it("blocks ADDING a new-language translation to a personal channel (no rename-lock bypass)", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    // Anchor resolves a personal channel; the guard fires before create.
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue({
+      id: "trans-en", slug: "my-channel", language: "en",
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: true },
+    } as any);
+
+    const res = await POST(mockRequest({ name: "Totally Different", language: "cs" }), params);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("cannot_rename_personal_channel");
+    expect(prisma.channelTranslation.create).not.toHaveBeenCalled();
+  });
+
   it("returns 400 on missing language", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue({

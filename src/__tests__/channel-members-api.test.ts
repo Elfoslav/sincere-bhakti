@@ -183,6 +183,26 @@ describe("POST /api/channels/[slug]/members", () => {
     expect(updateChannelMemberByEmail).not.toHaveBeenCalled();
   });
 
+  it("rejects member management on a personal channel before any email lookup (no enumeration oracle)", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "owner-1" } } as any);
+    vi.mocked(getChannelSettingsBySlug).mockResolvedValue({
+      ...settings,
+      channel: { ...settings.channel, isPersonal: true },
+    } as any);
+
+    const res = await POST(
+      mockRequest({ action: CHANNEL_MEMBER_ACTION_ADD, email: "probe@example.com", role: CHANNEL_ROLE_EDITOR }),
+      params,
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("cannot_manage_personal_channel_members");
+    // Crucially, the email is never looked up — so existence can't be probed.
+    expect(addChannelMemberByEmail).not.toHaveBeenCalled();
+    expect(updateChannelMemberByEmail).not.toHaveBeenCalled();
+  });
+
   it("updates a channel member when edit action is requested", async () => {
     const member = {
       id: "editor-1",

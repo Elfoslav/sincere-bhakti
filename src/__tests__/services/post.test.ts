@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -247,8 +247,16 @@ describe("getPostById", () => {
 });
 
 describe("createPost", () => {
+  const previousR2 = process.env.R2_PUBLIC_URL;
   beforeEach(() => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as any);
+    // Media ownership validation now fails closed without a storage origin;
+    // set one matching the test media URLs, with no conflicting owner on record.
+    process.env.R2_PUBLIC_URL = "https://r2.dev";
+    vi.mocked(prisma.media.findMany).mockResolvedValue([] as any);
+  });
+  afterAll(() => {
+    process.env.R2_PUBLIC_URL = previousR2;
   });
 
   it("creates post with text and media, persisting dimensions", async () => {
@@ -269,6 +277,24 @@ describe("createPost", () => {
         }),
       }),
     );
+  });
+
+  it("fails closed on hosted media when no storage origin is configured, but allows youtube", async () => {
+    const prev = process.env.R2_PUBLIC_URL;
+    delete process.env.R2_PUBLIC_URL;
+    try {
+      vi.mocked(prisma.post.create).mockResolvedValue(mockPost as any);
+      // image (hosted) media cannot be ownership-verified → rejected.
+      await expect(
+        createPost({ content: "x", media: [{ url: "https://r2.dev/img.jpg", type: "image" }], channelId: "channel-1" }, "user-1"),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      // youtube embeds carry no ownership → allowed even without a storage origin.
+      await expect(
+        createPost({ content: "x", media: [{ url: "https://www.youtube.com/embed/abc", type: "youtube" }], channelId: "channel-1" }, "user-1"),
+      ).resolves.toBeDefined();
+    } finally {
+      process.env.R2_PUBLIC_URL = prev;
+    }
   });
 
   it("defaults missing dimensions to null", async () => {

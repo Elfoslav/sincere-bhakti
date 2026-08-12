@@ -35,6 +35,14 @@ export async function POST(
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
+    // Personal channels track the user's own name and are renamed only via the
+    // profile flow. Adding/renaming a per-language translation here would let an
+    // owner give the personal channel an arbitrary name per locale, bypassing
+    // the profile rename lock and its rename cap. Block it for both branches.
+    if (translation.channel.isPersonal) {
+      return NextResponse.json({ error: "cannot_rename_personal_channel" }, { status: HTTP_BAD_REQUEST });
+    }
+
     const body = await request.json();
     const parsed = parseBody(body, createChannelTranslationSchema, "POST /api/channels/[slug]/translations");
     if (parsed.response) return parsed.response;
