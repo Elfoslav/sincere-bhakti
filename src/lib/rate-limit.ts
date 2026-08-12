@@ -133,6 +133,23 @@ function memRateLimit(
   return { allowed: true, remaining: limit - entry.count, resetIn: entry.resetAt - now };
 }
 
+// Fraction of DB rate-limit writes that trigger an expired-row sweep. ~1%
+// keeps the table bounded (at 120 req/min that's a sweep every ~min per
+// instance) without adding a query to most requests.
+export const RATE_LIMIT_REAP_PROBABILITY = 0.01;
+
+// Delete expired RateLimit rows. Exported for direct testing. Fire-and-forget
+// from the hot path (errors swallowed so cleanup never breaks a request).
+export function reapExpiredRateLimits(now: Date = new Date()): Promise<unknown> {
+  return prisma.rateLimit.deleteMany({ where: { expiresAt: { lt: now } } }).catch(() => undefined);
+}
+
+function maybeReapExpiredRateLimits(now: Date): void {
+  if (Math.random() < RATE_LIMIT_REAP_PROBABILITY) {
+    void reapExpiredRateLimits(now);
+  }
+}
+
 async function dbRateLimit(
   key: string,
   limit: number,
@@ -156,6 +173,13 @@ async function dbRateLimit(
     WHERE "RateLimit"."expiresAt" <= ${now} OR "RateLimit"."count" < ${limit}
     RETURNING "count", "expiresAt"
   `;
+
+  // No cron sweeps this table, and a spoofable IP header can mint unbounded
+  // distinct keys, so a small fraction of writes opportunistically delete
+  // expired rows to bound growth. Fire-and-forget: never blocks or fails the
+  // hot path.
+  maybeReapExpiredRateLimits(now);
+
   const row = rows[0];
 
   // No row returned: the WHERE clause filtered the update out, meaning the

@@ -82,6 +82,13 @@ export const MAX_TOTAL_UPLOAD_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB
 // safety net (bypassing client-side checks).
 export const MAX_IMAGE_DIMENSION = 2048;
 
+// Hard ceiling on the DECODED pixel count sharp will accept, to stop
+// decompression bombs (a few-MB highly-compressible PNG that expands to
+// hundreds of megapixels → OOM). Well above any real photo (~50 MP) but far
+// below sharp's ~268 MP default. Passed as `limitInputPixels` wherever sharp
+// decodes user-supplied bytes; sharp throws when exceeded.
+export const MAX_IMAGE_INPUT_PIXELS = 50_000_000;
+
 // JPEG quality for image re-encoding. 70 is a good balance between visual
 // quality and file size — typically 5-10x smaller than the original JPEG
 // with no perceptible difference at web viewing sizes.
@@ -211,13 +218,17 @@ export const uploadUrlSchema = z.object({
     .min(1)
     .max(255)
     .refine(isAllowedUploadContentType),
-  postId: z.string().min(1).max(36),
+  // UUID-constrained (like createPostSchema.id) so it can't inject `/`, `..`,
+  // `?`, `#` into the R2 object key.
+  postId: z.string().regex(uuidRegex),
   channelId: z.string().min(1).optional(),
-  contentLength: z.number().int().positive().max(MAX_VIDEO_SIZE_BYTES).optional(),
+  // Required so the presigned PUT is signed with a ContentLength cap (R2 rejects
+  // a larger upload). Prevents unbounded object-size storage/egress abuse.
+  contentLength: z.number().int().positive().max(MAX_VIDEO_SIZE_BYTES),
 });
 
 export const batchUploadUrlSchema = z.object({
-  postId: z.string().min(1).max(36),
+  postId: z.string().regex(uuidRegex),
   channelId: z.string().min(1).optional(),
   files: z
     .array(

@@ -14,7 +14,10 @@ const guardedAgent = new Agent({
   connect: { lookup: guardedLookup },
 });
 
-export const MAX_LINK_PREVIEW_HTML_BYTES = 2 * 1024 * 1024;
+// Open Graph / meta tags live in <head>, near the top of the document, so a
+// modest cap is plenty and bounds the CPU the HTML parser can be made to spend
+// on a hostile page (defense-in-depth alongside the bounded parser regexes).
+export const MAX_LINK_PREVIEW_HTML_BYTES = 512 * 1024;
 export const MAX_LINK_PREVIEW_IMAGE_BYTES = 10 * 1024 * 1024;
 export const LINK_PREVIEW_FETCH_TIMEOUT_MS = 5000;
 export const LINK_PREVIEW_MAX_REDIRECTS = 5;

@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
-import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_DIMENSION, IMAGE_JPEG_QUALITY } from "@/lib/validation";
+import { MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_DIMENSION, MAX_IMAGE_INPUT_PIXELS, IMAGE_JPEG_QUALITY } from "@/lib/validation";
+
+// Applied to every sharp() that decodes user-supplied bytes, to reject
+// decompression bombs before they allocate hundreds of MB.
+const SHARP_INPUT_OPTS = { limitInputPixels: MAX_IMAGE_INPUT_PIXELS } as const;
 
 const REQUIRED_ENV_VARS = ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_PUBLIC_URL"] as const;
 
@@ -97,11 +101,11 @@ export async function processImage(
   let width: number | null = null;
   let height: number | null = null;
 
-  const meta = await sharp(buffer).metadata();
+  const meta = await sharp(buffer, SHARP_INPUT_OPTS).metadata();
   const needsResize = (meta.width ?? 0) > MAX_IMAGE_DIMENSION || (meta.height ?? 0) > MAX_IMAGE_DIMENSION;
 
   if (needsResize) {
-    const resized = sharp(buffer).resize({
+    const resized = sharp(buffer, SHARP_INPUT_OPTS).resize({
       width: MAX_IMAGE_DIMENSION,
       height: MAX_IMAGE_DIMENSION,
       fit: "inside",
@@ -129,7 +133,7 @@ export async function processImage(
   } else {
     switch (contentType) {
       case "image/png": {
-        const reEncoded = await sharp(buffer).webp({ quality: IMAGE_JPEG_QUALITY }).toBuffer();
+        const reEncoded = await sharp(buffer, SHARP_INPUT_OPTS).webp({ quality: IMAGE_JPEG_QUALITY }).toBuffer();
         if (reEncoded.length < buffer.length) {
           finalBuffer = reEncoded;
           finalType = "image/webp";
@@ -137,12 +141,12 @@ export async function processImage(
         break;
       }
       case "image/webp": {
-        const reEncoded = await sharp(buffer).webp({ quality: IMAGE_JPEG_QUALITY }).toBuffer();
+        const reEncoded = await sharp(buffer, SHARP_INPUT_OPTS).webp({ quality: IMAGE_JPEG_QUALITY }).toBuffer();
         finalBuffer = reEncoded.length < buffer.length ? reEncoded : buffer;
         break;
       }
       case "image/avif": {
-        const reEncoded = await sharp(buffer).avif({ quality: IMAGE_JPEG_QUALITY - 10 }).toBuffer();
+        const reEncoded = await sharp(buffer, SHARP_INPUT_OPTS).avif({ quality: IMAGE_JPEG_QUALITY - 10 }).toBuffer();
         finalBuffer = reEncoded.length < buffer.length ? reEncoded : buffer;
         break;
   }
@@ -151,7 +155,7 @@ export async function processImage(
 
   }
 
-  const finalMeta = await sharp(finalBuffer).metadata();
+  const finalMeta = await sharp(finalBuffer, SHARP_INPUT_OPTS).metadata();
   width = finalMeta.width ?? null;
   height = finalMeta.height ?? null;
 

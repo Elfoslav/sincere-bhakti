@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import sharp from "sharp";
 import { getCachedPostById, getCachedPostByShortId } from "@/lib/services/post";
 import { getSiteUrl } from "@/lib/url";
+import { MAX_IMAGE_INPUT_PIXELS } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { POST_OG_IMAGE, OG_POST_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL, OG_IMAGE_TRANSIENT_CACHE_CONTROL } from "@/lib/seo";
 
@@ -147,7 +148,7 @@ export default async function Image({
   }
 
   try {
-    const buffer = await sharp(original)
+    const buffer = await sharp(original, { limitInputPixels: MAX_IMAGE_INPUT_PIXELS })
       .resize(1200, 630, { fit: "cover" })
       .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
       .toBuffer();

@@ -12,7 +12,14 @@ export interface LinkPreviewData {
 // A tag's attribute list up to the closing `>`, treating quoted values as
 // opaque so a literal `>` inside an attribute value (e.g. content="A > B")
 // doesn't end the tag early. Disjoint alternatives keep matching linear.
-const TAG_ATTRS = `(?:[^>"']|"[^"]*"|'[^']*')*`;
+//
+// The run is BOUNDED ({0,MAX}) so that a `>`-less input cannot force O(n)
+// backtracking at every start position (quadratic overall — a CPU DoS on the
+// 2 MB fetch). Real tags are far shorter than the bound; anything longer is
+// pathological and simply won't match (worst case: an oversized img is skipped
+// from the body-image fallback). See link-preview ReDoS regression test.
+const MAX_TAG_ATTRS_LEN = 4096;
+const TAG_ATTRS = `(?:[^>"']|"[^"]*"|'[^']*'){0,${MAX_TAG_ATTRS_LEN}}`;
 
 // Match each <meta> tag; property/name + content are then pulled with attrValue
 // so attribute ORDER doesn't matter. Many pages emit content before the key,

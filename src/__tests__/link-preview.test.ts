@@ -25,6 +25,22 @@ describe("parseLinkPreview", () => {
     });
   });
 
+  it("does not blow up (ReDoS) on a large tag with no closing bracket", () => {
+    // Pathological input: many `<meta ` starts with NO `>` anywhere. With an
+    // unbounded attribute run this is O(n^2) (256 KB took ~38s in benchmarks);
+    // the bounded quantifier keeps it near-linear. Generous 3s ceiling so the
+    // assertion is a real regression guard without being flake-prone.
+    const payload = "<meta ".repeat((128 * 1024) / 6);
+    const start = Date.now();
+    const result = parseLinkPreview(payload, PAGE_URL);
+    const elapsed = Date.now() - start;
+    // Bounded parser: ~sub-second. Unbounded (the bug) was ~12s at this size,
+    // so a 5s ceiling cleanly separates the two even under CI CPU contention.
+    expect(elapsed).toBeLessThan(5000);
+    // No real tags → no metadata extracted (title falls through to null).
+    expect(result.title).toBeNull();
+  });
+
   it("parses meta tags regardless of attribute order (content before property/name)", () => {
     const html = `
       <html>
