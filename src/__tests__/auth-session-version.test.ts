@@ -137,4 +137,22 @@ describe("auth session version", () => {
     });
     expect(bcrypt.compare).toHaveBeenCalledWith("secret123", "hashed-password");
   });
+
+  it("performs a dummy bcrypt compare on the no-user path (timing equalization)", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+    vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
+
+    const provider = authConfig.providers[0] as any;
+    const user = await provider.authorize?.(
+      { email: "nobody@example.com", password: "secret123" },
+      { headers: new Headers({ "x-forwarded-for": "127.0.0.1" }) },
+    );
+
+    expect(user).toBeNull();
+    // bcrypt.compare is still called (against a dummy hash) so the response
+    // time doesn't reveal that the account does not exist.
+    expect(bcrypt.compare).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(bcrypt.compare).mock.calls[0][0]).toBe("secret123");
+    expect(String(vi.mocked(bcrypt.compare).mock.calls[0][1])).toMatch(/^\$2[aby]\$/);
+  });
 });

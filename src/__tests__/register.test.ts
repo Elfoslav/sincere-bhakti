@@ -12,6 +12,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     channelTranslation: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
     },
     channelSlugHistory: {
       findFirst: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     $transaction: vi.fn((cb: (tx: any) => any) =>
       cb({
+        $executeRaw: vi.fn(),
         user: {
           create: (...args: any[]) => (prisma.user.create as any)(...args),
         },
@@ -31,6 +33,7 @@ vi.mock("@/lib/prisma", () => ({
         },
         channelTranslation: {
           findFirst: (...args: any[]) => (prisma.channelTranslation.findFirst as any)(...args),
+          findUnique: (...args: any[]) => (prisma.channelTranslation.findUnique as any)(...args),
         },
         channelSlugHistory: {
           findFirst: (...args: any[]) => (prisma.channelSlugHistory.findFirst as any)(...args),
@@ -100,6 +103,32 @@ describe("POST /api/register", () => {
     expect(json.email).toBe("kdas@example.com");
     expect(bcrypt.hash).toHaveBeenCalledWith("secret123", 12); // BCRYPT_SALT_ROUNDS
     expect(prisma.$transaction).toHaveBeenCalled();
+  });
+
+  it("returns 409 when the personal-channel slug is already taken, even if the name is free", async () => {
+    // Name check passes (unique normalizedName), but the derived slug collides
+    // in this language (e.g. registering "Krishna Das!" when "Krishna Das"
+    // exists). Registration is rejected — name AND slug both gate uniqueness.
+    vi.mocked(prisma.channelTranslation.findFirst)
+      .mockResolvedValueOnce(null) // name check → free
+      .mockResolvedValueOnce({ id: "slug-owner" } as any); // slug check → taken
+    vi.mocked(prisma.user.create).mockResolvedValue({ id: "user-x" } as any);
+
+    const res = await POST(mockRequest({
+      name: "Krishna Das!",
+      email: "kdas2@example.com",
+      password: "secret123",
+      terms: true,
+    }));
+    const json = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(json.error).toBe("name_taken");
+    expect(prisma.channelTranslation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { language: "en", slug: "krishna-das" } }),
+    );
+    // Rejected before any write.
+    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
   it("returns a generic 400 on duplicate email without revealing which field collided", async () => {

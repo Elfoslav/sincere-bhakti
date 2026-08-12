@@ -26,6 +26,7 @@ import PostCard from "@/components/PostCard";
 import PostForm from "@/components/PostForm";
 import EditPostModal from "@/components/EditPostModal";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import ChannelVisibilityNotice from "./channel-visibility-notice";
 import { useIdentity } from "@/components/IdentityProvider";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
@@ -140,7 +141,9 @@ export default function ChannelPageClient({
     setSaving(true);
     setNameError("");
     try {
-      const res = await fetch(`/api/channels/${channel.slug}`, {
+      // The slug is unique per-language; tell the server which locale's slug
+      // this is so it renames the matching translation.
+      const res = await fetch(`/api/channels/${channel.slug}?language=${encodeURIComponent(locale)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
@@ -231,6 +234,13 @@ export default function ChannelPageClient({
           { label: channel.name },
         ]}
         className="mb-4"
+      />
+      <ChannelVisibilityNotice
+        key={channel.id}
+        channelId={channel.id}
+        channelSlug={channel.slug}
+        availableLanguages={channel.availableLanguages}
+        show={canManageSettings}
       />
       <Card variant="default" padding="lg" className="relative mb-8 text-center">
         {canManageSettings && (

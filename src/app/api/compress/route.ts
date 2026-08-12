@@ -21,27 +21,31 @@ export async function POST(request: NextRequest) {
 
     const { key } = parsed.data;
 
+    // Fail closed: without the storage origin we cannot verify who owns `key`,
+    // so refuse rather than compress/overwrite an arbitrary object.
+    const storageDomain = process.env.R2_PUBLIC_URL;
+    if (!storageDomain) {
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+    }
+
     // If Media records exist for this key, verify the caller owns ALL of them.
     // Otherwise, check PendingUpload for ownership of in-progress uploads.
-    const storageDomain = process.env.R2_PUBLIC_URL;
-    if (storageDomain) {
-      const publicUrl = `${storageDomain.replace(/\/+$/, "")}/${key}`;
-      const mediaOwners = await prisma.media.findMany({
-        where: { url: publicUrl },
+    const publicUrl = `${storageDomain.replace(/\/+$/, "")}/${key}`;
+    const mediaOwners = await prisma.media.findMany({
+      where: { url: publicUrl },
+      select: { userId: true },
+    });
+    if (mediaOwners.length > 0) {
+      if (mediaOwners.some((m) => m.userId !== session.user.id)) {
+        return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+      }
+    } else {
+      const pending = await prisma.pendingUpload.findUnique({
+        where: { key },
         select: { userId: true },
       });
-      if (mediaOwners.length > 0) {
-        if (mediaOwners.some((m) => m.userId !== session.user.id)) {
-          return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-        }
-      } else {
-        const pending = await prisma.pendingUpload.findUnique({
-          where: { key },
-          select: { userId: true },
-        });
-        if (!pending || pending.userId !== session.user.id) {
-          return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-        }
+      if (!pending || pending.userId !== session.user.id) {
+        return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
       }
     }
 

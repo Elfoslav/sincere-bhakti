@@ -28,6 +28,22 @@ describe("normalizeName", () => {
     expect(normalizeName("Hello World")).toBe("hello world");
   });
 
+  it("collapses internal whitespace runs (spaces, tabs, newlines) to a single space", () => {
+    expect(normalizeName("Krishna  Das")).toBe("krishna das");
+    expect(normalizeName("Krishna\tDas")).toBe("krishna das");
+    expect(normalizeName("Krishna \n Das")).toBe("krishna das");
+    expect(normalizeName("  Krishna   Govinda   Das  ")).toBe("krishna govinda das");
+  });
+
+  // Guards the invariant the normalizedName backfill migration relies on:
+  // re-normalizing an already-normalized value is a no-op, so re-collapsing the
+  // STORED value equals re-normalizing from the original name.
+  it("is idempotent", () => {
+    for (const input of ["Krishna  Das", "Café  \t crème", "  Taruṇa   Govinda  ", "Müllerstraße"]) {
+      expect(normalizeName(normalizeName(input))).toBe(normalizeName(input));
+    }
+  });
+
   it("returns empty string for empty input", () => {
     expect(normalizeName("")).toBe("");
   });

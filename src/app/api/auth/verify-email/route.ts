@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hashToken } from "@/lib/verification-token";
 import { verifyEmailSchema } from "@/lib/validation";
 import { validateOrigin } from "@/lib/csrf";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     const { token } = parsed.data;
 
     const record = await prisma.verificationToken.findUnique({
-      where: { token },
+      where: { token: hashToken(token) },
     });
 
     if (!record) {

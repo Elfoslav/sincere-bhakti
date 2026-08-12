@@ -70,6 +70,15 @@ export async function POST(
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
+    // A personal channel belongs to exactly one user and has no co-authors.
+    // Reject BEFORE the email lookup below — otherwise any user could probe
+    // arbitrary emails on their own personal channel and distinguish
+    // "registered" (member-added / already-exists) from "not registered"
+    // (user_not_found), an account-enumeration oracle.
+    if (settings.channel.isPersonal) {
+      return NextResponse.json({ error: "cannot_manage_personal_channel_members" }, { status: HTTP_BAD_REQUEST });
+    }
+
     const mutateMember = parsed.data.action === CHANNEL_MEMBER_ACTION_ADD
       ? addChannelMemberByEmail
       : updateChannelMemberByEmail;

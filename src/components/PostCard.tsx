@@ -3,12 +3,14 @@
 import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { localeFlags } from "@/i18n/routing";
+import { localeFlags, routing } from "@/i18n/routing";
 import { Link as LinkIcon, ExternalLink, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
-import { extractYouTubeContent } from "@/lib/video";
 import { replaceEmoticons } from "@/lib/emoticons";
+import { isStandaloneYouTubeUrl } from "@/lib/video";
 import { getPostUrl } from "@/lib/post-url";
+import PostContent from "@/components/PostContent";
+import LinkPreview from "@/components/LinkPreview";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -47,17 +49,16 @@ export default function PostCard({
     minute: "2-digit",
   });
 
-  const { cleanContent, displayContent } = useMemo(() => {
-    const { cleanContent } = extractYouTubeContent(post.content);
-    return { cleanContent, displayContent: replaceEmoticons(cleanContent) };
-  }, [post.content]);
+  const displayContent = useMemo(() => replaceEmoticons(post.content), [post.content]);
+  const isStandaloneVideo = isStandaloneYouTubeUrl(post.content);
 
   const images = useMemo(() => post.media.filter((m) => m.type === "image"), [post.media]);
   const otherMedia = useMemo(() => post.media.filter((m) => m.type !== "image"), [post.media]);
   const canManage = !!(currentUserId === post.channel.ownerId || manageableChannelIds?.includes(post.channel.id));
 
   const handleCopyLink = useCallback(() => {
-    const url = `${window.location.origin}/${locale}${getPostUrl(post.shortId, post.slug)}`;
+    const localePrefix = locale === routing.defaultLocale ? "" : `/${locale}`;
+    const url = `${window.location.origin}${localePrefix}${getPostUrl(post.shortId, post.slug)}`;
     navigator.clipboard.writeText(url);
     toast.success(t("linkCopied"));
   }, [locale, post.shortId, post.slug, t]);
@@ -136,8 +137,13 @@ export default function PostCard({
         />
       </div>
 
-      {cleanContent && (
-        <p className="text-deep mb-3 whitespace-pre-wrap">{displayContent}</p>
+      {post.content && (
+        <>
+          {!isStandaloneVideo && (
+            <PostContent text={displayContent} className="text-deep mb-3 whitespace-pre-wrap" />
+          )}
+          <LinkPreview text={post.content} />
+        </>
       )}
 
       <ImageGallery images={images} t={t} />

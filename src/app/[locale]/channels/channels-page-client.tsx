@@ -129,6 +129,9 @@ return (
               <Card variant="hover">
                 <div className="flex items-center gap-3">
                 {ch.avatarUrl ? (
+                  // Using <img> for R2-hosted avatars: small fixed-size thumbnails
+                  // with explicit dimensions don't benefit from next/image optimization,
+                  // and avoiding the image loader simplifies R2 CORS configuration.
                   <img
                     src={ch.avatarUrl}
                     alt=""

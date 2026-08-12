@@ -59,15 +59,17 @@ export async function POST(request: NextRequest) {
     const parsed = parseBody(body, createPostSchema, "POST /api/posts");
     if (parsed.response) return parsed.response;
 
-    const storageDomain = process.env.R2_PUBLIC_URL;
-    if (storageDomain) {
-      for (const m of parsed.data.media ?? []) {
-        if (!isTrustedMediaUrl(m.url, m.type, storageDomain)) {
-          return NextResponse.json(
-            { error: `validation_error:media:untrusted_url` },
-            { status: HTTP_BAD_REQUEST },
-          );
-        }
+    // Enforce media trust unconditionally (fail closed). isTrustedMediaUrl
+    // requires a valid storage origin for image/video/file and validates youtube
+    // independently — so if R2_PUBLIC_URL is unset, storage-hosted media can't be
+    // verified and is rejected rather than trusted.
+    const storageDomain = process.env.R2_PUBLIC_URL ?? "";
+    for (const m of parsed.data.media ?? []) {
+      if (!isTrustedMediaUrl(m.url, m.type, storageDomain)) {
+        return NextResponse.json(
+          { error: `validation_error:media:untrusted_url` },
+          { status: HTTP_BAD_REQUEST },
+        );
       }
     }
 
