@@ -5,7 +5,7 @@ import { MAX_IMAGE_INPUT_PIXELS } from "@/lib/validation";
 // `limitInputPixels` cap (decompression-bomb defense) without allocating a real
 // multi-hundred-MP image in the test.
 const { sharpFactory } = vi.hoisted(() => ({
-  sharpFactory: vi.fn(() => ({
+  sharpFactory: vi.fn((..._args: unknown[]) => ({
     metadata: vi.fn().mockResolvedValue({ width: 100, height: 100 }),
     resize: vi.fn().mockReturnThis(),
     jpeg: vi.fn().mockReturnThis(),
