@@ -20,8 +20,15 @@ test("concurrent same-name registrations across languages yield exactly one owne
   // Same name, different languages (and a couple of repeats) fired at once.
   const langs = ["en", "cs", "sk", "en", "cs", "sk"] as const;
   const emails = langs.map((lang, i) => `race-${lang}-${i}-${suffix}@example.test`);
-  // register enforces CSRF (validateOrigin), so a same-origin Origin header is required.
-  const headers = { Origin: baseURL ?? "" };
+  // register enforces CSRF (validateOrigin), so a same-origin Origin header is
+  // required. Each request also carries a unique x-forwarded-for so it gets its
+  // own register rate-limit bucket — otherwise repeated suite runs against a
+  // reused dev server (test:web:e2e:server) accumulate toward the shared 20/h
+  // "unknown"-IP limit and this test would flake with 429s.
+  const headersFor = (i: number) => ({
+    Origin: baseURL ?? "",
+    "x-forwarded-for": `198.51.100.${i}`, // TEST-NET-2, never routable
+  });
 
   await cleanupUsersByEmail([warmupEmail, ...emails]);
 
@@ -29,7 +36,7 @@ test("concurrent same-name registrations across languages yield exactly one owne
     // Warm the /api/register route so cold compilation doesn't serialize the
     // batch — we want the requests to genuinely contend at the DB.
     const warm = await request.post("/api/register", {
-      headers,
+      headers: headersFor(0),
       data: { name: `Warmup ${suffix}`, email: warmupEmail, password: "secret123", terms: true, language: "en" },
     });
     expect(warm.status()).toBe(201);
@@ -37,7 +44,7 @@ test("concurrent same-name registrations across languages yield exactly one owne
     const responses = await Promise.all(
       langs.map((language, i) =>
         request.post("/api/register", {
-          headers,
+          headers: headersFor(i + 1),
           data: { name, email: emails[i], password: "secret123", terms: true, language },
         }),
       ),

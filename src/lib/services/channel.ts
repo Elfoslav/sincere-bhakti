@@ -773,6 +773,16 @@ export async function createChannel(
   const maxChannelsPerUser = getMaxChannelsPerUser();
 
   return await prisma.$transaction(async (tx) => {
+    // A name belongs to one channel across ALL languages. Lock the name and
+    // reject if any channel (any language, active or retired) already owns it.
+    // The advisory lock closes the race where two creators pick the same name in
+    // different languages and both pass a read-before-write check.
+    //
+    // Lock ORDER matters: name lock FIRST, then the user row — the users rename
+    // transaction also takes name-lock-then-user-row, so a consistent order
+    // avoids an ABBA deadlock between createChannel and a concurrent self-rename.
+    await claimChannelName(tx, normalized);
+
     await tx.$executeRaw`SELECT 1 FROM "User" WHERE id = ${userId} FOR UPDATE`;
 
     const additionalChannelCount = await tx.channel.count({
@@ -781,12 +791,6 @@ export async function createChannel(
     if (additionalChannelCount >= maxChannelsPerUser) {
       throw new ChannelLimitError();
     }
-
-    // A name belongs to one channel across ALL languages. Lock the name and
-    // reject if any channel (any language, active or retired) already owns it.
-    // The advisory lock closes the race where two creators pick the same name in
-    // different languages and both pass a read-before-write check.
-    await claimChannelName(tx, normalized);
 
     // Name and slug BOTH gate uniqueness: reject (no auto-suffix) if the derived
     // slug is already taken in this language — even when the name itself is free.

@@ -264,6 +264,11 @@ describe("POST /api/channels", () => {
     try {
       process.env.MAX_CHANNELS_PER_USER = "1";
       vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+      // The name claim runs before the limit check; make it pass (name free) so
+      // this test exercises the limit branch (clearAllMocks keeps the previous
+      // test's mockRejectedValue implementation unless overridden).
+      vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.channel.count).mockResolvedValue(1);
 
       const res = await POST(mockRequest({ name: "Another Channel" }));
