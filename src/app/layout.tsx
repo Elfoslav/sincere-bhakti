@@ -2,6 +2,7 @@ import { Geist } from "next/font/google";
 import localFont from "next/font/local";
 import type { Viewport, Metadata } from "next";
 import { cookies } from "next/headers";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import Providers from "@/components/Providers";
 import { routing } from "@/i18n/routing";
@@ -78,6 +79,14 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col">
         <Providers session={session} initialIdentityState={initialIdentityState}>{children}</Providers>
         <Analytics />
+        {process.env.NODE_ENV === "production" && (
+          <Script
+            defer
+            src="https://cloud.umami.is/script.js"
+            data-website-id="a283edc8-5b6d-4030-ae31-a788f4c3beb8"
+            strategy="afterInteractive"
+          />
+        )}
       </body>
     </html>
   );
