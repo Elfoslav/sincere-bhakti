@@ -1,0 +1,112 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { getBlogPosts, createBlogPost, ConflictError, NotFoundError, ForbiddenError, ValidationError } from "@/lib/services/blog";
+import { createBlogPostSchema, blogPaginationSchema, isTrustedMediaUrl } from "@/lib/validation";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
+import { getPersonalChannel, createPersonalChannel, resolveAuthorableChannelId } from "@/lib/services/channel";
+import { getActiveIdentityCookie, setActiveIdentityCookie } from "@/lib/active-identity";
+import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_NOT_FOUND } from "@/lib/error-messages";
+import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_CREATED, HTTP_CONFLICT, HTTP_NOT_FOUND } from "@/lib/error-codes";
+import { requireAuth } from "@/lib/require-auth";
+import { serverError } from "@/lib/error-handlers";
+import { parseBody } from "@/lib/parse-body";
+
+export async function GET(request: NextRequest) {
+  try {
+    const ip = getClientIp(request.headers);
+    if (!await checkRateLimit(RATE_LIMIT_PREFIX.readBlogs, ip, RATE_LIMITS.readBlogs.limit, RATE_LIMITS.readBlogs.windowMs)) {
+      return NextResponse.json({ error: ERROR_TOO_MANY_REQUESTS }, { status: HTTP_TOO_MANY_REQUESTS });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const parsed = parseBody({
+      scope: searchParams.get("scope") ?? undefined,
+      cursor: searchParams.get("cursor") ?? undefined,
+      limit: searchParams.get("limit") ?? undefined,
+      channelId: searchParams.get("channelId") ?? undefined,
+      language: searchParams.get("language") ?? undefined,
+    }, blogPaginationSchema, "GET /api/blog-posts");
+    if (parsed.response) return parsed.response;
+
+    if (parsed.data.scope !== "public") {
+      const session = await auth();
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: ERROR_UNAUTHORIZED }, { status: HTTP_UNAUTHORIZED });
+      }
+
+      const result = await getBlogPosts({ ...parsed.data, requestLanguage: parsed.data.language ?? "en" }, session.user.id);
+      return NextResponse.json(result);
+    }
+
+    const result = await getBlogPosts({ ...parsed.data, requestLanguage: parsed.data.language ?? "en" });
+    return NextResponse.json(result);
+  } catch (error) {
+    return serverError("GET /api/blog-posts", error, "failed_to_fetch_blog_posts");
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const authResult = await requireAuth(request, RATE_LIMIT_PREFIX.createBlog, RATE_LIMITS.createBlog, { authErrorCode: "unauthorized", authErrorStatus: 401 });
+  if (authResult.response) return authResult.response;
+  const session = authResult.session;
+
+  if (!session.user.emailVerifiedAt) {
+    return NextResponse.json({ error: "email_not_verified" }, { status: HTTP_FORBIDDEN });
+  }
+
+  try {
+    const body = await request.json();
+    const parsed = parseBody(body, createBlogPostSchema, "POST /api/blog-posts");
+    if (parsed.response) return parsed.response;
+
+    // Fail closed: covers must come from the app's own storage (R2). Without a
+    // configured storage origin nothing is trusted — same rule as post media.
+    if (parsed.data.coverUrl) {
+      const storageDomain = process.env.R2_PUBLIC_URL ?? "";
+      if (!isTrustedMediaUrl(parsed.data.coverUrl, "image", storageDomain)) {
+        return NextResponse.json(
+          { error: `validation_error:coverUrl:untrusted_url` },
+          { status: HTTP_BAD_REQUEST },
+        );
+      }
+    }
+
+    const resolved = await resolveAuthorableChannelId({
+      explicitChannelId: parsed.data.channelId,
+      preferredChannelId: getActiveIdentityCookie(request),
+      fallbackChannelId: session.user.channelId ?? undefined,
+      userId: session.user.id,
+    });
+    if (resolved.explicitForbidden) {
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+    }
+
+    const channelId = resolved.channelId
+      ?? (await getPersonalChannel(session.user.id))?.id
+      ?? (await createPersonalChannel(session.user.id, session.user.name || "User")).id;
+
+    const post = await createBlogPost({
+      ...parsed.data,
+      channelId,
+    }, session.user.id, parsed.data.language);
+    const response = NextResponse.json(post, { status: HTTP_CREATED });
+    if (resolved.shouldRefreshPreference) {
+      setActiveIdentityCookie(response, channelId);
+    }
+    return response;
+  } catch (error) {
+    if (error instanceof ConflictError) {
+      return NextResponse.json({ error: "blog_id_collision" }, { status: HTTP_CONFLICT });
+    }
+    if (error instanceof NotFoundError) {
+      return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+    }
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ error: error.message }, { status: HTTP_BAD_REQUEST });
+    }
+    return serverError("POST /api/blog-posts", error, "failed_to_create_blog_post");
+  }
+}

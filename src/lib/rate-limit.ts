@@ -13,6 +13,12 @@ export const RATE_LIMITS = {
   updatePost: { limit: 60, windowMs: 3_600_000 },
   // Post deletion: 40 per hour per user
   deletePost: { limit: 40, windowMs: 3_600_000 },
+  // Blog creation: 20 per hour per user
+  createBlog: { limit: 20, windowMs: 3_600_000 },
+  // Blog update: 30 per hour per user
+  updateBlog: { limit: 30, windowMs: 3_600_000 },
+  // Blog deletion: 30 per hour per user
+  deleteBlog: { limit: 30, windowMs: 3_600_000 },
   // File upload (and cleanup): 60 per hour per user (production only)
   upload: { limit: 60, windowMs: 3_600_000 },
   // Presigned upload URL generation: 40 per hour per user
@@ -39,6 +45,12 @@ export const RATE_LIMITS = {
   updateChannelMembers: { limit: 30, windowMs: 3_600_000 },
   // Read single post by id: 120 requests per 60s per IP
   readPostDetail: { limit: 120, windowMs: 60_000 },
+  // Read blog feed: 120 requests per 60s per IP (2 req/s average)
+  readBlogs: { limit: 120, windowMs: 60_000 },
+  // Read single blog post by id: 120 requests per 60s per IP
+  readBlogDetail: { limit: 120, windowMs: 60_000 },
+  // Read blog Open Graph images: 240 requests per 60s per IP
+  readBlogOgImage: { limit: 240, windowMs: 60_000 },
   // Read user profile: 60 requests per 60s per IP
   readProfile: { limit: 60, windowMs: 60_000 },
   // Password change: 5 per hour per user
@@ -76,6 +88,9 @@ export const RATE_LIMIT_PREFIX = {
   createPost: "create-post",
   updatePost: "update-post",
   deletePost: "delete-post",
+  createBlog: "create-blog",
+  updateBlog: "update-blog",
+  deleteBlog: "delete-blog",
   upload: "upload",
   uploadUrl: "upload-url",
   updateProfile: "update-profile",
@@ -87,6 +102,9 @@ export const RATE_LIMIT_PREFIX = {
   readChannelMembers: "read-channel-members",
   updateChannelMembers: "update-channel-members",
   readPostDetail: "read-post-detail",
+  readBlogs: "read-blogs",
+  readBlogDetail: "read-blog-detail",
+  readBlogOgImage: "read-blog-og-image",
   readProfile: "read-profile",
   changePassword: "change-password",
   readIdentity: "read-identity",

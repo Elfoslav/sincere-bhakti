@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
+import { deletePendingUploads } from "@/lib/pending-upload";
 import { canonicalizeUrl } from "@/lib/url";
 import { isChannelEditor } from "@/lib/services/channel";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
@@ -9,17 +10,6 @@ import { generateShortId } from "@/lib/id";
 import { derivePostSlug } from "@/lib/validation";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
-
-async function deletePendingUploads(urls: string[]): Promise<void> {
-  const storageDomain = process.env.R2_PUBLIC_URL;
-  if (!storageDomain) return;
-  const keys = urls
-    .map((u) => extractKey(u, storageDomain))
-    .filter((k): k is string => k !== null);
-  if (keys.length > 0) {
-    await prisma.pendingUpload.deleteMany({ where: { key: { in: keys } } });
-  }
-}
 
 export class UnauthorizedError extends Error {
   name = "UnauthorizedError" as const;

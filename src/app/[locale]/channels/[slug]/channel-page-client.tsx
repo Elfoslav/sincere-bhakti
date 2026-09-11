@@ -25,6 +25,8 @@ import {
 import PostCard from "@/components/PostCard";
 import PostForm from "@/components/PostForm";
 import EditPostModal from "@/components/EditPostModal";
+import EditBlogModal from "@/components/EditBlogModal";
+import BlogCard from "@/components/BlogCard";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import ChannelVisibilityNotice from "./channel-visibility-notice";
 import { useIdentity } from "@/components/IdentityProvider";
@@ -33,9 +35,11 @@ import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
+import { useInfiniteBlogPosts } from "@/lib/hooks/useInfiniteBlogPosts";
 import { CHANNEL_ROLE_ADMIN } from "@/lib/channel-roles";
 import { NAME_MAX_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
 import type { Post } from "@/types/post";
+import type { BlogPost } from "@/types/blog";
 import type { ChannelWithPostCount } from "@/types/channel";
 
 export default function ChannelPageClient({
@@ -48,6 +52,7 @@ export default function ChannelPageClient({
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("ChannelPage");
+  const tBlog = useTranslations("BlogPage");
   const channelsT = useTranslations("ChannelsPage");
   const common = useTranslations("Common");
   const isOwner = session?.user?.id === initialChannel.ownerId;
@@ -61,6 +66,7 @@ export default function ChannelPageClient({
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState("");
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [editingBlog, setEditingBlog] = useState<BlogPost | null>(null);
 
   const {
     posts: publicPosts,
@@ -81,6 +87,15 @@ export default function ChannelPageClient({
   } = useInfinitePosts({ channelId: channel.id, scope: "private", disabled: !canAuthorChannel, language: locale });
 
   const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);
+
+  const {
+    posts: blogPosts,
+    setPosts: setBlogPosts,
+    loading: blogLoading,
+    loadingMore: blogLoadingMore,
+    hasMore: blogHasMore,
+    sentinelRef: blogSentinelRef,
+  } = useInfiniteBlogPosts({ channelId: channel.id, scope: "public", language: locale });
 
   const handleDelete = useCallback((id: string) => {
     const deletedPost = [...publicPosts, ...myPosts].find((post) => post.id === id);
@@ -373,6 +388,57 @@ export default function ChannelPageClient({
         open={editingPost !== null}
         onOpenChange={(open) => { if (!open) setEditingPost(null); }}
         onSuccess={handleEditSuccess}
+      />
+      <div className="mt-10">
+        <div className="mb-4 flex items-center justify-between">
+          <Heading as="h2">{tBlog("title")}</Heading>
+          {blogPosts.length > 0 && (
+            <Button href={`/blog?channelId=${channel.id}`} variant="outline" size="sm">
+              {tBlog("publicTab")}
+            </Button>
+          )}
+        </div>
+        {blogLoading ? (
+          <div className="space-y-4">
+            <PostCardSkeleton />
+            <PostCardSkeleton />
+          </div>
+        ) : blogPosts.length === 0 ? (
+          <Card variant="ghost-muted" className="text-center py-8 text-deep/50">
+            {tBlog("emptyPublic")}
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {blogPosts.map((post) => (
+              <BlogCard
+                key={post.id}
+                post={post}
+                currentUserId={session?.user?.id}
+                manageableChannelIds={manageableChannelIds}
+                onDelete={canAuthorChannel ? (id) => setBlogPosts((prev) => prev.filter((p) => p.id !== id)) : undefined}
+                onEdit={canAuthorChannel ? (id) => setEditingBlog(blogPosts.find((p) => p.id === id) ?? null) : undefined}
+              />
+            ))}
+          </div>
+        )}
+        {blogHasMore && blogPosts.length > 0 && (
+          <div ref={blogSentinelRef} className="flex justify-center py-8">
+            {blogLoadingMore ? (
+              <p className="text-deep/50 text-sm">{t("loadingMore")}</p>
+            ) : (
+              <div className="w-6 h-6" />
+            )}
+          </div>
+        )}
+      </div>
+      <EditBlogModal
+        post={editingBlog}
+        open={editingBlog !== null}
+        onOpenChange={(open) => { if (!open) setEditingBlog(null); }}
+        onSuccess={(updated) => {
+          setBlogPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+          setEditingBlog(null);
+        }}
       />
     </div>
   );

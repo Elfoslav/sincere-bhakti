@@ -53,6 +53,7 @@ model Channel {
   ownerId         String
   owner    User              @relation("ChannelOwner", fields: [ownerId], references: [id])
   posts    Post[]
+  blogPosts BlogPost[]
   editors  ChannelEditor[]
   slugHistory     ChannelSlugHistory[]
   translations    ChannelTranslation[]
@@ -133,6 +134,28 @@ model RateLimit {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+model BlogPost {
+  id          String    @id @default(cuid())
+  shortId     String    @unique
+  title       String
+  slug        String?
+  excerpt     String?
+  content     String?
+  coverUrl    String?
+  isPublic    Boolean   @default(true)
+  language    String    @default("en")
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  channelId   String
+  channel     Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([isPublic, publishedAt, createdAt])
+  @@index([language, isPublic, createdAt])
+  @@index([createdAt, id])
 }
 
 model Media {

@@ -6,6 +6,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     channel: { findMany: vi.fn() },
     post: { findMany: vi.fn() },
+    blogPost: { findMany: vi.fn(() => Promise.resolve([])) },
   },
 }));
 
@@ -46,8 +47,7 @@ describe("sitemap", () => {
     expect(entries.find((entry) => entry.url === "https://example.test/channels/second-channel")?.lastModified).toBe(secondChannelLatestPostAt);
   });
 
-  it("emits one sitemap entry per translation per channel", async () => {
-    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+  it("emits one sitemap entry per translation per channel", async () => {    vi.mocked(prisma.channel.findMany).mockResolvedValue([
       {
         id: "ch-1",
         createdAt: new Date("2026-01-01"),
@@ -70,5 +70,24 @@ describe("sitemap", () => {
     expect(channelUrls).toContain("https://example.test/cs/channels/muj-kanal");
     expect(channelUrls).toContain("https://example.test/sk/channels/moj-kanal");
     expect(channelUrls).toHaveLength(3);
+  });
+
+  it("lists the blog index and only publicly visible articles", async () => {
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([
+      { id: "b-1", shortId: "blog1234", slug: "my-article", language: "en", publishedAt: new Date("2026-09-01"), createdAt: new Date("2026-09-01") },
+    ] as unknown as Awaited<ReturnType<typeof prisma.blogPost.findMany>>);
+
+    const entries = await sitemap();
+    const urls = entries.map((e) => e.url);
+
+    expect(urls).toContain("https://example.test/blog");
+    expect(urls).toContain("https://example.test/blog/blog1234/my-article");
+    expect(prisma.blogPost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ isPublic: true }),
+      }),
+    );
   });
 });

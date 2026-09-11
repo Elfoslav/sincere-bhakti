@@ -3,6 +3,7 @@ import { routing } from "@/i18n/routing";
 import { prisma } from "@/lib/prisma";
 import { getLanguageAlternates, getLocalizedUrl } from "@/lib/seo";
 import { getPostUrl } from "@/lib/post-url";
+import { getBlogUrl } from "@/lib/blog-url";
 
 export const revalidate = 900;
 
@@ -14,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }[] = [
     { path: "", changeFrequency: "daily", priority: 1.0 },
     { path: "/posts", changeFrequency: "daily", priority: 0.8 },
+    { path: "/blog", changeFrequency: "daily", priority: 0.8 },
     { path: "/channels", changeFrequency: "daily", priority: 0.7 },
     { path: "/terms", changeFrequency: "yearly", priority: 0.2 },
   ];
@@ -34,7 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  const [channels, posts] = await Promise.all([
+  const [channels, posts, blogPosts] = await Promise.all([
     prisma.channel.findMany({
       where: { posts: { some: { isPublic: true } } },
       select: {
@@ -55,6 +57,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       where: { isPublic: true },
       select: { id: true, shortId: true, slug: true, language: true, createdAt: true },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 5000,
+    }),
+    // Only publicly visible articles: flagged public with a past publish date.
+    // Scheduled (future) and private posts stay out of the sitemap.
+    prisma.blogPost.findMany({
+      where: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] },
+      select: { id: true, shortId: true, slug: true, language: true, publishedAt: true, createdAt: true },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       take: 5000,
     }),
   ]);
@@ -80,6 +90,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entries.push({
       url: getLocalizedUrl(post.language, getPostUrl(post.shortId, post.slug)),
       lastModified: post.createdAt,
+      changeFrequency: "monthly",
+      priority: 0.6,
+    });
+  }
+
+  for (const post of blogPosts) {
+    entries.push({
+      url: getLocalizedUrl(post.language, getBlogUrl(post.shortId, post.slug)),
+      lastModified: post.publishedAt ?? post.createdAt,
       changeFrequency: "monthly",
       priority: 0.6,
     });

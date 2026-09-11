@@ -1,0 +1,440 @@
+import { cache } from "react";
+import { prisma } from "@/lib/prisma";
+import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
+import { deletePendingUploads } from "@/lib/pending-upload";
+import { canonicalizeUrl } from "@/lib/url";
+import { isChannelEditor } from "@/lib/services/channel";
+import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
+import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
+import { generateShortId } from "@/lib/id";
+import { derivePostSlug } from "@/lib/validation";
+import type { Prisma } from "@prisma/client";
+import type { PostChannel } from "@/types/post";
+
+export class UnauthorizedError extends Error {
+  name = "UnauthorizedError" as const;
+}
+export class NotFoundError extends Error {
+  name = "NotFoundError" as const;
+}
+export class ForbiddenError extends Error {
+  name = "ForbiddenError" as const;
+}
+export class ValidationError extends Error {
+  name = "ValidationError" as const;
+}
+export class ConflictError extends Error {
+  name = "ConflictError" as const;
+}
+
+export interface BlogPostResponse {
+  id: string;
+  shortId: string;
+  slug: string | null;
+  title: string;
+  excerpt: string | null;
+  content: string | null;
+  coverUrl: string | null;
+  isPublic: boolean;
+  language: string;
+  publishedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  channel: PostChannel;
+}
+
+export interface GetBlogPostsParams {
+  scope?: "public" | "private";
+  cursor?: string;
+  limit?: number;
+  channelId?: string;
+  language?: string;
+  requestLanguage?: string;
+}
+
+export interface GetBlogPostsResult {
+  posts: BlogPostResponse[];
+  hasMore: boolean;
+}
+
+export interface CreateBlogPostData {
+  id?: string;
+  title: string;
+  excerpt?: string;
+  content?: string;
+  coverUrl?: string;
+  isPublic?: boolean;
+  language?: string;
+  publishedAt?: Date;
+  channelId?: string;
+}
+
+export interface UpdateBlogPostData {
+  title?: string;
+  excerpt?: string | null;
+  content?: string | null;
+  coverUrl?: string | null;
+  isPublic?: boolean;
+  language?: string;
+  publishedAt?: Date | null;
+}
+
+const blogInclude = {
+  channel: {
+    include: {
+      translations: { select: { language: true, name: true, slug: true } },
+    },
+  },
+};
+
+function toBlogResponse<
+  Raw extends { channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] } },
+>(
+  raw: Raw,
+  language: string,
+): Omit<Raw, "channel"> & { channel: PostChannel } {
+  const t = raw.channel.translations
+    ? resolveTranslation(raw.channel.translations, language)
+    : null;
+  return {
+    ...raw,
+    channel: {
+      id: raw.channel.id,
+      name: t?.name ?? "",
+      slug: t?.slug ?? "",
+      avatarUrl: raw.channel.avatarUrl,
+      ownerId: raw.channel.ownerId,
+    },
+  };
+}
+
+/** A blog post is publicly visible when flagged public and its publish date has passed. */
+export function isBlogPubliclyVisible(post: { isPublic: boolean; publishedAt: Date | null }, now = new Date()): boolean {
+  if (!post.isPublic) return false;
+  if (post.publishedAt && post.publishedAt > now) return false;
+  return true;
+}
+
+function publicVisibilityFilter(now: Date): Prisma.BlogPostWhereInput {
+  return {
+    isPublic: true,
+    OR: [{ publishedAt: null }, { publishedAt: { lte: now } }],
+  };
+}
+
+export async function getBlogPosts(
+  params: GetBlogPostsParams,
+  currentUserId?: string,
+): Promise<GetBlogPostsResult> {
+  const { scope, cursor, limit = 10, channelId, language, requestLanguage } = params;
+  const now = new Date();
+
+  const where: Prisma.BlogPostWhereInput = {};
+  if (language) where.language = language;
+
+  if (scope === "public") {
+    Object.assign(where, publicVisibilityFilter(now));
+    if (channelId) where.channelId = channelId;
+  } else if (scope === "private") {
+    if (!currentUserId) throw new UnauthorizedError();
+    if (channelId) {
+      const channel = await prisma.channel.findUnique({
+        where: { id: channelId },
+        select: { ownerId: true },
+      });
+      if (!channel || (channel.ownerId !== currentUserId && !await isChannelEditor(channelId, currentUserId))) {
+        throw new UnauthorizedError();
+      }
+      where.channelId = channelId;
+    } else {
+      where.OR = [
+        { channel: { ownerId: currentUserId } },
+        { channel: { editors: { some: { userId: currentUserId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
+      ];
+    }
+    // Private tab: drafts + scheduled (public flag off, or publish date in future).
+    where.AND = [
+      {
+        OR: [{ isPublic: false }, { publishedAt: { gt: now } }],
+      },
+    ];
+  } else {
+    if (!currentUserId) throw new UnauthorizedError();
+    if (channelId) {
+      const channel = await prisma.channel.findUnique({
+        where: { id: channelId },
+        select: { ownerId: true },
+      });
+      if (!channel) throw new NotFoundError();
+      where.channelId = channelId;
+      if (channel.ownerId !== currentUserId && !await isChannelEditor(channelId, currentUserId)) {
+        Object.assign(where, publicVisibilityFilter(now));
+      }
+    } else {
+      where.OR = [
+        { channel: { ownerId: currentUserId } },
+        { channel: { editors: { some: { userId: currentUserId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
+      ];
+    }
+  }
+
+  const posts = await prisma.blogPost.findMany({
+    take: limit + 1,
+    ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    where,
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    include: blogInclude,
+  });
+
+  const hasMore = posts.length > limit;
+  if (hasMore) posts.pop();
+
+  const resolvedLanguage = requestLanguage ?? "en";
+  return {
+    posts: posts.map((p) => toBlogResponse(p, resolvedLanguage)),
+    hasMore,
+  };
+}
+
+export async function getBlogPostById(id: string, language?: string): Promise<BlogPostResponse | null> {
+  const post = await prisma.blogPost.findUnique({
+    where: { id },
+    include: blogInclude,
+  });
+
+  if (!post) return null;
+  return toBlogResponse(post, language ?? "en");
+}
+
+export async function getBlogPostByShortId(shortId: string, language?: string): Promise<BlogPostResponse | null> {
+  const post = await prisma.blogPost.findUnique({
+    where: { shortId },
+    include: blogInclude,
+  });
+
+  if (!post) return null;
+  return toBlogResponse(post, language ?? "en");
+}
+
+// `generateMetadata` and the page body both need the same post data. React's
+// cache memoizes the lookup within a request so we don't double-hit Prisma.
+export const getCachedBlogPostById = cache(getBlogPostById);
+export const getCachedBlogPostByShortId = cache(getBlogPostByShortId);
+
+// How many times to regenerate a colliding server-generated shortId before
+// giving up (a collision on an 8-hex id is already very unlikely).
+const MAX_SHORT_ID_ATTEMPTS = 5;
+
+/**
+ * Prove the caller uploaded `coverUrl` themselves. Covers must live on the
+ * app's storage domain (fail closed without it) and carry a PendingUpload
+ * claim by this user — the same ownership model as post media. URLs in
+ * `allowedUrls` (e.g. the post's unchanged cover on update) skip the check.
+ */
+async function validateCoverOwnership(
+  coverUrl: string,
+  userId: string,
+  allowedUrls: string[] = [],
+): Promise<void> {
+  const storageDomain = process.env.R2_PUBLIC_URL;
+  if (!storageDomain) throw new ForbiddenError("cover_not_owned");
+  if (allowedUrls.map(canonicalizeUrl).includes(canonicalizeUrl(coverUrl))) return;
+  const key = extractKey(coverUrl, storageDomain);
+  if (!key) throw new ForbiddenError("cover_not_owned");
+  const pending = await prisma.pendingUpload.findMany({
+    where: { key: { in: [key] } },
+    select: { key: true, userId: true },
+  });
+  const ownerId = pending.find((p) => p.key === key)?.userId;
+  if (ownerId !== userId) throw new ForbiddenError("cover_not_owned");
+}
+
+/**
+ * Delete cover files from R2 that no remaining blog post references. Mirrors
+ * the post media orphan check: one query for all URLs instead of one per URL.
+ */
+async function deleteOrphanedCovers(urls: string[]): Promise<void> {
+  const canonical = urls.map(canonicalizeUrl);
+  if (canonical.length === 0) return;
+  const stillReferenced = await prisma.blogPost.findMany({
+    where: { coverUrl: { in: canonical } },
+    select: { coverUrl: true },
+  });
+  const referenced = new Set(
+    stillReferenced.map((b) => b.coverUrl).filter((u): u is string => u !== null).map(canonicalizeUrl),
+  );
+  const orphaned = canonical.filter((url) => !referenced.has(url));
+  if (orphaned.length > 0) {
+    await deleteMediaFiles(orphaned);
+  }
+}
+
+export async function createBlogPost(
+  data: CreateBlogPostData,
+  userId: string,
+  requestLanguage?: string,
+): Promise<BlogPostResponse> {
+  const { id, title, excerpt, content, coverUrl, isPublic = true, language = "en", publishedAt, channelId } = data;
+
+  if (!title?.trim()) throw new ValidationError("title_required");
+  if (!content && !excerpt) throw new ValidationError("blog_must_have_content_or_excerpt");
+  if (coverUrl) await validateCoverOwnership(coverUrl, userId);
+
+  if (!channelId) throw new ValidationError("channel_required");
+
+  // Verify the caller owns or edits this channel.
+  const channel = await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { ownerId: true },
+  });
+  if (!channel) throw new NotFoundError("channel_not_found");
+  if (channel.ownerId !== userId) {
+    const editor = await prisma.channelEditor.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+      select: { role: true },
+    });
+    if (!editor || !(CHANNEL_AUTHOR_ROLES as readonly string[]).includes(editor.role)) {
+      throw new ForbiddenError("not_channel_author");
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rawPost: any;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      rawPost = await prisma.blogPost.create({
+        data: {
+          ...(id ? { id } : {}),
+          shortId: generateShortId(),
+          slug: derivePostSlug(title),
+          title: title.trim(),
+          excerpt: excerpt?.trim() || null,
+          content: content?.trim() || null,
+          coverUrl: coverUrl?.trim() || null,
+          isPublic,
+          language,
+          publishedAt: publishedAt ?? new Date(),
+          channelId,
+        },
+        include: blogInclude,
+      });
+      break;
+    } catch (error) {
+      if ((error as { code?: string })?.code === "P2002") {
+        const target = (error as { meta?: { target?: string[] | string } }).meta?.target;
+        const onShortId = Array.isArray(target)
+          ? target.includes("shortId")
+          : typeof target === "string" && target.includes("shortId");
+        if (onShortId && attempt < MAX_SHORT_ID_ATTEMPTS) continue;
+        throw new ConflictError("blog_id_collision");
+      }
+      throw error;
+    }
+  }
+
+  // Remove the PendingUpload claim for the newly linked cover.
+  if (coverUrl) {
+    await deletePendingUploads([coverUrl]);
+  }
+
+  return toBlogResponse(rawPost, requestLanguage ?? "en") as BlogPostResponse;
+}
+
+export async function deleteBlogPost(
+  id: string,
+  userId: string,
+): Promise<void> {
+  const post = await prisma.blogPost.findUnique({
+    where: { id },
+    select: { id: true, coverUrl: true, channel: { select: { id: true, ownerId: true } } },
+  });
+  if (!post) throw new NotFoundError();
+  if (post.channel.ownerId !== userId && !await isChannelEditor(post.channel.id, userId)) {
+    throw new ForbiddenError();
+  }
+
+  await prisma.blogPost.deleteMany({
+    where: {
+      id,
+      OR: [
+        { channel: { ownerId: userId } },
+        { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
+      ],
+    },
+  });
+
+  if (post.coverUrl) {
+    await deleteOrphanedCovers([post.coverUrl]);
+  }
+}
+
+export async function updateBlogPost(
+  id: string,
+  userId: string,
+  data: UpdateBlogPostData,
+  requestLanguage?: string,
+): Promise<BlogPostResponse> {
+  const existing = await prisma.blogPost.findUnique({
+    where: { id },
+    select: { id: true, title: true, excerpt: true, content: true, coverUrl: true, channel: { select: { id: true, ownerId: true } } },
+  });
+  if (!existing) throw new NotFoundError();
+  if (existing.channel.ownerId !== userId && !await isChannelEditor(existing.channel.id, userId)) {
+    throw new NotFoundError();
+  }
+
+  if (data.coverUrl !== undefined && data.coverUrl) {
+    await validateCoverOwnership(data.coverUrl, userId, existing.coverUrl ? [existing.coverUrl] : []);
+  }
+
+  const postData: Prisma.BlogPostUpdateManyMutationInput = {};
+  if (data.title !== undefined) {
+    if (!data.title.trim()) throw new ValidationError("title_required");
+    postData.title = data.title.trim();
+    postData.slug = derivePostSlug(data.title) ?? null;
+  }
+  if (data.excerpt !== undefined) postData.excerpt = data.excerpt?.trim() || null;
+  if (data.content !== undefined) postData.content = data.content?.trim() || null;
+  if (data.coverUrl !== undefined) postData.coverUrl = data.coverUrl?.trim() || null;
+  if (data.isPublic !== undefined) postData.isPublic = data.isPublic;
+  if (data.language !== undefined) postData.language = data.language;
+  if (data.publishedAt !== undefined) postData.publishedAt = data.publishedAt;
+
+  const nextExcerpt = data.excerpt !== undefined ? postData.excerpt : existing.excerpt;
+  const nextContent = data.content !== undefined ? postData.content : existing.content;
+  if (!nextExcerpt && !nextContent) {
+    throw new ValidationError("blog_must_have_content_or_excerpt");
+  }
+
+  const { count } = await prisma.blogPost.updateMany({
+    where: {
+      id,
+      OR: [
+        { channel: { ownerId: userId } },
+        { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
+      ],
+    },
+    data: postData,
+  });
+
+  if (count === 0) {
+    throw new NotFoundError();
+  }
+
+  const updated = await prisma.blogPost.findUnique({
+    where: { id },
+    include: blogInclude,
+  });
+
+  if (data.coverUrl !== undefined && data.coverUrl) {
+    // Remove the PendingUpload claim for the newly linked cover.
+    await deletePendingUploads([data.coverUrl]);
+  }
+  const nextCover = data.coverUrl !== undefined ? data.coverUrl : existing.coverUrl;
+  if (existing.coverUrl && canonicalizeUrl(existing.coverUrl) !== (nextCover ? canonicalizeUrl(nextCover) : nextCover)) {
+    // Cover replaced or removed: delete the old file when orphaned.
+    await deleteOrphanedCovers([existing.coverUrl]);
+  }
+
+  return toBlogResponse(updated!, requestLanguage ?? "en");
+}

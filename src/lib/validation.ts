@@ -12,6 +12,13 @@ export const MAX_RENAME_COUNT = 3;
 // prisma/migrations/20260728120000_add_post_shortid_slug.
 export const POST_SLUG_MAX_LENGTH = 60;
 
+// Blog post field limits. Titles stay short for cards/SEO; excerpts feed list
+// previews and meta descriptions; content allows long-form articles.
+export const BLOG_TITLE_MAX_LENGTH = 150;
+export const BLOG_EXCERPT_MAX_LENGTH = 300;
+export const BLOG_CONTENT_MAX_LENGTH = 20000;
+export const BLOG_SLUG_MAX_LENGTH = 80;
+
 // Only http(s) URLs are allowed for user-supplied media. This blocks
 // dangerous schemes like `javascript:` and `data:` that would otherwise
 // pass a bare `.url()` check and become a stored-XSS vector when rendered
@@ -171,6 +178,53 @@ export const updatePostSchema = z.object({
   },
 );
 
+const blogTitleField = z.string().trim().min(1).max(BLOG_TITLE_MAX_LENGTH);
+const blogExcerptField = z.string().trim().max(BLOG_EXCERPT_MAX_LENGTH).optional();
+const blogContentField = z.string().trim().max(BLOG_CONTENT_MAX_LENGTH).optional();
+const blogCoverField = z.string().url().max(2000).refine(isSafeHttpUrl).optional();
+// Optional publish date input. Accepts ISO date/datetime strings from
+// <input type="datetime-local"> (no timezone) or full ISO datetimes; coerced
+// to Date. When omitted the server defaults to now. Explicit null is treated
+// as omitted (coercion would otherwise turn it into the 1970 epoch).
+const blogPublishedAtField = z.preprocess(
+  (v) => (v === null ? undefined : v),
+  z.coerce.date().optional(),
+);
+
+export const createBlogPostSchema = z.object({
+  id: z.string().regex(uuidRegex).optional(),
+  title: blogTitleField,
+  excerpt: blogExcerptField,
+  content: blogContentField,
+  coverUrl: blogCoverField,
+  channelId: z.string().optional(),
+  isPublic: z.boolean().default(true),
+  language: z.enum(locales).default("en"),
+  publishedAt: blogPublishedAtField,
+}).refine(
+  (data) => data.content || data.excerpt,
+  { message: "blog_empty" },
+);
+
+export const updateBlogPostSchema = z.object({
+  title: blogTitleField.optional(),
+  excerpt: z.string().trim().max(BLOG_EXCERPT_MAX_LENGTH).nullish(),
+  content: z.string().trim().max(BLOG_CONTENT_MAX_LENGTH).nullish(),
+  coverUrl: z.string().url().max(2000).refine(isSafeHttpUrl).nullish(),
+  isPublic: z.boolean().optional(),
+  language: z.enum(locales).optional(),
+  publishedAt: z.coerce.date().nullish(),
+}).refine(
+  (data) => {
+    const clearContent = data.content === null || data.content === "";
+    const clearExcerpt = data.excerpt === null || data.excerpt === "";
+    // Only reject when the patch explicitly clears both text fields.
+    if (data.content === undefined && data.excerpt === undefined) return true;
+    return !(clearContent && clearExcerpt);
+  },
+  { message: "blog_empty" },
+);
+
 export const updateNameSchema = z.object({
   name: z
     .string()
@@ -210,6 +264,8 @@ export const paginationSchema = z.object({
   channelId: z.string().min(1).optional(),
   language: z.enum(locales).optional(),
 });
+
+export const blogPaginationSchema = paginationSchema;
 
 export const uploadUrlSchema = z.object({
   fileName: z.string().min(1).max(255),

@@ -6,6 +6,7 @@ import {
   createPostJsonLd,
   getCanonicalAlternates,
   getChannelOpenGraphImageUrl,
+  getBlogOpenGraphImageUrl,
   getLocalizedPath,
   getNoIndexMetadata,
   getPostOpenGraphImageUrl,
@@ -54,6 +55,11 @@ describe("seo helpers", () => {
 
   it("builds generated channel Open Graph image URLs", () => {
     expect(getChannelOpenGraphImageUrl("en", "govinda")).toBe("https://example.test/channels/govinda/opengraph-image");
+  });
+
+  it("builds generated blog Open Graph image URLs", () => {
+    expect(getBlogOpenGraphImageUrl("en", "blog-1")).toBe("https://example.test/blog/blog-1/opengraph-image");
+    expect(getBlogOpenGraphImageUrl("sk", "blog-1")).toBe("https://example.test/sk/blog/blog-1/opengraph-image");
   });
 
   it("builds escaped JSON-LD script content", () => {

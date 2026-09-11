@@ -144,6 +144,10 @@ export function getPostOpenGraphImageUrl(locale: string, shortId: string): strin
   return getLocalizedUrl(locale, `/posts/${shortId}/opengraph-image`);
 }
 
+export function getBlogOpenGraphImageUrl(locale: string, shortId: string): string {
+  return getLocalizedUrl(locale, `/blog/${shortId}/opengraph-image`);
+}
+
 export function getChannelOpenGraphImageUrl(locale: string, slug: string): string {
   return getLocalizedUrl(locale, `/channels/${slug}/opengraph-image`);
 }
