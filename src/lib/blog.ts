@@ -20,3 +20,78 @@ export function parseDateTimeLocalValue(value: string): Date | undefined {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
+
+/**
+ * A blog article is publicly visible when flagged public and its publish
+ * date has passed. Accepts Date or ISO-string publish dates (API responses
+ * serialize Dates to strings). Channel authors additionally see their own
+ * non-public articles — callers OR this with their manage check.
+ */
+export function isBlogPubliclyVisible(
+  post: { isPublic: boolean; publishedAt: Date | string | null },
+  now = new Date(),
+): boolean {
+  if (!post.isPublic) return false;
+  if (!post.publishedAt) return true;
+  const publishedAt = post.publishedAt instanceof Date ? post.publishedAt : new Date(post.publishedAt);
+  if (Number.isNaN(publishedAt.getTime())) return false;
+  return publishedAt <= now;
+}
+
+export interface TimelinePostBody {
+  channelId: string;
+  language: string;
+  isPublic: boolean;
+  blogPostId: string;
+}
+
+/**
+ * Build the feed-post body promoting a blog article in the posts timeline.
+ * The promo inherits channel, language, and visibility from the article and
+ * carries no text of its own — the card renders the article excerpt instead.
+ */
+export function buildTimelinePostBody(blog: {
+  id: string;
+  channel: { id: string };
+  language: string;
+  isPublic: boolean;
+}): TimelinePostBody {
+  return {
+    channelId: blog.channel.id,
+    language: blog.language,
+    isPublic: blog.isPublic,
+    blogPostId: blog.id,
+  };
+}
+
+/**
+ * How many newest articles the blog detail page surfaces below the article.
+ * Kept in one place so the server fetch limit and the client section stay
+ * in sync.
+ */
+export const LATEST_BLOG_POSTS_LIMIT = 3;
+
+/**
+ * Pick the newest articles for the detail-page footer: exclude the article
+ * being viewed and cap the list at `LATEST_BLOG_POSTS_LIMIT`. The input is
+ * already newest-first (service orders by publishedAt/createdAt), so no
+ * re-sorting here.
+ */
+export function selectLatestBlogPosts<T extends { id: string }>(
+  posts: T[],
+  currentId: string,
+  limit: number = LATEST_BLOG_POSTS_LIMIT,
+): T[] {
+  return posts.filter((post) => post.id !== currentId).slice(0, limit);
+}
+
+/**
+ * Responsive grid for the detail-page "latest posts" section. One article
+ * spans full width like a regular preview; two share a row; three fill
+ * three columns on wide screens (stacked on mobile).
+ */
+export function getLatestBlogPostsGridClass(count: number): string {
+  if (count <= 1) return "grid grid-cols-1 gap-4";
+  if (count === 2) return "grid grid-cols-1 gap-4 sm:grid-cols-2";
+  return "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3";
+}

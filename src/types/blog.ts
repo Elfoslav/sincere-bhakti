@@ -7,6 +7,7 @@ export interface BlogPost {
   title: string;
   excerpt: string | null;
   content: string | null;
+  contentHtml: string | null;
   coverUrl: string | null;
   isPublic: boolean;
   language: string;

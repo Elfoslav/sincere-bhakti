@@ -4,6 +4,7 @@ import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { deletePendingUploads } from "@/lib/pending-upload";
 import { canonicalizeUrl } from "@/lib/url";
 import { isChannelEditor } from "@/lib/services/channel";
+import { blogPostInclude, toBlogPostResponse, type BlogPostResponse } from "@/lib/services/blog";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
 import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
 import { generateShortId } from "@/lib/id";
@@ -45,6 +46,7 @@ export interface PostResponse {
   createdAt: Date;
   channel: PostChannel;
   media: PostMedia[];
+  blogPost: BlogPostResponse | null;
 }
 
 export interface GetPostsParams {
@@ -54,6 +56,7 @@ export interface GetPostsParams {
   channelId?: string;
   language?: string;
   requestLanguage?: string;
+  blogPostId?: string;
 }
 
 export interface GetPostsResult {
@@ -75,6 +78,7 @@ export interface CreatePostData {
   isPublic?: boolean;
   language?: string;
   channelId?: string;
+  blogPostId?: string;
 }
 
 export interface UpdatePostData {
@@ -82,6 +86,7 @@ export interface UpdatePostData {
   isPublic?: boolean;
   media?: MediaInput[];
   language?: string;
+  blogPostId?: string | null;
 }
 
 const postInclude = {
@@ -91,12 +96,18 @@ const postInclude = {
     },
   },
   media: { orderBy: { position: "asc" as const } },
+  blogPost: { include: blogPostInclude },
 };
 
-function toPostResponse<Raw extends { channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] } }>(
+function toPostResponse<
+  Raw extends {
+    channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] };
+    blogPost?: { channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] } } | null;
+  },
+>(
   raw: Raw,
   language: string,
-): Omit<Raw, "channel"> & { channel: PostChannel } {
+): Omit<Raw, "channel" | "blogPost"> & { channel: PostChannel; blogPost: BlogPostResponse | null } {
   const t = raw.channel.translations
     ? resolveTranslation(raw.channel.translations, language)
     : null;
@@ -109,6 +120,11 @@ function toPostResponse<Raw extends { channel: { id: string; avatarUrl: string |
       avatarUrl: raw.channel.avatarUrl,
       ownerId: raw.channel.ownerId,
     },
+    // The constraint only names the channel shape; the runtime payload carries
+    // the full article (spread inside toBlogPostResponse), hence the cast.
+    blogPost: raw.blogPost
+      ? (toBlogPostResponse(raw.blogPost, language) as unknown as BlogPostResponse)
+      : null,
   };
 }
 
@@ -116,10 +132,11 @@ export async function getPosts(
   params: GetPostsParams,
   currentUserId?: string,
 ): Promise<GetPostsResult> {
-  const { scope, cursor, limit = 10, channelId, language, requestLanguage } = params;
+  const { scope, cursor, limit = 10, channelId, language, requestLanguage, blogPostId } = params;
 
   const where: Prisma.PostWhereInput = {};
   if (language) where.language = language;
+  if (blogPostId) where.blogPostId = blogPostId;
 
   if (scope === "public") {
     where.isPublic = true;
@@ -263,12 +280,27 @@ async function validateMediaOwnership(
 // giving up (a collision on an 8-hex id is already very unlikely).
 const MAX_SHORT_ID_ATTEMPTS = 5;
 
+/**
+ * Validate a promoted blog article link: the article must exist and belong
+ * to the same channel as the post (the caller already proved authorship of
+ * that channel). Same-channel keeps visibility coherent — excerpt rendering
+ * is additionally guarded per viewer by isBlogPubliclyVisible.
+ */
+async function validateBlogLink(blogPostId: string, channelId: string): Promise<void> {
+  const blog = await prisma.blogPost.findUnique({
+    where: { id: blogPostId },
+    select: { id: true, channelId: true },
+  });
+  if (!blog) throw new NotFoundError("blog_not_found");
+  if (blog.channelId !== channelId) throw new ValidationError("blog_channel_mismatch");
+}
+
 export async function createPost(
   data: CreatePostData,
   userId: string,
   requestLanguage?: string,
 ): Promise<PostResponse> {
-  const { id, content, media = [], isPublic = true, language = "en", channelId } = data;
+  const { id, content, media = [], isPublic = true, language = "en", channelId, blogPostId } = data;
   await validateMediaOwnership(media, userId);
 
   if (!channelId) throw new ValidationError("channel_required");
@@ -289,6 +321,8 @@ export async function createPost(
     }
   }
 
+  if (blogPostId) await validateBlogLink(blogPostId, channelId);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let rawPost: any;
   // shortId is a server-generated 8-char id on a UNIQUE column. A collision is
@@ -306,6 +340,7 @@ export async function createPost(
           isPublic,
           language,
           channelId,
+          ...(blogPostId ? { blogPostId } : {}),
           media: {
             create: media.map((m, i) => ({
               url: m.url,
@@ -399,6 +434,9 @@ export async function updatePost(
   if (media !== undefined) {
     await validateMediaOwnership(media, userId, existing.media.map((m) => m.url));
   }
+  if (rest.blogPostId) {
+    await validateBlogLink(rest.blogPostId, existing.channel.id);
+  }
 
   const postData: Prisma.PostUpdateManyMutationInput = { ...rest };
   if (rest.content !== undefined) {
@@ -445,7 +483,7 @@ export async function updatePost(
       include: postInclude,
     })!;
 
-    if (updated && !updated.content && updated.media.length === 0) {
+    if (updated && !updated.content && updated.media.length === 0 && !updated.blogPostId) {
       throw new ValidationError("post_must_have_content_or_media");
     }
 

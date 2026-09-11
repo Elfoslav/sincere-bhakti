@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -10,12 +11,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
-import { parseDateTimeLocalValue, toDateTimeLocalValue } from "@/lib/blog";
+import { buildTimelinePostBody, parseDateTimeLocalValue, toDateTimeLocalValue } from "@/lib/blog";
+import { extractPlainText } from "@/lib/rich-text";
 import { getImageDimensions } from "@/lib/client-media";
 import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
 import { useIdentity } from "@/components/IdentityProvider";
-import { BLOG_TITLE_MAX_LENGTH, BLOG_EXCERPT_MAX_LENGTH, BLOG_CONTENT_MAX_LENGTH, MAX_IMAGE_SIZE_BYTES, maxUploadSizeForContentType } from "@/lib/validation";
+import { BLOG_TITLE_MAX_LENGTH, BLOG_EXCERPT_MAX_LENGTH, MAX_IMAGE_SIZE_BYTES, maxUploadSizeForContentType } from "@/lib/validation";
 import type { BlogPost } from "@/types/blog";
+
+// Tiptap touches `document` at module load: client-only, code-split out of
+// the initial bundle.
+const BlogEditor = dynamic(() => import("@/components/BlogEditor"), { ssr: false });
 
 const BYTES_PER_MB = 1024 * 1024;
 
@@ -58,6 +64,7 @@ export default function BlogForm({
   const [title, setTitle] = useState(initialTitle);
   const [excerpt, setExcerpt] = useState(initialExcerpt ?? "");
   const [content, setContent] = useState(initialContent ?? "");
+  const [contentHtml, setContentHtml] = useState<string | undefined>(undefined);
   const [coverUrl, setCoverUrl] = useState(initialCoverUrl ?? "");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -69,9 +76,42 @@ export default function BlogForm({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const coverInputRef = useRef<HTMLInputElement>(null);
+  // Posts-timeline promo: in edit mode the switch reflects whether timeline
+  // posts already promote this article (fetched below).
+  const [publishInTimeline, setPublishInTimeline] = useState(false);
+  const [timelineIds, setTimelineIds] = useState<string[]>([]);
+  const [timelineLoaded, setTimelineLoaded] = useState(mode === "create");
+
+  useEffect(() => {
+    if (mode !== "edit" || !postId || !session) return;
+    // Initial state is already unloaded in edit mode; only async
+    // continuations below touch state (no synchronous setState in effect).
+    let cancelled = false;
+    fetch(`/api/posts?blogPostId=${postId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled) return;
+        const ids = d ? (d.posts ?? []).map((p: { id: string }) => p.id) : [];
+        setTimelineIds(ids);
+        setPublishInTimeline(ids.length > 0);
+        setTimelineLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setTimelineLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, postId, session]);
 
   const isVerified = !!session?.user?.emailVerifiedAt;
-  const canSubmit = title.trim().length > 0 && (content.trim().length > 0 || excerpt.trim().length > 0);
+  const contentText = extractPlainText(content).trim();
+  const canSubmit = title.trim().length > 0 && (contentText.length > 0 || excerpt.trim().length > 0);
+  // A scheduled (future-dated, public) article must not publish a timeline
+  // promo ahead of itself: the promo has no date and would appear as an
+  // empty public card until the article goes live.
+  const resolvedPublishedAt = parseDateTimeLocalValue(publishedAt);
+  const isScheduled = isPublic && !!resolvedPublishedAt && resolvedPublishedAt > new Date();
   const effectiveCover = coverFile ? coverPreview : (coverUrl || null);
 
   function handleCoverSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -98,6 +138,44 @@ export default function BlogForm({
     setCoverFile(null);
     setCoverPreview(null);
     setCoverUrl("");
+  }
+
+  /**
+   * Reconcile the article's posts-timeline promo with the switch: create one
+   * when switched on with none linked, delete linked ones when switched off,
+   * and keep visibility/language in sync otherwise. Scheduled articles never
+   * publish ahead of themselves (defense in depth: the UI blocks the switch).
+   * Throws timeline_failed — the caller reports it without failing the
+   * already-saved article.
+   */
+  async function syncTimelinePromo(blog: BlogPost, publish: boolean, existingIds: string[]): Promise<void> {
+    const json = { "Content-Type": "application/json" };
+    const scheduled = blog.isPublic && blog.publishedAt && new Date(blog.publishedAt) > new Date();
+    if (publish && existingIds.length === 0 && !scheduled) {
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: json,
+        body: JSON.stringify(buildTimelinePostBody(blog)),
+      });
+      if (!res.ok) throw new Error("timeline_failed");
+    } else if (!publish && existingIds.length > 0) {
+      for (const pid of existingIds) {
+        const res = await fetch(`/api/posts/${pid}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("timeline_failed");
+      }
+    } else if (publish && existingIds.length > 0) {
+      // Keep the promo's visibility in step with the article; a scheduled
+      // article unpublishes its promo until a later save re-syncs it.
+      const effectivePublic = blog.isPublic && !scheduled;
+      for (const pid of existingIds) {
+        const res = await fetch(`/api/posts/${pid}`, {
+          method: "PATCH",
+          headers: json,
+          body: JSON.stringify({ isPublic: effectivePublic, language: blog.language }),
+        });
+        if (!res.ok) throw new Error("timeline_failed");
+      }
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -129,10 +207,14 @@ export default function BlogForm({
         }
       }
       const parsedPublishedAt = parseDateTimeLocalValue(publishedAt);
+      // Omitted content keeps the stored body on edit; the HTML twin always
+      // travels with the JSON source so the two stay in sync.
+      const resolvedContent = contentText.length > 0 ? content : undefined;
       const body: Record<string, unknown> = {
         title: title.trim(),
         excerpt: excerpt.trim() || undefined,
-        content: content.trim() || undefined,
+        content: resolvedContent,
+        contentHtml: resolvedContent ? contentHtml : undefined,
         // Explicit null clears the cover on edit; create omits it instead
         // (the create schema doesn't accept null).
         coverUrl: resolvedCoverUrl ?? (mode === "create" ? undefined : null),
@@ -167,6 +249,12 @@ export default function BlogForm({
         setCoverPreview(null);
         setIsPublic(true);
         setPublishedAt(toDateTimeLocalValue(new Date()));
+        setPublishInTimeline(false);
+      }
+      try {
+        await syncTimelinePromo(post, publishInTimeline, timelineIds);
+      } catch {
+        setError(t("timelineSyncFailed"));
       }
       onSuccess(post);
     } catch (err) {
@@ -212,13 +300,13 @@ export default function BlogForm({
         maxLength={BLOG_EXCERPT_MAX_LENGTH}
         rows={2}
       />
-      <Textarea
-        name="content"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
+      <BlogEditor
+        initialContent={content}
         placeholder={t("contentPlaceholder")}
-        maxLength={BLOG_CONTENT_MAX_LENGTH}
-        rows={8}
+        onChange={({ contentJson, contentHtml }) => {
+          setContent(contentJson);
+          setContentHtml(contentHtml);
+        }}
       />
       <div>
         <input
@@ -267,6 +355,20 @@ export default function BlogForm({
             className="w-auto"
           />
         </label>
+      </div>
+      <div>
+        <label className="flex items-center gap-2 text-sm text-deep/80">
+          <Switch
+            checked={publishInTimeline}
+            onCheckedChange={setPublishInTimeline}
+            aria-label={t("publishInTimeline")}
+            disabled={!timelineLoaded || isScheduled}
+          />
+          {t("publishInTimeline")}
+        </label>
+        {isScheduled && (
+          <p className="mt-1 text-xs text-deep/50">{t("timelineScheduledHint")}</p>
+        )}
       </div>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <div className="flex items-center gap-2">

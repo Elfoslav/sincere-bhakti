@@ -61,4 +61,29 @@ describe("createBlogPostSchema", () => {
       expect(parsed.data.publishedAt).toBeInstanceOf(Date);
     }
   });
+
+  it("accepts Tiptap JSON content within the plain-text limit", () => {
+    const json = JSON.stringify({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", marks: [{ type: "bold" }], text: "Hello" }] }],
+    });
+    const parsed = createBlogPostSchema.safeParse({ title: "T", content: json });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects JSON content whose plain text exceeds the limit", () => {
+    const json = JSON.stringify({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "x".repeat(20001) }] }],
+    });
+    expect(createBlogPostSchema.safeParse({ title: "T", content: json }).success).toBe(false);
+  });
+
+  it("rejects legacy plain text over the limit", () => {
+    expect(createBlogPostSchema.safeParse({ title: "T", content: "x".repeat(20001) }).success).toBe(false);
+  });
+
+  it("rejects raw bodies over the storage cap", () => {
+    expect(createBlogPostSchema.safeParse({ title: "T", content: "x".repeat(60001) }).success).toBe(false);
+  });
 });

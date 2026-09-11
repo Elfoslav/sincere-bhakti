@@ -471,8 +471,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
               </label>
             </div>
 
-            <DialogActions className={onCancel ? undefined : "flex grid-cols-none items-center justify-end"}>
-              {onCancel && (
+            <DialogActions className={onCancel ? undefined : "flex grid-cols-none items-center justify-end"}>              {onCancel && (
                 <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={onCancel}>
                   {t("cancel")}
                 </Button>

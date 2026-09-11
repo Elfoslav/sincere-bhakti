@@ -4,11 +4,14 @@ import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { localeFlags, routing } from "@/i18n/routing";
-import { Link as LinkIcon, ExternalLink, Pencil, Trash2, MoreHorizontal } from "lucide-react";
+import { Link as LinkIcon, ExternalLink, Pencil, Trash2, MoreHorizontal, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { replaceEmoticons } from "@/lib/emoticons";
 import { isStandaloneYouTubeUrl } from "@/lib/video";
 import { getPostUrl } from "@/lib/post-url";
+import { getBlogUrl } from "@/lib/blog-url";
+import { isBlogPubliclyVisible } from "@/lib/blog";
+import BlogExcerpt from "@/components/BlogExcerpt";
 import PostContent from "@/components/PostContent";
 import LinkPreview from "@/components/LinkPreview";
 import { Button } from "@/components/ui/button";
@@ -144,6 +147,31 @@ export default function PostCard({
           )}
           <LinkPreview text={post.content} />
         </>
+      )}
+
+      {post.blogPost && (isBlogPubliclyVisible(post.blogPost) || canManage) && (
+        <Link
+          href={getBlogUrl(post.blogPost.shortId, post.blogPost.slug)}
+          className="mb-3 flex gap-3 overflow-hidden rounded-lg border border-sand bg-warm/30 transition-colors hover:bg-warm/60"
+        >
+          {post.blogPost.coverUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- R2-hosted blog cover, small fixed-size thumbnail
+            <img
+              src={post.blogPost.coverUrl}
+              alt=""
+              className="h-24 w-24 shrink-0 object-cover"
+              loading="lazy"
+            />
+          )}
+          <div className="min-w-0 flex-1 py-2 pr-3">
+            <p className="truncate font-semibold text-deep">{post.blogPost.title}</p>
+            <BlogExcerpt post={post.blogPost} className="mt-0.5 text-sm text-deep/70" clampClassName="line-clamp-2" />
+            <span className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-saffron hover:text-saffron-dark">
+              {t("readArticle")}
+              <ArrowRight className="size-4" aria-hidden />
+            </span>
+          </div>
+        </Link>
       )}
 
       <ImageGallery images={images} t={t} />

@@ -130,4 +130,17 @@ describe("createPostSchema", () => {
     const result = createPostSchema.safeParse({ content: "Hello", language: "fr" });
     expect(result.success).toBe(false);
   });
+
+  it("accepts a blog link without text or media", () => {
+    const result = createPostSchema.safeParse({ blogPostId: "blog-1" });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a blog link alongside content", () => {
+    const result = createPostSchema.safeParse({ content: "Read this!", blogPostId: "blog-1" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.blogPostId).toBe("blog-1");
+    }
+  });
 });

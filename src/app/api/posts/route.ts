@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
       limit: searchParams.get("limit") ?? undefined,
       channelId: searchParams.get("channelId") ?? undefined,
       language: searchParams.get("language") ?? undefined,
+      blogPostId: searchParams.get("blogPostId") ?? undefined,
     }, paginationSchema, "GET /api/posts");
     if (parsed.response) return parsed.response;
 

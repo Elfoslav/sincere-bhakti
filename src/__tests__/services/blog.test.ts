@@ -9,6 +9,9 @@ vi.mock("@/lib/prisma", () => ({
       updateMany: vi.fn(),
       deleteMany: vi.fn(),
     },
+    post: {
+      deleteMany: vi.fn(),
+    },
     channel: {
       findUnique: vi.fn(),
     },
@@ -133,6 +136,54 @@ describe("createBlogPost", () => {
       createBlogPost({ title: "T", content: "x", channelId: "channel-1" }, "user-1"),
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
+
+  it("re-sanitizes submitted HTML before storage", async () => {    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as never);
+    vi.mocked(prisma.blogPost.create).mockResolvedValue(mockBlog as never);
+
+    await createBlogPost({
+      title: "T",
+      content: "x",
+      contentHtml: '<p>Hi<script>alert(1)</script> <a href="javascript:alert(1)">x</a></p>',
+      channelId: "channel-1",
+    }, "user-1");
+
+    expect(prisma.blogPost.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          contentHtml: '<p>Hi <a rel="noopener" target="_blank">x</a></p>',
+        }),
+      }),
+    );
+  });
+
+  it("derives the excerpt from the body when omitted", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as never);
+    vi.mocked(prisma.blogPost.create).mockResolvedValue(mockBlog as never);
+
+    await createBlogPost({ title: "T", content: "Hello world", channelId: "channel-1" }, "user-1");
+
+    expect(prisma.blogPost.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ excerpt: "Hello world" }),
+      }),
+    );
+  });
+
+  it("keeps an explicit excerpt over the derived one", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as never);
+    vi.mocked(prisma.blogPost.create).mockResolvedValue(mockBlog as never);
+
+    await createBlogPost(
+      { title: "T", content: "Hello world", excerpt: "Custom", channelId: "channel-1" },
+      "user-1",
+    );
+
+    expect(prisma.blogPost.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ excerpt: "Custom" }),
+      }),
+    );
+  });
 });
 
 describe("updateBlogPost / deleteBlogPost", () => {  beforeEach(() => {
@@ -152,6 +203,27 @@ describe("updateBlogPost / deleteBlogPost", () => {  beforeEach(() => {
     await expect(updateBlogPost("blog-1", "user-1", { title: "New" })).rejects.toBeInstanceOf(NotFoundError);
   });
 
+  it("re-derives the excerpt when cleared but a body remains", async () => {
+    vi.mocked(prisma.blogPost.findUnique)
+      .mockResolvedValueOnce({
+        id: "blog-1",
+        title: "T",
+        excerpt: "Old",
+        content: "Hello world",
+        channel: { id: "channel-1", ownerId: "user-1" },
+      } as never)
+      .mockResolvedValueOnce({ ...mockBlog } as never);
+    vi.mocked(prisma.blogPost.updateMany).mockResolvedValue({ count: 1 } as never);
+
+    await updateBlogPost("blog-1", "user-1", { excerpt: null });
+
+    expect(prisma.blogPost.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ excerpt: "Hello world" }),
+      }),
+    );
+  });
+
   it("scopes delete by owner in the where clause", async () => {
     vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({
       id: "blog-1",
@@ -166,6 +238,22 @@ describe("updateBlogPost / deleteBlogPost", () => {  beforeEach(() => {
         where: expect.objectContaining({ id: "blog-1" }),
       }),
     );
+  });
+
+  it("deletes linked timeline promo posts with the article", async () => {
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({
+      id: "blog-1",
+      coverUrl: null,
+      channel: { id: "channel-1", ownerId: "user-1" },
+    } as never);
+    vi.mocked(prisma.blogPost.deleteMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(prisma.post.deleteMany).mockResolvedValue({ count: 2 } as never);
+
+    await deleteBlogPost("blog-1", "user-1");
+
+    expect(prisma.post.deleteMany).toHaveBeenCalledWith({
+      where: { blogPostId: "blog-1" },
+    });
   });
 });
 

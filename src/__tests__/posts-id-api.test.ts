@@ -230,6 +230,26 @@ describe("PATCH /api/posts/[id]", () => {
     expect(updatePost).toHaveBeenCalledWith("post-1", "user-1", { isPublic: false });
   });
 
+  it("links a blog article", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(updatePost).mockResolvedValue({ ...basePost });
+
+    const res = await PATCH(patchRequest({ blogPostId: "blog-1" }), { params: Promise.resolve({ id: "post-1" }) });
+
+    expect(res.status).toBe(200);
+    expect(updatePost).toHaveBeenCalledWith("post-1", "user-1", { blogPostId: "blog-1" });
+  });
+
+  it("clears the blog link", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(updatePost).mockResolvedValue({ ...basePost });
+
+    const res = await PATCH(patchRequest({ blogPostId: null }), { params: Promise.resolve({ id: "post-1" }) });
+
+    expect(res.status).toBe(200);
+    expect(updatePost).toHaveBeenCalledWith("post-1", "user-1", { blogPostId: null });
+  });
+
   it("returns 401 without auth", async () => {
     vi.mocked(auth).mockResolvedValue(null as unknown as never);
 

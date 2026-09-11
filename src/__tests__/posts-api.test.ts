@@ -81,7 +81,7 @@ describe("GET /api/posts", () => {
     expect(res.status).toBe(200);
     expect(json.posts).toHaveLength(1);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: undefined, cursor: undefined, limit: 10, channelId: undefined, language: undefined, requestLanguage: "en" },
+      { scope: undefined, cursor: undefined, limit: 10, channelId: undefined, language: undefined, blogPostId: undefined, requestLanguage: "en" },
       "user-1",
     );
   });
@@ -111,7 +111,7 @@ describe("GET /api/posts", () => {
     expect(res.status).toBe(200);
     expect(json.posts).toHaveLength(1);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: undefined, limit: 10, channelId: undefined, language: undefined, requestLanguage: "en" },
+      { scope: "public", cursor: undefined, limit: 10, channelId: undefined, language: undefined, blogPostId: undefined, requestLanguage: "en" },
     );
     expect(auth).not.toHaveBeenCalled();
   });
@@ -126,7 +126,7 @@ describe("GET /api/posts", () => {
 
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: "post-2", limit: 2, channelId: undefined, language: undefined, requestLanguage: "en" },
+      { scope: "public", cursor: "post-2", limit: 2, channelId: undefined, language: undefined, blogPostId: undefined, requestLanguage: "en" },
     );
   });
 
@@ -136,7 +136,19 @@ describe("GET /api/posts", () => {
     const res = await GET(mockGetRequest({ scope: "public", channelId: "channel-1" }));
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: undefined, limit: 10, channelId: "channel-1", language: undefined, requestLanguage: "en" },
+      { scope: "public", cursor: undefined, limit: 10, channelId: "channel-1", language: undefined, blogPostId: undefined, requestLanguage: "en" },
+    );
+  });
+
+  it("filters by linked blog article", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(getPosts).mockResolvedValue({ posts: [], hasMore: false });
+
+    const res = await GET(mockGetRequest({ blogPostId: "blog-1" }));
+    expect(res.status).toBe(200);
+    expect(getPosts).toHaveBeenCalledWith(
+      expect.objectContaining({ blogPostId: "blog-1" }),
+      "user-1",
     );
   });
 

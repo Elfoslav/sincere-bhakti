@@ -40,6 +40,121 @@
   }
 }
 
+/* Rich article bodies — shared by the Tiptap editor surface (.tiptap) and
+   server-rendered article HTML. Plain CSS (not utilities) so stored markup
+   looks right without Tailwind classes, and Tailwind's preflight stays
+   overridden regardless of purge. */
+.rich-text {
+  color: var(--color-deep);
+  overflow-wrap: break-word;
+}
+.rich-text > *:first-child {
+  margin-top: 0;
+}
+.rich-text > *:last-child {
+  margin-bottom: 0;
+}
+.rich-text p {
+  margin: 0.75em 0;
+}
+.rich-text h1,
+.rich-text h2,
+.rich-text h3 {
+  margin: 1em 0 0.5em;
+  line-height: 1.25;
+}
+.rich-text h1 {
+  font-size: 1.6em;
+}
+.rich-text h2 {
+  font-size: 1.35em;
+}
+.rich-text h3 {
+  font-size: 1.15em;
+}
+.rich-text ul,
+.rich-text ol {
+  margin: 0.75em 0;
+  padding-left: 1.5em;
+}
+.rich-text ul {
+  list-style: disc;
+}
+.rich-text ol {
+  list-style: decimal;
+}
+.rich-text li > p {
+  margin: 0.25em 0;
+}
+.rich-text blockquote {
+  margin: 0.75em 0;
+  padding-left: 1em;
+  border-left: 3px solid var(--color-sand);
+  color: color-mix(in oklab, var(--color-deep) 75%, transparent);
+}
+.rich-text pre {
+  margin: 0.75em 0;
+  padding: 0.75em 1em;
+  border-radius: 0.5rem;
+  background: var(--color-deep);
+  color: #f5f7fa;
+  overflow-x: auto;
+}
+.rich-text pre code {
+  background: none;
+  padding: 0;
+}
+.rich-text code {
+  padding: 0.15em 0.35em;
+  border-radius: 0.375rem;
+  background: color-mix(in oklab, var(--color-sand) 55%, transparent);
+  font-size: 0.9em;
+}
+.rich-text a {
+  color: var(--color-saffron-dark);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rich-text a:hover {
+  color: var(--color-gold);
+}
+.rich-text hr {
+  margin: 1.25em 0;
+  border-color: var(--color-sand);
+}
+.rich-text.tiptap {
+  min-height: 12rem;
+}
+.rich-text.tiptap:focus {
+  outline: none;
+}
+.rich-text.tiptap p.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: color-mix(in oklab, var(--color-deep) 40%, transparent);
+}
+
+/* Compact article excerpts inside feed cards: same formatting vocabulary,
+   tighter rhythm, no horizontal rules. */
+.rich-text-excerpt p,
+.rich-text-excerpt ul,
+.rich-text-excerpt ol,
+.rich-text-excerpt blockquote,
+.rich-text-excerpt pre {
+  margin: 0.25em 0;
+}
+.rich-text-excerpt h1,
+.rich-text-excerpt h2,
+.rich-text-excerpt h3 {
+  font-size: 1em;
+  margin: 0.25em 0;
+}
+.rich-text-excerpt hr {
+  display: none;
+}
+
 @theme inline {
   --font-heading: var(--font-heading-face), "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --font-sans: var(--font-geist-sans);

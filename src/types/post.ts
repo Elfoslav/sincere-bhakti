@@ -1,5 +1,6 @@
-export type MediaType = "image" | "video" | "youtube" | "file";
+import type { BlogPost } from "@/types/blog";
 
+export type MediaType = "image" | "video" | "youtube" | "file";
 export interface PostMedia {
   url: string;
   type: MediaType;
@@ -26,4 +27,5 @@ export interface Post {
   language: string;
   createdAt: string;
   channel: PostChannel;
+  blogPost: BlogPost | null;
 }

@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { deletePendingUploads } from "@/lib/pending-upload";
 import { canonicalizeUrl } from "@/lib/url";
+import { isBlogPubliclyVisible } from "@/lib/blog";
+import { previewRichText } from "@/lib/rich-text";
+import { sanitizeRichTextHtml } from "@/lib/rich-text-html";
 import { isChannelEditor } from "@/lib/services/channel";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
 import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
@@ -34,6 +37,7 @@ export interface BlogPostResponse {
   title: string;
   excerpt: string | null;
   content: string | null;
+  contentHtml: string | null;
   coverUrl: string | null;
   isPublic: boolean;
   language: string;
@@ -63,6 +67,7 @@ export interface CreateBlogPostData {
   excerpt?: string;
   content?: string;
   coverUrl?: string;
+  contentHtml?: string;
   isPublic?: boolean;
   language?: string;
   publishedAt?: Date;
@@ -74,12 +79,13 @@ export interface UpdateBlogPostData {
   excerpt?: string | null;
   content?: string | null;
   coverUrl?: string | null;
+  contentHtml?: string | null;
   isPublic?: boolean;
   language?: string;
   publishedAt?: Date | null;
 }
 
-const blogInclude = {
+export const blogPostInclude = {
   channel: {
     include: {
       translations: { select: { language: true, name: true, slug: true } },
@@ -87,7 +93,7 @@ const blogInclude = {
   },
 };
 
-function toBlogResponse<
+export function toBlogPostResponse<
   Raw extends { channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] } },
 >(
   raw: Raw,
@@ -108,15 +114,11 @@ function toBlogResponse<
   };
 }
 
-/** A blog post is publicly visible when flagged public and its publish date has passed. */
-export function isBlogPubliclyVisible(post: { isPublic: boolean; publishedAt: Date | null }, now = new Date()): boolean {
-  if (!post.isPublic) return false;
-  if (post.publishedAt && post.publishedAt > now) return false;
-  return true;
-}
+// Re-exported for existing importers; the canonical implementation lives in
+// @/lib/blog so client components can use it without pulling in Prisma.
+export { isBlogPubliclyVisible };
 
-function publicVisibilityFilter(now: Date): Prisma.BlogPostWhereInput {
-  return {
+function publicVisibilityFilter(now: Date): Prisma.BlogPostWhereInput {  return {
     isPublic: true,
     OR: [{ publishedAt: null }, { publishedAt: { lte: now } }],
   };
@@ -178,12 +180,29 @@ export async function getBlogPosts(
     }
   }
 
+  // List views (feed, channel lists, link pickers) never need the article
+  // bodies: project them away so a page of cards doesn't haul up to ~80 KB
+  // of JSON+HTML per row. Single-entity lookups below keep the full include.
   const posts = await prisma.blogPost.findMany({
     take: limit + 1,
     ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     where,
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
-    include: blogInclude,
+    select: {
+      id: true,
+      shortId: true,
+      slug: true,
+      title: true,
+      excerpt: true,
+      coverUrl: true,
+      isPublic: true,
+      language: true,
+      publishedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      channelId: true,
+      channel: blogPostInclude.channel,
+    },
   });
 
   const hasMore = posts.length > limit;
@@ -191,7 +210,7 @@ export async function getBlogPosts(
 
   const resolvedLanguage = requestLanguage ?? "en";
   return {
-    posts: posts.map((p) => toBlogResponse(p, resolvedLanguage)),
+    posts: posts.map((p) => toBlogPostResponse({ ...p, content: null, contentHtml: null }, resolvedLanguage)),
     hasMore,
   };
 }
@@ -199,21 +218,21 @@ export async function getBlogPosts(
 export async function getBlogPostById(id: string, language?: string): Promise<BlogPostResponse | null> {
   const post = await prisma.blogPost.findUnique({
     where: { id },
-    include: blogInclude,
+    include: blogPostInclude,
   });
 
   if (!post) return null;
-  return toBlogResponse(post, language ?? "en");
+  return toBlogPostResponse(post, language ?? "en");
 }
 
 export async function getBlogPostByShortId(shortId: string, language?: string): Promise<BlogPostResponse | null> {
   const post = await prisma.blogPost.findUnique({
     where: { shortId },
-    include: blogInclude,
+    include: blogPostInclude,
   });
 
   if (!post) return null;
-  return toBlogResponse(post, language ?? "en");
+  return toBlogPostResponse(post, language ?? "en");
 }
 
 // `generateMetadata` and the page body both need the same post data. React's
@@ -274,7 +293,7 @@ export async function createBlogPost(
   userId: string,
   requestLanguage?: string,
 ): Promise<BlogPostResponse> {
-  const { id, title, excerpt, content, coverUrl, isPublic = true, language = "en", publishedAt, channelId } = data;
+  const { id, title, excerpt, content, coverUrl, contentHtml, isPublic = true, language = "en", publishedAt, channelId } = data;
 
   if (!title?.trim()) throw new ValidationError("title_required");
   if (!content && !excerpt) throw new ValidationError("blog_must_have_content_or_excerpt");
@@ -298,6 +317,9 @@ export async function createBlogPost(
     }
   }
 
+  const trimmedContent = content?.trim() || null;
+  const trimmedExcerpt = excerpt?.trim() || null;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let rawPost: any;
   for (let attempt = 1; ; attempt++) {
@@ -308,15 +330,19 @@ export async function createBlogPost(
           shortId: generateShortId(),
           slug: derivePostSlug(title),
           title: title.trim(),
-          excerpt: excerpt?.trim() || null,
-          content: content?.trim() || null,
+          // No explicit summary: derive one so list views (which skip bodies)
+          // always have an excerpt to show.
+          excerpt: trimmedExcerpt ?? (trimmedContent ? previewRichText(trimmedContent) : null),
+          content: trimmedContent,
           coverUrl: coverUrl?.trim() || null,
+          // Editor HTML is re-sanitized server-side: never trust client markup.
+          contentHtml: sanitizeRichTextHtml(contentHtml?.trim()),
           isPublic,
           language,
           publishedAt: publishedAt ?? new Date(),
           channelId,
         },
-        include: blogInclude,
+        include: blogPostInclude,
       });
       break;
     } catch (error) {
@@ -337,7 +363,7 @@ export async function createBlogPost(
     await deletePendingUploads([coverUrl]);
   }
 
-  return toBlogResponse(rawPost, requestLanguage ?? "en") as BlogPostResponse;
+  return toBlogPostResponse(rawPost, requestLanguage ?? "en") as BlogPostResponse;
 }
 
 export async function deleteBlogPost(
@@ -361,6 +387,12 @@ export async function deleteBlogPost(
         { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
       ],
     },
+  });
+
+  // Remove timeline promo posts: without their article they'd remain as empty
+  // feed posts (SetNull only unlinks them).
+  await prisma.post.deleteMany({
+    where: { blogPostId: id },
   });
 
   if (post.coverUrl) {
@@ -396,14 +428,26 @@ export async function updateBlogPost(
   if (data.excerpt !== undefined) postData.excerpt = data.excerpt?.trim() || null;
   if (data.content !== undefined) postData.content = data.content?.trim() || null;
   if (data.coverUrl !== undefined) postData.coverUrl = data.coverUrl?.trim() || null;
+  if (data.contentHtml !== undefined) postData.contentHtml = sanitizeRichTextHtml(data.contentHtml?.trim());
   if (data.isPublic !== undefined) postData.isPublic = data.isPublic;
   if (data.language !== undefined) postData.language = data.language;
   if (data.publishedAt !== undefined) postData.publishedAt = data.publishedAt;
 
-  const nextExcerpt = data.excerpt !== undefined ? postData.excerpt : existing.excerpt;
-  const nextContent = data.content !== undefined ? postData.content : existing.content;
+  const nextExcerpt = (data.excerpt !== undefined ? postData.excerpt : existing.excerpt) as
+    | string
+    | null
+    | undefined;
+  const nextContent = (data.content !== undefined ? postData.content : existing.content) as
+    | string
+    | null
+    | undefined;
   if (!nextExcerpt && !nextContent) {
     throw new ValidationError("blog_must_have_content_or_excerpt");
+  }
+  // No explicit summary: derive one from the body so list views (which no
+  // longer fetch bodies) always have an excerpt to show.
+  if (!nextExcerpt && nextContent) {
+    postData.excerpt = previewRichText(nextContent);
   }
 
   const { count } = await prisma.blogPost.updateMany({
@@ -423,7 +467,7 @@ export async function updateBlogPost(
 
   const updated = await prisma.blogPost.findUnique({
     where: { id },
-    include: blogInclude,
+    include: blogPostInclude,
   });
 
   if (data.coverUrl !== undefined && data.coverUrl) {
@@ -436,5 +480,5 @@ export async function updateBlogPost(
     await deleteOrphanedCovers([existing.coverUrl]);
   }
 
-  return toBlogResponse(updated!, requestLanguage ?? "en");
+  return toBlogPostResponse(updated!, requestLanguage ?? "en");
 }

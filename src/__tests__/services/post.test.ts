@@ -25,6 +25,9 @@ vi.mock("@/lib/prisma", () => ({
     channelEditor: {
       findUnique: vi.fn(),
     },
+    blogPost: {
+      findUnique: vi.fn(),
+    },
     pendingUpload: {
       findMany: vi.fn(() => Promise.resolve([])),
       deleteMany: vi.fn(),
@@ -53,6 +56,7 @@ const mockPost = {
 const basePost = {
   ...mockPost,
   channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
+  blogPost: null,
 };
 
 describe("getPosts", () => {
@@ -65,7 +69,6 @@ describe("getPosts", () => {
 
   it("returns public posts with hasMore=false when under limit", async () => {
     vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
-
     const result = await getPosts({ scope: "public", limit: 10 });
 
     expect(result.posts).toHaveLength(1);
@@ -89,6 +92,18 @@ describe("getPosts", () => {
 
     expect(result.posts).toHaveLength(10);
     expect(result.hasMore).toBe(true);
+  });
+
+  it("filters by linked blog article", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
+
+    await getPosts({ scope: "public", limit: 10, blogPostId: "blog-1" });
+
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ isPublic: true, blogPostId: "blog-1" }),
+      }),
+    );
   });
 
   it("passes cursor for pagination", async () => {
@@ -419,6 +434,35 @@ describe("createPost", () => {
     ).rejects.toThrow("post_id_collision");
     expect(prisma.post.create).toHaveBeenCalledTimes(1);
   });
+
+  it("links a same-channel blog article", async () => {
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({ id: "blog-1", channelId: "channel-1" } as any);
+    vi.mocked(prisma.post.create).mockResolvedValue({ ...mockPost, blogPostId: "blog-1" } as any);
+
+    await createPost({ content: "Read this!", blogPostId: "blog-1", channelId: "channel-1" }, "user-1");
+
+    expect(prisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ blogPostId: "blog-1" }),
+      }),
+    );
+  });
+
+  it("rejects linking a missing blog article", async () => {
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue(null);
+
+    await expect(
+      createPost({ content: "Read this!", blogPostId: "missing", channelId: "channel-1" }, "user-1"),
+    ).rejects.toThrow("blog_not_found");
+  });
+
+  it("rejects linking a blog article from another channel", async () => {
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({ id: "blog-1", channelId: "other" } as any);
+
+    await expect(
+      createPost({ content: "Read this!", blogPostId: "blog-1", channelId: "channel-1" }, "user-1"),
+    ).rejects.toThrow("blog_channel_mismatch");
+  });
 });
 
 describe("deletePost", () => {
@@ -586,6 +630,42 @@ describe("updatePost", () => {
     const result = await updatePost("post-1", "user-1", { isPublic: false });
 
     expect(result.isPublic).toBe(false);
+  });
+
+  it("links a same-channel blog article on update", async () => {
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce({ ...basePost, channel: { id: "channel-1", ownerId: "user-1" } } as any)
+      .mockResolvedValueOnce({ ...basePost, blogPostId: "blog-1", channel: { id: "channel-1", ownerId: "user-1" } } as any);
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({ id: "blog-1", channelId: "channel-1" } as any);
+    vi.mocked(prisma.post.updateMany).mockResolvedValue({ count: 1 });
+
+    await updatePost("post-1", "user-1", { blogPostId: "blog-1" });
+
+    expect(prisma.post.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ blogPostId: "blog-1" }) }),
+    );
+  });
+
+  it("clears the blog link on update", async () => {
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce({ ...basePost, blogPostId: "blog-1", channel: { id: "channel-1", ownerId: "user-1" } } as any)
+      .mockResolvedValueOnce({ ...basePost, blogPostId: null, channel: { id: "channel-1", ownerId: "user-1" } } as any);
+    vi.mocked(prisma.post.updateMany).mockResolvedValue({ count: 1 });
+
+    await updatePost("post-1", "user-1", { blogPostId: null });
+
+    expect(prisma.post.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ blogPostId: null }) }),
+    );
+  });
+
+  it("rejects linking a blog article from another channel on update", async () => {
+    vi.mocked(prisma.post.findUnique).mockResolvedValueOnce({
+      ...basePost, channel: { id: "channel-1", ownerId: "user-1" },
+    } as any);
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({ id: "blog-1", channelId: "other" } as any);
+
+    await expect(updatePost("post-1", "user-1", { blogPostId: "blog-1" })).rejects.toThrow("blog_channel_mismatch");
   });
 
   it("throws when post not found", async () => {

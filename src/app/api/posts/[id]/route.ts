@@ -56,7 +56,7 @@ export async function PATCH(
     const parsed = parseBody(body, updatePostSchema, "PATCH /api/posts/[id]");
     if (parsed.response) return parsed.response;
 
-    const { content, isPublic, language, media: parsedMedia } = parsed.data;
+    const { content, isPublic, language, media: parsedMedia, blogPostId } = parsed.data;
 
     if (parsedMedia !== undefined) {
       // Fail closed: verify every media URL. image/video/file require a valid
@@ -70,11 +70,12 @@ export async function PATCH(
       }
     }
 
-    const data: { content?: string | null; isPublic?: boolean; media?: MediaInput[]; language?: string } = {};
+    const data: { content?: string | null; isPublic?: boolean; media?: MediaInput[]; language?: string; blogPostId?: string | null } = {};
     if (content !== undefined) data.content = content || null;
     if (isPublic !== undefined) data.isPublic = isPublic;
     if (language !== undefined) data.language = language;
     if (parsedMedia !== undefined) data.media = parsedMedia;
+    if (blogPostId !== undefined) data.blogPostId = blogPostId || null;
 
     const post = await updatePost(id, session.user.id, data);
     return NextResponse.json(post);

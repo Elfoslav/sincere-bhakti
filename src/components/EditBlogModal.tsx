@@ -38,6 +38,7 @@ export default function EditBlogModal({
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader text={t("editTitle")} />
         <BlogForm
+          key={post.id}
           mode="edit"
           postId={post.id}
           initialTitle={post.title}

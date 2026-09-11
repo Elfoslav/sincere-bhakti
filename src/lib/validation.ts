@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { locales } from "@/i18n/routing";
+import { extractPlainText } from "@/lib/rich-text";
 import { CHANNEL_MEMBER_ACTIONS, CHANNEL_MEMBER_ROLES } from "@/lib/channel-roles";
 
 export const PASSWORD_MIN_LENGTH = 8;
@@ -14,10 +15,14 @@ export const POST_SLUG_MAX_LENGTH = 60;
 
 // Blog post field limits. Titles stay short for cards/SEO; excerpts feed list
 // previews and meta descriptions; content allows long-form articles.
-export const BLOG_TITLE_MAX_LENGTH = 150;
+export const BLOG_TITLE_MAX_LENGTH = 100;
 export const BLOG_EXCERPT_MAX_LENGTH = 300;
 export const BLOG_CONTENT_MAX_LENGTH = 20000;
 export const BLOG_SLUG_MAX_LENGTH = 80;
+// Stored-content cap: article bodies are Tiptap JSON documents, so the raw
+// string carries markup overhead. The human-readable limit above is enforced
+// separately on the extracted plain text.
+export const BLOG_RAW_CONTENT_MAX_LENGTH = 60000;
 
 // Only http(s) URLs are allowed for user-supplied media. This blocks
 // dangerous schemes like `javascript:` and `data:` that would otherwise
@@ -161,8 +166,10 @@ export const createPostSchema = z.object({
   media: mediaField.default([]),
   isPublic: z.boolean().default(true),
   language: z.enum(locales).default("en"),
+  // Optional link to a channel blog article promoted by this post.
+  blogPostId: z.string().min(1).optional(),
 }).refine(
-  (data) => data.content || data.media.length > 0,
+  (data) => data.content || data.media.length > 0 || data.blogPostId,
 );
 
 export const updatePostSchema = z.object({
@@ -170,8 +177,11 @@ export const updatePostSchema = z.object({
   media: mediaField,
   isPublic: z.boolean().optional(),
   language: z.enum(locales).optional(),
+  blogPostId: z.string().min(1).nullish(),
 }).refine(
   (data) => {
+    // Linking an article counts as content: text/media may be cleared then.
+    if (typeof data.blogPostId === "string" && data.blogPostId) return true;
     const clearContent = data.content === null || data.content === "";
     const clearMedia = Array.isArray(data.media) && data.media.length === 0;
     return !(clearContent && clearMedia);
@@ -180,7 +190,12 @@ export const updatePostSchema = z.object({
 
 const blogTitleField = z.string().trim().min(1).max(BLOG_TITLE_MAX_LENGTH);
 const blogExcerptField = z.string().trim().max(BLOG_EXCERPT_MAX_LENGTH).optional();
-const blogContentField = z.string().trim().max(BLOG_CONTENT_MAX_LENGTH).optional();
+// Stored article bodies are Tiptap JSON: cap the raw string for storage, and
+// the human-readable plain text for author-facing limits (legacy plain-text
+// bodies validate as themselves).
+const blogContentField = z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).optional()
+  .refine((v) => v === undefined || extractPlainText(v).length <= BLOG_CONTENT_MAX_LENGTH);
+const blogContentHtmlField = z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).optional();
 const blogCoverField = z.string().url().max(2000).refine(isSafeHttpUrl).optional();
 // Optional publish date input. Accepts ISO date/datetime strings from
 // <input type="datetime-local"> (no timezone) or full ISO datetimes; coerced
@@ -197,6 +212,7 @@ export const createBlogPostSchema = z.object({
   excerpt: blogExcerptField,
   content: blogContentField,
   coverUrl: blogCoverField,
+  contentHtml: blogContentHtmlField,
   channelId: z.string().optional(),
   isPublic: z.boolean().default(true),
   language: z.enum(locales).default("en"),
@@ -209,8 +225,11 @@ export const createBlogPostSchema = z.object({
 export const updateBlogPostSchema = z.object({
   title: blogTitleField.optional(),
   excerpt: z.string().trim().max(BLOG_EXCERPT_MAX_LENGTH).nullish(),
-  content: z.string().trim().max(BLOG_CONTENT_MAX_LENGTH).nullish(),
+  content: z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).nullish().refine(
+    (v) => v == null || extractPlainText(v).length <= BLOG_CONTENT_MAX_LENGTH,
+  ),
   coverUrl: z.string().url().max(2000).refine(isSafeHttpUrl).nullish(),
+  contentHtml: z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).nullish(),
   isPublic: z.boolean().optional(),
   language: z.enum(locales).optional(),
   publishedAt: z.coerce.date().nullish(),
@@ -263,6 +282,9 @@ export const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
   channelId: z.string().min(1).optional(),
   language: z.enum(locales).optional(),
+  // Feed posts promoting a blog article (used by the blog editor to find
+  // the article's timeline post). Ignored by the blog feed itself.
+  blogPostId: z.string().min(1).optional(),
 });
 
 export const blogPaginationSchema = paginationSchema;

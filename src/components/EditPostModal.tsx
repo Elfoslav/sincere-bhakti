@@ -79,6 +79,7 @@ export default function EditPostModal({
         language: post.language,
         createdAt: post.createdAt,
         channel: post.channel,
+        blogPost: post.blogPost,
       }
     : post;
 

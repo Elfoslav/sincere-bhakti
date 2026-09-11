@@ -188,6 +188,12 @@ export default async function PostPage({
     ...post,
     createdAt: post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt,
     media: post.media.map((m) => ({ ...m, type: m.type as MediaType })),
+    blogPost: post.blogPost ? {
+      ...post.blogPost,
+      publishedAt: post.blogPost.publishedAt instanceof Date ? post.blogPost.publishedAt.toISOString() : post.blogPost.publishedAt,
+      createdAt: post.blogPost.createdAt instanceof Date ? post.blogPost.createdAt.toISOString() : post.blogPost.createdAt,
+      updatedAt: post.blogPost.updatedAt instanceof Date ? post.blogPost.updatedAt.toISOString() : post.blogPost.updatedAt,
+    } : null,
   };
   const title = getPostSeoTitle(post.channel.name, post.content);
   const description = getPostSeoDescription(post.channel.name, post.content);

@@ -121,7 +121,10 @@ model Post {
   channelId String
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   media     Media[]
-
+  // Optional link to a channel blog article: the feed post promotes the
+  // article and renders its excerpt with a link to the blog detail.
+  blogPostId String?
+  blogPost   BlogPost? @relation(fields: [blogPostId], references: [id], onDelete: SetNull)
   @@index([channelId])
   @@index([isPublic, createdAt])
   @@index([language, isPublic, createdAt])
@@ -143,6 +146,10 @@ model BlogPost {
   slug        String?
   excerpt     String?
   content     String?
+  // Server-sanitized HTML rendered from the Tiptap JSON in `content`
+  // (computed client-side on save, re-sanitized server-side). Null for
+  // legacy plain-text articles, which render as escaped paragraphs.
+  contentHtml String?
   coverUrl    String?
   isPublic    Boolean   @default(true)
   language    String    @default("en")
@@ -151,6 +158,9 @@ model BlogPost {
   updatedAt   DateTime  @updatedAt
   channelId   String
   channel     Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  // Feed posts promoting this article. SetNull from the Post side: deleting
+  // the article unlinks promoting posts instead of deleting them.
+  posts       Post[]
 
   @@index([channelId])
   @@index([isPublic, publishedAt, createdAt])
