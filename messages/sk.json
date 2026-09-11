@@ -317,7 +317,14 @@
 		"copyLink": "Kopírovať odkaz na článok",
 		"linkCopied": "Odkaz na článok skopírovaný",
 		"notFound": "Článok sa nenašiel",
-		"latestPosts": "Najnovšie články"
+		"latestPosts": "Najnovšie články",
+		"designVariantsTitle": "Dizajnové varianty blogu",
+		"designVariantsSubtitle": "Prezri si všetky smery detailu článku a vyber víťaza.",
+		"variantClassic": "Klasika",
+		"variantMagazine": "Magazín",
+		"variantEditorial": "Editoriál",
+		"variantImmersive": "Imerzívna",
+		"variantSplit": "Delená"
 	},
 	"ChannelsPage": {
 		"title": "Všetky kanály",

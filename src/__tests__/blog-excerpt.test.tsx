@@ -35,6 +35,16 @@ describe("BlogExcerpt", () => {
     expect(container.querySelector("strong")).toHaveTextContent("world");
   });
 
+  it("prefers a hand-written summary over the formatted body", () => {
+    const { container } = render(
+      <BlogExcerpt
+        post={{ ...base, excerpt: "Summary", contentHtml: "<p>Hello <strong>world</strong></p>" }}
+      />,
+    );
+    expect(screen.getByText("Summary")).toBeInTheDocument();
+    expect(container.querySelector("strong")).toBeNull();
+  });
+
   it("strips links from the formatted excerpt", () => {
     const { container } = render(
       <BlogExcerpt

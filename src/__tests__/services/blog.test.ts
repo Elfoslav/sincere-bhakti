@@ -156,7 +156,7 @@ describe("createBlogPost", () => {
     );
   });
 
-  it("derives the excerpt from the body when omitted", async () => {
+  it("leaves the excerpt empty when omitted", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as never);
     vi.mocked(prisma.blogPost.create).mockResolvedValue(mockBlog as never);
 
@@ -164,7 +164,7 @@ describe("createBlogPost", () => {
 
     expect(prisma.blogPost.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ excerpt: "Hello world" }),
+        data: expect.objectContaining({ excerpt: null }),
       }),
     );
   });
@@ -203,7 +203,7 @@ describe("updateBlogPost / deleteBlogPost", () => {  beforeEach(() => {
     await expect(updateBlogPost("blog-1", "user-1", { title: "New" })).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it("re-derives the excerpt when cleared but a body remains", async () => {
+  it("clears the excerpt without touching the body", async () => {
     vi.mocked(prisma.blogPost.findUnique)
       .mockResolvedValueOnce({
         id: "blog-1",
@@ -219,7 +219,7 @@ describe("updateBlogPost / deleteBlogPost", () => {  beforeEach(() => {
 
     expect(prisma.blogPost.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ excerpt: "Hello world" }),
+        data: expect.objectContaining({ excerpt: null }),
       }),
     );
   });

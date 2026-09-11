@@ -95,3 +95,22 @@ export function getLatestBlogPostsGridClass(count: number): string {
   if (count === 2) return "grid grid-cols-1 gap-4 sm:grid-cols-2";
   return "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3";
 }
+
+/**
+ * Format a blog article date for display. Accepts Date or ISO-string input
+ * (API responses serialize Dates to strings) and falls back to "en-US" for
+ * the "en" locale so month names stay in English.
+ */
+export function formatBlogDate(
+  value: Date | string | null | undefined,
+  locale: string,
+): string {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(locale === "en" ? "en-US" : locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}

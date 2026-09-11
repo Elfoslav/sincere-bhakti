@@ -30,7 +30,11 @@ test("author publishes a formatted article with a timeline promo", async ({ page
     await composer.getByPlaceholder("Short summary (optional)...").fill(excerpt);
     const editor = composer.locator(".tiptap");
     await editor.click();
-    await composer.getByRole("button", { name: "Bold" }).click();
+    const boldButton = composer.getByRole("button", { name: "Bold" });
+    await boldButton.click();
+    // Stored mark applies to subsequently typed text: wait for the active
+    // state so typing cannot race the toggle.
+    await expect(boldButton).toHaveClass(/bg-sand/);
     await page.keyboard.type(bodyText);
 
     await composer.getByRole("switch", { name: "Publish in posts timeline" }).click();

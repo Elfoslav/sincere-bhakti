@@ -65,6 +65,9 @@ export default function BlogForm({
   const [excerpt, setExcerpt] = useState(initialExcerpt ?? "");
   const [content, setContent] = useState(initialContent ?? "");
   const [contentHtml, setContentHtml] = useState<string | undefined>(undefined);
+  // The editor initializes once per mount: bump the key to clear it after
+  // publishing (a reset content prop alone would be ignored).
+  const [editorKey, setEditorKey] = useState(0);
   const [coverUrl, setCoverUrl] = useState(initialCoverUrl ?? "");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -243,6 +246,7 @@ export default function BlogForm({
         setTitle("");
         setExcerpt("");
         setContent("");
+        setContentHtml(undefined);
         setCoverUrl("");
         if (coverPreview) URL.revokeObjectURL(coverPreview);
         setCoverFile(null);
@@ -250,6 +254,7 @@ export default function BlogForm({
         setIsPublic(true);
         setPublishedAt(toDateTimeLocalValue(new Date()));
         setPublishInTimeline(false);
+        setEditorKey((k) => k + 1);
       }
       try {
         await syncTimelinePromo(post, publishInTimeline, timelineIds);
@@ -301,6 +306,7 @@ export default function BlogForm({
         rows={2}
       />
       <BlogEditor
+        key={editorKey}
         initialContent={content}
         placeholder={t("contentPlaceholder")}
         onChange={({ contentJson, contentHtml }) => {

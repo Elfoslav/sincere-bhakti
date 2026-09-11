@@ -317,7 +317,14 @@
 		"copyLink": "Copy article link",
 		"linkCopied": "Article link copied to clipboard",
 		"notFound": "Article not found",
-		"latestPosts": "Latest articles"
+		"latestPosts": "Latest articles",
+		"designVariantsTitle": "Blog design variants",
+		"designVariantsSubtitle": "Preview every detail-page direction, then pick a winner.",
+		"variantClassic": "Classic",
+		"variantMagazine": "Magazine",
+		"variantEditorial": "Editorial",
+		"variantImmersive": "Immersive",
+		"variantSplit": "Split"
 	},
 	"ChannelsPage": {
 		"title": "All Channels",

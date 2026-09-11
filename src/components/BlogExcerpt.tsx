@@ -22,7 +22,7 @@ export function stripExcerptLinks(html: string): string {
 }
 
 /**
- * Formatted article excerpt for feed cards: the plain excerpt when set,
+ * Article excerpt for feed cards: the hand-written summary when set,
  * otherwise the sanitized article HTML (clamped), otherwise a plain-text
  * preview covering legacy bodies without rendered HTML.
  */

@@ -317,7 +317,14 @@
 		"copyLink": "Kopírovat odkaz na článek",
 		"linkCopied": "Odkaz na článek zkopírován",
 		"notFound": "Článek nenalezen",
-		"latestPosts": "Nejnovější články"
+		"latestPosts": "Nejnovější články",
+		"designVariantsTitle": "Designové varianty blogu",
+		"designVariantsSubtitle": "Prohlédni si všechny směry detailu článku a vyber vítěze.",
+		"variantClassic": "Klasika",
+		"variantMagazine": "Magazín",
+		"variantEditorial": "Editoriál",
+		"variantImmersive": "Imerzivní",
+		"variantSplit": "Dělená"
 	},
 	"ChannelsPage": {
 		"title": "Všechny kanály",

@@ -4,7 +4,6 @@ import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { deletePendingUploads } from "@/lib/pending-upload";
 import { canonicalizeUrl } from "@/lib/url";
 import { isBlogPubliclyVisible } from "@/lib/blog";
-import { previewRichText } from "@/lib/rich-text";
 import { sanitizeRichTextHtml } from "@/lib/rich-text-html";
 import { isChannelEditor } from "@/lib/services/channel";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
@@ -180,9 +179,10 @@ export async function getBlogPosts(
     }
   }
 
-  // List views (feed, channel lists, link pickers) never need the article
-  // bodies: project them away so a page of cards doesn't haul up to ~80 KB
-  // of JSON+HTML per row. Single-entity lookups below keep the full include.
+  // List views (feed, channel lists, link pickers) never need the raw JSON
+  // body: project it away so a page of cards doesn't haul up to ~60 KB of
+  // markup per row. The rendered HTML stays — cards show formatted excerpts.
+  // Single-entity lookups below keep the full include.
   const posts = await prisma.blogPost.findMany({
     take: limit + 1,
     ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
@@ -194,6 +194,7 @@ export async function getBlogPosts(
       slug: true,
       title: true,
       excerpt: true,
+      contentHtml: true,
       coverUrl: true,
       isPublic: true,
       language: true,
@@ -210,7 +211,7 @@ export async function getBlogPosts(
 
   const resolvedLanguage = requestLanguage ?? "en";
   return {
-    posts: posts.map((p) => toBlogPostResponse({ ...p, content: null, contentHtml: null }, resolvedLanguage)),
+    posts: posts.map((p) => toBlogPostResponse({ ...p, content: null }, resolvedLanguage)),
     hasMore,
   };
 }
@@ -330,9 +331,9 @@ export async function createBlogPost(
           shortId: generateShortId(),
           slug: derivePostSlug(title),
           title: title.trim(),
-          // No explicit summary: derive one so list views (which skip bodies)
-          // always have an excerpt to show.
-          excerpt: trimmedExcerpt ?? (trimmedContent ? previewRichText(trimmedContent) : null),
+          // No summary is a valid state: cards fall back to the formatted
+          // body (or a plain preview for legacy rows).
+          excerpt: trimmedExcerpt,
           content: trimmedContent,
           coverUrl: coverUrl?.trim() || null,
           // Editor HTML is re-sanitized server-side: never trust client markup.
@@ -443,11 +444,6 @@ export async function updateBlogPost(
     | undefined;
   if (!nextExcerpt && !nextContent) {
     throw new ValidationError("blog_must_have_content_or_excerpt");
-  }
-  // No explicit summary: derive one from the body so list views (which no
-  // longer fetch bodies) always have an excerpt to show.
-  if (!nextExcerpt && nextContent) {
-    postData.excerpt = previewRichText(nextContent);
   }
 
   const { count } = await prisma.blogPost.updateMany({
