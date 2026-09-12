@@ -152,7 +152,7 @@ export default function PostCard({
       {post.blogPost && (isBlogPubliclyVisible(post.blogPost) || canManage) && (
         <Link
           href={getBlogUrl(post.blogPost.shortId, post.blogPost.slug)}
-          className="mb-3 flex gap-3 overflow-hidden rounded-lg border border-sand bg-warm/30 transition-colors hover:bg-warm/60"
+          className="mb-3 flex overflow-hidden rounded-lg border border-sand bg-warm/30 transition-colors hover:bg-warm/60"
         >
           {post.blogPost.coverUrl && (
             // eslint-disable-next-line @next/next/no-img-element -- R2-hosted blog cover, small fixed-size thumbnail
@@ -163,7 +163,7 @@ export default function PostCard({
               loading="lazy"
             />
           )}
-          <div className="min-w-0 flex-1 py-2 pr-3">
+          <div className="min-w-0 flex-1 px-3 py-2">
             <p className="truncate font-semibold text-deep">{post.blogPost.title}</p>
             <BlogExcerpt post={post.blogPost} className="mt-0.5 text-sm text-deep/70" clampClassName="line-clamp-2" />
             <span className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-saffron hover:text-saffron-dark">
