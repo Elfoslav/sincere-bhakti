@@ -40,7 +40,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(result);
     }
 
-    const result = await getPosts({ ...parsed.data, requestLanguage: parsed.data.language ?? "en" });
+    // Public scope stays open, but the viewer (when logged in) determines
+    // whether a linked private/scheduled article is included — anonymous
+    // callers get blogPost: null for non-public articles.
+    const session = await auth();
+    const result = await getPosts({ ...parsed.data, requestLanguage: parsed.data.language ?? "en" }, session?.user?.id);
     return NextResponse.json(result);
   } catch (error) {
     return serverError("GET /api/posts", error, "failed_to_fetch_posts");

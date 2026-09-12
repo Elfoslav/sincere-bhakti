@@ -98,6 +98,7 @@ describe("GET /api/posts", () => {
   });
 
   it("returns public posts with scope=public", async () => {
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
     vi.mocked(getPosts).mockResolvedValue({
       posts: [
         { id: "post-1", shortId: "shortid1", slug: null, content: "Public", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] },
@@ -112,11 +113,25 @@ describe("GET /api/posts", () => {
     expect(json.posts).toHaveLength(1);
     expect(getPosts).toHaveBeenCalledWith(
       { scope: "public", cursor: undefined, limit: 10, channelId: undefined, language: undefined, blogPostId: undefined, requestLanguage: "en" },
+      undefined,
     );
-    expect(auth).not.toHaveBeenCalled();
+  });
+
+  it("passes the viewer id for public scope when logged in (private linked articles stay visible to authors)", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(getPosts).mockResolvedValue({ posts: [], hasMore: false });
+
+    const res = await GET(mockGetRequest({ scope: "public" }));
+
+    expect(res.status).toBe(200);
+    expect(getPosts).toHaveBeenCalledWith(
+      { scope: "public", cursor: undefined, limit: 10, channelId: undefined, language: undefined, blogPostId: undefined, requestLanguage: "en" },
+      "user-1",
+    );
   });
 
   it("paginates with cursor", async () => {
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
     vi.mocked(getPosts).mockResolvedValue({
       posts: [{ id: "post-3", shortId: "shortid3", slug: null, content: "Next page", isPublic: true, language: "en", createdAt: new Date(), channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" }, media: [] }],
       hasMore: false,
@@ -127,26 +142,31 @@ describe("GET /api/posts", () => {
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
       { scope: "public", cursor: "post-2", limit: 2, channelId: undefined, language: undefined, blogPostId: undefined, requestLanguage: "en" },
+      undefined,
     );
   });
 
   it("filters by channelId", async () => {
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
     vi.mocked(getPosts).mockResolvedValue({ posts: [], hasMore: false });
 
     const res = await GET(mockGetRequest({ scope: "public", channelId: "channel-1" }));
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
       { scope: "public", cursor: undefined, limit: 10, channelId: "channel-1", language: undefined, blogPostId: undefined, category: undefined, requestLanguage: "en" },
+      undefined,
     );
   });
 
   it("filters by category", async () => {
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
     vi.mocked(getPosts).mockResolvedValue({ posts: [], hasMore: false });
 
     const res = await GET(mockGetRequest({ scope: "public", category: "bhakti" }));
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
       { scope: "public", cursor: undefined, limit: 10, channelId: undefined, language: undefined, blogPostId: undefined, category: "bhakti", requestLanguage: "en" },
+      undefined,
     );
   });
 

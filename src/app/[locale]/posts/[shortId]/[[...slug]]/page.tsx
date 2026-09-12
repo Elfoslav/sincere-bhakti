@@ -79,18 +79,20 @@ export default async function PostPage({
   const ip = getClientIp(await headers());
   if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) notFound();
 
+  const [session] = await Promise.all([auth()]);
+
+  // Viewer-aware lookup: a linked private/scheduled article is only included
+  // for its channel authors (anonymous callers get blogPost: null).
   // eslint-disable-next-line prefer-const
-  let post = await getCachedPostByShortId(shortId, locale);
+  let post = await getCachedPostByShortId(shortId, locale, session?.user?.id);
 
   // Backward compatibility: if not found by shortId, try by full ID and redirect
   if (!post) {
-    const oldPost = await getCachedPostById(shortId, locale);
+    const oldPost = await getCachedPostById(shortId, locale, session?.user?.id);
     if (oldPost) {
       redirect(getLocalizedPath(oldPost.language, getPostUrl(oldPost.shortId, oldPost.slug)));
     }
   }
-
-  const [session] = await Promise.all([auth()]);
 
   if (!post) notFound();
   if (!post.isPublic && (!session?.user?.id || !await canAuthorChannel(post.channel.id, session.user.id))) notFound();

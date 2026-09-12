@@ -4,6 +4,7 @@ import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
 import { deletePendingUploads } from "@/lib/pending-upload";
 import { canonicalizeUrl } from "@/lib/url";
 import { isChannelEditor } from "@/lib/services/channel";
+import { isBlogPubliclyVisible } from "@/lib/blog";
 import { blogPostInclude, toBlogPostResponse, type BlogPostResponse } from "@/lib/services/blog";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
 import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
@@ -132,11 +133,42 @@ function toPostResponse<
     },
     // The constraint only names the channel shape; the runtime payload carries
     // the full article (spread inside toBlogPostResponse), hence the cast.
+    // Callers MUST null this for viewers who may not see the article (see
+    // hidePrivateBlogPost below) — serializing it unconditionally leaks
+    // private/scheduled articles through public post responses.
     blogPost: raw.blogPost
       ? (toBlogPostResponse(raw.blogPost, language) as unknown as BlogPostResponse)
       : null,
     categories: (raw.categories ?? []).map((c) => ({ id: c.category.id, name: c.category.name, slug: c.category.slug, language: c.category.language })),
   };
+}
+
+/**
+ * Null a linked article the viewer may not see. A public timeline post can
+ * otherwise leak a private/scheduled article's title, body, cover, and
+ * categories via the public post API (the UI hides the preview, but the JSON
+ * still carried it). This happens through the blogPostId link or by making an
+ * already-promoted article private afterwards.
+ *
+ * Keep the article when it is publicly visible, or when the viewer authors
+ * its channel (owner fast-path, editor lookup otherwise). The post and its
+ * article always share a channel (enforced at link time), so authoring either
+ * implies authoring both.
+ */
+async function hidePrivateBlogPost<
+  T extends { blogPost: BlogPostResponse | null },
+>(
+  response: T,
+  rawBlogPost: { isPublic: boolean; publishedAt: Date | string | null; channel: { id: string; ownerId: string } } | null | undefined,
+  viewerId?: string,
+): Promise<T> {
+  if (!response.blogPost || !rawBlogPost) return response;
+  if (isBlogPubliclyVisible(rawBlogPost)) return response;
+  if (viewerId) {
+    if (rawBlogPost.channel.ownerId === viewerId) return response;
+    if (await isChannelEditor(rawBlogPost.channel.id, viewerId)) return response;
+  }
+  return { ...response, blogPost: null };
 }
 
 export async function getPosts(
@@ -215,30 +247,33 @@ export async function getPosts(
   if (hasMore) posts.pop();
 
   const resolvedLanguage = requestLanguage ?? "en";
+  const visible = await Promise.all(
+    posts.map(async (p) => hidePrivateBlogPost(toPostResponse(p, resolvedLanguage), p.blogPost, currentUserId)),
+  );
   return {
-    posts: posts.map((p) => toPostResponse(p, resolvedLanguage)),
+    posts: visible,
     hasMore,
   };
 }
 
-export async function getPostById(id: string, language?: string): Promise<PostResponse | null> {
+export async function getPostById(id: string, language?: string, currentUserId?: string): Promise<PostResponse | null> {
   const post = await prisma.post.findUnique({
     where: { id },
     include: postInclude,
   });
 
   if (!post) return null;
-  return toPostResponse(post, language ?? "en");
+  return hidePrivateBlogPost(toPostResponse(post, language ?? "en"), post.blogPost, currentUserId);
 }
 
-export async function getPostByShortId(shortId: string, language?: string): Promise<PostResponse | null> {
+export async function getPostByShortId(shortId: string, language?: string, currentUserId?: string): Promise<PostResponse | null> {
   const post = await prisma.post.findUnique({
     where: { shortId },
     include: postInclude,
   });
 
   if (!post) return null;
-  return toPostResponse(post, language ?? "en");
+  return hidePrivateBlogPost(toPostResponse(post, language ?? "en"), post.blogPost, currentUserId);
 }
 
 // `generateMetadata` and the page body both need the same post data. React's

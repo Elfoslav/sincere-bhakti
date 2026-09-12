@@ -24,14 +24,16 @@ export async function GET(
     const { id } = await params;
     const language = new URL(request.url).searchParams.get("language") ?? "en";
 
-    const post = await getPostById(id, language);
+    // Optional viewer for linked-article visibility: public posts stay open,
+    // but a private/scheduled article is only included for its channel authors.
+    const viewerSession = await auth();
+    const post = await getPostById(id, language, viewerSession?.user?.id);
     if (!post) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
     if (!post.isPublic) {
-      const session = await auth();
-      if (!session?.user?.id || !await canAuthorChannel(post.channel.id, session.user.id)) {
+      if (!viewerSession?.user?.id || !await canAuthorChannel(post.channel.id, viewerSession.user.id)) {
         return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
       }
     }

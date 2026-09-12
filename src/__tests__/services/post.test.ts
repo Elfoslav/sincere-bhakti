@@ -71,6 +71,31 @@ const basePost = {
   categories: [],
 };
 
+function mockBlogPost(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "blog-1",
+    shortId: "bshort01",
+    slug: "secret-article",
+    title: "Secret Article",
+    excerpt: "excerpt",
+    content: "body",
+    contentHtml: "<p>body</p>",
+    coverUrl: "https://r2.dev/cover.jpg",
+    isPublic: false,
+    language: "en",
+    publishedAt: null,
+    createdAt: new Date("2026-07-01"),
+    updatedAt: new Date("2026-07-01"),
+    channel: { id: "channel-1", avatarUrl: null, ownerId: "user-1", translations: [{ language: "en", name: "Devotee", slug: "devotee" }] },
+    categories: [],
+    ...overrides,
+  };
+}
+
+function mockPostWithBlog(blogOverrides: Record<string, unknown> = {}) {
+  return { ...mockPost, blogPost: mockBlogPost(blogOverrides) };
+}
+
 describe("getPosts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -285,9 +310,69 @@ describe("getPosts", () => {
       }),
     );
   });
+
+  it("nulls a private linked article for anonymous public feed readers", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPostWithBlog({ isPublic: false })]);
+
+    const result = await getPosts({ scope: "public", limit: 10 });
+
+    expect(result.posts).toHaveLength(1);
+    expect(result.posts[0].blogPost).toBeNull();
+  });
+
+  it("nulls a scheduled linked article for anonymous public feed readers", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([
+      mockPostWithBlog({ isPublic: true, publishedAt: new Date(Date.now() + 86_400_000) }),
+    ]);
+
+    const result = await getPosts({ scope: "public", limit: 10 });
+
+    expect(result.posts[0].blogPost).toBeNull();
+  });
+
+  it("keeps a public linked article for anonymous readers", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([
+      mockPostWithBlog({ isPublic: true, publishedAt: null }),
+    ]);
+
+    const result = await getPosts({ scope: "public", limit: 10 });
+
+    expect(result.posts[0].blogPost).not.toBeNull();
+    expect(result.posts[0].blogPost?.title).toBe("Secret Article");
+  });
+
+  it("keeps a private linked article for the channel owner", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPostWithBlog({ isPublic: false })]);
+
+    const result = await getPosts({ scope: "public", limit: 10 }, "user-1");
+
+    expect(result.posts[0].blogPost).not.toBeNull();
+  });
+
+  it("keeps a private linked article for a channel editor", async () => {
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue({ role: CHANNEL_ROLE_EDITOR } as any);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPostWithBlog({ isPublic: false })]);
+
+    const result = await getPosts({ scope: "public", limit: 10 }, "editor-1");
+
+    expect(result.posts[0].blogPost).not.toBeNull();
+  });
+
+  it("nulls a private linked article for a non-author viewer", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPostWithBlog({ isPublic: false })]);
+
+    const result = await getPosts({ scope: "public", limit: 10 }, "other-user");
+
+    expect(result.posts[0].blogPost).toBeNull();
+  });
 });
 
 describe("getPostById", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
+  });
+
   it("returns post when found", async () => {
     vi.mocked(prisma.post.findUnique).mockResolvedValue(mockPost);
 
@@ -300,6 +385,30 @@ describe("getPostById", () => {
 
     const post = await getPostById("missing");
     expect(post).toBeNull();
+  });
+
+  it("nulls a private linked article for anonymous readers", async () => {
+    vi.mocked(prisma.post.findUnique).mockResolvedValue(mockPostWithBlog({ isPublic: false }) as any);
+
+    const post = await getPostById("post-1", "en");
+
+    expect(post?.blogPost).toBeNull();
+  });
+
+  it("keeps a private linked article for the channel owner", async () => {
+    vi.mocked(prisma.post.findUnique).mockResolvedValue(mockPostWithBlog({ isPublic: false }) as any);
+
+    const post = await getPostById("post-1", "en", "user-1");
+
+    expect(post?.blogPost).not.toBeNull();
+  });
+
+  it("nulls a private linked article for a non-author viewer", async () => {
+    vi.mocked(prisma.post.findUnique).mockResolvedValue(mockPostWithBlog({ isPublic: false }) as any);
+
+    const post = await getPostById("post-1", "en", "other-user");
+
+    expect(post?.blogPost).toBeNull();
   });
 });
 
