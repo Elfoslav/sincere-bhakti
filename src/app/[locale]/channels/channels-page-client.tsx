@@ -124,7 +124,10 @@ return (
             <Link
               key={ch.id}
               href={`/channels/${ch.slug}`}
-              className="block"
+              // min-w-0: grid items default to min-width:auto, which sizes the
+              // track to the longest (even unbreakable) channel name and breaks
+              // responsiveness. Clamping the item lets the inner truncate work.
+              className="block min-w-0"
             >
               <Card variant="hover">
                 <div className="flex items-center gap-3">
