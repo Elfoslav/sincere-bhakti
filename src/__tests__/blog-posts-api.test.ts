@@ -112,6 +112,19 @@ describe("GET /api/blog-posts", () => {
       "user-1",
     );
   });
+
+  it("filters by category", async () => {
+    vi.mocked(getBlogPosts).mockResolvedValue({ posts: [], hasMore: false });
+
+    const res = await GET(mockGetRequest({ scope: "public", category: "holy name" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.posts).toHaveLength(0);
+    expect(getBlogPosts).toHaveBeenCalledWith(
+      expect.objectContaining({ category: "holy name" }),
+    );
+  });
 });
 
 describe("POST /api/blog-posts", () => {

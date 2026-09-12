@@ -109,6 +109,7 @@ async function fulfillPatchRequest(route: Route) {
       isPublic: body.isPublic ?? true,
       language: "en",
       createdAt: "2026-07-19T12:00:00.000Z",
+      categories: [],
       channel: {
         id: TEST_CHANNEL.id,
         name: TEST_CHANNEL.name,

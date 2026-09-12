@@ -28,6 +28,17 @@ vi.mock("@/lib/prisma", () => ({
     blogPost: {
       findUnique: vi.fn(),
     },
+    category: {
+      upsert: vi.fn(),
+    },
+    postCategory: {
+      deleteMany: vi.fn(),
+      createMany: vi.fn(),
+    },
+    blogPostCategory: {
+      deleteMany: vi.fn(),
+      createMany: vi.fn(),
+    },
     pendingUpload: {
       findMany: vi.fn(() => Promise.resolve([])),
       deleteMany: vi.fn(),
@@ -57,6 +68,7 @@ const basePost = {
   ...mockPost,
   channel: { id: "channel-1", name: "Devotee", slug: "devotee", avatarUrl: null, ownerId: "user-1" },
   blogPost: null,
+  categories: [],
 };
 
 describe("getPosts", () => {
@@ -102,6 +114,36 @@ describe("getPosts", () => {
     expect(prisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ isPublic: true, blogPostId: "blog-1" }),
+      }),
+    );
+  });
+
+  it("filters by category with the canonical name", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
+
+    await getPosts({ scope: "public", limit: 10, category: "holy name" });
+
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isPublic: true,
+          categories: { some: { category: { name: "Holy Name" } } },
+        }),
+      }),
+    );
+  });
+
+  it("scopes the category filter to the feed language", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
+
+    await getPosts({ scope: "public", limit: 10, language: "cs", category: "bhakti" });
+
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          language: "cs",
+          categories: { some: { category: { name: "Bhakti", language: "cs" } } },
+        }),
       }),
     );
   });
@@ -274,8 +316,7 @@ describe("createPost", () => {
     process.env.R2_PUBLIC_URL = previousR2;
   });
 
-  it("creates post with text and media, persisting dimensions", async () => {
-    const media = [{ url: "https://r2.dev/img.jpg", type: "image", width: 1600, height: 900 }];
+  it("creates post with text and media, persisting dimensions", async () => {    const media = [{ url: "https://r2.dev/img.jpg", type: "image", width: 1600, height: 900 }];
     vi.mocked(prisma.post.create).mockResolvedValue(mockPost as any);
 
     const post = await createPost({ content: "Hare Krishna!", media, channelId: "channel-1" }, "user-1");
@@ -289,6 +330,27 @@ describe("createPost", () => {
           media: {
             create: [{ url: "https://r2.dev/img.jpg", type: "image", position: 0, width: 1600, height: 900, userId: "user-1" }],
           },
+        }),
+      }),
+    );
+  });
+
+  it("links categories resolved in the post language", async () => {
+    vi.mocked(prisma.category.upsert).mockResolvedValue({ id: "cat-1" });
+    vi.mocked(prisma.post.create).mockResolvedValue(mockPost as any);
+
+    await createPost({ content: "Hare Krishna!", channelId: "channel-1", language: "cs", categories: ["bhakti"] }, "user-1");
+
+    expect(prisma.category.upsert).toHaveBeenCalledWith({
+      where: { language_name: { language: "cs", name: "Bhakti" } },
+      update: {},
+      create: { name: "Bhakti", slug: "bhakti", language: "cs" },
+      select: { id: true },
+    });
+    expect(prisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          categories: { create: [{ category: { connect: { id: "cat-1" } } }] },
         }),
       }),
     );
@@ -646,8 +708,7 @@ describe("updatePost", () => {
     );
   });
 
-  it("clears the blog link on update", async () => {
-    vi.mocked(prisma.post.findUnique)
+  it("clears the blog link on update", async () => {    vi.mocked(prisma.post.findUnique)
       .mockResolvedValueOnce({ ...basePost, blogPostId: "blog-1", channel: { id: "channel-1", ownerId: "user-1" } } as any)
       .mockResolvedValueOnce({ ...basePost, blogPostId: null, channel: { id: "channel-1", ownerId: "user-1" } } as any);
     vi.mocked(prisma.post.updateMany).mockResolvedValue({ count: 1 });
@@ -657,6 +718,40 @@ describe("updatePost", () => {
     expect(prisma.post.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ blogPostId: null }) }),
     );
+  });
+
+  it("replaces categories in the post language on update", async () => {
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce({ ...basePost, language: "cs", channel: { ownerId: "user-1" } } as any)
+      .mockResolvedValueOnce({ ...basePost, channel: { ownerId: "user-1" } } as any);
+    vi.mocked(prisma.post.updateMany).mockResolvedValue({ count: 1 });
+    vi.mocked(prisma.category.upsert).mockResolvedValue({ id: "cat-1" });
+
+    await updatePost("post-1", "user-1", { categories: ["bhakti"] });
+
+    expect(prisma.category.upsert).toHaveBeenCalledWith({
+      where: { language_name: { language: "cs", name: "Bhakti" } },
+      update: {},
+      create: { name: "Bhakti", slug: "bhakti", language: "cs" },
+      select: { id: true },
+    });
+    expect(prisma.postCategory.deleteMany).toHaveBeenCalledWith({ where: { postId: "post-1" } });
+    expect(prisma.postCategory.createMany).toHaveBeenCalledWith({
+      data: [{ postId: "post-1", categoryId: "cat-1" }],
+      skipDuplicates: true,
+    });
+  });
+
+  it("clears categories on update", async () => {
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce({ ...basePost, channel: { ownerId: "user-1" } } as any)
+      .mockResolvedValueOnce({ ...basePost, channel: { ownerId: "user-1" } } as any);
+    vi.mocked(prisma.post.updateMany).mockResolvedValue({ count: 1 });
+
+    await updatePost("post-1", "user-1", { categories: [] });
+
+    expect(prisma.postCategory.deleteMany).toHaveBeenCalledWith({ where: { postId: "post-1" } });
+    expect(prisma.postCategory.createMany).not.toHaveBeenCalled();
   });
 
   it("rejects linking a blog article from another channel on update", async () => {

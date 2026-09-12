@@ -10,6 +10,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ href, children, ...props }: any) => (
     <a href={href} {...props}>{children}</a>
   ),
+  useRouter: vi.fn(() => ({ push: vi.fn(), replace: vi.fn() })),
 }));
 
 vi.mock("sonner", () => ({
@@ -38,6 +39,7 @@ function makeBlogPost(coverUrl: string | null): BlogPost {
     createdAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-01T00:00:00.000Z",
     channel: { id: "channel-1", name: "Channel", slug: "channel", avatarUrl: null, ownerId: "user-1" },
+    categories: [],
   };
 }
 
@@ -53,6 +55,7 @@ function makePost(blogPost: BlogPost): Post {
     createdAt: "2026-09-01T00:00:00.000Z",
     channel: { id: "channel-1", name: "Channel", slug: "channel", avatarUrl: null, ownerId: "user-1" },
     blogPost,
+    categories: [],
   };
 }
 

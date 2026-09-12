@@ -36,7 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  const [channels, posts, blogPosts] = await Promise.all([
+  const [channels, posts, blogPosts, categories] = await Promise.all([
     prisma.channel.findMany({
       where: { posts: { some: { isPublic: true } } },
       select: {
@@ -65,6 +65,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       where: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] },
       select: { id: true, shortId: true, slug: true, language: true, publishedAt: true, createdAt: true },
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      take: 5000,
+    }),
+    // Category landing pages that actually file something (an orphaned
+    // category left behind by deletions stays out until reused).
+    prisma.category.findMany({
+      where: { OR: [{ posts: { some: {} } }, { blogPosts: { some: {} } }] },
+      select: { slug: true, language: true, createdAt: true },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 5000,
     }),
   ]);
@@ -102,6 +110,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 0.6,
     });
+  }
+
+  for (const category of categories) {
+    // No language alternates: same-slug categories of different languages
+    // are distinct taxonomies, not translations of each other.
+    for (const base of ["/posts/category", "/blog/category"] as const) {
+      entries.push({
+        url: getLocalizedUrl(category.language, `${base}/${category.slug}`),
+        lastModified: category.createdAt,
+        changeFrequency: "weekly",
+        priority: 0.5,
+      });
+    }
   }
 
   return entries;

@@ -16,6 +16,7 @@ import { extractPlainText } from "@/lib/rich-text";
 import { getImageDimensions } from "@/lib/client-media";
 import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
 import { useIdentity } from "@/components/IdentityProvider";
+import CategoryPicker from "@/components/CategoryPicker";
 import { BLOG_TITLE_MAX_LENGTH, BLOG_EXCERPT_MAX_LENGTH, MAX_IMAGE_SIZE_BYTES, maxUploadSizeForContentType } from "@/lib/validation";
 import type { BlogPost } from "@/types/blog";
 
@@ -34,6 +35,7 @@ export interface BlogFormProps {
   initialCoverUrl?: string | null;
   initialIsPublic?: boolean;
   initialPublishedAt?: string | null;
+  initialCategories?: string[];
   onSuccess: (post: BlogPost) => void;
   onCancel?: () => void;
   postingChannel?: {
@@ -51,6 +53,7 @@ export default function BlogForm({
   initialCoverUrl = "",
   initialIsPublic = true,
   initialPublishedAt = "",
+  initialCategories = [],
   onSuccess,
   onCancel,
   postingChannel,
@@ -71,6 +74,7 @@ export default function BlogForm({
   const [coverUrl, setCoverUrl] = useState(initialCoverUrl ?? "");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>(initialCategories);
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [publishedAt, setPublishedAt] = useState(
     initialPublishedAt ? toDateTimeLocalValue(initialPublishedAt) : toDateTimeLocalValue(new Date()),
@@ -223,6 +227,9 @@ export default function BlogForm({
         // Explicit null clears the cover on edit; create omits it instead
         // (the create schema doesn't accept null).
         coverUrl: resolvedCoverUrl ?? (mode === "create" ? undefined : null),
+        // Edit always sends the set (possibly empty = cleared); create omits
+        // it when untouched so the schema default applies.
+        categories: mode === "edit" ? categories : (categories.length > 0 ? categories : undefined),
         isPublic,
         language: locale,
         ...(parsedPublishedAt ? { publishedAt: parsedPublishedAt.toISOString() } : {}),
@@ -249,6 +256,7 @@ export default function BlogForm({
         setExcerpt("");
         setContent("");
         setContentHtml(undefined);
+        setCategories([]);
         setCoverUrl("");
         if (coverPreview) URL.revokeObjectURL(coverPreview);
         setCoverFile(null);
@@ -316,6 +324,12 @@ export default function BlogForm({
           setContentHtml(contentHtml);
         }}
       />
+      <div>
+        <label htmlFor="blog-categories" className="mb-1 block text-sm font-medium text-deep/70">
+          {t("categoriesLabel")}
+        </label>
+        <CategoryPicker id="blog-categories" value={categories} onChange={setCategories} />
+      </div>
       <div>
         <input
           ref={coverInputRef}

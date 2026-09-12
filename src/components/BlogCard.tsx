@@ -1,10 +1,11 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { getBlogUrl } from "@/lib/blog-url";
 import { Card } from "@/components/ui/card";
 import BlogExcerpt from "@/components/BlogExcerpt";
+import CategoryChips from "@/components/CategoryChips";
 import BlogPostActions from "@/components/BlogPostActions";
 import type { BlogPost } from "@/types/blog";
 
@@ -22,6 +23,7 @@ export default function BlogCard({
   onEdit?: (postId: string) => void;
 }) {
   const locale = useLocale();
+  const router = useRouter();
   const t = useTranslations("BlogPage");
   const displayDate = post.publishedAt ?? post.createdAt;
   const date = new Date(displayDate).toLocaleDateString(locale === "en" ? "en-US" : locale, {
@@ -80,6 +82,11 @@ export default function BlogCard({
         <h3 className="text-xl font-bold text-deep">{post.title}</h3>
       </Link>
       <BlogExcerpt post={post} className="mt-1 text-deep/80" clampClassName="line-clamp-3" />
+      <CategoryChips
+        categories={post.categories}
+        onSelect={(category) => router.push(`/blog/category/${category.slug}`)}
+        className="mt-2"
+      />
     </Card>
   );
 }

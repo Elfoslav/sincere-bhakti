@@ -1,4 +1,5 @@
 import type { BlogPost } from "@/types/blog";
+import type { CategoryRef } from "@/types/category";
 
 export type MediaType = "image" | "video" | "youtube" | "file";
 export interface PostMedia {
@@ -28,4 +29,5 @@ export interface Post {
   createdAt: string;
   channel: PostChannel;
   blogPost: BlogPost | null;
+  categories: CategoryRef[];
 }

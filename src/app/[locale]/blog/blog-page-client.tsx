@@ -12,14 +12,17 @@ import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfiniteBlogPosts } from "@/lib/hooks/useInfiniteBlogPosts";
 import { useIdentity } from "@/components/IdentityProvider";
+import CategoryFilterBanner from "@/components/CategoryFilterBanner";
 import type { BlogPost } from "@/types/blog";
 
 export default function BlogPageClient({
   initialPublic,
   channelId,
+  category,
 }: {
   initialPublic?: { posts: BlogPost[]; hasMore: boolean };
   channelId?: string;
+  category?: string;
 }) {
   const { data: session } = useSession();
   const { activeChannelId, identities } = useIdentity();
@@ -31,6 +34,7 @@ export default function BlogPageClient({
     scope: "public",
     channelId: effectiveChannelId,
     language: locale,
+    category,
     initialData: effectiveChannelId ? undefined : initialPublic,
   });
   const {
@@ -64,7 +68,11 @@ export default function BlogPageClient({
 
   function handleCreateSuccess(post: BlogPost) {
     setMyPosts((prev) => [post, ...prev]);
-    if (post.isPublic) setPosts((prev) => [post, ...prev]);
+    // A filtered feed only shows matching posts: don't prepend a fresh
+    // post that doesn't carry the active category.
+    if (post.isPublic && (!category || post.categories.some((c) => c.name === category))) {
+      setPosts((prev) => [post, ...prev]);
+    }
   }
 
   function handleDelete(id: string) {
@@ -143,6 +151,8 @@ export default function BlogPageClient({
         <h1 className="text-3xl font-bold text-deep">{t("title")}</h1>
         <p className="text-deep/60 mt-1">{t("subtitle")}</p>
       </div>
+
+      {category ? <CategoryFilterBanner name={category} href="/blog" /> : null}
 
       <Card variant="default" padding="lg" className="mb-6">
         {session ? (

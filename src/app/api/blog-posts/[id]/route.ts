@@ -55,7 +55,7 @@ export async function PATCH(
     const parsed = parseBody(body, updateBlogPostSchema, "PATCH /api/blog-posts/[id]");
     if (parsed.response) return parsed.response;
 
-    const { title, excerpt, content, coverUrl, contentHtml, isPublic, language, publishedAt } = parsed.data;
+    const { title, excerpt, content, coverUrl, contentHtml, isPublic, language, publishedAt, categories } = parsed.data;
 
     if (coverUrl !== undefined && coverUrl !== null && !isSafeHttpUrl(coverUrl)) {
       return NextResponse.json({ error: "validation_error:coverUrl:invalid" }, { status: HTTP_BAD_REQUEST });
@@ -67,7 +67,7 @@ export async function PATCH(
       }
     }
 
-    const data: { title?: string; excerpt?: string | null; content?: string | null; coverUrl?: string | null; contentHtml?: string | null; isPublic?: boolean; language?: string; publishedAt?: Date | null } = {};
+    const data: { title?: string; excerpt?: string | null; content?: string | null; coverUrl?: string | null; contentHtml?: string | null; isPublic?: boolean; language?: string; publishedAt?: Date | null; categories?: string[] | null } = {};
     if (title !== undefined) data.title = title;
     if (excerpt !== undefined) data.excerpt = excerpt || null;
     if (content !== undefined) data.content = content || null;
@@ -76,6 +76,7 @@ export async function PATCH(
     if (isPublic !== undefined) data.isPublic = isPublic;
     if (language !== undefined) data.language = language;
     if (publishedAt !== undefined) data.publishedAt = publishedAt;
+    if (categories !== undefined) data.categories = categories;
 
     const post = await updateBlogPost(id, session.user.id, data);
     return NextResponse.json(post);

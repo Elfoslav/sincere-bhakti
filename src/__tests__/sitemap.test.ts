@@ -7,6 +7,7 @@ vi.mock("@/lib/prisma", () => ({
     channel: { findMany: vi.fn() },
     post: { findMany: vi.fn() },
     blogPost: { findMany: vi.fn(() => Promise.resolve([])) },
+    category: { findMany: vi.fn(() => Promise.resolve([])) },
   },
 }));
 
@@ -87,6 +88,26 @@ describe("sitemap", () => {
     expect(prisma.blogPost.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ isPublic: true }),
+      }),
+    );
+  });
+
+  it("lists pretty landing pages for used categories, both feeds", async () => {
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.category.findMany).mockResolvedValue([
+      { slug: "bhakti", language: "en", createdAt: new Date("2026-09-01") },
+    ] as unknown as Awaited<ReturnType<typeof prisma.category.findMany>>);
+
+    const entries = await sitemap();
+    const urls = entries.map((e) => e.url);
+
+    expect(urls).toContain("https://example.test/posts/category/bhakti");
+    expect(urls).toContain("https://example.test/blog/category/bhakti");
+    expect(prisma.category.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { OR: [{ posts: { some: {} } }, { blogPosts: { some: {} } }] },
       }),
     );
   });

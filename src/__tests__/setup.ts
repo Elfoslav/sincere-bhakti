@@ -44,6 +44,8 @@ vi.mock("@/lib/rate-limit", () => {
       updateChannelMembers: "update-channel-members",
       readLinkPreview: "read-link-preview",
       readLinkPreviewImage: "read-link-preview-image",
+      searchCategories: "search-categories",
+      createCategory: "create-category",
     },
     RATE_LIMITS: {
       register: { limit: 5, windowMs: 3_600_000 },
@@ -76,6 +78,8 @@ vi.mock("@/lib/rate-limit", () => {
       updateChannelMembers: { limit: 30, windowMs: 3_600_000 },
       readLinkPreview: { limit: 120, windowMs: 60_000 },
       readLinkPreviewImage: { limit: 240, windowMs: 60_000 },
+      searchCategories: { limit: 30, windowMs: 60_000 },
+      createCategory: { limit: 20, windowMs: 3_600_000 },
     },
   };
 });

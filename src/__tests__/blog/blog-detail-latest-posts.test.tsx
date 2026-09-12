@@ -46,6 +46,7 @@ function makePost(id: string, title: string): BlogPost {
     createdAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-01T00:00:00.000Z",
     channel: { id: "channel-1", name: "Channel", slug: "channel", avatarUrl: null, ownerId: "user-1" },
+    categories: [],
   };
 }
 

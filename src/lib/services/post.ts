@@ -8,9 +8,11 @@ import { blogPostInclude, toBlogPostResponse, type BlogPostResponse } from "@/li
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
 import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
 import { generateShortId } from "@/lib/id";
-import { derivePostSlug } from "@/lib/validation";
+import { derivePostSlug, normalizeCategoryName } from "@/lib/validation";
+import { resolveCategoryIds, setPostCategories } from "@/lib/services/category";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
+import type { CategoryRef } from "@/types/category";
 
 export class UnauthorizedError extends Error {
   name = "UnauthorizedError" as const;
@@ -47,6 +49,7 @@ export interface PostResponse {
   channel: PostChannel;
   media: PostMedia[];
   blogPost: BlogPostResponse | null;
+  categories: CategoryRef[];
 }
 
 export interface GetPostsParams {
@@ -57,6 +60,8 @@ export interface GetPostsParams {
   language?: string;
   requestLanguage?: string;
   blogPostId?: string;
+  // Canonical UPPERCASE category name; normalized again server-side.
+  category?: string;
 }
 
 export interface GetPostsResult {
@@ -79,6 +84,7 @@ export interface CreatePostData {
   language?: string;
   channelId?: string;
   blogPostId?: string;
+  categories?: string[];
 }
 
 export interface UpdatePostData {
@@ -87,6 +93,8 @@ export interface UpdatePostData {
   media?: MediaInput[];
   language?: string;
   blogPostId?: string | null;
+  // Undefined leaves categories alone; null or [] clears them.
+  categories?: string[] | null;
 }
 
 const postInclude = {
@@ -97,17 +105,19 @@ const postInclude = {
   },
   media: { orderBy: { position: "asc" as const } },
   blogPost: { include: blogPostInclude },
+  categories: { include: { category: { select: { id: true, name: true, slug: true, language: true } } } },
 };
 
 function toPostResponse<
   Raw extends {
     channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] };
     blogPost?: { channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] } } | null;
+    categories?: { category: { id: string; name: string; slug: string; language: string } }[];
   },
 >(
   raw: Raw,
   language: string,
-): Omit<Raw, "channel" | "blogPost"> & { channel: PostChannel; blogPost: BlogPostResponse | null } {
+): Omit<Raw, "channel" | "blogPost" | "categories"> & { channel: PostChannel; blogPost: BlogPostResponse | null; categories: CategoryRef[] } {
   const t = raw.channel.translations
     ? resolveTranslation(raw.channel.translations, language)
     : null;
@@ -125,6 +135,7 @@ function toPostResponse<
     blogPost: raw.blogPost
       ? (toBlogPostResponse(raw.blogPost, language) as unknown as BlogPostResponse)
       : null,
+    categories: (raw.categories ?? []).map((c) => ({ id: c.category.id, name: c.category.name, slug: c.category.slug, language: c.category.language })),
   };
 }
 
@@ -132,11 +143,23 @@ export async function getPosts(
   params: GetPostsParams,
   currentUserId?: string,
 ): Promise<GetPostsResult> {
-  const { scope, cursor, limit = 10, channelId, language, requestLanguage, blogPostId } = params;
+  const { scope, cursor, limit = 10, channelId, language, requestLanguage, blogPostId, category } = params;
 
   const where: Prisma.PostWhereInput = {};
   if (language) where.language = language;
   if (blogPostId) where.blogPostId = blogPostId;
+  if (category?.trim()) {
+    // A category only ever matches its own language: scope to the feed
+    // language when the caller filters by one.
+    where.categories = {
+      some: {
+        category: {
+          name: normalizeCategoryName(category),
+          ...(language ? { language } : {}),
+        },
+      },
+    };
+  }
 
   if (scope === "public") {
     where.isPublic = true;
@@ -300,7 +323,7 @@ export async function createPost(
   userId: string,
   requestLanguage?: string,
 ): Promise<PostResponse> {
-  const { id, content, media = [], isPublic = true, language = "en", channelId, blogPostId } = data;
+  const { id, content, media = [], isPublic = true, language = "en", channelId, blogPostId, categories } = data;
   await validateMediaOwnership(media, userId);
 
   if (!channelId) throw new ValidationError("channel_required");
@@ -323,6 +346,8 @@ export async function createPost(
 
   if (blogPostId) await validateBlogLink(blogPostId, channelId);
 
+  const categoryIds = categories ? await resolveCategoryIds(prisma, categories, language) : [];
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let rawPost: any;
   // shortId is a server-generated 8-char id on a UNIQUE column. A collision is
@@ -341,6 +366,9 @@ export async function createPost(
           language,
           channelId,
           ...(blogPostId ? { blogPostId } : {}),
+          categories: {
+            create: categoryIds.map((categoryId) => ({ category: { connect: { id: categoryId } } })),
+          },
           media: {
             create: media.map((m, i) => ({
               url: m.url,
@@ -423,14 +451,14 @@ export async function updatePost(
 ): Promise<PostResponse> {
   const existing = await prisma.post.findUnique({
     where: { id },
-    include: { media: { select: { url: true } }, channel: { select: { id: true, ownerId: true } } },
+    select: { language: true, media: { select: { url: true } }, channel: { select: { id: true, ownerId: true } } },
   });
   if (!existing) throw new NotFoundError();
   if (existing.channel.ownerId !== userId && !await isChannelEditor(existing.channel.id, userId)) {
     throw new NotFoundError();
   }
 
-  const { media, ...rest } = data;
+  const { media, categories, ...rest } = data;
   if (media !== undefined) {
     await validateMediaOwnership(media, userId, existing.media.map((m) => m.url));
   }
@@ -446,6 +474,10 @@ export async function updatePost(
   }
 
   const post = await prisma.$transaction(async (tx) => {
+    if (categories !== undefined) {
+      // Links resolve in the post's (possibly newly patched) language.
+      await setPostCategories(tx, id, await resolveCategoryIds(tx, categories ?? [], data.language ?? existing.language));
+    }
     if (media !== undefined) {
       await tx.media.deleteMany({ where: { postId: id } });
       if (media.length > 0) {
@@ -463,16 +495,22 @@ export async function updatePost(
       }
     }
 
-    const { count } = await tx.post.updateMany({
-      where: {
-        id,
-        OR: [
-          { channel: { ownerId: userId } },
-          { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
-        ],
-      },
-      data: postData,
-    });
+    // A categories/media-only patch carries no scalar changes: skip the
+    // no-op update (Prisma rejects empty data). Ownership was already
+    // verified against the pre-update row above.
+    let count = 1;
+    if (Object.keys(postData).length > 0) {
+      ({ count } = await tx.post.updateMany({
+        where: {
+          id,
+          OR: [
+            { channel: { ownerId: userId } },
+            { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
+          ],
+        },
+        data: postData,
+      }));
+    }
 
     if (count === 0) {
       throw new NotFoundError();

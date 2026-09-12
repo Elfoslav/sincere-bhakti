@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Link, useRouter } from "@/i18n/navigation";
 import BlogLayout from "@/components/BlogLayout";
 import BlogPostActions from "@/components/BlogPostActions";
+import CategoryChips from "@/components/CategoryChips";
 import EditBlogModal from "@/components/EditBlogModal";
 import { useIdentity } from "@/components/IdentityProvider";
 import { getBlogUrl } from "@/lib/blog-url";
@@ -139,6 +140,11 @@ export default function BlogDetailClient({
           />
         ) : null}
       </article>
+      <CategoryChips
+        categories={displayedPost.categories}
+        onSelect={(category) => router.push(`/blog/category/${category.slug}`)}
+        className="mt-8 justify-center"
+      />
       <hr className="my-10 border-deep/10" />
       {latestPosts.length > 0 ? (
         <section aria-label={t("latestPosts")}>

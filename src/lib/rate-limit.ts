@@ -75,6 +75,10 @@ export const RATE_LIMITS = {
   // up to two images (og:image + favicon); edge caching serves repeat URLs, so
   // this only bounds cold-miss upstream fetches.
   readLinkPreviewImage: { limit: 240, windowMs: 60_000 },
+  // Category search for the picker combobox: 30 requests per 60s per IP
+  searchCategories: { limit: 30, windowMs: 60_000 },
+  // Category creation: 20 per hour per user
+  createCategory: { limit: 20, windowMs: 3_600_000 },
 } as const;
 
 // Rate-limit key prefixes — shared across API routes and SSR pages so every
@@ -115,6 +119,8 @@ export const RATE_LIMIT_PREFIX = {
   resendVerification: "resend-verification",
   readLinkPreview: "read-link-preview",
   readLinkPreviewImage: "read-link-preview-image",
+  searchCategories: "search-categories",
+  createCategory: "create-category",
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;

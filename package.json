@@ -19,6 +19,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:test:reset": "node scripts/reset-test-db.mjs",
     "blog:backfill": "tsx scripts/backfill-blog-rich-text.ts",
+    "category:backfill": "tsx scripts/backfill-category-slugs.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

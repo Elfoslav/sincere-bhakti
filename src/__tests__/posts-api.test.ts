@@ -136,7 +136,17 @@ describe("GET /api/posts", () => {
     const res = await GET(mockGetRequest({ scope: "public", channelId: "channel-1" }));
     expect(res.status).toBe(200);
     expect(getPosts).toHaveBeenCalledWith(
-      { scope: "public", cursor: undefined, limit: 10, channelId: "channel-1", language: undefined, blogPostId: undefined, requestLanguage: "en" },
+      { scope: "public", cursor: undefined, limit: 10, channelId: "channel-1", language: undefined, blogPostId: undefined, category: undefined, requestLanguage: "en" },
+    );
+  });
+
+  it("filters by category", async () => {
+    vi.mocked(getPosts).mockResolvedValue({ posts: [], hasMore: false });
+
+    const res = await GET(mockGetRequest({ scope: "public", category: "bhakti" }));
+    expect(res.status).toBe(200);
+    expect(getPosts).toHaveBeenCalledWith(
+      { scope: "public", cursor: undefined, limit: 10, channelId: undefined, language: undefined, blogPostId: undefined, category: "bhakti", requestLanguage: "en" },
     );
   });
 

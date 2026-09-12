@@ -18,11 +18,45 @@ export const POST_SLUG_MAX_LENGTH = 60;
 export const BLOG_TITLE_MAX_LENGTH = 100;
 export const BLOG_EXCERPT_MAX_LENGTH = 300;
 export const BLOG_CONTENT_MAX_LENGTH = 20000;
-export const BLOG_SLUG_MAX_LENGTH = 80;
-// Stored-content cap: article bodies are Tiptap JSON documents, so the raw
+export const BLOG_SLUG_MAX_LENGTH = 80;// Stored-content cap: article bodies are Tiptap JSON documents, so the raw
 // string carries markup overhead. The human-readable limit above is enforced
 // separately on the extracted plain text.
 export const BLOG_RAW_CONTENT_MAX_LENGTH = 60000;
+
+// Unified category taxonomy: one global tag list for timeline posts and blog
+// articles. Names are forced to Title Case (multi-word allowed) and unique
+// across the whole app; the per-post cap keeps tag spam in check.
+export const CATEGORY_NAME_MAX_LENGTH = 50;
+export const CATEGORIES_MAX_PER_POST = 5;
+
+// Single category name from user input: trimmed and length-checked raw,
+// then normalized (parsed output is the canonical Title Case form, so
+// downstream code receives clean values without re-normalizing).
+const categoryNameField = z
+  .string()
+  .trim()
+  .min(1)
+  .max(CATEGORY_NAME_MAX_LENGTH)
+  .transform((v) => normalizeCategoryName(v));
+
+// Category name list for post/blog writes: capped, with duplicates rejected
+// AFTER normalization ("Bhakti" + "BHAKTI" counts as a duplicate).
+const categoryNamesField = z
+  .array(categoryNameField)
+  .max(CATEGORIES_MAX_PER_POST)
+  .refine((names) => new Set(names).size === names.length);
+
+export const categorySearchSchema = z.object({
+  search: z.string().trim().max(CATEGORY_NAME_MAX_LENGTH).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+  // Picker scope: categories only ever surface in their own language.
+  language: z.enum(locales).optional(),
+});
+
+export const createCategorySchema = z.object({
+  name: categoryNameField,
+  language: z.enum(locales).default("en"),
+});
 
 // Only http(s) URLs are allowed for user-supplied media. This blocks
 // dangerous schemes like `javascript:` and `data:` that would otherwise
@@ -168,6 +202,8 @@ export const createPostSchema = z.object({
   language: z.enum(locales).default("en"),
   // Optional link to a channel blog article promoted by this post.
   blogPostId: z.string().min(1).optional(),
+  // Category names (canonicalized to Title Case by the field transform).
+  categories: categoryNamesField.optional(),
 }).refine(
   (data) => data.content || data.media.length > 0 || data.blogPostId,
 );
@@ -178,6 +214,8 @@ export const updatePostSchema = z.object({
   isPublic: z.boolean().optional(),
   language: z.enum(locales).optional(),
   blogPostId: z.string().min(1).nullish(),
+  // Undefined leaves categories alone; null or [] clears them.
+  categories: categoryNamesField.nullish(),
 }).refine(
   (data) => {
     // Linking an article counts as content: text/media may be cleared then.
@@ -217,6 +255,8 @@ export const createBlogPostSchema = z.object({
   isPublic: z.boolean().default(true),
   language: z.enum(locales).default("en"),
   publishedAt: blogPublishedAtField,
+  // Category names (canonicalized to Title Case by the field transform).
+  categories: categoryNamesField.optional(),
 }).refine(
   (data) => data.content || data.excerpt,
   { message: "blog_empty" },
@@ -233,6 +273,8 @@ export const updateBlogPostSchema = z.object({
   isPublic: z.boolean().optional(),
   language: z.enum(locales).optional(),
   publishedAt: z.coerce.date().nullish(),
+  // Undefined leaves categories alone; null or [] clears them.
+  categories: categoryNamesField.nullish(),
 }).refine(
   (data) => {
     const clearContent = data.content === null || data.content === "";
@@ -285,6 +327,8 @@ export const paginationSchema = z.object({
   // Feed posts promoting a blog article (used by the blog editor to find
   // the article's timeline post). Ignored by the blog feed itself.
   blogPostId: z.string().min(1).optional(),
+  // Canonicalized again server-side; raw user input accepted here.
+  category: z.string().trim().max(CATEGORY_NAME_MAX_LENGTH).optional(),
 });
 
 export const blogPaginationSchema = paginationSchema;
@@ -379,6 +423,21 @@ export function normalizeName(name: string): string {
   return stripDiacritics(name.trim().replace(/\s+/g, " ")).toLowerCase();
 }
 
+// Canonical category form: trim, collapse ALL whitespace runs (spaces,
+// tabs, newlines) to a single space, and force Title Case (first letter of
+// each word — including hyphenated compounds — uppercase, the rest
+// lowercase). The result doubles as the display value and the global
+// uniqueness key, so "holy  name", "Holy Name" and "HOLY NAME" are all the
+// same category. Unlike channel names, diacritics are preserved as typed
+// ("Kršna" stays "Kršna").
+export function normalizeCategoryName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/(^|[ -])(\S)/g, (_, space: string, char: string) => space + char.toUpperCase());
+}
+
 // Lowercases, folds diacritics, and collapses non-alphanumeric runs to single
 // dashes (no length limit). The building block for post slugs.
 function slugifyText(text: string): string {
@@ -394,6 +453,14 @@ function slugifyText(text: string): string {
 //   "Hello World!" → "hello-world"
 export function slugifyName(name: string): string {
   return slugifyText(name).slice(0, 80) || "channel";
+}
+
+// Derives a category's URL slug from its canonical name ("Holy Name" →
+// "holy-name"). Falls back to "category" when nothing slug-able remains
+// (e.g. "!!!"). Distinct names can slugify alike ("Holy-Name" vs "Holy
+// Name") — the service disambiguates with a numeric suffix.
+export function deriveCategorySlug(name: string): string {
+  return slugifyText(name).slice(0, CATEGORY_NAME_MAX_LENGTH) || "category";
 }
 
 // Builds a URL slug from post content. Folds diacritics (so "když" → "kdyz",

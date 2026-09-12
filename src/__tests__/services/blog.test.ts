@@ -18,6 +18,13 @@ vi.mock("@/lib/prisma", () => ({
     channelEditor: {
       findUnique: vi.fn(),
     },
+    category: {
+      upsert: vi.fn(),
+    },
+    blogPostCategory: {
+      deleteMany: vi.fn(),
+      createMany: vi.fn(),
+    },
     pendingUpload: {
       findMany: vi.fn(() => Promise.resolve([])),
       deleteMany: vi.fn(),
@@ -87,6 +94,35 @@ describe("getBlogPosts", () => {
       expect.objectContaining({
         where: expect.objectContaining({ isPublic: true }),
         take: 11,
+      }),
+    );
+  });
+
+  it("filters by category with the canonical name", async () => {
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([mockBlog] as never);
+
+    await getBlogPosts({ scope: "public", limit: 10, category: "holy name" });
+
+    expect(prisma.blogPost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          categories: { some: { category: { name: "Holy Name" } } },
+        }),
+      }),
+    );
+  });
+
+  it("scopes the category filter to the feed language", async () => {
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([mockBlog] as never);
+
+    await getBlogPosts({ scope: "public", limit: 10, language: "cs", category: "bhakti" });
+
+    expect(prisma.blogPost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          language: "cs",
+          categories: { some: { category: { name: "Bhakti", language: "cs" } } },
+        }),
       }),
     );
   });
@@ -222,6 +258,37 @@ describe("updateBlogPost / deleteBlogPost", () => {  beforeEach(() => {
         data: expect.objectContaining({ excerpt: null }),
       }),
     );
+  });
+
+  it("replaces categories in the article language without a scalar update", async () => {
+    vi.mocked(prisma.blogPost.findUnique)
+      .mockResolvedValueOnce({
+        id: "blog-1",
+        title: "T",
+        excerpt: null,
+        content: "Hello world",
+        coverUrl: null,
+        language: "cs",
+        channel: { id: "channel-1", ownerId: "user-1" },
+      } as never)
+      .mockResolvedValueOnce({ ...mockBlog } as never);
+    vi.mocked(prisma.category.upsert).mockResolvedValue({ id: "cat-1" });
+
+    await updateBlogPost("blog-1", "user-1", { categories: ["bhakti"] });
+
+    expect(prisma.category.upsert).toHaveBeenCalledWith({
+      where: { language_name: { language: "cs", name: "Bhakti" } },
+      update: {},
+      create: { name: "Bhakti", slug: "bhakti", language: "cs" },
+      select: { id: true },
+    });
+    expect(prisma.blogPostCategory.deleteMany).toHaveBeenCalledWith({ where: { blogPostId: "blog-1" } });
+    expect(prisma.blogPostCategory.createMany).toHaveBeenCalledWith({
+      data: [{ blogPostId: "blog-1", categoryId: "cat-1" }],
+      skipDuplicates: true,
+    });
+    // No scalar fields changed: the empty updateMany is skipped.
+    expect(prisma.blogPost.updateMany).not.toHaveBeenCalled();
   });
 
   it("scopes delete by owner in the where clause", async () => {

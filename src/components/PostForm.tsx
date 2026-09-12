@@ -18,6 +18,7 @@ import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { useIdentity } from "@/components/IdentityProvider";
 import LinkPreview from "@/components/LinkPreview";
+import CategoryPicker from "@/components/CategoryPicker";
 import type { Post } from "@/types/post";
 import type { MediaInput } from "@/lib/services/post";
 import {
@@ -45,6 +46,7 @@ export interface PostFormHandle {
     content: string;
     isPublic: boolean;
     mediaPreviews: { url: string; type: string; width: number | null; height: number | null }[];
+    categories: string[];
   };
 }
 
@@ -54,6 +56,7 @@ export interface PostFormProps {
   initialContent?: string;
   initialIsPublic?: boolean;
   initialMedia?: { url: string; type: string; width?: number | null; height?: number | null }[];
+  initialCategories?: string[];
   postId?: string;
   onSuccess: (post: Post) => void;
   onCancel?: () => void;
@@ -71,6 +74,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   initialContent = "",
   initialIsPublic = true,
   initialMedia,
+  initialCategories = [],
   postId,
   onSuccess,
   onCancel,
@@ -106,6 +110,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
 
   const [content, setContent] = useState(initialContent);
   const [isPublic, setIsPublic] = useState(initialIsPublic);
+  const [categories, setCategories] = useState<string[]>(initialCategories);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>(
     () =>
       initialMedia?.map((m) => ({
@@ -131,6 +136,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
     getValues: () => ({
       content,
       isPublic,
+      categories,
       mediaPreviews: mediaItems.map((m) => ({
         url: m.file ? m.previewUrl! : m.url!,
         type: m.type,
@@ -138,7 +144,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
         height: m.height ?? null,
       })),
     }),
-  }), [content, isPublic, mediaItems]);
+  }), [content, isPublic, categories, mediaItems]);
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
@@ -279,6 +285,9 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
         language: mode === "create" ? locale : undefined,
         channelId: mode === "create" ? postingChannelId ?? undefined : undefined,
         media: mode === "edit" ? media : (media.length > 0 ? media : undefined),
+        // Edit always sends the set (possibly empty = cleared); create omits
+        // it when untouched so the schema default applies.
+        categories: mode === "edit" ? categories : (categories.length > 0 ? categories : undefined),
       };
 
       const res = await fetch(url, {
@@ -290,6 +299,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
       if (res.ok) {
         const post: Post = await res.json();
         setContent("");
+        setCategories([]);
         setMediaItems((prev) => {
           prev.forEach((m) => { if (m.previewUrl) URL.revokeObjectURL(m.previewUrl); });
           return [];
@@ -376,6 +386,17 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
 
           <div className="mt-3">
             <LinkPreview text={content} />
+          </div>
+
+          <div className="mt-3">
+            <label htmlFor={`${formId ?? "post"}-categories`} className="mb-1 block text-sm font-medium text-deep/70">
+              {t("categoriesLabel")}
+            </label>
+            <CategoryPicker
+              id={`${formId ?? "post"}-categories`}
+              value={categories}
+              onChange={setCategories}
+            />
           </div>
 
           {mediaItems.length > 0 && (

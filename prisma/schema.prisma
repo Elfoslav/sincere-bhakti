@@ -125,6 +125,7 @@ model Post {
   // article and renders its excerpt with a link to the blog detail.
   blogPostId String?
   blogPost   BlogPost? @relation(fields: [blogPostId], references: [id], onDelete: SetNull)
+  categories PostCategory[]
   @@index([channelId])
   @@index([isPublic, createdAt])
   @@index([language, isPublic, createdAt])
@@ -161,11 +162,52 @@ model BlogPost {
   // Feed posts promoting this article. SetNull from the Post side: deleting
   // the article unlinks promoting posts instead of deleting them.
   posts       Post[]
+  categories  BlogPostCategory[]
 
   @@index([channelId])
   @@index([isPublic, publishedAt, createdAt])
   @@index([language, isPublic, createdAt])
   @@index([createdAt, id])
+}
+
+// Unified taxonomy for timeline posts and blog articles. Names are stored
+// in canonical Title Case form (see normalizeCategoryName); names are
+// unique PER LANGUAGE (like channel translations), and a category only ever
+// appears in feeds, pickers, and filters of its own language.
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  // URL slug derived from the name ("Holy Name" → "holy-name"); suffixed
+  // when distinct names slugify alike. Lookup key for /blog/category/[slug].
+  slug      String
+  language  String   @default("en")
+  createdAt DateTime @default(now())
+  posts     PostCategory[]
+  blogPosts BlogPostCategory[]
+
+  @@unique([language, name])
+  @@unique([language, slug])
+  @@index([language])
+}
+
+model PostCategory {
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([postId, categoryId])
+  @@index([categoryId])
+}
+
+model BlogPostCategory {
+  blogPostId String
+  blogPost   BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([blogPostId, categoryId])
+  @@index([categoryId])
 }
 
 model Media {

@@ -9,13 +9,14 @@ type ApiParams = {
   disabled?: boolean;
   pageSize?: number;
   language?: string;
+  category?: string;
   // Server-rendered first page. When provided, the hook seeds state from it and
   // skips the initial client fetch — removing the hydrate→fetch→render waterfall.
   initialData?: { posts: Post[]; hasMore: boolean };
 };
 
 export function useInfinitePosts(params?: ApiParams) {
-  const { scope, channelId, disabled, pageSize = PAGE_SIZE, language, initialData } = params ?? {};
+  const { scope, channelId, disabled, pageSize = PAGE_SIZE, language, category, initialData } = params ?? {};
   const [posts, setPosts] = useState<Post[]>(initialData?.posts ?? []);
   const [loading, setLoading] = useState(!disabled && !initialData);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -39,6 +40,7 @@ export function useInfinitePosts(params?: ApiParams) {
         if (cursor) query.set("cursor", cursor);
         if (channelId) query.set("channelId", channelId);
         if (language) query.set("language", language);
+        if (category) query.set("category", category);
 
         const res = await fetch(`/api/posts?${query}`);
         if (!res.ok) return null;
@@ -48,7 +50,7 @@ export function useInfinitePosts(params?: ApiParams) {
         return null;
       }
     },
-    [scope, channelId, pageSize, language],
+    [scope, channelId, pageSize, language, category],
   );
 
   useEffect(() => {

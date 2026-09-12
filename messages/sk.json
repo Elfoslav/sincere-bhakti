@@ -79,7 +79,10 @@
 		"saveButton": "Uložiť",
 		"cancel": "Zrušiť",
 		"postUpdated": "Príspevok aktualizovaný",
-		"updatePostFailed": "Aktualizácia príspevku zlyhala"
+		"updatePostFailed": "Aktualizácia príspevku zlyhala",
+		"categoriesLabel": "Kategórie",
+		"categoryMetaTitle": "Príspevky na tému {name} — Sincere Bhakti",
+		"categoryMetaDescription": "Príspevky timeline v kategórii {name}."
 	},
 	"Auth": {
 		"login": {
@@ -317,7 +320,19 @@
 		"copyLink": "Kopírovať odkaz na článok",
 		"linkCopied": "Odkaz na článok skopírovaný",
 		"notFound": "Článok sa nenašiel",
-		"latestPosts": "Najnovšie články"
+		"latestPosts": "Najnovšie články",
+		"bodyLoadFailed": "Telo článku sa nepodarilo načítať. Zavri dialóg a skús to znova.",
+		"categoriesLabel": "Kategórie",
+		"categoryMetaTitle": "Články na tému {name} — Sincere Bhakti",
+		"categoryMetaDescription": "Blogové články v kategórii {name}."
+	},
+	"Categories": {
+		"searchPlaceholder": "Hľadať alebo vytvoriť kategórie...",
+		"createNew": "Vytvoriť „{name}“",
+		"maxReached": "Najviac {max} kategórií",
+		"removeCategory": "Odobrať {name}",
+		"filteringByCategory": "Zobrazujem kategóriu „{name}“",
+		"clearFilter": "Zrušiť filter"
 	},
 	"ChannelsPage": {
 		"title": "Všetky kanály",

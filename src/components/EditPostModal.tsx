@@ -15,6 +15,7 @@ import PostForm, { type PostFormHandle } from "@/components/PostForm";
 import PostCard from "@/components/PostCard";
 import type { Post, MediaType } from "@/types/post";
 import { localeFlags } from "@/i18n/routing";
+import { deriveCategorySlug } from "@/lib/validation";
 
 const FORM_ID = "edit-post-form";
 
@@ -37,6 +38,7 @@ export default function EditPostModal({
     content: string;
     isPublic: boolean;
     mediaPreviews: { url: string; type: string; width: number | null; height: number | null }[];
+    categories: string[];
   } | null>(null);
 
   const handleSuccess = useCallback(
@@ -80,6 +82,9 @@ export default function EditPostModal({
         createdAt: post.createdAt,
         channel: post.channel,
         blogPost: post.blogPost,
+        categories: previewValues.categories.map((name) => (
+          post.categories.find((c) => c.name === name) ?? { id: name, name, slug: deriveCategorySlug(name), language: post.language }
+        )),
       }
     : post;
 
@@ -112,6 +117,7 @@ export default function EditPostModal({
               initialContent={post.content || ""}
               initialIsPublic={post.isPublic}
               initialMedia={post.media}
+              initialCategories={post.categories.map((c) => c.name)}
               onSuccess={handleSuccess}
               onCancel={() => onOpenChange(false)}
               onSubmittingChange={handleSubmittingChange}

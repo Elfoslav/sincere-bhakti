@@ -2,7 +2,7 @@
 
 import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { localeFlags, routing } from "@/i18n/routing";
 import { Link as LinkIcon, ExternalLink, Pencil, Trash2, MoreHorizontal, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { getPostUrl } from "@/lib/post-url";
 import { getBlogUrl } from "@/lib/blog-url";
 import { isBlogPubliclyVisible } from "@/lib/blog";
 import BlogExcerpt from "@/components/BlogExcerpt";
+import CategoryChips from "@/components/CategoryChips";
 import PostContent from "@/components/PostContent";
 import LinkPreview from "@/components/LinkPreview";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ export default function PostCard({
   onEdit?: (postId: string) => void;
 }) {
   const locale = useLocale();
+  const router = useRouter();
   const t = useTranslations("PostCard");
   const commonT = useTranslations("Common");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -148,6 +150,12 @@ export default function PostCard({
           <LinkPreview text={post.content} />
         </>
       )}
+
+      <CategoryChips
+        categories={post.categories}
+        onSelect={(category) => router.push(`/posts/category/${category.slug}`)}
+        className="mb-3"
+      />
 
       {post.blogPost && (isBlogPubliclyVisible(post.blogPost) || canManage) && (
         <Link

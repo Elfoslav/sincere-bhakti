@@ -1,4 +1,5 @@
 import type { PostChannel } from "@/types/post";
+import type { CategoryRef } from "@/types/category";
 
 export interface BlogPost {
   id: string;
@@ -15,4 +16,5 @@ export interface BlogPost {
   createdAt: string;
   updatedAt: string;
   channel: PostChannel;
+  categories: CategoryRef[];
 }
