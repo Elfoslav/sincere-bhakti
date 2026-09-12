@@ -97,6 +97,11 @@ export default function ChannelPageClient({
     sentinelRef: blogSentinelRef,
   } = useInfiniteBlogPosts({ channelId: channel.id, scope: "public", language: locale });
 
+  // An empty blog section is only useful to the channel owner (an invitation
+  // to write). Visitors see neither the heading nor the empty card — nothing.
+  // While loading we still render skeletons to avoid layout shift.
+  const showBlogSection = blogLoading || blogPosts.length > 0 || isOwner;
+
   const handleDelete = useCallback((id: string) => {
     const deletedPost = [...publicPosts, ...myPosts].find((post) => post.id === id);
     if (deletedPost?.isPublic) {
@@ -389,6 +394,7 @@ export default function ChannelPageClient({
         onOpenChange={(open) => { if (!open) setEditingPost(null); }}
         onSuccess={handleEditSuccess}
       />
+      {showBlogSection && (
       <div className="mt-10">
         <div className="mb-4 flex items-center justify-between">
           <Heading as="h2">{tBlog("title")}</Heading>
@@ -431,6 +437,7 @@ export default function ChannelPageClient({
           </div>
         )}
       </div>
+      )}
       <EditBlogModal
         post={editingBlog}
         open={editingBlog !== null}
