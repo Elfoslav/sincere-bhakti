@@ -54,6 +54,15 @@ export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: bo
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  function toggle() {
+    // Measure BEFORE opening so the first paint with open=true already has
+    // the correct position. Measuring only in the effect below flashes the
+    // dropdown at the initial pos (top:0/left:0) for one frame, then jumps it
+    // under the button. Both updates batch into a single render.
+    if (!open) measure();
+    setOpen((p) => !p);
+  }
+
   function switchLocale(next: string) {
     setOpen(false);
     router.replace(pathname, { locale: next });
@@ -65,7 +74,7 @@ export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: bo
     <>
       <button
         ref={btnRef}
-        onClick={() => setOpen((p) => !p)}
+        onClick={toggle}
         className={cn(
           "flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors px-3 py-2 rounded-md border border-white/10 hover:border-white/20 min-h-10",
           fullWidth && "w-full justify-between",
