@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { localeFlags } from "@/i18n/routing";
 import { getCachedPostById, getCachedPostByShortId } from "@/lib/services/post";
 import { canAuthorChannel } from "@/lib/services/channel";
+import { isPostPubliclyVisible } from "@/lib/blog";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import PostDetailClient from "../post-detail-client";
@@ -38,7 +39,7 @@ export async function generateMetadata({
   const { locale, shortId } = await params;
 
   const post = await getCachedPostByShortId(shortId, locale);
-  if (!post || !post.isPublic) return {};
+  if (!post || !isPostPubliclyVisible(post)) return {};
 
   const title = getPostSeoTitle(post.channel.name, post.content);
   const description = getPostSeoDescription(post.channel.name, post.content);
@@ -95,7 +96,8 @@ export default async function PostPage({
   }
 
   if (!post) notFound();
-  if (!post.isPublic && (!session?.user?.id || !await canAuthorChannel(post.channel.id, session.user.id))) notFound();
+  // Scheduled (future-dated) and private posts resolve only for channel authors.
+  if (!isPostPubliclyVisible(post) && (!session?.user?.id || !await canAuthorChannel(post.channel.id, session.user.id))) notFound();
 
   // Canonical slug enforcement: the post is looked up by its permanent shortId,
   // so a stale/old slug segment still resolves here — redirect it to the current
@@ -188,6 +190,7 @@ export default async function PostPage({
 
   const serialized: Post = {
     ...post,
+    publishedAt: post.publishedAt instanceof Date ? post.publishedAt.toISOString() : post.publishedAt,
     createdAt: post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt,
     media: post.media.map((m) => ({ ...m, type: m.type as MediaType })),
     blogPost: post.blogPost ? {

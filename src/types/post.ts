@@ -26,6 +26,9 @@ export interface Post {
   media: PostMedia[];
   isPublic: boolean;
   language: string;
+  // Null = visible immediately; a future date hides the post from public
+  // feeds until then (timeline promos of scheduled articles).
+  publishedAt: string | null;
   createdAt: string;
   channel: PostChannel;
   blogPost: BlogPost | null;

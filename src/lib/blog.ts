@@ -38,29 +38,53 @@ export function isBlogPubliclyVisible(
   return publishedAt <= now;
 }
 
+/**
+ * A timeline post is publicly visible when flagged public and its publish
+ * date has passed. Mirrors isBlogPubliclyVisible: timeline promos of
+ * scheduled articles carry the article's publish date so the two go live
+ * together. Null (ordinary posts) means immediately visible.
+ */
+export function isPostPubliclyVisible(
+  post: { isPublic: boolean; publishedAt: Date | string | null },
+  now = new Date(),
+): boolean {
+  if (!post.isPublic) return false;
+  if (!post.publishedAt) return true;
+  const publishedAt = post.publishedAt instanceof Date ? post.publishedAt : new Date(post.publishedAt);
+  if (Number.isNaN(publishedAt.getTime())) return false;
+  return publishedAt <= now;
+}
+
 export interface TimelinePostBody {
   channelId: string;
   language: string;
   isPublic: boolean;
   blogPostId: string;
+  publishedAt?: string;
 }
 
 /**
  * Build the feed-post body promoting a blog article in the posts timeline.
- * The promo inherits channel, language, and visibility from the article and
- * carries no text of its own — the card renders the article excerpt instead.
+ * The promo inherits channel, language, visibility, and publish date from
+ * the article and carries no text of its own — the card renders the article
+ * excerpt instead. A scheduled article yields a scheduled promo (same date),
+ * so both go live together instead of the promo leaking an empty card early.
  */
 export function buildTimelinePostBody(blog: {
   id: string;
   channel: { id: string };
   language: string;
   isPublic: boolean;
+  publishedAt: Date | string | null;
 }): TimelinePostBody {
   return {
     channelId: blog.channel.id,
     language: blog.language,
     isPublic: blog.isPublic,
     blogPostId: blog.id,
+    ...(blog.publishedAt
+      ? { publishedAt: blog.publishedAt instanceof Date ? blog.publishedAt.toISOString() : blog.publishedAt }
+      : {}),
   };
 }
 

@@ -114,9 +114,9 @@ export default function BlogForm({
   const isVerified = !!session?.user?.emailVerifiedAt;
   const contentText = extractPlainText(content).trim();
   const canSubmit = title.trim().length > 0 && (contentText.length > 0 || excerpt.trim().length > 0);
-  // A scheduled (future-dated, public) article must not publish a timeline
-  // promo ahead of itself: the promo has no date and would appear as an
-  // empty public card until the article goes live.
+  // A scheduled (future-dated, public) article yields a scheduled timeline
+  // promo with the same date: both go live together, so the promo never
+  // appears as an empty public card ahead of the article.
   const resolvedPublishedAt = parseDateTimeLocalValue(publishedAt);
   const isScheduled = isPublic && !!resolvedPublishedAt && resolvedPublishedAt > new Date();
   const effectiveCover = coverFile ? coverPreview : (coverUrl || null);
@@ -150,15 +150,14 @@ export default function BlogForm({
   /**
    * Reconcile the article's posts-timeline promo with the switch: create one
    * when switched on with none linked, delete linked ones when switched off,
-   * and keep visibility/language in sync otherwise. Scheduled articles never
-   * publish ahead of themselves (defense in depth: the UI blocks the switch).
-   * Throws timeline_failed — the caller reports it without failing the
-   * already-saved article.
+   * and keep visibility/language/publish date in sync otherwise. The promo
+   * carries the article's publish date, so a scheduled article and its promo
+   * go live together. Throws timeline_failed — the caller reports it without
+   * failing the already-saved article.
    */
   async function syncTimelinePromo(blog: BlogPost, publish: boolean, existingIds: string[]): Promise<void> {
     const json = { "Content-Type": "application/json" };
-    const scheduled = blog.isPublic && blog.publishedAt && new Date(blog.publishedAt) > new Date();
-    if (publish && existingIds.length === 0 && !scheduled) {
+    if (publish && existingIds.length === 0) {
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: json,
@@ -171,14 +170,14 @@ export default function BlogForm({
         if (!res.ok) throw new Error("timeline_failed");
       }
     } else if (publish && existingIds.length > 0) {
-      // Keep the promo's visibility in step with the article; a scheduled
-      // article unpublishes its promo until a later save re-syncs it.
-      const effectivePublic = blog.isPublic && !scheduled;
+      // Keep the promo in step with the article: visibility, language, and
+      // publish date (a rescheduled article moves its promo with it; an
+      // unscheduled one clears the promo date back to immediate).
       for (const pid of existingIds) {
         const res = await fetch(`/api/posts/${pid}`, {
           method: "PATCH",
           headers: json,
-          body: JSON.stringify({ isPublic: effectivePublic, language: blog.language }),
+          body: JSON.stringify({ isPublic: blog.isPublic, language: blog.language, publishedAt: blog.publishedAt }),
         });
         if (!res.ok) throw new Error("timeline_failed");
       }
@@ -384,7 +383,7 @@ export default function BlogForm({
             checked={publishInTimeline}
             onCheckedChange={setPublishInTimeline}
             aria-label={t("publishInTimeline")}
-            disabled={!timelineLoaded || isScheduled}
+            disabled={!timelineLoaded}
           />
           {t("publishInTimeline")}
         </label>

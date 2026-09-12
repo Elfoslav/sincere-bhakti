@@ -117,6 +117,9 @@ model Post {
   content   String?
   isPublic  Boolean  @default(true)
   language  String   @default("en")
+  // Optional publish date (timeline promos of scheduled blog articles carry
+  // the article's date so both go live together). Null = visible immediately.
+  publishedAt DateTime?
   createdAt DateTime @default(now())
   channelId String
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
@@ -128,6 +131,7 @@ model Post {
   categories PostCategory[]
   @@index([channelId])
   @@index([isPublic, createdAt])
+  @@index([isPublic, publishedAt, createdAt])
   @@index([language, isPublic, createdAt])
   @@index([createdAt, id])
 }

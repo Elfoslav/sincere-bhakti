@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError, ValidationError } from "@/lib/services/post";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { isTrustedMediaUrl, updatePostSchema } from "@/lib/validation";
+import { isPostPubliclyVisible } from "@/lib/blog";
 import { canAuthorChannel } from "@/lib/services/channel";
 import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST } from "@/lib/error-codes";
@@ -32,7 +33,7 @@ export async function GET(
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
-    if (!post.isPublic) {
+    if (!isPostPubliclyVisible(post)) {
       if (!viewerSession?.user?.id || !await canAuthorChannel(post.channel.id, viewerSession.user.id)) {
         return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
       }
@@ -58,7 +59,7 @@ export async function PATCH(
     const parsed = parseBody(body, updatePostSchema, "PATCH /api/posts/[id]");
     if (parsed.response) return parsed.response;
 
-    const { content, isPublic, language, media: parsedMedia, blogPostId, categories } = parsed.data;
+    const { content, isPublic, language, publishedAt, media: parsedMedia, blogPostId, categories } = parsed.data;
 
     if (parsedMedia !== undefined) {
       // Fail closed: verify every media URL. image/video/file require a valid
@@ -72,10 +73,11 @@ export async function PATCH(
       }
     }
 
-    const data: { content?: string | null; isPublic?: boolean; media?: MediaInput[]; language?: string; blogPostId?: string | null; categories?: string[] | null } = {};
+    const data: { content?: string | null; isPublic?: boolean; media?: MediaInput[]; language?: string; publishedAt?: Date | null; blogPostId?: string | null; categories?: string[] | null } = {};
     if (content !== undefined) data.content = content || null;
     if (isPublic !== undefined) data.isPublic = isPublic;
     if (language !== undefined) data.language = language;
+    if (publishedAt !== undefined) data.publishedAt = publishedAt;
     if (parsedMedia !== undefined) data.media = parsedMedia;
     if (blogPostId !== undefined) data.blogPostId = blogPostId || null;
     if (categories !== undefined) data.categories = categories;

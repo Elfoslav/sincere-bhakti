@@ -303,7 +303,7 @@
 		"scheduled": "Scheduled",
 		"publishDate": "Publish date",
 		"publishInTimeline": "Publish in posts timeline",
-		"timelineScheduledHint": "Timeline publishing unlocks once a scheduled article goes live.",
+		"timelineScheduledHint": "The timeline post will go live together with the scheduled article.",
 		"timelineSyncFailed": "Article saved, but the timeline post could not be updated.",
 		"publish": "Publish",
 		"save": "Save",

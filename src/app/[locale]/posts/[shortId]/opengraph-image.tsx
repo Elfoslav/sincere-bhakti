@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { getCachedPostById, getCachedPostByShortId } from "@/lib/services/post";
+import { isPostPubliclyVisible } from "@/lib/blog";
 import { getSiteUrl } from "@/lib/url";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { POST_OG_IMAGE, OG_POST_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL, OG_IMAGE_TRANSIENT_CACHE_CONTROL } from "@/lib/seo";
@@ -42,14 +43,14 @@ export default async function Image({
   }
 
   // Post image available: show it full-bleed with nothing layered on top.
-  // Otherwise (no post, private, no image, or fetch failed): logo fallback.
+  // Otherwise (no post, private/scheduled, no image, or fetch failed): logo fallback.
   // Prefer a landscape image — the 1200×630 cover crop cuts it the least.
   const images =
-    post && post.isPublic ? post.media.filter((m) => m.type === "image" && m.url) : [];
+    post && isPostPubliclyVisible(post) ? post.media.filter((m) => m.type === "image" && m.url) : [];
   const bestImage =
     images.find((m) => m.width && m.height && m.width >= m.height) ?? images[0] ?? null;
 
-  // No post, private, or genuinely imageless: the logo IS the correct response
+  // No post, private/scheduled, or genuinely imageless: the logo IS the correct response
   // for this URL, so it may be briefly shared-cached.
   if (!bestImage) {
     return logoFallback(siteUrl, OG_IMAGE_FALLBACK_CACHE_CONTROL);

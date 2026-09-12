@@ -79,6 +79,7 @@ export default function EditPostModal({
         })),
         isPublic: previewValues.isPublic,
         language: post.language,
+        publishedAt: post.publishedAt,
         createdAt: post.createdAt,
         channel: post.channel,
         blogPost: post.blogPost,

@@ -190,6 +190,16 @@ export const mediaItemSchema = z.object({
 
 const contentField = z.string().trim().max(5000).optional();
 const mediaField = z.array(mediaItemSchema).max(10).optional();
+// Optional publish date input. Accepts ISO date/datetime strings from
+// <input type="datetime-local"> (no timezone) or full ISO datetimes; coerced
+// to Date. When omitted the server defaults to now (posts) or now (blog).
+// Explicit null is treated as omitted (coercion would otherwise turn it into
+// the 1970 epoch). Shared by blog articles and timeline posts (promos of
+// scheduled articles carry the article's date so both go live together).
+const publishedAtField = z.preprocess(
+  (v) => (v === null ? undefined : v),
+  z.coerce.date().optional(),
+);
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -200,6 +210,9 @@ export const createPostSchema = z.object({
   media: mediaField.default([]),
   isPublic: z.boolean().default(true),
   language: z.enum(locales).default("en"),
+  // Optional publish date (timeline promos of scheduled articles carry the
+  // article's date so both go live together). Omitted/null = visible now.
+  publishedAt: publishedAtField,
   // Optional link to a channel blog article promoted by this post.
   blogPostId: z.string().min(1).optional(),
   // Category names (canonicalized to Title Case by the field transform).
@@ -213,6 +226,8 @@ export const updatePostSchema = z.object({
   media: mediaField,
   isPublic: z.boolean().optional(),
   language: z.enum(locales).optional(),
+  // Scheduled promo date mirrors the promoted article; null clears it.
+  publishedAt: z.coerce.date().nullish(),
   blogPostId: z.string().min(1).nullish(),
   // Undefined leaves categories alone; null or [] clears them.
   categories: categoryNamesField.nullish(),
@@ -235,14 +250,6 @@ const blogContentField = z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).opti
   .refine((v) => v === undefined || extractPlainText(v).length <= BLOG_CONTENT_MAX_LENGTH);
 const blogContentHtmlField = z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).optional();
 const blogCoverField = z.string().url().max(2000).refine(isSafeHttpUrl).optional();
-// Optional publish date input. Accepts ISO date/datetime strings from
-// <input type="datetime-local"> (no timezone) or full ISO datetimes; coerced
-// to Date. When omitted the server defaults to now. Explicit null is treated
-// as omitted (coercion would otherwise turn it into the 1970 epoch).
-const blogPublishedAtField = z.preprocess(
-  (v) => (v === null ? undefined : v),
-  z.coerce.date().optional(),
-);
 
 export const createBlogPostSchema = z.object({
   id: z.string().regex(uuidRegex).optional(),
@@ -254,7 +261,7 @@ export const createBlogPostSchema = z.object({
   channelId: z.string().optional(),
   isPublic: z.boolean().default(true),
   language: z.enum(locales).default("en"),
-  publishedAt: blogPublishedAtField,
+  publishedAt: publishedAtField,
   // Category names (canonicalized to Title Case by the field transform).
   categories: categoryNamesField.optional(),
 }).refine(

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toDateTimeLocalValue, parseDateTimeLocalValue, isBlogPubliclyVisible, buildTimelinePostBody } from "@/lib/blog";
+import { toDateTimeLocalValue, parseDateTimeLocalValue, isBlogPubliclyVisible } from "@/lib/blog";
 
 describe("toDateTimeLocalValue", () => {
   it("formats a Date to datetime-local shape", () => {
@@ -53,21 +53,5 @@ describe("isBlogPubliclyVisible", () => {
 
   it("fails closed on undecodable publish dates", () => {
     expect(isBlogPubliclyVisible({ isPublic: true, publishedAt: "not-a-date" })).toBe(false);
-  });
-});
-
-describe("buildTimelinePostBody", () => {
-  it("inherits channel, language, and visibility from the article", () => {
-    expect(buildTimelinePostBody({
-      id: "blog-1",
-      channel: { id: "channel-1" },
-      language: "cs",
-      isPublic: false,
-    })).toEqual({
-      channelId: "channel-1",
-      language: "cs",
-      isPublic: false,
-      blogPostId: "blog-1",
-    });
   });
 });

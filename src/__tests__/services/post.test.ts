@@ -112,8 +112,41 @@ describe("getPosts", () => {
     expect(result.hasMore).toBe(false);
     expect(prisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { isPublic: true },
+        where: expect.objectContaining({ isPublic: true }),
         take: 11,
+      }),
+    );
+  });
+
+  it("excludes scheduled posts from the public scope", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
+
+    await getPosts({ scope: "public", limit: 10 });
+
+    // Date-gated like blog articles: only immediately visible posts match.
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isPublic: true,
+          OR: [{ publishedAt: null }, { publishedAt: { lte: expect.any(Date) } }],
+        }),
+      }),
+    );
+  });
+
+  it("lists scheduled posts in the private scope for authors", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ id: "channel-1", ownerId: "user-1" } as any);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
+
+    await getPosts({ channelId: "channel-1", scope: "private" }, "user-1");
+
+    // Drafts (flag off) and scheduled promos (future date) both belong here.
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          channelId: "channel-1",
+          AND: [{ OR: [{ isPublic: false }, { publishedAt: { gt: expect.any(Date) } }] }],
+        }),
       }),
     );
   });
@@ -194,7 +227,7 @@ describe("getPosts", () => {
 
     expect(prisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { isPublic: true, channelId: "channel-1" },
+        where: expect.objectContaining({ isPublic: true, channelId: "channel-1" }),
       }),
     );
   });
@@ -206,7 +239,7 @@ describe("getPosts", () => {
 
     expect(prisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { isPublic: true, language: "cs" },
+        where: expect.objectContaining({ isPublic: true, language: "cs" }),
       }),
     );
   });
@@ -244,7 +277,7 @@ describe("getPosts", () => {
 
     expect(prisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { channelId: "channel-1", isPublic: true },
+        where: expect.objectContaining({ channelId: "channel-1", isPublic: true }),
       }),
     );
   });
@@ -284,7 +317,10 @@ describe("getPosts", () => {
 
     expect(prisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { channelId: "channel-1", isPublic: false },
+        where: expect.objectContaining({
+          channelId: "channel-1",
+          AND: [{ OR: [{ isPublic: false }, { publishedAt: { gt: expect.any(Date) } }] }],
+        }),
       }),
     );
   });
@@ -306,7 +342,10 @@ describe("getPosts", () => {
 
     expect(prisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { channelId: "channel-1", isPublic: false },
+        where: expect.objectContaining({
+          channelId: "channel-1",
+          AND: [{ OR: [{ isPublic: false }, { publishedAt: { gt: expect.any(Date) } }] }],
+        }),
       }),
     );
   });
@@ -548,6 +587,32 @@ describe("createPost", () => {
     );
   });
 
+  it("stores a scheduled publish date for timeline promos", async () => {
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({ id: "blog-1", channelId: "channel-1" } as any);
+    vi.mocked(prisma.post.create).mockResolvedValue(mockPost as any);
+    const future = new Date(Date.now() + 86_400_000);
+
+    await createPost({ blogPostId: "blog-1", publishedAt: future, channelId: "channel-1" }, "user-1");
+
+    expect(prisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ publishedAt: future, blogPostId: "blog-1" }),
+      }),
+    );
+  });
+
+  it("defaults the publish date to null (visible immediately)", async () => {
+    vi.mocked(prisma.post.create).mockResolvedValue(mockPost as any);
+
+    await createPost({ content: "Hello", channelId: "channel-1" }, "user-1");
+
+    expect(prisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ publishedAt: null }),
+      }),
+    );
+  });
+
   it("throws when channelId is missing", async () => {
     await expect(createPost({ content: "Hello" }, "user-1")).rejects.toThrow("channel_required");
   });
@@ -724,6 +789,33 @@ describe("updatePost", () => {
       },
       data: { content: "Updated!", slug: "updated" },
     });
+  });
+
+  it("reschedules a timeline promo to the article date", async () => {
+    const future = new Date(Date.now() + 86_400_000);
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce({ ...basePost, channel: { ownerId: "user-1" } } as any)
+      .mockResolvedValueOnce({ ...basePost, publishedAt: future, channel: { ownerId: "user-1" } } as any);
+    vi.mocked(prisma.post.updateMany).mockResolvedValue({ count: 1 });
+
+    await updatePost("post-1", "user-1", { publishedAt: future });
+
+    expect(prisma.post.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { publishedAt: future } }),
+    );
+  });
+
+  it("clears the scheduled date back to immediate with null", async () => {
+    vi.mocked(prisma.post.findUnique)
+      .mockResolvedValueOnce({ ...basePost, channel: { ownerId: "user-1" } } as any)
+      .mockResolvedValueOnce({ ...basePost, publishedAt: null, channel: { ownerId: "user-1" } } as any);
+    vi.mocked(prisma.post.updateMany).mockResolvedValue({ count: 1 });
+
+    await updatePost("post-1", "user-1", { publishedAt: null });
+
+    expect(prisma.post.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { publishedAt: null } }),
+    );
   });
 
   it("allows channel editor to update post", async () => {

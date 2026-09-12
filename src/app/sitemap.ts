@@ -38,12 +38,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const [channels, posts, blogPosts, categories] = await Promise.all([
     prisma.channel.findMany({
-      where: { posts: { some: { isPublic: true } } },
+      where: { posts: { some: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] } } },
       select: {
         id: true,
         createdAt: true,
         posts: {
-          where: { isPublic: true },
+          where: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] },
           select: { createdAt: true },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
@@ -53,8 +53,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 5000,
     }),
+    // Only publicly visible posts: flagged public with no (or a past) publish
+    // date. Scheduled promos stay out until their article goes live.
     prisma.post.findMany({
-      where: { isPublic: true },
+      where: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] },
       select: { id: true, shortId: true, slug: true, language: true, createdAt: true },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 5000,

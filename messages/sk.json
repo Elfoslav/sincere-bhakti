@@ -303,7 +303,7 @@
 		"scheduled": "Naplánovaný",
 		"publishDate": "Dátum publikácie",
 		"publishInTimeline": "Publikovať na timeline príspevkov",
-		"timelineScheduledHint": "Publikovanie na timeline sa odomkne, keď naplánovaný článok vyjde.",
+		"timelineScheduledHint": "Príspevok na timeline vyjde spoločne s naplánovaným článkom.",
 		"timelineSyncFailed": "Článok bol uložený, ale príspevok na timeline sa nepodarilo aktualizovať.",
 		"publish": "Publikovať",
 		"save": "Uložiť",

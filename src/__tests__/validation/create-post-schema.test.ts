@@ -143,4 +143,28 @@ describe("createPostSchema", () => {
       expect(result.data.blogPostId).toBe("blog-1");
     }
   });
+
+  it("accepts a scheduled publish date for timeline promos", () => {
+    const result = createPostSchema.safeParse({
+      blogPostId: "blog-1",
+      publishedAt: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.publishedAt).toBeInstanceOf(Date);
+    }
+  });
+
+  it("treats an explicit null publish date as omitted", () => {
+    const result = createPostSchema.safeParse({ content: "Hello", publishedAt: null });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.publishedAt).toBeUndefined();
+    }
+  });
+
+  it("rejects an undecodable publish date", () => {
+    const result = createPostSchema.safeParse({ content: "Hello", publishedAt: "not-a-date" });
+    expect(result.success).toBe(false);
+  });
 });

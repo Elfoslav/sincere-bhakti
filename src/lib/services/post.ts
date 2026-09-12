@@ -46,6 +46,9 @@ export interface PostResponse {
   content: string | null;
   isPublic: boolean;
   language: string;
+  // Null = visible immediately; a future date hides the post from public
+  // feeds until then (timeline promos of scheduled articles).
+  publishedAt: Date | null;
   createdAt: Date;
   channel: PostChannel;
   media: PostMedia[];
@@ -83,6 +86,7 @@ export interface CreatePostData {
   media?: MediaInput[];
   isPublic?: boolean;
   language?: string;
+  publishedAt?: Date | null;
   channelId?: string;
   blogPostId?: string;
   categories?: string[];
@@ -93,6 +97,7 @@ export interface UpdatePostData {
   isPublic?: boolean;
   media?: MediaInput[];
   language?: string;
+  publishedAt?: Date | null;
   blogPostId?: string | null;
   // Undefined leaves categories alone; null or [] clears them.
   categories?: string[] | null;
@@ -171,11 +176,24 @@ async function hidePrivateBlogPost<
   return { ...response, blogPost: null };
 }
 
+/**
+ * Public timeline visibility: flagged public with no (or a past) publish
+ * date. Scheduled promos (future date) stay out of public feeds until their
+ * article goes live — no cron needed, the date comparison does it.
+ */
+function postPublicVisibilityFilter(now: Date): Prisma.PostWhereInput {
+  return {
+    isPublic: true,
+    OR: [{ publishedAt: null }, { publishedAt: { lte: now } }],
+  };
+}
+
 export async function getPosts(
   params: GetPostsParams,
   currentUserId?: string,
 ): Promise<GetPostsResult> {
   const { scope, cursor, limit = 10, channelId, language, requestLanguage, blogPostId, category } = params;
+  const now = new Date();
 
   const where: Prisma.PostWhereInput = {};
   if (language) where.language = language;
@@ -194,7 +212,9 @@ export async function getPosts(
   }
 
   if (scope === "public") {
-    where.isPublic = true;
+    // Public feeds show only immediately visible posts: flagged public with
+    // no (or a past) publish date. Scheduled promos stay out until go-live.
+    Object.assign(where, postPublicVisibilityFilter(now));
     if (channelId) where.channelId = channelId;
   } else if (scope === "private") {
     if (!currentUserId) throw new UnauthorizedError();
@@ -213,7 +233,12 @@ export async function getPosts(
         { channel: { editors: { some: { userId: currentUserId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
       ];
     }
-    where.isPublic = false;
+    // Private tab: drafts + scheduled (public flag off, or publish date in future).
+    where.AND = [
+      {
+        OR: [{ isPublic: false }, { publishedAt: { gt: now } }],
+      },
+    ];
   } else {
     if (!currentUserId) throw new UnauthorizedError();
     if (channelId) {
@@ -225,7 +250,7 @@ export async function getPosts(
       if (!channel) throw new NotFoundError();
       where.channelId = channelId;
       if (channel.ownerId !== currentUserId && !await isChannelEditor(channelId, currentUserId)) {
-        where.isPublic = true;
+        Object.assign(where, postPublicVisibilityFilter(now));
       }
     } else {
       where.OR = [
@@ -358,7 +383,7 @@ export async function createPost(
   userId: string,
   requestLanguage?: string,
 ): Promise<PostResponse> {
-  const { id, content, media = [], isPublic = true, language = "en", channelId, blogPostId, categories } = data;
+  const { id, content, media = [], isPublic = true, language = "en", publishedAt, channelId, blogPostId, categories } = data;
   await validateMediaOwnership(media, userId);
 
   if (!channelId) throw new ValidationError("channel_required");
@@ -399,6 +424,7 @@ export async function createPost(
           content: content || null,
           isPublic,
           language,
+          publishedAt: publishedAt ?? null,
           channelId,
           ...(blogPostId ? { blogPostId } : {}),
           categories: {
