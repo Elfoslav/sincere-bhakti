@@ -7,14 +7,16 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 export default function BlogLayout({
   title,
   children,
+  containerClassName = "w-full max-w-3xl mx-auto px-4 py-8",
 }: {
   title: string;
   children: ReactNode;
+  containerClassName?: string;
 }) {
   const blogT = useTranslations("BlogPage");
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-8">
+    <div className={containerClassName}>
       <Breadcrumb
         items={[
           { label: blogT("title"), href: "/blog" },

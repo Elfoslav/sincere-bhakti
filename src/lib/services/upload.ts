@@ -45,9 +45,9 @@ export function setS3Client(mock: S3Client) {
   s3 = mock;
 }
 
-function objectKey(fileName: string, postId: string): string {
+function objectKey(fileName: string, postId: string, folder = "posts"): string {
   const safe = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
-  return `posts/${postId}/${randomUUID()}-${safe}`;
+  return `${folder}/${postId}/${randomUUID()}-${safe}`;
 }
 
 export async function createUploadUrl(
@@ -55,9 +55,10 @@ export async function createUploadUrl(
   contentType: string,
   postId: string,
   contentLength?: number,
+  folder = "posts",
 ): Promise<UploadUrlResult> {
   const client = getS3Client();
-  const key = objectKey(fileName, postId);
+  const key = objectKey(fileName, postId, folder);
   const bucket = process.env.R2_BUCKET ?? "sincere-bhakti-uploads";
 
   const command = new PutObjectCommand({

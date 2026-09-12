@@ -199,6 +199,8 @@ export default function BlogForm({
             draftId,
             [{ file: coverFile, width: dims?.width, height: dims?.height }],
             mode === "create" ? (postingChannel?.id ?? activeChannelId ?? undefined) : undefined,
+            // Blog covers live under the `blog/` R2 prefix, not `posts/`.
+            "blog",
           );
           if (uploadError || uploaded.length === 0) {
             await cleanupUploadedMedia(uploaded.map((m) => m.url));

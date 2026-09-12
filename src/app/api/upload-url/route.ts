@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       contentType,
       postId,
       contentLength,
+      parsed.data.folder,
     );
 
     if (key) {

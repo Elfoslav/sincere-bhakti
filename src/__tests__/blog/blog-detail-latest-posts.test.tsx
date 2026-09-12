@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 
 vi.mock("next-intl", () => ({
   useTranslations: vi.fn(() => (key: string) => key),
@@ -51,37 +51,47 @@ function makePost(id: string, title: string): BlogPost {
 
 const mainPost = makePost("main", "Main Article");
 
-describe("BlogDetailClient latest posts", () => {
+describe("BlogDetailClient editorial layout", () => {
+  it("renders breadcrumb, serif title, and excerpt", () => {
+    const { container } = render(
+      <BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />,
+    );
+    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Main Article" })).toBeInTheDocument();
+    expect(screen.getByText("Excerpt Main Article")).toBeInTheDocument();
+    expect(container.querySelector("figure")).not.toBeInTheDocument();
+  });
+
+  it("renders no cover figure when the article has no cover image", () => {
+    const { container } = render(
+      <BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />,
+    );
+    expect(container.querySelector("figure")).toBeNull();
+    expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("renders the cover figure when the article has a cover image", () => {
+    const { container } = render(
+      <BlogDetailClient
+        post={{ ...mainPost, coverUrl: "https://media.sincerebhakti.com/covers/mock.jpg" }}
+        contentHtml="<p>body</p>"
+        latestPosts={[]}
+      />,
+    );
+    const figure = container.querySelector("figure");
+    expect(figure).toBeInTheDocument();
+    expect(figure?.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://media.sincerebhakti.com/covers/mock.jpg",
+    );
+  });
+
   it("renders no latest section when there are no other articles", () => {
     render(<BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />);
     expect(screen.queryByText("latestPosts")).not.toBeInTheDocument();
   });
 
-  it("renders a single latest article full width", () => {
-    const { container } = render(
-      <BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[makePost("a", "Alpha")]} />,
-    );
-    expect(screen.getByText("latestPosts")).toBeInTheDocument();
-    expect(screen.getByText("Alpha")).toBeInTheDocument();
-    const grid = container.querySelector("section div.grid");
-    expect(grid?.className).toBe("grid grid-cols-1 gap-4");
-  });
-
-  it("renders two latest articles in two columns", () => {
-    const { container } = render(
-      <BlogDetailClient
-        post={mainPost}
-        contentHtml="<p>body</p>"
-        latestPosts={[makePost("a", "Alpha"), makePost("b", "Beta")]}
-      />,
-    );
-    expect(screen.getByText("Alpha")).toBeInTheDocument();
-    expect(screen.getByText("Beta")).toBeInTheDocument();
-    const grid = container.querySelector("section div.grid");
-    expect(grid?.className).toBe("grid grid-cols-1 gap-4 sm:grid-cols-2");
-  });
-
-  it("renders three latest articles in three columns", () => {
+  it("renders latest articles as a numbered list", () => {
     const { container } = render(
       <BlogDetailClient
         post={mainPost}
@@ -89,8 +99,15 @@ describe("BlogDetailClient latest posts", () => {
         latestPosts={[makePost("a", "Alpha"), makePost("b", "Beta"), makePost("c", "Gamma")]}
       />,
     );
-    expect(screen.getByText("Gamma")).toBeInTheDocument();
-    const grid = container.querySelector("section div.grid");
-    expect(grid?.className).toBe("grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3");
+    const section = screen.getByText("latestPosts").closest("section")!;
+    const items = within(section).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(items[0]).toHaveTextContent("01");
+    expect(items[1]).toHaveTextContent("02");
+    expect(items[2]).toHaveTextContent("03");
+    for (const title of ["Alpha", "Beta", "Gamma"]) {
+      expect(within(section).getByText(title)).toBeInTheDocument();
+    }
+    expect(container.querySelector("section div.grid")).toBeNull();
   });
 });

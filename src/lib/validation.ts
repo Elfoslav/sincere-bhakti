@@ -289,6 +289,17 @@ export const paginationSchema = z.object({
 
 export const blogPaginationSchema = paginationSchema;
 
+// R2 key namespace for direct browser uploads. Post/blog ids are cuids
+// while create-mode drafts use random UUIDs, so both shapes must pass —
+// while still rejecting `/`, `..`, `?`, `#` that could escape the
+// `<folder>/<id>/` key prefix.
+export const uploadPostIdField = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
+
+// Top-level R2 folders for direct uploads. Blog covers live under `blog/`
+// so post tooling never mistakes them for timeline-post media (and orphan
+// sweeps can scope by prefix). Allowlisted — never a free-form client string.
+export const uploadFolderField = z.enum(["posts", "blog"]).optional().default("posts");
+
 export const uploadUrlSchema = z.object({
   fileName: z.string().min(1).max(255),
   contentType: z
@@ -296,18 +307,18 @@ export const uploadUrlSchema = z.object({
     .min(1)
     .max(255)
     .refine(isAllowedUploadContentType),
-  // UUID-constrained (like createPostSchema.id) so it can't inject `/`, `..`,
-  // `?`, `#` into the R2 object key.
-  postId: z.string().regex(uuidRegex),
+  postId: uploadPostIdField,
   channelId: z.string().min(1).optional(),
+  folder: uploadFolderField,
   // Required so the presigned PUT is signed with a ContentLength cap (R2 rejects
   // a larger upload). Prevents unbounded object-size storage/egress abuse.
   contentLength: z.number().int().positive().max(MAX_VIDEO_SIZE_BYTES),
 });
 
 export const batchUploadUrlSchema = z.object({
-  postId: z.string().regex(uuidRegex),
+  postId: uploadPostIdField,
   channelId: z.string().min(1).optional(),
+  folder: uploadFolderField,
   files: z
     .array(
       z.object({

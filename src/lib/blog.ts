@@ -86,17 +86,6 @@ export function selectLatestBlogPosts<T extends { id: string }>(
 }
 
 /**
- * Responsive grid for the detail-page "latest posts" section. One article
- * spans full width like a regular preview; two share a row; three fill
- * three columns on wide screens (stacked on mobile).
- */
-export function getLatestBlogPostsGridClass(count: number): string {
-  if (count <= 1) return "grid grid-cols-1 gap-4";
-  if (count === 2) return "grid grid-cols-1 gap-4 sm:grid-cols-2";
-  return "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3";
-}
-
-/**
  * Format a blog article date for display. Accepts Date or ISO-string input
  * (API responses serialize Dates to strings) and falls back to "en-US" for
  * the "en" locale so month names stay in English.

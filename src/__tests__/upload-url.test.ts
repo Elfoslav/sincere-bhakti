@@ -79,7 +79,7 @@ describe("POST /api/upload-url", () => {
     expect(json.uploadUrl).toBe("https://r2.example.com/upload-url");
     expect(json.publicUrl).toBe("https://pub.r2.dev/posts/uuid-test.jpg");
     expect(json.mediaType).toBe("image");
-    expect(createUploadUrl).toHaveBeenCalledWith("test.jpg", "image/jpeg", "11111111-1111-4111-8111-111111111111", 100);
+    expect(createUploadUrl).toHaveBeenCalledWith("test.jpg", "image/jpeg", "11111111-1111-4111-8111-111111111111", 100, "posts");
     expect(resolveAuthorableChannelId).toHaveBeenCalledWith({
       explicitChannelId: "channel-2",
       preferredChannelId: undefined,
@@ -119,6 +119,24 @@ describe("POST /api/upload-url", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("set-cookie")).toContain("sb_active_channel_id=channel-1");
+  });
+
+  it("accepts a cuid postId for edit-mode uploads to existing posts", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
+    vi.mocked(prisma.pendingUpload.create).mockResolvedValue({} as any);
+    vi.mocked(createUploadUrl).mockResolvedValue({
+      uploadUrl: "https://r2.example.com/upload-url",
+      publicUrl: "https://pub.r2.dev/posts/cm9x1a2b3c000108l4abcd1234/test.jpg",
+      key: "posts/cm9x1a2b3c000108l4abcd1234/test.jpg",
+    });
+    vi.mocked(contentTypeToMediaType).mockReturnValue("image");
+
+    const res = await POST(mockRequest({ fileName: "test.jpg", contentType: "image/jpeg", postId: "cm9x1a2b3c000108l4abcd1234", contentLength: 100 }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.uploadUrl).toBe("https://r2.example.com/upload-url");
+    expect(createUploadUrl).toHaveBeenCalledWith("test.jpg", "image/jpeg", "cm9x1a2b3c000108l4abcd1234", 100, "posts");
   });
 
   it("returns 400 when fileName is missing", async () => {

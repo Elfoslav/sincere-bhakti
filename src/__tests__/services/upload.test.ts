@@ -32,6 +32,13 @@ describe("createUploadUrl", () => {
     expect(result.key).toMatch(/^posts\/user-1\/[\w-]+-my_cool_photo___\.jpg$/);
     expect(result.publicUrl).toMatch(/^https:\/\/pub\.r2\.dev\/posts\/user-1\/[\w-]+-my_cool_photo___\.jpg$/);
   });
+
+  it("namespaces blog covers under the blog folder", async () => {
+    const result = await createUploadUrl("cover.jpg", "image/jpeg", "post-1", undefined, "blog");
+
+    expect(result.key).toMatch(/^blog\/post-1\/.+\.jpg$/);
+    expect(result.publicUrl).toMatch(/^https:\/\/pub\.r2\.dev\/blog\/post-1\/.+\.jpg$/);
+  });
 });
 
 describe("processImage", () => {
