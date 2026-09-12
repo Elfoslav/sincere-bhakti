@@ -64,15 +64,17 @@ export default function BlogCard({
             >
               {post.channel.name?.[0]?.toUpperCase() || "?"}
             </div>
-            <span className="truncate text-xs text-deep/60">
+            <span className="flex min-w-0 flex-1 items-center gap-x-1.5 gap-y-0.5 flex-wrap text-xs text-deep/60">
               <Link
                 href={`/channels/${post.channel.slug}`}
-                className="font-medium text-deep/70 hover:text-gold transition-colors"
+                className="min-w-0 max-w-full truncate font-medium text-deep/70 hover:text-gold transition-colors"
               >
                 {post.channel.name}
               </Link>
-              <span className="mx-1.5 text-deep/30">·</span>
-              <span>{date}</span>
+              <span className="shrink-0 text-deep/30" aria-hidden>
+                ·
+              </span>
+              <span className="shrink-0 whitespace-nowrap">{date}</span>
             </span>
             {!post.isPublic ? (
               <span className="shrink-0 rounded-full bg-deep/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-deep/70">
