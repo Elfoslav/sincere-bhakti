@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { getBlogUrl } from "@/lib/blog-url";
+import { formatBlogDate } from "@/lib/blog";
 import { Card } from "@/components/ui/card";
 import BlogExcerpt from "@/components/BlogExcerpt";
 import CategoryChips from "@/components/CategoryChips";
@@ -25,68 +26,93 @@ export default function BlogCard({
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("BlogPage");
-  const displayDate = post.publishedAt ?? post.createdAt;
-  const date = new Date(displayDate).toLocaleDateString(locale === "en" ? "en-US" : locale, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const date = formatBlogDate(post.publishedAt ?? post.createdAt, locale);
   const isScheduled = post.publishedAt ? new Date(post.publishedAt) > new Date() : false;
 
   return (
     <Card>
-      {post.coverUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={post.coverUrl}
-          alt={post.title}
-          className="mb-3 h-48 w-full rounded-md object-cover"
-          loading="lazy"
-        />
-      ) : null}
-      <div className="flex items-start gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white font-bold text-lg shrink-0">
-          {post.channel.name?.[0]?.toUpperCase() || "?"}
+      {/* Title row — actions sit tight to the title on the right so they are
+          always discoverable but don't compete with the cover. When there is
+          a cover, the thumb lives in the body row below — no overlap. */}
+      <div className="flex items-start justify-between gap-3">
+        <Link href={getBlogUrl(post.shortId, post.slug)} className="min-w-0 flex-1 text-deep hover:text-gold transition-colors">
+          <h3 className="font-serif text-xl font-bold leading-tight line-clamp-2 sm:text-[22px]">
+            {post.title}
+          </h3>
+        </Link>
+        <div className="shrink-0 -mr-1 -mt-1">
+          <BlogPostActions
+            post={post}
+            currentUserId={currentUserId}
+            manageableChannelIds={manageableChannelIds}
+            onDelete={onDelete}
+            onEdit={onEdit}
+          />
         </div>
-        <div className="flex-1 min-w-0">
-          <Link
-            href={`/channels/${post.channel.slug}`}
-            className="font-semibold text-deep hover:text-gold"
-          >
-            {post.channel.name}
-          </Link>
-          <p className="text-xs text-deep/60">
-            <Link href={getBlogUrl(post.shortId, post.slug)} className="hover:text-gold">
-              {date}
-            </Link>
+      </div>
+
+      {/* Body row — excerpt + byline on left, cover thumb on right.
+          Thumb is below the title-actions row, so actions and image never
+          fight for the same corner. */}
+      <div className="mt-2 flex gap-4 items-start">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0 flex-wrap">
+            <div
+              className="shrink-0 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white font-bold"
+              style={{ width: 22, height: 22, fontSize: 10 }}
+              aria-hidden
+            >
+              {post.channel.name?.[0]?.toUpperCase() || "?"}
+            </div>
+            <span className="truncate text-xs text-deep/60">
+              <Link
+                href={`/channels/${post.channel.slug}`}
+                className="font-medium text-deep/70 hover:text-gold transition-colors"
+              >
+                {post.channel.name}
+              </Link>
+              <span className="mx-1.5 text-deep/30">·</span>
+              <span>{date}</span>
+            </span>
             {!post.isPublic ? (
-              <span className="ml-2 rounded bg-deep/10 px-1.5 py-0.5 text-[11px] font-medium text-deep/70">
+              <span className="shrink-0 rounded-full bg-deep/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-deep/70">
                 {t("private")}
               </span>
             ) : isScheduled ? (
-              <span className="ml-2 rounded bg-gold-light/20 px-1.5 py-0.5 text-[11px] font-medium text-gold-dark">
+              <span className="shrink-0 rounded-full bg-gold-light/25 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-gold-dark">
                 {t("scheduled")}
               </span>
             ) : null}
-          </p>
+          </div>
+
+          <BlogExcerpt
+            post={post}
+            className="mt-2 text-sm leading-relaxed text-deep/60"
+            clampClassName="line-clamp-2"
+          />
+
+          <CategoryChips
+            categories={post.categories}
+            onSelect={(category) => router.push(`/blog/category/${category.slug}`)}
+            className="mt-2"
+          />
         </div>
-        <BlogPostActions
-          post={post}
-          currentUserId={currentUserId}
-          manageableChannelIds={manageableChannelIds}
-          onDelete={onDelete}
-          onEdit={onEdit}
-        />
+
+        {post.coverUrl ? (
+          <Link
+            href={getBlogUrl(post.shortId, post.slug)}
+            className="block shrink-0 overflow-hidden rounded-lg"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={post.coverUrl}
+              alt=""
+              className="h-20 w-20 object-cover sm:h-28 sm:w-28"
+              loading="lazy"
+            />
+          </Link>
+        ) : null}
       </div>
-      <Link href={getBlogUrl(post.shortId, post.slug)} className="block hover:text-gold">
-        <h3 className="text-xl font-bold text-deep">{post.title}</h3>
-      </Link>
-      <BlogExcerpt post={post} className="mt-1 text-deep/80" clampClassName="line-clamp-3" />
-      <CategoryChips
-        categories={post.categories}
-        onSelect={(category) => router.push(`/blog/category/${category.slug}`)}
-        className="mt-2"
-      />
     </Card>
   );
 }

@@ -41,7 +41,10 @@
 		"cardMediaTitle": "Sacred Media",
 		"cardMediaDesc": "Share images and videos from your spiritual journey.",
 		"cardSangaTitle": "Devotee Saṅga",
-		"cardSangaDesc": "Connect with fellow devotees in a respectful community."
+		"cardSangaDesc": "Connect with fellow devotees in a respectful community.",
+		"blogLatestTitle": "Latest Blog Articles",
+		"blogLatestSubtitle": "Long-form articles from the channels",
+		"viewAllBlog": "View all articles"
 	},
 	"PostsPage": {
 		"title": "Posts",

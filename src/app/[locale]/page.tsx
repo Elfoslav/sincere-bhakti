@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import Image from "next/image";
+import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, Image as ImageIcon, Users } from "lucide-react";
 import { DEFAULT_OG_IMAGE } from "@/lib/seo";
+import { getBlogPosts } from "@/lib/services/blog";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
+import BlogCard from "@/components/BlogCard";
+import type { BlogPost } from "@/types/blog";
 
 type Props = {
 	params: Promise<{ locale: string }>;
@@ -32,6 +38,28 @@ export default async function Home({ params }: Props) {
 	const { locale } = await params;
 	setRequestLocale(locale);
 	const t = await getTranslations("HomePage");
+
+	const ip = getClientIp(await headers());
+	const allowed = await checkRateLimit(
+		RATE_LIMIT_PREFIX.readBlogs,
+		ip,
+		RATE_LIMITS.readBlogs.limit,
+		RATE_LIMITS.readBlogs.windowMs,
+	);
+	let blogPosts: BlogPost[] = [];
+	if (allowed) {
+		try {
+			const result = await getBlogPosts({
+				scope: "public",
+				language: locale,
+				requestLanguage: locale,
+				limit: 3,
+			});
+			blogPosts = JSON.parse(JSON.stringify(result.posts)) as BlogPost[];
+		} catch {
+			blogPosts = [];
+		}
+	}
 
 	return (
 		<div className="min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center px-4 py-12">
@@ -86,6 +114,28 @@ export default async function Home({ params }: Props) {
 						<p className="text-sm text-deep/60">{t("cardSangaDesc")}</p>
 					</Card>
 				</div>
+
+				{blogPosts.length > 0 ? (
+					<section className="mt-16 text-left" aria-labelledby="home-blog-heading">
+						<div className="flex items-baseline justify-between gap-4 mb-2">
+							<h2 id="home-blog-heading" className="text-2xl font-bold text-deep">
+								{t("blogLatestTitle")}
+							</h2>
+							<Link
+								href="/blog"
+								className="shrink-0 text-sm font-medium text-saffron hover:text-saffron-dark transition-colors"
+							>
+								{t("viewAllBlog")} →
+							</Link>
+						</div>
+						<p className="text-sm text-deep/60 mb-6">{t("blogLatestSubtitle")}</p>
+						<div className="space-y-4">
+							{blogPosts.map((post) => (
+								<BlogCard key={post.id} post={post} />
+							))}
+						</div>
+					</section>
+				) : null}
 			</div>
 		</div>
 	);

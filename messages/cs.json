@@ -41,7 +41,10 @@
 		"cardMediaTitle": "Posvátná média",
 		"cardMediaDesc": "Sdílej obrázky a videa ze své duchovní cesty.",
 		"cardSangaTitle": "Oddaná Saṅga",
-		"cardSangaDesc": "Spoj se s dalšími oddanými v respektující komunitě."
+		"cardSangaDesc": "Spoj se s dalšími oddanými v respektující komunitě.",
+		"blogLatestTitle": "Nejnovější články z blogu",
+		"blogLatestSubtitle": "Delší články z kanálů",
+		"viewAllBlog": "Zobrazit všechny články"
 	},
 	"PostsPage": {
 		"title": "Příspěvky",
