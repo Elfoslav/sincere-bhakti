@@ -242,6 +242,7 @@
 		"openImage": "Otevřít obrázek",
 		"copyLink": "Zkopírovat odkaz na příspěvek",
 		"linkCopied": "Odkaz na příspěvek zkopírován do schránky",
+		"linkCopyFailed": "Odkaz se nepodařilo zkopírovat",
 		"deleteConfirm": "Opravdu chcete smazat tento příspěvek? Tuto akci nelze vrátit.",
 		"deleteSuccess": "Příspěvek smazán",
 		"deleteFailed": "Nepodařilo se smazat příspěvek"
@@ -322,6 +323,7 @@
 		"editTitle": "Upravit článek",
 		"copyLink": "Kopírovat odkaz na článek",
 		"linkCopied": "Odkaz na článek zkopírován",
+		"linkCopyFailed": "Odkaz se nepodařilo zkopírovat",
 		"notFound": "Článek nenalezen",
 		"latestPosts": "Nejnovější články",
 		"bodyLoadFailed": "Tělo článku se nepodařilo načíst. Zavři dialog a zkus to znovu.",

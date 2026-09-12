@@ -6,6 +6,7 @@ import { routing } from "@/i18n/routing";
 import { Link as LinkIcon, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getBlogUrl } from "@/lib/blog-url";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { BlogPost } from "@/types/blog";
@@ -45,11 +46,14 @@ export default function BlogPostActions({
 
   const canManage = isBlogPostManager(post, currentUserId, manageableChannelIds);
 
-  const handleCopyLink = useCallback(() => {
+  const handleCopyLink = useCallback(async () => {
     const localePrefix = locale === routing.defaultLocale ? "" : `/${locale}`;
     const url = `${window.location.origin}${localePrefix}${getBlogUrl(post.shortId, post.slug)}`;
-    navigator.clipboard.writeText(url);
-    toast.success(t("linkCopied"));
+    if (await copyTextToClipboard(url)) {
+      toast.success(t("linkCopied"));
+    } else {
+      toast.error(t("linkCopyFailed"));
+    }
   }, [locale, post.shortId, post.slug, t]);
 
   const handleDeleteConfirm = useCallback(async () => {

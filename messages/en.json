@@ -242,6 +242,7 @@
 		"openImage": "Open image",
 		"copyLink": "Copy post link",
 		"linkCopied": "Post link copied to clipboard",
+		"linkCopyFailed": "Could not copy the link",
 		"deleteConfirm": "Are you sure you want to delete this post? This cannot be undone.",
 		"deleteSuccess": "Post deleted",
 		"deleteFailed": "Failed to delete post"
@@ -322,6 +323,7 @@
 		"editTitle": "Edit article",
 		"copyLink": "Copy article link",
 		"linkCopied": "Article link copied to clipboard",
+		"linkCopyFailed": "Could not copy the link",
 		"notFound": "Article not found",
 		"latestPosts": "Latest articles",
 		"bodyLoadFailed": "Couldn't load the article body. Please close and try again.",

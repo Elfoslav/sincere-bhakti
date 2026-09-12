@@ -242,6 +242,7 @@
 		"openImage": "Otvoriť obrázok",
 		"copyLink": "Skopírovať odkaz na príspevok",
 		"linkCopied": "Odkaz na príspevok skopírovaný do schránky",
+		"linkCopyFailed": "Odkaz sa nepodarilo skopírovať",
 		"deleteConfirm": "Naozaj chcete zmazať tento príspevok? Túto akciu nemožno vrátiť.",
 		"deleteSuccess": "Príspevok zmazaný",
 		"deleteFailed": "Nepodarilo sa zmazať príspevok"
@@ -322,6 +323,7 @@
 		"editTitle": "Upraviť článok",
 		"copyLink": "Kopírovať odkaz na článok",
 		"linkCopied": "Odkaz na článok skopírovaný",
+		"linkCopyFailed": "Odkaz sa nepodarilo skopírovať",
 		"notFound": "Článok sa nenašiel",
 		"latestPosts": "Najnovšie články",
 		"bodyLoadFailed": "Telo článku sa nepodarilo načítať. Zavri dialóg a skús to znova.",

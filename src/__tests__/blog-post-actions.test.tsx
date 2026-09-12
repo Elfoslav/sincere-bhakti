@@ -85,7 +85,9 @@ describe("BlogPostActions", () => {
     fireEvent.click(screen.getByRole("button", { name: "copyLink" }));
 
     expect(writeText).toHaveBeenCalledWith("http://localhost:3000/blog/abc12345/my-article");
-    expect(vi.mocked(toast.success)).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(vi.mocked(toast.success)).toHaveBeenCalled();
+    });
   });
 
   it("deletes via the confirm dialog and notifies the parent", async () => {

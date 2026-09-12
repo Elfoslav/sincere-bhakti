@@ -7,6 +7,7 @@ import { localeFlags, routing } from "@/i18n/routing";
 import { Link as LinkIcon, ExternalLink, Pencil, Trash2, MoreHorizontal, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { replaceEmoticons } from "@/lib/emoticons";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import { isStandaloneYouTubeUrl } from "@/lib/video";
 import { getPostUrl } from "@/lib/post-url";
 import { getBlogUrl } from "@/lib/blog-url";
@@ -61,11 +62,14 @@ export default function PostCard({
   const otherMedia = useMemo(() => post.media.filter((m) => m.type !== "image"), [post.media]);
   const canManage = !!(currentUserId === post.channel.ownerId || manageableChannelIds?.includes(post.channel.id));
 
-  const handleCopyLink = useCallback(() => {
+  const handleCopyLink = useCallback(async () => {
     const localePrefix = locale === routing.defaultLocale ? "" : `/${locale}`;
     const url = `${window.location.origin}${localePrefix}${getPostUrl(post.shortId, post.slug)}`;
-    navigator.clipboard.writeText(url);
-    toast.success(t("linkCopied"));
+    if (await copyTextToClipboard(url)) {
+      toast.success(t("linkCopied"));
+    } else {
+      toast.error(t("linkCopyFailed"));
+    }
   }, [locale, post.shortId, post.slug, t]);
 
   useEffect(() => {
