@@ -14,6 +14,9 @@ export const routing = defineRouting({
   defaultLocale: "en",
   localePrefix: "as-needed",
   localeCookie: {
+    name: "NEXT_LOCALE",
+    path: "/",
+    sameSite: "lax",
     maxAge: 60 * 60 * 24 * 365,
   },
 });
