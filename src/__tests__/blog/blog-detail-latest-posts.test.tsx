@@ -53,7 +53,7 @@ function makePost(id: string, title: string): BlogPost {
 const mainPost = makePost("main", "Main Article");
 
 describe("BlogDetailClient editorial layout", () => {
-  it("renders breadcrumb, serif title, and excerpt", () => {
+  it("renders breadcrumb, heading title, and excerpt", () => {
     const { container } = render(
       <BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />,
     );

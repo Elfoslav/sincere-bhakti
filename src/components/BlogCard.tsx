@@ -36,7 +36,7 @@ export default function BlogCard({
           a cover, the thumb lives in the body row below — no overlap. */}
       <div className="flex items-start justify-between gap-3">
         <Link href={getBlogUrl(post.shortId, post.slug)} className="min-w-0 flex-1 text-deep hover:text-gold transition-colors">
-          <h3 className="font-serif text-xl font-bold leading-tight line-clamp-2 sm:text-[22px]">
+          <h3 className="font-heading text-xl font-bold leading-tight line-clamp-2 sm:text-[22px]">
             {post.title}
           </h3>
         </Link>

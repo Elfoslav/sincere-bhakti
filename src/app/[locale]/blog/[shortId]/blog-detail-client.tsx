@@ -94,7 +94,7 @@ export default function BlogDetailClient({
           {displayedPost.channel.name}
         </Link>
       </p>
-      <h1 className="mt-4 text-center font-serif text-4xl font-bold leading-tight text-deep sm:text-5xl">
+      <h1 className="mt-4 text-center font-heading text-4xl font-bold leading-tight text-deep sm:text-5xl">
         {displayedPost.title}
       </h1>
       <p className="mt-4 flex items-center justify-center gap-2 text-center text-sm text-deep/60">
@@ -118,7 +118,7 @@ export default function BlogDetailClient({
       </p>
       <hr className="mx-auto my-8 w-16 border-t-2 border-gold" />
       {displayedPost.excerpt ? (
-        <p className="text-center font-serif text-xl italic leading-relaxed text-deep/80">
+        <p className="text-center font-heading text-xl italic leading-relaxed text-deep/80">
           {displayedPost.excerpt}
         </p>
       ) : null}
@@ -154,13 +154,13 @@ export default function BlogDetailClient({
           <ol className="mt-6 divide-y divide-deep/10">
             {latestPosts.map((post, index) => (
               <li key={post.id} className="flex items-center gap-4 py-4">
-                <span aria-hidden className="shrink-0 font-serif text-2xl font-bold text-gold">
+                <span aria-hidden className="shrink-0 font-heading text-2xl font-bold text-gold">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <div className="min-w-0 flex-1">
                   <Link
                     href={getBlogUrl(post.shortId, post.slug)}
-                    className="font-serif text-xl font-bold text-deep hover:text-gold"
+                    className="font-heading text-xl font-bold text-deep hover:text-gold"
                   >
                     {post.title}
                   </Link>

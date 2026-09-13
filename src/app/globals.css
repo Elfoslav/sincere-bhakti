@@ -33,7 +33,7 @@
      patched Marcellus — see src/app/fonts + scripts/heading-font). It is
      single-weight; disable weight synthesis so `font-bold` / `font-semibold`
      utilities render at its true weight instead of a crude faux-bold. */
-  h1, h2, h3 {
+  h1, h2, h3, .font-heading {
     font-family: var(--font-heading);
     letter-spacing: 0.01em;
     font-synthesis-weight: none;

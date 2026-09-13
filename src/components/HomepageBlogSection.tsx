@@ -23,7 +23,7 @@ export default function HomepageBlogSection() {
   return (
     <section className="mt-16 text-left" aria-labelledby="home-blog-heading">
       <div className="flex items-baseline justify-between gap-4 mb-2">
-        <h2 id="home-blog-heading" className="text-2xl font-bold text-deep">
+        <h2 id="home-blog-heading" className="font-heading text-2xl font-bold text-deep">
           {t("blogLatestTitle")}
         </h2>
         <Link
