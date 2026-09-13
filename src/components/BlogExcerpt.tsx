@@ -26,7 +26,9 @@ export function stripExcerptLinks(html: string): string {
 /**
  * Article excerpt for feed cards: the hand-written summary when set,
  * otherwise the sanitized article HTML (clamped), otherwise a plain-text
- * preview covering legacy bodies without rendered HTML.
+ * preview covering legacy bodies without rendered HTML. contentHtml arrives
+ * server-sanitized (toBlogPostResponse re-sanitizes on read) — never feed
+ * raw stored HTML here.
  */
 export default function BlogExcerpt({
   post,

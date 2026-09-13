@@ -7,7 +7,7 @@ import { handlePrismaCollision, serverError } from "@/lib/error-handlers";
 import { parseBody } from "@/lib/parse-body";
 import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/validation";
 import { createChannel, NameTakenError, ChannelLimitError } from "@/lib/services/channel";
-import { ERROR_NOT_FOUND, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { ERROR_NOT_FOUND, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN, ERROR_TOO_MANY_REQUESTS, ERROR_EMAIL_NOT_VERIFIED } from "@/lib/error-messages";
 import { HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
 
 export async function GET(request: NextRequest) {
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   // Creating a channel permanently claims a global name; require a verified
   // email so throwaway/unverified accounts can't squat the namespace.
   if (!session.user.emailVerifiedAt) {
-    return NextResponse.json({ error: "email_not_verified" }, { status: HTTP_FORBIDDEN });
+    return NextResponse.json({ error: ERROR_EMAIL_NOT_VERIFIED }, { status: HTTP_FORBIDDEN });
   }
 
   try {

@@ -11,6 +11,7 @@ import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translat
 import { generateShortId } from "@/lib/id";
 import { derivePostSlug, normalizeCategoryName } from "@/lib/validation";
 import { resolveCategoryIds, setPostCategories } from "@/lib/services/category";
+import { ERROR_POST_ID_COLLISION } from "@/lib/error-messages";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
 import type { CategoryRef } from "@/types/category";
@@ -168,7 +169,9 @@ async function hidePrivateBlogPost<
   rawBlogPost: { isPublic: boolean; publishedAt: Date | string | null; channel: { id: string; ownerId: string } } | null | undefined,
   viewerId?: string,
 ): Promise<T> {
-  if (!response.blogPost || !rawBlogPost) return response;
+  // No link or a dangling link (relation null): never leak the scalar —
+  // the inconsistent state is exactly where the guard must stay defensive.
+  if (!response.blogPost || !rawBlogPost) return { ...response, blogPost: null, blogPostId: null };
   if (isBlogPubliclyVisible(rawBlogPost)) return response;
   if (viewerId) {
     if (rawBlogPost.channel.ownerId === viewerId) return response;
@@ -197,6 +200,21 @@ export async function getPosts(
 ): Promise<GetPostsResult> {
   const { scope, cursor, limit = 10, channelId, language, requestLanguage, blogPostId, category } = params;
   const now = new Date();
+
+  if (blogPostId) {
+    // Existence gate: without it, ?blogPostId=<guess> oracles private
+    // article ids (a public promo row vs an empty set). Only proceed when
+    // the linked article is publicly visible or the viewer authors its
+    // channel — otherwise return empty (a list filter, never a 404).
+    const linked = await prisma.blogPost.findUnique({
+      where: { id: blogPostId },
+      select: { isPublic: true, publishedAt: true, channel: { select: { id: true, ownerId: true } } },
+    });
+    const openlyVisible = !!linked && isBlogPubliclyVisible(linked);
+    const authored = !!linked && !!currentUserId &&
+      (linked.channel.ownerId === currentUserId || await isChannelEditor(linked.channel.id, currentUserId));
+    if (!openlyVisible && !authored) return { posts: [], hasMore: false };
+  }
 
   const where: Prisma.PostWhereInput = {};
   if (language) where.language = language;
@@ -454,7 +472,7 @@ export async function createPost(
           ? target.includes("shortId")
           : typeof target === "string" && target.includes("shortId");
         if (onShortId && attempt < MAX_SHORT_ID_ATTEMPTS) continue;
-        throw new ConflictError("post_id_collision");
+        throw new ConflictError(ERROR_POST_ID_COLLISION);
       }
       throw error;
     }
@@ -539,11 +557,6 @@ export async function updatePost(
     postData.slug = derivePostSlug(rest.content) ?? null;
   }
 
-  // Links resolve in the post's (possibly newly patched) language.
-  const categoryIds = categories !== undefined
-    ? await resolveCategoryIds(prisma, categories ?? [], data.language ?? existing.language)
-    : null;
-
   const ownershipFilter: Prisma.PostWhereInput = {
     id,
     OR: [
@@ -566,8 +579,10 @@ export async function updatePost(
       if (owned === 0) throw new NotFoundError();
     }
 
-    if (categoryIds !== null) {
-      await setPostCategories(tx, id, categoryIds);
+    if (categories !== undefined) {
+      // Resolved inside the transaction: a stranger's rejected patch must
+      // not create global taxonomy rows as a side effect.
+      await setPostCategories(tx, id, await resolveCategoryIds(tx, categories ?? [], data.language ?? existing.language));
     }
     if (media !== undefined) {
       await tx.media.deleteMany({ where: { postId: id } });

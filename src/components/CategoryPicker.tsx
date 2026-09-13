@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import {
   CATEGORIES_MAX_PER_POST,
   CATEGORY_NAME_MAX_LENGTH,
-  CATEGORY_SEARCH_DEBOUNCE_MS,
+  SEARCH_DEBOUNCE_MS,
   CATEGORY_SEARCH_LIMIT,
   normalizeCategoryName,
 } from "@/lib/validation";
@@ -55,7 +55,7 @@ export default function CategoryPicker({ value, onChange, max = CATEGORIES_MAX_P
       } catch {
         if (!controller.signal.aborted) setResults([]);
       }
-    }, CATEGORY_SEARCH_DEBOUNCE_MS);
+    }, SEARCH_DEBOUNCE_MS);
     return () => {
       clearTimeout(timer);
       controller.abort();

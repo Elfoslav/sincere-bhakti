@@ -5,6 +5,7 @@ import { getPosts } from "@/lib/services/post";
 import { getCategoryByName } from "@/lib/services/category";
 import { normalizeCategoryName } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
+import { FEED_DEFAULT_LIMIT } from "@/lib/validation";
 import type { Post } from "@/types/post";
 import PostsPageClient from "./posts-page-client";
 import { DEFAULT_OG_IMAGE, getLocalizedUrl } from "@/lib/seo";
@@ -71,7 +72,7 @@ export default async function PostsPage({ params, searchParams }: Props) {
   let initialPublic: { posts: Post[]; hasMore: boolean } | undefined;
   if (allowed) {
     try {
-      const result = await getPosts({ scope: "public", language: locale, requestLanguage: locale, limit: 10, category });
+      const result = await getPosts({ scope: "public", language: locale, requestLanguage: locale, limit: FEED_DEFAULT_LIMIT, category });
       initialPublic = JSON.parse(JSON.stringify(result)) as { posts: Post[]; hasMore: boolean };
     } catch {
       initialPublic = undefined;

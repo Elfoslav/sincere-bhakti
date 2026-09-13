@@ -101,6 +101,19 @@ describe("getBlogPosts", () => {
     );
   });
 
+  it("re-sanitizes stored HTML on read (legacy rows can't inject scripts)", async () => {
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([
+      { ...mockBlog, contentHtml: '<p>Hi<script>alert(1)</script> <img src="x" onerror="alert(1)"></p>' },
+    ] as never);
+
+    const result = await getBlogPosts({ scope: "public", limit: 10 });
+
+    expect(result.posts).toHaveLength(1);
+    expect(result.posts[0].contentHtml).not.toContain("<script>");
+    expect(result.posts[0].contentHtml).not.toContain("onerror");
+    expect(result.posts[0].contentHtml).toContain("<p>Hi");
+  });
+
   it("filters by category with the canonical name", async () => {
     vi.mocked(prisma.blogPost.findMany).mockResolvedValue([mockBlog] as never);
 
@@ -322,6 +335,18 @@ describe("updateBlogPost / deleteBlogPost", () => {  beforeEach(() => {
     vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
 
     await expect(deleteBlogPost("blog-1", "user-2")).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("skips the promo cascade when the scoped delete matches nothing", async () => {
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({
+      id: "blog-1",
+      coverUrl: null,
+      channel: { id: "channel-1", ownerId: "user-1" },
+    } as never);
+    vi.mocked(prisma.blogPost.deleteMany).mockResolvedValue({ count: 0 } as never);
+
+    await expect(deleteBlogPost("blog-1", "user-1")).rejects.toBeInstanceOf(NotFoundError);
+    expect(prisma.post.deleteMany).not.toHaveBeenCalled();
   });
 
   it("deletes linked timeline promo posts with the article", async () => {

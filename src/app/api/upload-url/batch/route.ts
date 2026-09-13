@@ -8,7 +8,7 @@ import { getActiveIdentityCookie, setActiveIdentityCookie } from "@/lib/active-i
 import { parseBody } from "@/lib/parse-body";
 import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
-import { ERROR_FORBIDDEN, ERROR_UNAUTHORIZED } from "@/lib/error-messages";
+import { ERROR_FORBIDDEN, ERROR_UNAUTHORIZED, ERROR_EMAIL_NOT_VERIFIED } from "@/lib/error-messages";
 import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST, HTTP_UNAUTHORIZED } from "@/lib/error-codes";
 
 export async function POST(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   const session = auth.session;
 
   if (!session.user.emailVerifiedAt) {
-    return NextResponse.json({ error: "email_not_verified" }, { status: HTTP_FORBIDDEN });
+    return NextResponse.json({ error: ERROR_EMAIL_NOT_VERIFIED }, { status: HTTP_FORBIDDEN });
   }
 
   try {

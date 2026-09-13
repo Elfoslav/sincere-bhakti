@@ -11,6 +11,7 @@ import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translat
 import { generateShortId } from "@/lib/id";
 import { derivePostSlug, normalizeCategoryName } from "@/lib/validation";
 import { resolveCategoryIds, setBlogPostCategories } from "@/lib/services/category";
+import { ERROR_BLOG_ID_COLLISION } from "@/lib/error-messages";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
 import type { CategoryRef } from "@/types/category";
@@ -113,8 +114,14 @@ export function toBlogPostResponse<
   const t = raw.channel.translations
     ? resolveTranslation(raw.channel.translations, language)
     : null;
+  // Re-sanitize stored HTML on read (idempotent): rows that bypassed the
+  // writer must never become stored XSS in feed cards — BlogExcerpt renders
+  // contentHtml via dangerouslySetInnerHTML and can't sanitize client-side
+  // (sanitize-html is Node-only, never bundled for the browser).
+  const storedHtml = (raw as { contentHtml?: unknown }).contentHtml;
   return {
     ...raw,
+    ...(typeof storedHtml === "string" ? { contentHtml: sanitizeRichTextHtml(storedHtml) } : {}),
     channel: {
       id: raw.channel.id,
       name: t?.name ?? "",
@@ -383,7 +390,7 @@ export async function createBlogPost(
           ? target.includes("shortId")
           : typeof target === "string" && target.includes("shortId");
         if (onShortId && attempt < MAX_SHORT_ID_ATTEMPTS) continue;
-        throw new ConflictError("blog_id_collision");
+        throw new ConflictError(ERROR_BLOG_ID_COLLISION);
       }
       throw error;
     }
@@ -412,7 +419,10 @@ export async function deleteBlogPost(
     throw new NotFoundError();
   }
 
-  await prisma.blogPost.deleteMany({
+  // Re-check ownership in the write itself and gate the cascade on it: a
+  // revocation between the pre-fetch above and this write must not destroy
+  // the article's promo posts while deleting zero article rows.
+  const { count } = await prisma.blogPost.deleteMany({
     where: {
       id,
       OR: [
@@ -421,6 +431,7 @@ export async function deleteBlogPost(
       ],
     },
   });
+  if (count === 0) throw new NotFoundError();
 
   // Remove timeline promo posts: without their article they'd remain as empty
   // feed posts (SetNull only unlinks them).
@@ -478,11 +489,6 @@ export async function updateBlogPost(
     throw new ValidationError("blog_must_have_content_or_excerpt");
   }
 
-  // Links resolve in the article's (possibly newly patched) language.
-  const categoryIds = data.categories !== undefined
-    ? await resolveCategoryIds(prisma, data.categories ?? [], data.language ?? existing.language)
-    : null;
-
   const ownershipFilter: Prisma.BlogPostWhereInput = {
     id,
     OR: [
@@ -504,8 +510,11 @@ export async function updateBlogPost(
       const owned = await tx.blogPost.count({ where: ownershipFilter });
       if (owned === 0) throw new NotFoundError();
     }
-    if (categoryIds !== null) {
-      await setBlogPostCategories(tx, id, categoryIds);
+    if (data.categories !== undefined) {
+      // Resolved inside the transaction: a stranger's rejected patch must
+      // not create global taxonomy rows as a side effect. Links resolve in
+      // the article's (possibly newly patched) language.
+      await setBlogPostCategories(tx, id, await resolveCategoryIds(tx, data.categories ?? [], data.language ?? existing.language));
     }
   });
 

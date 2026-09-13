@@ -30,7 +30,11 @@ export const FEED_MAX_LIMIT = 50;
 export const MAX_MEDIA_ITEMS_PER_POST = 10;
 export const MEDIA_URL_MAX_LENGTH = 2000;
 export const CATEGORY_SEARCH_LIMIT = 10;
-export const CATEGORY_SEARCH_DEBOUNCE_MS = 300;
+// Upper bound for picker searches. Decoupled from the feed page size above:
+// the picker taxonomy and the post feed scale independently.
+export const CATEGORY_SEARCH_MAX_LIMIT = 50;
+// Shared debounce for search inputs (category picker, channel search).
+export const SEARCH_DEBOUNCE_MS = 300;
 
 // Unified category taxonomy: one global tag list for timeline posts and blog
 // articles. Names are forced to Title Case (multi-word allowed) and unique
@@ -57,7 +61,7 @@ const categoryNamesField = z
 
 export const categorySearchSchema = z.object({
   search: z.string().trim().max(CATEGORY_NAME_MAX_LENGTH).optional(),
-  limit: z.coerce.number().int().min(1).max(FEED_MAX_LIMIT).default(FEED_DEFAULT_LIMIT),
+  limit: z.coerce.number().int().min(1).max(CATEGORY_SEARCH_MAX_LIMIT).default(CATEGORY_SEARCH_LIMIT),
   // Picker scope: categories only ever surface in their own language.
   language: z.enum(locales).optional(),
 });

@@ -57,6 +57,8 @@ const mockPost = {
   shortId: "shortid1",
   slug: "hare-krishna",
   content: "Hare Krishna!",
+  // Prisma always returns the link scalar (null when unlinked).
+  blogPostId: null,
   isPublic: true,
   language: "en",
   channelId: "channel-1",
@@ -166,6 +168,11 @@ describe("getPosts", () => {
   });
 
   it("filters by linked blog article", async () => {
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({
+      isPublic: true,
+      publishedAt: null,
+      channel: { id: "channel-1", ownerId: "user-1" },
+    } as any);
     vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 
     await getPosts({ scope: "public", limit: 10, blogPostId: "blog-1" });
@@ -175,6 +182,42 @@ describe("getPosts", () => {
         where: expect.objectContaining({ isPublic: true, blogPostId: "blog-1" }),
       }),
     );
+  });
+
+  it("returns empty without querying posts for a private linked article", async () => {
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({
+      isPublic: false,
+      publishedAt: null,
+      channel: { id: "channel-1", ownerId: "user-1" },
+    } as any);
+
+    const result = await getPosts({ scope: "public", limit: 10, blogPostId: "blog-1" });
+
+    expect(result).toEqual({ posts: [], hasMore: false });
+    expect(prisma.post.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns empty for a missing linked article", async () => {
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue(null);
+
+    const result = await getPosts({ scope: "public", limit: 10, blogPostId: "missing" });
+
+    expect(result).toEqual({ posts: [], hasMore: false });
+    expect(prisma.post.findMany).not.toHaveBeenCalled();
+  });
+
+  it("lets the article author filter by their private article", async () => {
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({
+      isPublic: false,
+      publishedAt: null,
+      channel: { id: "channel-1", ownerId: "user-1" },
+    } as any);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
+
+    const result = await getPosts({ scope: "public", limit: 10, blogPostId: "blog-1" }, "user-1");
+
+    expect(result.posts).toHaveLength(1);
+    expect(prisma.post.findMany).toHaveBeenCalled();
   });
 
   it("filters by category with the canonical name", async () => {

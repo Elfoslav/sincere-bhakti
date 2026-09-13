@@ -8,6 +8,7 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import SearchInput from "@/components/SearchInput";
+import { SEARCH_DEBOUNCE_MS } from "@/lib/validation";
 import type { ChannelInfo } from "@/types/user";
 
 interface ChannelsResponse {
@@ -70,7 +71,7 @@ export default function ChannelsPageClient() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setSearch(value.trim());
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
   }
 
   async function handleLoadMore() {
