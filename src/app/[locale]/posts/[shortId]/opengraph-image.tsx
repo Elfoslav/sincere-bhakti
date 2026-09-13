@@ -5,6 +5,7 @@ import { getSiteUrl } from "@/lib/url";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { POST_OG_IMAGE, OG_POST_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL, OG_IMAGE_TRANSIENT_CACHE_CONTROL } from "@/lib/seo";
 import { fetchImageBuffer, ogJpegResponse, logoFallback, coverCropToJpeg } from "@/lib/og-image";
+import { isTrustedMediaUrl } from "@/lib/validation";
 
 export const runtime = "nodejs";
 export const alt = "Sincere Bhakti post image";
@@ -50,16 +51,22 @@ export default async function Image({
   const bestImage =
     images.find((m) => m.width && m.height && m.width >= m.height) ?? images[0] ?? null;
 
-  // No post, private/scheduled, or genuinely imageless: the logo IS the correct response
-  // for this URL, so it may be briefly shared-cached.
-  if (!bestImage) {
+  // Re-validate the stored URL before server-side fetch: write-time checks
+  // are fail-closed, but a legacy row or direct DB write must not turn this
+  // route into an open SSRF fetcher (e.g. media pointed at 169.254.169.254).
+  const storageDomain = process.env.R2_PUBLIC_URL ?? "";
+  const trustedBest = bestImage && isTrustedMediaUrl(bestImage.url, "image", storageDomain) ? bestImage : null;
+
+  // No post, private/scheduled, untrusted, or genuinely imageless: the logo IS
+  // the correct response for this URL, so it may be briefly shared-cached.
+  if (!trustedBest) {
     return logoFallback(siteUrl, OG_IMAGE_FALLBACK_CACHE_CONTROL);
   }
 
   // The post HAS an image but we couldn't fetch or decode it — likely transient
   // (upstream timeout/5xx, truncated/oversized stream, bad bytes). Fall back but
   // do NOT shared-cache it, so a blip can't pin the logo on a real post's card.
-  const original = await fetchImageBuffer(bestImage.url);
+  const original = await fetchImageBuffer(trustedBest.url);
   if (!original) {
     return logoFallback(siteUrl, OG_IMAGE_TRANSIENT_CACHE_CONTROL);
   }

@@ -283,6 +283,11 @@ const MAX_SHORT_ID_ATTEMPTS = 5;
  * app's storage domain (fail closed without it) and carry a PendingUpload
  * claim by this user — the same ownership model as post media. URLs in
  * `allowedUrls` (e.g. the post's unchanged cover on update) skip the check.
+ *
+ * Covers never create Media rows (only timeline-post media does), so the
+ * PendingUpload claim is the only upload-time proof — and it is deleted on
+ * link. Fall back to authorship of an article already referencing the URL so
+ * reusing your own already-used cover doesn't throw "cover not owned".
  */
 async function validateCoverOwnership(
   coverUrl: string,
@@ -299,7 +304,13 @@ async function validateCoverOwnership(
     select: { key: true, userId: true },
   });
   const ownerId = pending.find((p) => p.key === key)?.userId;
-  if (ownerId !== userId) throw new ForbiddenError("cover_not_owned");
+  if (ownerId === userId) return;
+  const prior = await prisma.blogPost.findFirst({
+    where: { coverUrl: canonicalizeUrl(coverUrl) },
+    select: { channel: { select: { id: true, ownerId: true } } },
+  });
+  if (prior && (prior.channel.ownerId === userId || await isChannelEditor(prior.channel.id, userId))) return;
+  throw new ForbiddenError("cover_not_owned");
 }
 
 /**

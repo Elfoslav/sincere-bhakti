@@ -27,11 +27,19 @@ const isSvgUrl = (url: string): boolean => {
   }
 };
 
+const isSvgContentType = (contentType: string | null): boolean =>
+  !!contentType && /svg/i.test(contentType);
+
 // Everything else defaults to image/jpeg — many og:image URLs have no image
-// extension (query-string only).
-function contentTypeFromUrl(url: string): string {
+// extension (query-string only). Prefers the final hop's content-type header
+// (it observed the actual bytes); falls back to the final URL's extension.
+function contentTypeFromResponse(finalUrl: string, contentType: string | null): string {
+  if (contentType) {
+    const mime = contentType.split(";")[0]?.trim().toLowerCase();
+    if (mime && mime.startsWith("image/") && !isSvgContentType(mime)) return mime;
+  }
   try {
-    const { pathname } = new URL(url);
+    const { pathname } = new URL(finalUrl);
     if (/\.png$/i.test(pathname)) return "image/png";
     if (/\.webp$/i.test(pathname)) return "image/webp";
     if (/\.gif$/i.test(pathname)) return "image/gif";
@@ -61,8 +69,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const bytes = await fetchRemoteBytes(url, { maxBytes: MAX_LINK_PREVIEW_IMAGE_BYTES });
-    if (!bytes) {
+    const fetched = await fetchRemoteBytes(url, { maxBytes: MAX_LINK_PREVIEW_IMAGE_BYTES });
+    if (!fetched) {
       // Upstream fetch failed — transient, not a property of the URL. Never
       // shared-cache it, or one upstream blip would pin the missing image for
       // every other visitor.
@@ -71,9 +79,15 @@ export async function GET(request: NextRequest) {
         { status: HTTP_NOT_FOUND, headers: { "Cache-Control": LINK_PREVIEW_TRANSIENT_CACHE_CONTROL } },
       );
     }
-    return new Response(new Uint8Array(bytes), {
+    // SVG and content-type are derived from the POST-redirect hop: a URL
+    // that redirects to an .svg payload (or serves svg content under a
+    // non-.svg URL) must still be rejected, never served as image/jpeg.
+    if (isSvgUrl(fetched.finalUrl) || isSvgContentType(fetched.contentType)) {
+      return NextResponse.json({ error: ERROR_BAD_REQUEST }, { status: HTTP_BAD_REQUEST });
+    }
+    return new Response(new Uint8Array(fetched.bytes), {
       headers: {
-        "Content-Type": contentTypeFromUrl(url),
+        "Content-Type": contentTypeFromResponse(fetched.finalUrl, fetched.contentType),
         "Cache-Control": LINK_PREVIEW_IMAGE_CACHE_CONTROL,
       },
     });

@@ -36,7 +36,7 @@ describe("GET /api/link-preview", () => {
   });
 
   it("returns parsed preview when the page has og tags", async () => {
-    vi.mocked(fetchRemoteBytes).mockResolvedValue(Buffer.from(HTML));
+    vi.mocked(fetchRemoteBytes).mockResolvedValue({ bytes: Buffer.from(HTML), finalUrl: "https://example.com/post", contentType: "text/html" });
 
     const res = await GET(mockRequest("http://localhost:3000/api/link-preview?url=https%3A%2F%2Fexample.com%2Fpost"));
     const json = await res.json();
@@ -82,7 +82,7 @@ describe("GET /api/link-preview", () => {
   });
 
   it("returns null preview when nothing usable is extracted", async () => {
-    vi.mocked(fetchRemoteBytes).mockResolvedValue(Buffer.from("<html><body>hi</body></html>"));
+    vi.mocked(fetchRemoteBytes).mockResolvedValue({ bytes: Buffer.from("<html><body>hi</body></html>"), finalUrl: "https://example.com", contentType: "text/html" });
     const res = await GET(mockRequest("http://localhost:3000/api/link-preview?url=https%3A%2F%2Fexample.com"));
     const json = await res.json();
     expect(res.status).toBe(200);

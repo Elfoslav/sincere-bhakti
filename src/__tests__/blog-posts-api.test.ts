@@ -35,7 +35,7 @@ vi.mock("@/lib/services/channel", () => ({
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
-import { getBlogPosts, createBlogPost } from "@/lib/services/blog";
+import { getBlogPosts, createBlogPost, UnauthorizedError } from "@/lib/services/blog";
 import { resolveAuthorableChannelId } from "@/lib/services/channel";
 import { GET, POST } from "@/app/api/blog-posts/route";
 
@@ -111,6 +111,17 @@ describe("GET /api/blog-posts", () => {
       expect.objectContaining({ channelId: "channel-1", language: "cs" }),
       "user-1",
     );
+  });
+
+  it("returns 403 (not 500) when the service rejects a private scope", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as never);
+    vi.mocked(getBlogPosts).mockRejectedValue(new UnauthorizedError());
+
+    const res = await GET(mockGetRequest({ scope: "private" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.error).toBe("forbidden");
   });
 
   it("filters by category", async () => {

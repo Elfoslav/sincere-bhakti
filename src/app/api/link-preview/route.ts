@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const html = await fetchRemoteBytes(url, { maxBytes: MAX_LINK_PREVIEW_HTML_BYTES });
-    if (!html) {
+    const fetched = await fetchRemoteBytes(url, { maxBytes: MAX_LINK_PREVIEW_HTML_BYTES });
+    if (!fetched) {
       // Upstream fetch failed — a transient condition, not a property of the
       // URL. Never shared-cache it, or one upstream blip would pin an empty
       // card for every other visitor.
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     }
 
     const data: LinkPreviewData = parseLinkPreview(
-      html.toString("utf8").slice(0, MAX_LINK_PREVIEW_HTML_BYTES),
+      fetched.bytes.toString("utf8").slice(0, MAX_LINK_PREVIEW_HTML_BYTES),
       url,
     );
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getBlogPosts, createBlogPost, ConflictError, NotFoundError, ForbiddenError, ValidationError } from "@/lib/services/blog";
+import { getBlogPosts, createBlogPost, ConflictError, NotFoundError, ForbiddenError, UnauthorizedError, ValidationError } from "@/lib/services/blog";
 import { createBlogPostSchema, blogPaginationSchema, isTrustedMediaUrl } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { getPersonalChannel, createPersonalChannel, resolveAuthorableChannelId } from "@/lib/services/channel";
@@ -42,6 +42,12 @@ export async function GET(request: NextRequest) {
     const result = await getBlogPosts({ ...parsed.data, requestLanguage: parsed.data.language ?? "en" });
     return NextResponse.json(result);
   } catch (error) {
+    // Private-scope requests for a channel the caller may not access throw
+    // UnauthorizedError — the route already guarantees authentication, so
+    // this is a forbidden access, not a server failure (never a 500).
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+    }
     return serverError("GET /api/blog-posts", error, "failed_to_fetch_blog_posts");
   }
 }

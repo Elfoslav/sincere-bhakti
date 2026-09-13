@@ -5,6 +5,7 @@ vi.mock("@/lib/prisma", () => {
     blogPost: {
       findMany: vi.fn(() => Promise.resolve([])),
       findUnique: vi.fn(),
+      findFirst: vi.fn(() => Promise.resolve(null)),
       create: vi.fn(),
       updateMany: vi.fn(),
       deleteMany: vi.fn(),
@@ -400,6 +401,32 @@ describe("blog cover ownership", () => {
     vi.mocked(prisma.pendingUpload.findMany).mockResolvedValue([
       { key: "uploads/cover.jpg", userId: "other" },
     ] as never);
+
+    await expect(
+      createBlogPost({ title: "T", content: "x", coverUrl, channelId: "channel-1" }, "user-1"),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows reusing your own already-linked cover (claim deleted on link)", async () => {
+    vi.mocked(prisma.pendingUpload.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.blogPost.findFirst).mockResolvedValue({
+      channel: { id: "channel-1", ownerId: "user-1" },
+    } as never);
+    vi.mocked(prisma.blogPost.create).mockResolvedValue({ ...mockBlog, coverUrl } as never);
+
+    const result = await createBlogPost(
+      { title: "T", content: "x", coverUrl, channelId: "channel-1" },
+      "user-1",
+    );
+
+    expect(result.coverUrl).toBe(coverUrl);
+  });
+
+  it("rejects reusing another author's already-linked cover", async () => {
+    vi.mocked(prisma.pendingUpload.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.blogPost.findFirst).mockResolvedValue({
+      channel: { id: "channel-1", ownerId: "other" },
+    } as never);
 
     await expect(
       createBlogPost({ title: "T", content: "x", coverUrl, channelId: "channel-1" }, "user-1"),
