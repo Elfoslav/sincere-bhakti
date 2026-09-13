@@ -329,7 +329,9 @@
 		"bodyLoadFailed": "Tělo článku se nepodařilo načíst. Zavři dialog a zkus to znovu.",
 		"categoriesLabel": "Kategorie",
 		"categoryMetaTitle": "Články na téma {name} — Sincere Bhakti",
-		"categoryMetaDescription": "Blogové články v kategorii {name}."
+		"categoryMetaDescription": "Blogové články v kategorii {name}.",
+		"channelMetaTitle": "Články z kanálu {name} — Sincere Bhakti",
+		"channelMetaDescription": "Blogové články z kanálu {name}."
 	},
 	"Categories": {
 		"searchPlaceholder": "Hledat nebo vytvořit kategorie...",
@@ -337,6 +339,7 @@
 		"maxReached": "Nejvýše {max} kategorií",
 		"removeCategory": "Odebrat {name}",
 		"filteringByCategory": "Zobrazuji kategorii „{name}“",
+		"filteringByChannel": "Zobrazuji kanál „{name}“",
 		"clearFilter": "Zrušit filtr"
 	},
 	"ChannelsPage": {

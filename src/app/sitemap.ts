@@ -38,11 +38,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const [channels, posts, blogPosts, categories] = await Promise.all([
     prisma.channel.findMany({
-      where: { posts: { some: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] } } },
+      where: {
+        OR: [
+          { posts: { some: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] } } },
+          { blogPosts: { some: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] } } },
+        ],
+      },
       select: {
         id: true,
         createdAt: true,
         posts: {
+          where: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] },
+          select: { createdAt: true },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 1,
+        },
+        blogPosts: {
           where: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] },
           select: { createdAt: true },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -81,6 +92,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   for (const channel of channels) {
     const latestPublicPostAt = channel.posts[0]?.createdAt ?? channel.createdAt;
+    const latestPublicBlogPostAt = channel.blogPosts[0]?.createdAt;
 
     for (const translation of channel.translations) {
       const path = `/channels/${translation.slug}`;
@@ -93,6 +105,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           languages: getLanguageAlternates(path),
         },
       });
+      // Blog-filtered channel view — only when the channel actually has
+      // public articles, so the sitemap never points at an empty filter.
+      if (latestPublicBlogPostAt) {
+        const blogPath = `/blog/channel/${translation.slug}`;
+        entries.push({
+          url: getLocalizedUrl(translation.language, blogPath),
+          lastModified: latestPublicBlogPostAt,
+          changeFrequency: "weekly",
+          priority: 0.5,
+        });
+      }
     }
   }
 

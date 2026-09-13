@@ -90,7 +90,7 @@ export default function BlogDetailClient({
   return (
     <BlogLayout title={displayedPost.title} containerClassName="w-full max-w-2xl mx-auto px-4 py-12">
       <p className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-saffron-dark">
-        <Link href={`/channels/${displayedPost.channel.slug}`} className="hover:text-gold">
+        <Link href={`/blog/channel/${displayedPost.channel.slug}`} className="hover:text-gold">
           {displayedPost.channel.name}
         </Link>
       </p>

@@ -66,7 +66,7 @@ export default function BlogCard({
             </div>
             <span className="flex min-w-0 flex-1 items-center gap-x-1.5 gap-y-0.5 flex-wrap text-xs text-deep/60">
               <Link
-                href={`/channels/${post.channel.slug}`}
+                href={`/blog/channel/${post.channel.slug}`}
                 className="min-w-0 max-w-full truncate font-medium text-deep/70 hover:text-gold transition-colors"
               >
                 {post.channel.name}

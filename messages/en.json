@@ -329,7 +329,9 @@
 		"bodyLoadFailed": "Couldn't load the article body. Please close and try again.",
 		"categoriesLabel": "Categories",
 		"categoryMetaTitle": "Articles about {name} — Sincere Bhakti",
-		"categoryMetaDescription": "Blog articles filed under {name}."
+		"categoryMetaDescription": "Blog articles filed under {name}.",
+		"channelMetaTitle": "Articles from {name} — Sincere Bhakti",
+		"channelMetaDescription": "Blog articles from the {name} channel."
 	},
 	"Categories": {
 		"searchPlaceholder": "Search or create categories...",
@@ -337,6 +339,7 @@
 		"maxReached": "Up to {max} categories",
 		"removeCategory": "Remove {name}",
 		"filteringByCategory": "Showing category \"{name}\"",
+		"filteringByChannel": "Showing channel \"{name}\"",
 		"clearFilter": "Clear filter"
 	},
 	"ChannelsPage": {

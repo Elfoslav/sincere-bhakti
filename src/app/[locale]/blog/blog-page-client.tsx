@@ -12,16 +12,18 @@ import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfiniteBlogPosts } from "@/lib/hooks/useInfiniteBlogPosts";
 import { useIdentity } from "@/components/IdentityProvider";
-import CategoryFilterBanner from "@/components/CategoryFilterBanner";
+import CategoryFilterBanner, { ChannelFilterBanner } from "@/components/CategoryFilterBanner";
 import type { BlogPost } from "@/types/blog";
 
 export default function BlogPageClient({
   initialPublic,
   channelId,
+  channelName,
   category,
 }: {
   initialPublic?: { posts: BlogPost[]; hasMore: boolean };
   channelId?: string;
+  channelName?: string;
   category?: string;
 }) {
   const { data: session } = useSession();
@@ -35,7 +37,7 @@ export default function BlogPageClient({
     channelId: effectiveChannelId,
     language: locale,
     category,
-    initialData: effectiveChannelId ? undefined : initialPublic,
+    initialData: initialPublic,
   });
   const {
     posts: myPosts,
@@ -69,8 +71,12 @@ export default function BlogPageClient({
   function handleCreateSuccess(post: BlogPost) {
     setMyPosts((prev) => [post, ...prev]);
     // A filtered feed only shows matching posts: don't prepend a fresh
-    // post that doesn't carry the active category.
-    if (post.isPublic && (!category || post.categories.some((c) => c.name === category))) {
+    // post that doesn't carry the active category or channel.
+    if (
+      post.isPublic &&
+      (!category || post.categories.some((c) => c.name === category)) &&
+      (!effectiveChannelId || post.channel.id === effectiveChannelId)
+    ) {
       setPosts((prev) => [post, ...prev]);
     }
   }
@@ -153,6 +159,7 @@ export default function BlogPageClient({
       </div>
 
       {category ? <CategoryFilterBanner name={category} href="/blog" /> : null}
+      {channelName ? <ChannelFilterBanner name={channelName} href="/blog" /> : null}
 
       <Card variant="default" padding="lg" className="mb-6">
         {session ? (

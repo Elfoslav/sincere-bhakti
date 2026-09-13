@@ -23,7 +23,7 @@ export default function BlogLayout({
           { label: title },
         ]}
         className="mb-6"
-        lastClassName="text-lg"
+        lastClassName="max-w-[240px] truncate text-sm font-normal"
       />
 
       {children}

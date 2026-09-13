@@ -30,12 +30,14 @@ describe("sitemap", () => {
         createdAt: new Date("2026-06-01T00:00:00.000Z"),
         translations: [{ language: "en", slug: "first-channel" }],
         posts: [{ createdAt: firstChannelLatestPostAt }],
+        blogPosts: [],
       },
       {
         id: "ch-2",
         createdAt: new Date("2026-06-02T00:00:00.000Z"),
         translations: [{ language: "en", slug: "second-channel" }],
         posts: [{ createdAt: secondChannelLatestPostAt }],
+        blogPosts: [],
       },
     ] as unknown as Awaited<ReturnType<typeof prisma.channel.findMany>>);
     vi.mocked(prisma.post.findMany).mockResolvedValue([
@@ -58,6 +60,7 @@ describe("sitemap", () => {
           { language: "sk", slug: "moj-kanal" },
         ],
         posts: [{ createdAt: new Date("2026-06-01") }],
+        blogPosts: [],
       },
     ] as unknown as Awaited<ReturnType<typeof prisma.channel.findMany>>);
     vi.mocked(prisma.post.findMany).mockResolvedValue([] as any);
@@ -92,8 +95,36 @@ describe("sitemap", () => {
     );
   });
 
-  it("lists pretty landing pages for used categories, both feeds", async () => {
-    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
+  it("lists blog channel pages only for channels with public articles", async () => {
+    const latestBlogPostAt = new Date("2026-09-05T00:00:00.000Z");
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+      {
+        id: "ch-1",
+        createdAt: new Date("2026-06-01T00:00:00.000Z"),
+        translations: [{ language: "en", slug: "writing-channel" }],
+        posts: [{ createdAt: new Date("2026-07-01T00:00:00.000Z") }],
+        blogPosts: [{ createdAt: latestBlogPostAt }],
+      },
+      {
+        id: "ch-2",
+        createdAt: new Date("2026-06-02T00:00:00.000Z"),
+        translations: [{ language: "en", slug: "silent-channel" }],
+        posts: [{ createdAt: new Date("2026-07-02T00:00:00.000Z") }],
+        blogPosts: [],
+      },
+    ] as unknown as Awaited<ReturnType<typeof prisma.channel.findMany>>);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([]);
+
+    const entries = await sitemap();
+    const urls = entries.map((e) => e.url);
+
+    expect(urls).toContain("https://example.test/blog/channel/writing-channel");
+    expect(urls).not.toContain("https://example.test/blog/channel/silent-channel");
+    expect(entries.find((entry) => entry.url === "https://example.test/blog/channel/writing-channel")?.lastModified).toBe(latestBlogPostAt);
+  });
+
+  it("lists pretty landing pages for used categories, both feeds", async () => {    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
     vi.mocked(prisma.post.findMany).mockResolvedValue([]);
     vi.mocked(prisma.blogPost.findMany).mockResolvedValue([]);
     vi.mocked(prisma.category.findMany).mockResolvedValue([

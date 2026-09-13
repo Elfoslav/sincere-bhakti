@@ -34,4 +34,18 @@ describe("BlogLayout", () => {
     expect(screen.getByRole("link", { name: "Blog" })).toHaveAttribute("href", "/blog");
     expect(screen.getByText("body")).toBeInTheDocument();
   });
+
+  it("marks the title as the current page and truncates it instead of repeating the H1", () => {
+    render(
+      <BlogLayout title="A very long article title that would wrap into a second headline">
+        <p>body</p>
+      </BlogLayout>,
+    );
+
+    const current = screen.getByText("A very long article title that would wrap into a second headline");
+    expect(current).toHaveAttribute("aria-current", "page");
+    expect(current).toHaveAttribute("title", "A very long article title that would wrap into a second headline");
+    expect(current.className).toMatch(/truncate/);
+    expect(current.className).not.toMatch(/text-lg/);
+  });
 });
