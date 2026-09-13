@@ -329,6 +329,8 @@ describe("GET /api/channels", () => {
         where: expect.objectContaining({ translations: { some: { language: "en" } } }),
         select: expect.objectContaining({
           translations: expect.objectContaining({ where: { language: "en" } }),
+          // Count is scoped to the requested language, not all languages.
+          _count: { select: { posts: { where: { isPublic: true, language: "en" } } } },
         }),
       }),
     );
@@ -394,6 +396,8 @@ describe("GET /api/channels", () => {
       expect.objectContaining({
         select: expect.objectContaining({
           translations: { where: { language: "cs" }, select: { name: true, slug: true }, take: 1 },
+          // Owner's own count still scopes to the requested language.
+          _count: { select: { posts: { where: { language: "cs" } } } },
         }),
       }),
     );

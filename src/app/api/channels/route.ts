@@ -9,6 +9,7 @@ import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/va
 import { createChannel, NameTakenError, ChannelLimitError } from "@/lib/services/channel";
 import { ERROR_NOT_FOUND, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN, ERROR_TOO_MANY_REQUESTS, ERROR_EMAIL_NOT_VERIFIED } from "@/lib/error-messages";
 import { HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
+import { locales } from "@/i18n/routing";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +19,8 @@ export async function GET(request: NextRequest) {
     }
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
-    const language = searchParams.get("language") ?? "en";
+    const rawLanguage = searchParams.get("language") ?? "en";
+    const language = (locales as readonly string[]).includes(rawLanguage) ? rawLanguage : "en";
 
     if (userId) {
       const session = await auth();
@@ -30,7 +32,8 @@ export async function GET(request: NextRequest) {
           avatarUrl: true,
           createdAt: true,
           ownerId: true,
-          _count: { select: { posts: isOwner ? true : { where: { isPublic: true } } } },
+          // Language-specific: the count matches the locale feed, not all languages.
+          _count: { select: { posts: isOwner ? { where: { language } } : { where: { isPublic: true, language } } } },
           translations: { where: { language }, select: { name: true, slug: true }, take: 1 },
         },
       });
@@ -68,7 +71,8 @@ export async function GET(request: NextRequest) {
         avatarUrl: true,
         createdAt: true,
         ownerId: true,
-        _count: { select: { posts: { where: { isPublic: true } } } },
+        // Language-specific: the count matches the locale feed, not all languages.
+        _count: { select: { posts: { where: { isPublic: true, language } } } },
         translations: { where: { language }, select: { name: true, slug: true }, take: 1 },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],

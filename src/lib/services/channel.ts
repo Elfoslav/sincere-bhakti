@@ -295,7 +295,8 @@ export async function getChannelBySlug(slug: string, language: string = "en"): P
       renameCount: true,
       defaultLanguage: true,
       owner: { select: { id: true, name: true, image: true } },
-      _count: { select: { posts: { where: { isPublic: true } } } },
+      // Language-specific: the detail header count matches the locale feed.
+      _count: { select: { posts: { where: { isPublic: true, language } } } },
       translations: { select: { language: true } },
     },
   });

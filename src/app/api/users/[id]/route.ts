@@ -11,6 +11,7 @@ import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_T
 import { getMaxChannelsPerUser } from "@/lib/channel-limit";
 import { lockChannelName } from "@/lib/services/channel";
 import { resolveTranslation } from "@/lib/channel-translation";
+import { locales } from "@/i18n/routing";
 import type { ChannelMemberRole } from "@/lib/channel-roles";
 
 class NameTakenError extends Error {
@@ -42,7 +43,8 @@ export async function GET(
     }
 
     const { id } = await params;
-    const language = new URL(request.url).searchParams.get("language") ?? "en";
+    const rawLanguage = new URL(request.url).searchParams.get("language") ?? "en";
+    const language = (locales as readonly string[]).includes(rawLanguage) ? rawLanguage : "en";
 
     const session = await auth();
     const isOwnProfile = session?.user?.id === id;
@@ -57,7 +59,7 @@ export async function GET(
         ...(isOwnProfile ? { renameCount: true } : {}),
         channels: {
           where: { ownerId: id },
-          select: { id: true, avatarUrl: true, ownerId: true, isPersonal: true, _count: { select: { posts: { where: { isPublic: true } } } }, translations: { select: { language: true, name: true, slug: true } } },
+          select: { id: true, avatarUrl: true, ownerId: true, isPersonal: true, _count: { select: { posts: { where: { isPublic: true, language } } } }, translations: { select: { language: true, name: true, slug: true } } },
         },
         ...(isOwnProfile ? {
           email: true,
@@ -71,7 +73,7 @@ export async function GET(
                   avatarUrl: true,
                   ownerId: true,
                   isPersonal: true,
-                  _count: { select: { posts: { where: { isPublic: true } } } },
+                  _count: { select: { posts: { where: { isPublic: true, language } } } },
                   translations: { select: { language: true, name: true, slug: true } },
                 },
               },

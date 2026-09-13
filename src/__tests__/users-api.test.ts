@@ -116,6 +116,18 @@ describe("GET /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(json.channels[0].name).toBe("Oddaný");
     expect(json.channels[0].slug).toBe("oddany");
+    // Profile channel counts are scoped to the requested language.
+    expect(prisma.user.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          channels: expect.objectContaining({
+            select: expect.objectContaining({
+              _count: { select: { posts: { where: { isPublic: true, language: "cs" } } } },
+            }),
+          }),
+        }),
+      }),
+    );
   });
 
   it("returns managed channels with roles for the profile owner", async () => {
