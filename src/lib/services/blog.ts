@@ -11,26 +11,23 @@ import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translat
 import { generateShortId } from "@/lib/id";
 import { derivePostSlug, normalizeCategoryName } from "@/lib/validation";
 import { resolveCategoryIds, setBlogPostCategories } from "@/lib/services/category";
+import { resolveFeedScopeWhere } from "@/lib/services/feed-scope";
 import { ERROR_BLOG_ID_COLLISION } from "@/lib/error-messages";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
 import type { CategoryRef } from "@/types/category";
 
-export class UnauthorizedError extends Error {
-  name = "UnauthorizedError" as const;
-}
-export class NotFoundError extends Error {
-  name = "NotFoundError" as const;
-}
-export class ForbiddenError extends Error {
-  name = "ForbiddenError" as const;
-}
-export class ValidationError extends Error {
-  name = "ValidationError" as const;
-}
-export class ConflictError extends Error {
-  name = "ConflictError" as const;
-}
+// Re-exported so existing importers (routes, tests) keep working — the
+// canonical classes live in @/lib/services/errors, shared with the post
+// service so instanceof checks cross the module boundary.
+import {
+  UnauthorizedError,
+  NotFoundError,
+  ForbiddenError,
+  ValidationError,
+  ConflictError,
+} from "@/lib/services/errors";
+export { UnauthorizedError, NotFoundError, ForbiddenError, ValidationError, ConflictError };
 
 export interface BlogPostResponse {
   id: string;
@@ -137,12 +134,6 @@ export function toBlogPostResponse<
 // @/lib/blog so client components can use it without pulling in Prisma.
 export { isBlogPubliclyVisible };
 
-function publicVisibilityFilter(now: Date): Prisma.BlogPostWhereInput {  return {
-    isPublic: true,
-    OR: [{ publishedAt: null }, { publishedAt: { lte: now } }],
-  };
-}
-
 export async function getBlogPosts(
   params: GetBlogPostsParams,
   currentUserId?: string,
@@ -165,51 +156,9 @@ export async function getBlogPosts(
     };
   }
 
-  if (scope === "public") {
-    Object.assign(where, publicVisibilityFilter(now));
-    if (channelId) where.channelId = channelId;
-  } else if (scope === "private") {
-    if (!currentUserId) throw new UnauthorizedError();
-    if (channelId) {
-      const channel = await prisma.channel.findUnique({
-        where: { id: channelId },
-        select: { ownerId: true },
-      });
-      if (!channel || (channel.ownerId !== currentUserId && !await isChannelEditor(channelId, currentUserId))) {
-        throw new UnauthorizedError();
-      }
-      where.channelId = channelId;
-    } else {
-      where.OR = [
-        { channel: { ownerId: currentUserId } },
-        { channel: { editors: { some: { userId: currentUserId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
-      ];
-    }
-    // Private tab: drafts + scheduled (public flag off, or publish date in future).
-    where.AND = [
-      {
-        OR: [{ isPublic: false }, { publishedAt: { gt: now } }],
-      },
-    ];
-  } else {
-    if (!currentUserId) throw new UnauthorizedError();
-    if (channelId) {
-      const channel = await prisma.channel.findUnique({
-        where: { id: channelId },
-        select: { ownerId: true },
-      });
-      if (!channel) throw new NotFoundError();
-      where.channelId = channelId;
-      if (channel.ownerId !== currentUserId && !await isChannelEditor(channelId, currentUserId)) {
-        Object.assign(where, publicVisibilityFilter(now));
-      }
-    } else {
-      where.OR = [
-        { channel: { ownerId: currentUserId } },
-        { channel: { editors: { some: { userId: currentUserId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
-      ];
-    }
-  }
+  // Scope/visibility lives in the shared feed-scope helper (same shape as
+  // the timeline-post feed) — the keys never overlap the filters above.
+  Object.assign(where, await resolveFeedScopeWhere({ scope, channelId, currentUserId }, now));
 
   // List views (feed, channel lists, link pickers) never need the raw JSON
   // body: project it away so a page of cards doesn't haul up to ~60 KB of

@@ -11,26 +11,23 @@ import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translat
 import { generateShortId } from "@/lib/id";
 import { derivePostSlug, normalizeCategoryName } from "@/lib/validation";
 import { resolveCategoryIds, setPostCategories } from "@/lib/services/category";
+import { resolveFeedScopeWhere } from "@/lib/services/feed-scope";
 import { ERROR_POST_ID_COLLISION } from "@/lib/error-messages";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
 import type { CategoryRef } from "@/types/category";
 
-export class UnauthorizedError extends Error {
-  name = "UnauthorizedError" as const;
-}
-export class NotFoundError extends Error {
-  name = "NotFoundError" as const;
-}
-export class ForbiddenError extends Error {
-  name = "ForbiddenError" as const;
-}
-export class ValidationError extends Error {
-  name = "ValidationError" as const;
-}
-export class ConflictError extends Error {
-  name = "ConflictError" as const;
-}
+// Re-exported so existing importers (routes, tests) keep working — the
+// canonical classes live in @/lib/services/errors, shared with the blog
+// service so instanceof checks cross the module boundary.
+import {
+  UnauthorizedError,
+  NotFoundError,
+  ForbiddenError,
+  ValidationError,
+  ConflictError,
+} from "@/lib/services/errors";
+export { UnauthorizedError, NotFoundError, ForbiddenError, ValidationError, ConflictError };
 
 export interface PostMedia {
   url: string;
@@ -182,18 +179,6 @@ async function hidePrivateBlogPost<
   return { ...response, blogPost: null, blogPostId: null };
 }
 
-/**
- * Public timeline visibility: flagged public with no (or a past) publish
- * date. Scheduled promos (future date) stay out of public feeds until their
- * article goes live — no cron needed, the date comparison does it.
- */
-function postPublicVisibilityFilter(now: Date): Prisma.PostWhereInput {
-  return {
-    isPublic: true,
-    OR: [{ publishedAt: null }, { publishedAt: { lte: now } }],
-  };
-}
-
 export async function getPosts(
   params: GetPostsParams,
   currentUserId?: string,
@@ -232,54 +217,9 @@ export async function getPosts(
     };
   }
 
-  if (scope === "public") {
-    // Public feeds show only immediately visible posts: flagged public with
-    // no (or a past) publish date. Scheduled promos stay out until go-live.
-    Object.assign(where, postPublicVisibilityFilter(now));
-    if (channelId) where.channelId = channelId;
-  } else if (scope === "private") {
-    if (!currentUserId) throw new UnauthorizedError();
-    if (channelId) {
-      const channel = await prisma.channel.findUnique({
-        where: { id: channelId },
-        select: { ownerId: true },
-      });
-      if (!channel || (channel.ownerId !== currentUserId && !await isChannelEditor(channelId, currentUserId))) {
-        throw new UnauthorizedError();
-      }
-      where.channelId = channelId;
-    } else {
-      where.OR = [
-        { channel: { ownerId: currentUserId } },
-        { channel: { editors: { some: { userId: currentUserId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
-      ];
-    }
-    // Private tab: drafts + scheduled (public flag off, or publish date in future).
-    where.AND = [
-      {
-        OR: [{ isPublic: false }, { publishedAt: { gt: now } }],
-      },
-    ];
-  } else {
-    if (!currentUserId) throw new UnauthorizedError();
-    if (channelId) {
-      // Non-owners may only see public posts of the channel
-      const channel = await prisma.channel.findUnique({
-        where: { id: channelId },
-        select: { ownerId: true },
-      });
-      if (!channel) throw new NotFoundError();
-      where.channelId = channelId;
-      if (channel.ownerId !== currentUserId && !await isChannelEditor(channelId, currentUserId)) {
-        Object.assign(where, postPublicVisibilityFilter(now));
-      }
-    } else {
-      where.OR = [
-        { channel: { ownerId: currentUserId } },
-        { channel: { editors: { some: { userId: currentUserId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
-      ];
-    }
-  }
+  // Scope/visibility lives in the shared feed-scope helper (same shape as
+  // the blog feed) — the keys never overlap the filters applied above.
+  Object.assign(where, await resolveFeedScopeWhere({ scope, channelId, currentUserId }, now));
 
   const posts = await prisma.post.findMany({
     take: limit + 1,
