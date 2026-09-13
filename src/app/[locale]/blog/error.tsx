@@ -1,3 +1,5 @@
+"use client";
+
 import ErrorState from "@/components/ErrorState";
 
 export default function BlogError(props: { error: Error & { digest?: string }; reset: () => void }) {

@@ -1,3 +1,5 @@
+"use client";
+
 import ErrorState from "@/components/ErrorState";
 
 export default function LocaleError(props: { error: Error & { digest?: string }; reset: () => void }) {
