@@ -1,10 +1,14 @@
 import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 
-vi.mock("@/lib/rate-limit", () => {
+vi.mock("@/lib/rate-limit", async (importOriginal) => {
+  // Reuse the real PREFIX/LIMITS so the mock can't silently diverge when new
+  // keys are added — only the enforcement functions are stubbed.
+  const actual = await importOriginal<typeof import("@/lib/rate-limit")>();
   const rateLimit = vi.fn((_key: string, _limit: number, _windowMs: number) => ({ allowed: true, remaining: 29, resetIn: 3_600_000 }));
   const rateLimitKey = vi.fn((p: string, id: string) => `${p}:${id}`);
   return {
+    ...actual,
     rateLimit,
     rateLimitKey,
     getClientIp: vi.fn((headers: Headers) => headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"),
@@ -13,73 +17,7 @@ vi.mock("@/lib/rate-limit", () => {
       if (!allowed) console.warn("rate_limited", { route: prefix, identifier });
       return allowed;
     }),
-    RATE_LIMIT_PREFIX: {
-      register: "register",
-      login: "login",
-      readPosts: "read-posts",
-      readPostOgImage: "read-post-og-image",
-      createPost: "create-post",
-      updatePost: "update-post",
-      deletePost: "delete-post",
-      createBlog: "create-blog",
-      updateBlog: "update-blog",
-      deleteBlog: "delete-blog",
-      upload: "upload",
-      uploadUrl: "upload-url",
-      updateProfile: "update-profile",
-      readChannel: "read-channel",
-      readChannelOgImage: "read-channel-og-image",
-      readPostDetail: "read-post-detail",
-      readBlogs: "read-blogs",
-      readBlogDetail: "read-blog-detail",
-      readBlogOgImage: "read-blog-og-image",
-      searchChannels: "search-channels",
-      createChannel: "create-channel",
-      updateChannel: "update-channel",
-      readProfile: "read-profile",
-      changePassword: "change-password",
-      readIdentity: "read-identity",
-      updateIdentity: "update-identity",
-      readChannelMembers: "read-channel-members",
-      updateChannelMembers: "update-channel-members",
-      readLinkPreview: "read-link-preview",
-      readLinkPreviewImage: "read-link-preview-image",
-      searchCategories: "search-categories",
-      createCategory: "create-category",
-    },
-    RATE_LIMITS: {
-      register: { limit: 5, windowMs: 3_600_000 },
-      login: { limit: 10, windowMs: 900_000 },
-      createPost: { limit: 20, windowMs: 3_600_000 },
-      updatePost: { limit: 60, windowMs: 3_600_000 },
-      deletePost: { limit: 40, windowMs: 3_600_000 },
-      createBlog: { limit: 20, windowMs: 3_600_000 },
-      updateBlog: { limit: 30, windowMs: 3_600_000 },
-      deleteBlog: { limit: 30, windowMs: 3_600_000 },
-      upload: { limit: 60, windowMs: 3_600_000 },
-      uploadUrl: { limit: 40, windowMs: 3_600_000 },
-      updateProfile: { limit: 20, windowMs: 3_600_000 },
-      readPosts: { limit: 120, windowMs: 60_000 },
-      readPostOgImage: { limit: 240, windowMs: 60_000 },
-      readChannel: { limit: 60, windowMs: 60_000 },
-      readChannelOgImage: { limit: 240, windowMs: 60_000 },
-      readPostDetail: { limit: 120, windowMs: 60_000 },
-      readBlogs: { limit: 120, windowMs: 60_000 },
-      readBlogDetail: { limit: 120, windowMs: 60_000 },
-      readBlogOgImage: { limit: 240, windowMs: 60_000 },
-      searchChannels: { limit: 30, windowMs: 60_000 },
-      createChannel: { limit: 10, windowMs: 3_600_000 },
-      updateChannel: { limit: 10, windowMs: 3_600_000 },
-      readProfile: { limit: 60, windowMs: 60_000 },
-      changePassword: { limit: 5, windowMs: 3_600_000 },
-      readIdentity: { limit: 120, windowMs: 60_000 },
-      updateIdentity: { limit: 60, windowMs: 3_600_000 },
-      readChannelMembers: { limit: 60, windowMs: 60_000 },
-      updateChannelMembers: { limit: 30, windowMs: 3_600_000 },
-      readLinkPreview: { limit: 120, windowMs: 60_000 },
-      readLinkPreviewImage: { limit: 240, windowMs: 60_000 },
-      searchCategories: { limit: 30, windowMs: 60_000 },
-      createCategory: { limit: 20, windowMs: 3_600_000 },
-    },
+    // NOTE: RATE_LIMIT_PREFIX and RATE_LIMITS intentionally come from
+    // `...actual` above — never fork their values here.
   };
 });

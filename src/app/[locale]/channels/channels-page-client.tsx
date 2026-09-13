@@ -8,6 +8,7 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import SearchInput from "@/components/SearchInput";
+import ChannelAvatar from "@/components/ChannelAvatar";
 import { SEARCH_DEBOUNCE_MS } from "@/lib/validation";
 import type { ChannelInfo } from "@/types/user";
 
@@ -132,20 +133,7 @@ return (
             >
               <Card variant="hover">
                 <div className="flex items-center gap-3">
-                {ch.avatarUrl ? (
-                  // Using <img> for R2-hosted avatars: small fixed-size thumbnails
-                  // with explicit dimensions don't benefit from next/image optimization,
-                  // and avoiding the image loader simplifies R2 CORS configuration.
-                  <img
-                    src={ch.avatarUrl}
-                    alt=""
-                    className="w-12 h-12 rounded-full object-cover shrink-0"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-gold/20 flex items-center justify-center shrink-0">
-                    <Hash className="w-6 h-6 text-gold" />
-                  </div>
-                )}
+                <ChannelAvatar name={ch.name} avatarUrl={ch.avatarUrl} size="md" fallback="hash" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-deep truncate">{ch.name}</p>
                   <p className="text-xs text-deep/50 flex items-center gap-1 mt-0.5">

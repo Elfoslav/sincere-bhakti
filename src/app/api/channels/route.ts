@@ -9,7 +9,7 @@ import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/va
 import { createChannel, NameTakenError, ChannelLimitError } from "@/lib/services/channel";
 import { ERROR_NOT_FOUND, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN, ERROR_TOO_MANY_REQUESTS, ERROR_EMAIL_NOT_VERIFIED } from "@/lib/error-messages";
 import { HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
-import { locales } from "@/i18n/routing";
+import { parseLanguageParam } from "@/lib/api-helpers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,8 +19,7 @@ export async function GET(request: NextRequest) {
     }
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
-    const rawLanguage = searchParams.get("language") ?? "en";
-    const language = (locales as readonly string[]).includes(rawLanguage) ? rawLanguage : "en";
+    const language = parseLanguageParam(request);
 
     if (userId) {
       const session = await auth();

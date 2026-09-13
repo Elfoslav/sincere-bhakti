@@ -11,7 +11,7 @@ import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_CONFLICT, HTTP_T
 import { getMaxChannelsPerUser } from "@/lib/channel-limit";
 import { lockChannelName } from "@/lib/services/channel";
 import { resolveTranslation } from "@/lib/channel-translation";
-import { locales } from "@/i18n/routing";
+import { parseLanguageParam } from "@/lib/api-helpers";
 import type { ChannelMemberRole } from "@/lib/channel-roles";
 
 class NameTakenError extends Error {
@@ -43,8 +43,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const rawLanguage = new URL(request.url).searchParams.get("language") ?? "en";
-    const language = (locales as readonly string[]).includes(rawLanguage) ? rawLanguage : "en";
+    const language = parseLanguageParam(request);
 
     const session = await auth();
     const isOwnProfile = session?.user?.id === id;

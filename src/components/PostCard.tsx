@@ -7,12 +7,14 @@ import { localeFlags, routing } from "@/i18n/routing";
 import { Link as LinkIcon, ExternalLink, Pencil, Trash2, MoreHorizontal, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { replaceEmoticons } from "@/lib/emoticons";
+import { formatDisplayDate } from "@/lib/format";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { isStandaloneYouTubeUrl } from "@/lib/video";
 import { getPostUrl } from "@/lib/post-url";
 import { getBlogUrl } from "@/lib/blog-url";
 import { isBlogPubliclyVisible } from "@/lib/blog";
 import BlogExcerpt from "@/components/BlogExcerpt";
+import ChannelAvatar from "@/components/ChannelAvatar";
 import CategoryChips from "@/components/CategoryChips";
 import PostContent from "@/components/PostContent";
 import LinkPreview from "@/components/LinkPreview";
@@ -47,13 +49,7 @@ export default function PostCard({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-  const date = new Date(post.createdAt).toLocaleDateString(locale === "en" ? "en-US" : locale, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const date = formatDisplayDate(post.createdAt, locale, { withTime: true });
 
   const displayContent = useMemo(() => replaceEmoticons(post.content), [post.content]);
   const isStandaloneVideo = isStandaloneYouTubeUrl(post.content);
@@ -106,9 +102,7 @@ export default function PostCard({
   return (
     <Card>
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white font-bold text-lg shrink-0">
-          {post.channel.name?.[0]?.toUpperCase() || "?"}
-        </div>
+        <ChannelAvatar name={post.channel.name} size="sm" />
         <div className="flex-1 min-w-0">
           <Link
             href={`/channels/${post.channel.slug}`}

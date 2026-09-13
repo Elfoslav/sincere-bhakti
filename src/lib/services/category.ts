@@ -131,16 +131,39 @@ async function upsertCategory(client: DbClient, language: string, name: string):
 }
 
 /**
+ * Replace a timeline post's or blog article's category links (create passes
+ * an empty current set implicitly — deleteMany on nothing is a no-op).
+ */
+export async function setEntityCategories(
+  client: DbClient,
+  target: { postId: string } | { blogPostId: string },
+  categoryIds: string[],
+): Promise<void> {
+  if ("postId" in target) {
+    const { postId } = target;
+    await client.postCategory.deleteMany({ where: { postId } });
+    if (categoryIds.length === 0) return;
+    await client.postCategory.createMany({
+      data: categoryIds.map((categoryId) => ({ postId, categoryId })),
+      skipDuplicates: true,
+    });
+    return;
+  }
+  const { blogPostId } = target;
+  await client.blogPostCategory.deleteMany({ where: { blogPostId } });
+  if (categoryIds.length === 0) return;
+  await client.blogPostCategory.createMany({
+    data: categoryIds.map((categoryId) => ({ blogPostId, categoryId })),
+    skipDuplicates: true,
+  });
+}
+
+/**
  * Replace a timeline post's category links (create passes an empty current
  * set implicitly — deleteMany on nothing is a no-op).
  */
 export async function setPostCategories(client: DbClient, postId: string, categoryIds: string[]): Promise<void> {
-  await client.postCategory.deleteMany({ where: { postId } });
-  if (categoryIds.length === 0) return;
-  await client.postCategory.createMany({
-    data: categoryIds.map((categoryId) => ({ postId, categoryId })),
-    skipDuplicates: true,
-  });
+  await setEntityCategories(client, { postId }, categoryIds);
 }
 
 /**
@@ -151,10 +174,5 @@ export async function setBlogPostCategories(
   blogPostId: string,
   categoryIds: string[],
 ): Promise<void> {
-  await client.blogPostCategory.deleteMany({ where: { blogPostId } });
-  if (categoryIds.length === 0) return;
-  await client.blogPostCategory.createMany({
-    data: categoryIds.map((categoryId) => ({ blogPostId, categoryId })),
-    skipDuplicates: true,
-  });
+  await setEntityCategories(client, { blogPostId }, categoryIds);
 }

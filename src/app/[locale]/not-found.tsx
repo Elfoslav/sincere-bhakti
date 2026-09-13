@@ -2,10 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-
-function getRandomInt(max: number) {
-  return Math.floor(Math.random() * max);
-}
+import { getRandomInt } from "@/lib/not-found-jokes";
 
 export default function NotFoundPage() {
   const t = useTranslations("ErrorPages");

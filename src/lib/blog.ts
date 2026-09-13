@@ -22,12 +22,14 @@ export function parseDateTimeLocalValue(value: string): Date | undefined {
 }
 
 /**
- * A blog article is publicly visible when flagged public and its publish
- * date has passed. Accepts Date or ISO-string publish dates (API responses
- * serialize Dates to strings). Channel authors additionally see their own
- * non-public articles — callers OR this with their manage check.
+ * A row is publicly visible when flagged public and its publish date has
+ * passed. Accepts Date or ISO-string publish dates (API responses serialize
+ * Dates to strings). Timeline promos of scheduled articles carry the
+ * article's publish date so the two go live together; null means immediately
+ * visible. Channel authors additionally see their own non-public rows —
+ * callers OR this with their manage check.
  */
-export function isBlogPubliclyVisible(
+export function isPubliclyVisible(
   post: { isPublic: boolean; publishedAt: Date | string | null },
   now = new Date(),
 ): boolean {
@@ -38,22 +40,9 @@ export function isBlogPubliclyVisible(
   return publishedAt <= now;
 }
 
-/**
- * A timeline post is publicly visible when flagged public and its publish
- * date has passed. Mirrors isBlogPubliclyVisible: timeline promos of
- * scheduled articles carry the article's publish date so the two go live
- * together. Null (ordinary posts) means immediately visible.
- */
-export function isPostPubliclyVisible(
-  post: { isPublic: boolean; publishedAt: Date | string | null },
-  now = new Date(),
-): boolean {
-  if (!post.isPublic) return false;
-  if (!post.publishedAt) return true;
-  const publishedAt = post.publishedAt instanceof Date ? post.publishedAt : new Date(post.publishedAt);
-  if (Number.isNaN(publishedAt.getTime())) return false;
-  return publishedAt <= now;
-}
+// Aliases kept so existing importers keep working.
+export const isBlogPubliclyVisible = isPubliclyVisible;
+export const isPostPubliclyVisible = isPubliclyVisible;
 
 /**
  * Whether the viewer may manage (edit/delete) a blog article: the channel

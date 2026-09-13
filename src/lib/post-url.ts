@@ -1,5 +1,7 @@
+import { makeContentUrl, makeStaleSlugRedirect } from "@/lib/content-url";
+
 export function getPostUrl(shortId: string, slug?: string | null): string {
-  return slug ? `/posts/${shortId}/${slug}` : `/posts/${shortId}`;
+  return makeContentUrl("posts", shortId, slug);
 }
 
 /**
@@ -18,7 +20,5 @@ export function getStalePostSlugRedirect(
   shortId: string,
   currentSlug: string | null,
 ): string | null {
-  if (providedSlug === undefined) return null;
-  if (providedSlug === currentSlug) return null;
-  return getPostUrl(shortId, currentSlug);
+  return makeStaleSlugRedirect("posts", providedSlug, shortId, currentSlug);
 }

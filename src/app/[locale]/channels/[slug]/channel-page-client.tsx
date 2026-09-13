@@ -27,6 +27,7 @@ import PostForm from "@/components/PostForm";
 import EditPostModal from "@/components/EditPostModal";
 import EditBlogModal from "@/components/EditBlogModal";
 import BlogCard from "@/components/BlogCard";
+import ChannelAvatar from "@/components/ChannelAvatar";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import ChannelVisibilityNotice from "./channel-visibility-notice";
 import { useIdentity } from "@/components/IdentityProvider";
@@ -272,9 +273,7 @@ export default function ChannelPageClient({
             icon={<Settings />}
           />
         )}
-        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
-          {channel.name[0]?.toUpperCase() || "?"}
-        </div>
+        <ChannelAvatar name={channel.name} size="lg" className="mx-auto mb-4" />
         <div className="flex items-center justify-center gap-2">
           <h1 className="text-2xl font-bold text-deep">{channel.name}</h1>
           {isOwner && (

@@ -36,6 +36,22 @@ export const CATEGORY_SEARCH_MAX_LIMIT = 50;
 // Shared debounce for search inputs (category picker, channel search).
 export const SEARCH_DEBOUNCE_MS = 300;
 
+// Cuid-shaped entity ids (posts, blogs, drafts, R2 key namespaces): the same
+// charset everywhere, rejecting `/`, `..`, `?`, `#` that could escape a key
+// prefix — and so arbitrary strings can't be used as existence oracles via
+// id filters. Replaces the former per-schema copies and uploadPostIdField.
+export const entityIdField = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
+
+// Shared user-input fragments so the same shapes stay identical in every
+// schema instead of re-declaring the same chain per form.
+export const emailField = z.string().trim().toLowerCase().email().max(255);
+export const passwordField = z.string().trim().min(PASSWORD_MIN_LENGTH).max(128);
+export const nameField = z.string().trim().min(1).max(NAME_MAX_LENGTH);
+export const fileNameField = z.string().min(1).max(255);
+export const uploadContentTypeField = z.string().min(1).max(255).refine(isAllowedUploadContentType);
+export const safeUrlField = z.string().url().max(MEDIA_URL_MAX_LENGTH).refine(isSafeHttpUrl);
+export const publishedAtNullableField = z.coerce.date().nullish();
+
 // Unified category taxonomy: one global tag list for timeline posts and blog
 // articles. Names are forced to Title Case (multi-word allowed) and unique
 // across the whole app; the per-post cap keeps tag spam in check.
@@ -174,22 +190,9 @@ export function maxUploadSizeForContentType(contentType: string): number {
 }
 
 export const registerSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(NAME_MAX_LENGTH),
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .email()
-    .max(255),
-  password: z
-    .string()
-    .trim()
-    .min(PASSWORD_MIN_LENGTH)
-    .max(128),
+  name: nameField,
+  email: emailField,
+  password: passwordField,
   terms: z
     .literal(true, { message: "terms_required" }),
   language: z.enum(locales).optional(),
@@ -201,7 +204,7 @@ export const registerSchema = z.object({
 const MAX_MEDIA_DIMENSION = 100_000;
 
 export const mediaItemSchema = z.object({
-  url: z.string().url().max(MEDIA_URL_MAX_LENGTH).refine(isSafeHttpUrl),
+  url: safeUrlField,
   type: z.enum(["image", "video", "youtube", "file"]),
   width: z.number().int().positive().max(MAX_MEDIA_DIMENSION).optional(),
   height: z.number().int().positive().max(MAX_MEDIA_DIMENSION).optional(),
@@ -233,9 +236,9 @@ export const createPostSchema = z.object({
   // article's date so both go live together). Omitted/null = visible now.
   publishedAt: publishedAtField,
   // Optional link to a channel blog article promoted by this post.
-  // Cuid-shaped (same charset as uploadPostIdField) so arbitrary strings
-  // can't be used as existence oracles via the feed filter.
-  blogPostId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
+  // Entity-shaped so arbitrary strings can't be used as existence oracles
+  // via the feed filter.
+  blogPostId: entityIdField.optional(),
   // Category names (canonicalized to Title Case by the field transform).
   categories: categoryNamesField.optional(),
 }).refine(
@@ -248,8 +251,8 @@ export const updatePostSchema = z.object({
   isPublic: z.boolean().optional(),
   language: z.enum(locales).optional(),
   // Scheduled promo date mirrors the promoted article; null clears it.
-  publishedAt: z.coerce.date().nullish(),
-  blogPostId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).nullish(),
+  publishedAt: publishedAtNullableField,
+  blogPostId: entityIdField.nullish(),
   // Undefined leaves categories alone; null or [] clears them.
   categories: categoryNamesField.nullish(),
 }).refine(
@@ -270,7 +273,7 @@ const blogExcerptField = z.string().trim().max(BLOG_EXCERPT_MAX_LENGTH).optional
 const blogContentField = z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).optional()
   .refine((v) => v === undefined || extractPlainText(v).length <= BLOG_CONTENT_MAX_LENGTH);
 const blogContentHtmlField = z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).optional();
-const blogCoverField = z.string().url().max(MEDIA_URL_MAX_LENGTH).refine(isSafeHttpUrl).optional();
+const blogCoverField = safeUrlField.optional();
 
 export const createBlogPostSchema = z.object({
   id: z.string().regex(uuidRegex).optional(),
@@ -293,11 +296,11 @@ export const updateBlogPostSchema = z.object({
   content: z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).nullish().refine(
     (v) => v == null || extractPlainText(v).length <= BLOG_CONTENT_MAX_LENGTH,
   ),
-  coverUrl: z.string().url().max(MEDIA_URL_MAX_LENGTH).refine(isSafeHttpUrl).nullish(),
+  coverUrl: safeUrlField.nullish(),
   contentHtml: z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).nullish(),
   isPublic: z.boolean().optional(),
   language: z.enum(locales).optional(),
-  publishedAt: z.coerce.date().nullish(),
+  publishedAt: publishedAtNullableField,
   // Undefined leaves categories alone; null or [] clears them.
   categories: categoryNamesField.nullish(),
 }).refine((data) => {
@@ -309,19 +312,11 @@ export const updateBlogPostSchema = z.object({
 });
 
 export const updateNameSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(NAME_MAX_LENGTH),
+  name: nameField,
 });
 
 export const createChannelSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(NAME_MAX_LENGTH),
+  name: nameField,
   language: z.string().min(1).max(10).optional(),
 });
 
@@ -331,12 +326,7 @@ export const createChannelTranslationSchema = createChannelSchema.extend({
 
 export const addChannelMemberSchema = z.object({
   action: z.enum(CHANNEL_MEMBER_ACTIONS),
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .email()
-    .max(255),
+  email: emailField,
   role: z.enum(CHANNEL_MEMBER_ROLES),
 });
 
@@ -348,7 +338,7 @@ export const paginationSchema = z.object({
   language: z.enum(locales).optional(),
   // Feed posts promoting a blog article (used by the blog editor to find
   // the article's timeline post). Ignored by the blog feed itself.
-  blogPostId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
+  blogPostId: entityIdField.optional(),
   // Canonicalized again server-side; raw user input accepted here.
   category: z.string().trim().max(CATEGORY_NAME_MAX_LENGTH).optional(),
 });
@@ -357,25 +347,15 @@ export const paginationSchema = z.object({
 // callers can't send it and wonder why it's ignored.
 export const blogPaginationSchema = paginationSchema.omit({ blogPostId: true });
 
-// R2 key namespace for direct browser uploads. Post/blog ids are cuids
-// while create-mode drafts use random UUIDs, so both shapes must pass —
-// while still rejecting `/`, `..`, `?`, `#` that could escape the
-// `<folder>/<id>/` key prefix.
-export const uploadPostIdField = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
-
 // Top-level R2 folders for direct uploads. Blog covers live under `blog/`
 // so post tooling never mistakes them for timeline-post media (and orphan
 // sweeps can scope by prefix). Allowlisted — never a free-form client string.
 export const uploadFolderField = z.enum(["posts", "blog"]).optional().default("posts");
 
 export const uploadUrlSchema = z.object({
-  fileName: z.string().min(1).max(255),
-  contentType: z
-    .string()
-    .min(1)
-    .max(255)
-    .refine(isAllowedUploadContentType),
-  postId: uploadPostIdField,
+  fileName: fileNameField,
+  contentType: uploadContentTypeField,
+  postId: entityIdField,
   channelId: z.string().min(1).optional(),
   folder: uploadFolderField,
   // Required so the presigned PUT is signed with a ContentLength cap (R2 rejects
@@ -384,14 +364,14 @@ export const uploadUrlSchema = z.object({
 });
 
 export const batchUploadUrlSchema = z.object({
-  postId: uploadPostIdField,
+  postId: entityIdField,
   channelId: z.string().min(1).optional(),
   folder: uploadFolderField,
   files: z
     .array(
       z.object({
-        fileName: z.string().min(1).max(255),
-        contentType: z.string().min(1).max(255).refine(isAllowedUploadContentType),
+        fileName: fileNameField,
+        contentType: uploadContentTypeField,
         size: z.number().int().positive(),
       }),
     )
@@ -408,22 +388,13 @@ export const verifyEmailSchema = z.object({
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .email()
-    .max(255),
+  email: emailField,
   language: z.enum(locales).optional(),
 });
 
 export const resetPasswordSchema = z.object({
   token: z.string().trim().min(1),
-  password: z
-    .string()
-    .trim()
-    .min(PASSWORD_MIN_LENGTH)
-    .max(128),
+  password: passwordField,
 });
 
 export const compressSchema = z.object({

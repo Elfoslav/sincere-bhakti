@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getBlogPostById, deleteBlogPost, updateBlogPost, isBlogPubliclyVisible, NotFoundError, ForbiddenError, ValidationError } from "@/lib/services/blog";
+import { getBlogPostById, deleteBlogPost, updateBlogPost, isBlogPubliclyVisible, NotFoundError, ForbiddenError } from "@/lib/services/blog";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { updateBlogPostSchema, isSafeHttpUrl, isTrustedMediaUrl } from "@/lib/validation";
 import { canAuthorChannel } from "@/lib/services/channel";
 import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_VALIDATION_COVER_INVALID, ERROR_VALIDATION_COVER_UNTRUSTED, ERROR_VALIDATION_BLOG_EMPTY } from "@/lib/error-messages";
 import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST } from "@/lib/error-codes";
-import { locales } from "@/i18n/routing";
+import { parseLanguageParam, mutationErrorResponse } from "@/lib/api-helpers";
 import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
 import { parseBody } from "@/lib/parse-body";
@@ -22,8 +22,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const rawLanguage = new URL(request.url).searchParams.get("language") ?? "en";
-    const language = (locales as readonly string[]).includes(rawLanguage) ? rawLanguage : "en";
+    const language = parseLanguageParam(request);
 
     const post = await getBlogPostById(id, language);
     if (!post) {
@@ -83,15 +82,8 @@ export async function PATCH(
     const post = await updateBlogPost(id, session.user.id, data);
     return NextResponse.json(post);
   } catch (error) {
-    if (error instanceof NotFoundError) {
-      return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-    }
-    if (error instanceof ValidationError) {
-      return NextResponse.json({ error: ERROR_VALIDATION_BLOG_EMPTY }, { status: HTTP_BAD_REQUEST });
-    }
+    const mapped = mutationErrorResponse(error, { empty: ERROR_VALIDATION_BLOG_EMPTY });
+    if (mapped) return mapped;
     return serverError("PATCH /api/blog-posts/[id]", error, "failed_to_update_blog_post");
   }
 }

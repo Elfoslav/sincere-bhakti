@@ -22,6 +22,9 @@ vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
 import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError } from "@/lib/services/post";
+// Real shared classes: the PATCH route maps errors via mutationErrorResponse,
+// which checks against @/lib/services/errors (mock-local classes won't match).
+import { NotFoundError as ServiceNotFoundError, ForbiddenError as ServiceForbiddenError } from "@/lib/services/errors";
 import { canAuthorChannel } from "@/lib/services/channel";
 import { GET, DELETE, PATCH } from "@/app/api/posts/[id]/route";
 
@@ -260,7 +263,7 @@ describe("PATCH /api/posts/[id]", () => {
 
   it("returns 404 when post not found", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(updatePost).mockRejectedValue(new NotFoundError());
+    vi.mocked(updatePost).mockRejectedValue(new ServiceNotFoundError());
 
     const res = await PATCH(patchRequest({ content: "x" }), { params: Promise.resolve({ id: "missing" }) });
     const json = await res.json();
@@ -271,7 +274,7 @@ describe("PATCH /api/posts/[id]", () => {
 
   it("returns 403 when not the author", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-2" } } as any);
-    vi.mocked(updatePost).mockRejectedValue(new ForbiddenError());
+    vi.mocked(updatePost).mockRejectedValue(new ServiceForbiddenError());
 
     const res = await PATCH(patchRequest({ content: "x" }), { params: Promise.resolve({ id: "post-1" }) });
     const json = await res.json();

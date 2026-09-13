@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getLanguageAlternates, getLocalizedUrl } from "@/lib/seo";
 import { getPostUrl } from "@/lib/post-url";
 import { getBlogUrl } from "@/lib/blog-url";
+import { publicVisibilityFilter } from "@/lib/services/feed-scope";
 
 export const revalidate = 900;
 
@@ -36,25 +37,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
+  // One clock for every clause below so parallel queries can't disagree on
+  // "now", and one shared visibility predicate (feed-scope) instead of five
+  // inline copies.
+  const now = new Date();
+  const visible = publicVisibilityFilter(now);
+
   const [channels, posts, blogPosts, categories] = await Promise.all([
     prisma.channel.findMany({
       where: {
         OR: [
-          { posts: { some: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] } } },
-          { blogPosts: { some: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] } } },
+          { posts: { some: { ...visible } } },
+          { blogPosts: { some: { ...visible } } },
         ],
       },
       select: {
         id: true,
         createdAt: true,
         posts: {
-          where: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] },
+          where: { ...visible },
           select: { createdAt: true },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
         },
         blogPosts: {
-          where: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] },
+          where: { ...visible },
           select: { createdAt: true },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
@@ -67,7 +74,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Only publicly visible posts: flagged public with no (or a past) publish
     // date. Scheduled promos stay out until their article goes live.
     prisma.post.findMany({
-      where: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] },
+      where: { ...visible },
       select: { id: true, shortId: true, slug: true, language: true, createdAt: true },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 5000,
@@ -75,7 +82,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Only publicly visible articles: flagged public with a past publish date.
     // Scheduled (future) and private posts stay out of the sitemap.
     prisma.blogPost.findMany({
-      where: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: new Date() } }] },
+      where: { ...visible },
       select: { id: true, shortId: true, slug: true, language: true, publishedAt: true, createdAt: true },
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       take: 5000,

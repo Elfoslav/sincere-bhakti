@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
-import { Pencil, Hash, FileText, Plus, Settings } from "lucide-react";
+import { Pencil, FileText, Plus, Settings } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,8 @@ import {
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { channelRoleLabelKey } from "@/lib/channel-role-label";
+import ChannelAvatar from "@/components/ChannelAvatar";
+import { formatDisplayDate } from "@/lib/format";
 import { NAME_MAX_LENGTH, MAX_RENAME_COUNT } from "@/lib/validation";
 import { useIdentity } from "@/components/IdentityProvider";
 import type { ChannelInfo, ManagedChannelInfo, UserProfile } from "@/types/user";
@@ -187,11 +189,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 		);
 	}
 
-	const date = new Date(profile.createdAt).toLocaleDateString(locale === "en" ? "en-US" : locale, {
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-	});
+	const date = formatDisplayDate(profile.createdAt, locale);
 	const managedChannels = profile.managedChannels ?? [];
 
 	return (
@@ -206,9 +204,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 						icon={<Settings />}
 					/>
 				)}
-				<div className="w-20 h-20 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
-					{profile.name[0]?.toUpperCase() || "?"}
-				</div>
+				<ChannelAvatar name={profile.name} size="lg" className="mx-auto mb-4" />
 				<div className="flex items-center justify-center gap-2">
 					<h1 className="text-2xl font-bold text-deep">{profile.name}</h1>
 					{isOwnProfile && (
@@ -386,19 +382,7 @@ function ProfileChannelCard({
 		<Link href={`/channels/${channel.slug}`} className="block">
 			<Card variant="hover">
 				<div className="flex items-center gap-3">
-					{channel.avatarUrl ? (
-						// Using <img> for R2-hosted channel avatars: small fixed-size thumbnails
-						// (40px) with explicit dimensions, simpler CORS than next/image loader.
-						<img
-							src={channel.avatarUrl}
-							alt=""
-							className="w-10 h-10 rounded-full object-cover"
-						/>
-					) : (
-						<div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center">
-							<Hash className="w-5 h-5 text-gold" />
-						</div>
-					)}
+					<ChannelAvatar name={channel.name} avatarUrl={channel.avatarUrl} size="sm" fallback="hash" />
 					<div className="min-w-0 flex-1">
 						<div className="flex min-w-0 items-center gap-2">
 							<p className="truncate font-medium text-deep">{channel.name}</p>

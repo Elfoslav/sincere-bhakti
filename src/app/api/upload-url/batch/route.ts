@@ -3,22 +3,16 @@ import { createUploadUrl } from "@/lib/services/upload";
 import { batchUploadUrlSchema, MAX_TOTAL_UPLOAD_SIZE_BYTES, maxUploadSizeForContentType } from "@/lib/validation";
 import { RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
-import { resolveAuthorableChannelId } from "@/lib/services/channel";
-import { getActiveIdentityCookie, setActiveIdentityCookie } from "@/lib/active-identity";
 import { parseBody } from "@/lib/parse-body";
-import { requireAuth } from "@/lib/require-auth";
+import { requireVerifiedUser, resolveWriteChannel, applyIdentityPreference } from "@/lib/api-helpers";
 import { serverError } from "@/lib/error-handlers";
-import { ERROR_FORBIDDEN, ERROR_UNAUTHORIZED, ERROR_EMAIL_NOT_VERIFIED } from "@/lib/error-messages";
-import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST, HTTP_UNAUTHORIZED } from "@/lib/error-codes";
+import { ERROR_UNAUTHORIZED } from "@/lib/error-messages";
+import { HTTP_BAD_REQUEST, HTTP_UNAUTHORIZED } from "@/lib/error-codes";
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.upload, RATE_LIMITS.upload, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED, skipRateLimit: process.env.NODE_ENV !== "production" });
-  if (auth.response) return auth.response;
-  const session = auth.session;
-
-  if (!session.user.emailVerifiedAt) {
-    return NextResponse.json({ error: ERROR_EMAIL_NOT_VERIFIED }, { status: HTTP_FORBIDDEN });
-  }
+  const authResult = await requireVerifiedUser(request, RATE_LIMIT_PREFIX.upload, RATE_LIMITS.upload, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED, skipRateLimit: process.env.NODE_ENV !== "production" });
+  if (authResult.response) return authResult.response;
+  const session = authResult.session;
 
   try {
     const body = await request.json();
@@ -26,16 +20,9 @@ export async function POST(request: NextRequest) {
     if (parsed.response) return parsed.response;
 
     const { postId, files } = parsed.data;
-    const resolved = await resolveAuthorableChannelId({
-      explicitChannelId: parsed.data.channelId,
-      preferredChannelId: getActiveIdentityCookie(request),
-      fallbackChannelId: session.user.channelId ?? undefined,
-      userId: session.user.id,
-    });
-    if (resolved.explicitForbidden) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-    }
-    const channelId = resolved.channelId;
+    const channel = await resolveWriteChannel(request, session, parsed.data.channelId);
+    if (channel.response) return channel.response;
+    const channelId = channel.channelId;
 
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
     if (totalSize > MAX_TOTAL_UPLOAD_SIZE_BYTES) {
@@ -67,9 +54,7 @@ export async function POST(request: NextRequest) {
     await prisma.pendingUpload.createMany({ data: pendingData });
 
     const response = NextResponse.json({ urls: results });
-    if (resolved.shouldRefreshPreference && channelId) {
-      setActiveIdentityCookie(response, channelId);
-    }
+    applyIdentityPreference(response, channelId, channel.refreshPreference);
     return response;
   } catch (error) {
     return serverError("POST /api/upload-url/batch", error, "failed_to_generate_upload_urls");

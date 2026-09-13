@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, useCallback, startTransition } from "react";
 import { FEED_DEFAULT_LIMIT } from "@/lib/validation";
 
-type FeedParams<T> = {
+export type FeedParams<T> = {
   scope?: "public" | "private";
   channelId?: string;
   disabled?: boolean;
   pageSize?: number;
   language?: string;
   category?: string;
+  // Server-rendered first page. When provided, the hook seeds state from it and
+  // skips the initial client fetch — removing the hydrate→fetch→render waterfall.
   initialData?: { posts: T[]; hasMore: boolean };
 };
 

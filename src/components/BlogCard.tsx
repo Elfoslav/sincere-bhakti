@@ -6,6 +6,7 @@ import { getBlogUrl } from "@/lib/blog-url";
 import { formatBlogDate } from "@/lib/blog";
 import { Card } from "@/components/ui/card";
 import BlogExcerpt from "@/components/BlogExcerpt";
+import ChannelAvatar from "@/components/ChannelAvatar";
 import CategoryChips from "@/components/CategoryChips";
 import BlogPostActions from "@/components/BlogPostActions";
 import type { BlogPost } from "@/types/blog";
@@ -57,13 +58,7 @@ export default function BlogCard({
       <div className="mt-2 flex gap-4 items-start">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
-            <div
-              className="shrink-0 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white font-bold"
-              style={{ width: 22, height: 22, fontSize: 10 }}
-              aria-hidden
-            >
-              {post.channel.name?.[0]?.toUpperCase() || "?"}
-            </div>
+            <ChannelAvatar name={post.channel.name} size="xs" ariaHidden className="shrink-0" />
             <span className="flex min-w-0 flex-1 items-center gap-x-1.5 gap-y-0.5 flex-wrap text-xs text-deep/60">
               <Link
                 href={`/blog/channel/${post.channel.slug}`}

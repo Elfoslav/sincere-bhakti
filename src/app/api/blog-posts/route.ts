@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getBlogPosts, createBlogPost, ConflictError, NotFoundError, ForbiddenError, UnauthorizedError, ValidationError } from "@/lib/services/blog";
+import { getBlogPosts, createBlogPost, UnauthorizedError } from "@/lib/services/blog";
 import { createBlogPostSchema, blogPaginationSchema, isTrustedMediaUrl } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { getPersonalChannel, createPersonalChannel, resolveAuthorableChannelId } from "@/lib/services/channel";
-import { getActiveIdentityCookie, setActiveIdentityCookie } from "@/lib/active-identity";
-import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_NOT_FOUND, ERROR_EMAIL_NOT_VERIFIED, ERROR_BLOG_ID_COLLISION, ERROR_VALIDATION_COVER_UNTRUSTED, ERROR_VALIDATION_BLOG_EMPTY } from "@/lib/error-messages";
-import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_CREATED, HTTP_CONFLICT, HTTP_NOT_FOUND } from "@/lib/error-codes";
-import { requireAuth } from "@/lib/require-auth";
+import { requireVerifiedUser, resolveWriteChannel, ensurePersonalChannel, applyIdentityPreference, mutationErrorResponse } from "@/lib/api-helpers";
+import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_BLOG_ID_COLLISION, ERROR_VALIDATION_COVER_UNTRUSTED, ERROR_VALIDATION_BLOG_EMPTY } from "@/lib/error-messages";
+import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_CREATED } from "@/lib/error-codes";
 import { serverError } from "@/lib/error-handlers";
 import { parseBody } from "@/lib/parse-body";
 
@@ -53,13 +51,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request, RATE_LIMIT_PREFIX.createBlog, RATE_LIMITS.createBlog, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
+  const authResult = await requireVerifiedUser(request, RATE_LIMIT_PREFIX.createBlog, RATE_LIMITS.createBlog, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
   if (authResult.response) return authResult.response;
   const session = authResult.session;
-
-  if (!session.user.emailVerifiedAt) {
-    return NextResponse.json({ error: ERROR_EMAIL_NOT_VERIFIED }, { status: HTTP_FORBIDDEN });
-  }
 
   try {
     const body = await request.json();
@@ -78,42 +72,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const resolved = await resolveAuthorableChannelId({
-      explicitChannelId: parsed.data.channelId,
-      preferredChannelId: getActiveIdentityCookie(request),
-      fallbackChannelId: session.user.channelId ?? undefined,
-      userId: session.user.id,
-    });
-    if (resolved.explicitForbidden) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-    }
-
-    const channelId = resolved.channelId
-      ?? (await getPersonalChannel(session.user.id))?.id
-      ?? (await createPersonalChannel(session.user.id, session.user.name || "User")).id;
+    const channel = await resolveWriteChannel(request, session, parsed.data.channelId);
+    if (channel.response) return channel.response;
+    const channelId = await ensurePersonalChannel(session, channel.channelId);
 
     const post = await createBlogPost({
       ...parsed.data,
       channelId,
     }, session.user.id, parsed.data.language);
     const response = NextResponse.json(post, { status: HTTP_CREATED });
-    if (resolved.shouldRefreshPreference) {
-      setActiveIdentityCookie(response, channelId);
-    }
+    applyIdentityPreference(response, channelId, channel.refreshPreference);
     return response;
   } catch (error) {
-    if (error instanceof ConflictError) {
-      return NextResponse.json({ error: ERROR_BLOG_ID_COLLISION }, { status: HTTP_CONFLICT });
-    }
-    if (error instanceof NotFoundError) {
-      return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-    }
-    if (error instanceof ValidationError) {
-      return NextResponse.json({ error: ERROR_VALIDATION_BLOG_EMPTY }, { status: HTTP_BAD_REQUEST });
-    }
+    const mapped = mutationErrorResponse(error, { empty: ERROR_VALIDATION_BLOG_EMPTY, conflict: ERROR_BLOG_ID_COLLISION });
+    if (mapped) return mapped;
     return serverError("POST /api/blog-posts", error, "failed_to_create_blog_post");
   }
 }
