@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError, ValidationError } from "@/lib/services/post";
+import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError } from "@/lib/services/post";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { isTrustedMediaUrl, updatePostSchema } from "@/lib/validation";
+import { isPostPubliclyVisible } from "@/lib/blog";
 import { canAuthorChannel } from "@/lib/services/channel";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
-import { HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST } from "@/lib/error-codes";
+import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_VALIDATION_MEDIA_UNTRUSTED, ERROR_VALIDATION_POST_EMPTY } from "@/lib/error-messages";
+import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST } from "@/lib/error-codes";
+import { parseLanguageParam, mutationErrorResponse } from "@/lib/api-helpers";
 import type { MediaInput } from "@/lib/services/post";
 import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
@@ -22,16 +24,18 @@ export async function GET(
     }
 
     const { id } = await params;
-    const language = new URL(request.url).searchParams.get("language") ?? "en";
+    const language = parseLanguageParam(request);
 
-    const post = await getPostById(id, language);
+    // Optional viewer for linked-article visibility: public posts stay open,
+    // but a private/scheduled article is only included for its channel authors.
+    const viewerSession = await auth();
+    const post = await getPostById(id, language, viewerSession?.user?.id);
     if (!post) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
-    if (!post.isPublic) {
-      const session = await auth();
-      if (!session?.user?.id || !await canAuthorChannel(post.channel.id, session.user.id)) {
+    if (!isPostPubliclyVisible(post)) {
+      if (!viewerSession?.user?.id || !await canAuthorChannel(post.channel.id, viewerSession.user.id)) {
         return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
       }
     }
@@ -47,7 +51,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth(request, RATE_LIMIT_PREFIX.updatePost, RATE_LIMITS.updatePost, { authErrorCode: "unauthorized", authErrorStatus: 401 });
+    const auth = await requireAuth(request, RATE_LIMIT_PREFIX.updatePost, RATE_LIMITS.updatePost, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
     if (auth.response) return auth.response;
     const session = auth.session;
 
@@ -56,7 +60,7 @@ export async function PATCH(
     const parsed = parseBody(body, updatePostSchema, "PATCH /api/posts/[id]");
     if (parsed.response) return parsed.response;
 
-    const { content, isPublic, language, media: parsedMedia } = parsed.data;
+    const { content, isPublic, language, publishedAt, media: parsedMedia, blogPostId, categories } = parsed.data;
 
     if (parsedMedia !== undefined) {
       // Fail closed: verify every media URL. image/video/file require a valid
@@ -65,29 +69,25 @@ export async function PATCH(
       const storageDomain = process.env.R2_PUBLIC_URL ?? "";
       for (const m of parsedMedia) {
         if (!isTrustedMediaUrl(m.url, m.type, storageDomain)) {
-          return NextResponse.json({ error: "validation_error:media:untrusted_url" }, { status: HTTP_BAD_REQUEST });
+          return NextResponse.json({ error: ERROR_VALIDATION_MEDIA_UNTRUSTED }, { status: HTTP_BAD_REQUEST });
         }
       }
     }
 
-    const data: { content?: string | null; isPublic?: boolean; media?: MediaInput[]; language?: string } = {};
+    const data: { content?: string | null; isPublic?: boolean; media?: MediaInput[]; language?: string; publishedAt?: Date | null; blogPostId?: string | null; categories?: string[] | null } = {};
     if (content !== undefined) data.content = content || null;
     if (isPublic !== undefined) data.isPublic = isPublic;
     if (language !== undefined) data.language = language;
+    if (publishedAt !== undefined) data.publishedAt = publishedAt;
     if (parsedMedia !== undefined) data.media = parsedMedia;
+    if (blogPostId !== undefined) data.blogPostId = blogPostId || null;
+    if (categories !== undefined) data.categories = categories;
 
     const post = await updatePost(id, session.user.id, data);
     return NextResponse.json(post);
   } catch (error) {
-    if (error instanceof NotFoundError) {
-      return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-    }
-    if (error instanceof ValidationError) {
-      return NextResponse.json({ error: "validation_error:post:empty" }, { status: HTTP_BAD_REQUEST });
-    }
+    const mapped = mutationErrorResponse(error, { empty: ERROR_VALIDATION_POST_EMPTY });
+    if (mapped) return mapped;
     return serverError("PATCH /api/posts/[id]", error, "failed_to_update_post");
   }
 }
@@ -97,7 +97,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth(request, RATE_LIMIT_PREFIX.deletePost, RATE_LIMITS.deletePost, { authErrorCode: "unauthorized", authErrorStatus: 401 });
+    const auth = await requireAuth(request, RATE_LIMIT_PREFIX.deletePost, RATE_LIMITS.deletePost, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
     if (auth.response) return auth.response;
     const session = auth.session;
 

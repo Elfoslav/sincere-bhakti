@@ -870,6 +870,14 @@ describe("getChannelBySlug — slug resolution priority", () => {
     // History must NOT be consulted when the exact match is found.
     expect(prisma.channelSlugHistory.findUnique).not.toHaveBeenCalled();
     expect(prisma.channelTranslation.findFirst).not.toHaveBeenCalled();
+    // The detail count is scoped to the requested language, not all languages.
+    expect(prisma.channel.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          _count: { select: { posts: { where: { isPublic: true, language: "cs" } } } },
+        }),
+      }),
+    );
   });
 
   it("returns null when the slug is in the locale's slug history (triggers redirect in caller)", async () => {

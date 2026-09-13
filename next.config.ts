@@ -36,7 +36,18 @@ const contentSecurityPolicy = [
   "object-src 'none'",
 ].join("; ");
 
+// `next dev` blocks cross-origin access to HMR/dev resources by default, which
+// kills ALL client-side interactivity (menus, dialogs, …) when the dev server
+// is opened from another device on the LAN (e.g. a phone at 192.168.x.x:3000).
+// Allowlist extra dev origins (hostnames or IPs, comma-separated) via
+// ALLOWED_DEV_ORIGINS in .env.local. Dev-only — ignored in production builds.
+const allowedDevOrigins = (process.env.ALLOWED_DEV_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const nextConfig: NextConfig = {
+  allowedDevOrigins,
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.r2.dev" },

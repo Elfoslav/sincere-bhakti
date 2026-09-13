@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
-import { CircleUserRound, Hash, LogIn, LogOut, Newspaper } from "lucide-react";
+import { CircleUserRound, Hash, LogIn, LogOut, Newspaper, BookOpen } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { isAuthenticated } from "@/lib/session";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,9 @@ export default function Navbar() {
 						<div className="hidden md:flex items-center gap-4">
 							<Link href="/posts" className="hover:text-gold-light transition-colors">
 								{t("posts")}
+							</Link>
+							<Link href="/blog" className="hover:text-gold-light transition-colors">
+								{t("blog")}
 							</Link>
 							<Link href="/channels" className="hover:text-gold-light transition-colors">
 								{t("channels")}
@@ -126,6 +129,9 @@ export default function Navbar() {
 					</div>
 					<MobileLink href="/posts" onClick={close} icon={<Newspaper className="size-4" />}>
 						{t("posts")}
+					</MobileLink>
+					<MobileLink href="/blog" onClick={close} icon={<BookOpen className="size-4" />}>
+						{t("blog")}
 					</MobileLink>
 					<MobileLink href="/channels" onClick={close} icon={<Hash className="size-4" />}>
 						{t("channels")}

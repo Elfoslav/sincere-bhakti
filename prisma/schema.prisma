@@ -53,6 +53,7 @@ model Channel {
   ownerId         String
   owner    User              @relation("ChannelOwner", fields: [ownerId], references: [id])
   posts    Post[]
+  blogPosts BlogPost[]
   editors  ChannelEditor[]
   slugHistory     ChannelSlugHistory[]
   translations    ChannelTranslation[]
@@ -116,13 +117,21 @@ model Post {
   content   String?
   isPublic  Boolean  @default(true)
   language  String   @default("en")
+  // Optional publish date (timeline promos of scheduled blog articles carry
+  // the article's date so both go live together). Null = visible immediately.
+  publishedAt DateTime?
   createdAt DateTime @default(now())
   channelId String
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   media     Media[]
-
+  // Optional link to a channel blog article: the feed post promotes the
+  // article and renders its excerpt with a link to the blog detail.
+  blogPostId String?
+  blogPost   BlogPost? @relation(fields: [blogPostId], references: [id], onDelete: SetNull)
+  categories PostCategory[]
   @@index([channelId])
   @@index([isPublic, createdAt])
+  @@index([isPublic, publishedAt, createdAt])
   @@index([language, isPublic, createdAt])
   @@index([createdAt, id])
 }
@@ -133,6 +142,76 @@ model RateLimit {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+model BlogPost {
+  id          String    @id @default(cuid())
+  shortId     String    @unique
+  title       String
+  slug        String?
+  excerpt     String?
+  content     String?
+  // Server-sanitized HTML rendered from the Tiptap JSON in `content`
+  // (computed client-side on save, re-sanitized server-side). Null for
+  // legacy plain-text articles, which render as escaped paragraphs.
+  contentHtml String?
+  coverUrl    String?
+  isPublic    Boolean   @default(true)
+  language    String    @default("en")
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  channelId   String
+  channel     Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  // Feed posts promoting this article. SetNull from the Post side: deleting
+  // the article unlinks promoting posts instead of deleting them.
+  posts       Post[]
+  categories  BlogPostCategory[]
+
+  @@index([channelId])
+  @@index([isPublic, publishedAt, createdAt])
+  @@index([language, isPublic, createdAt])
+  @@index([createdAt, id])
+}
+
+// Unified taxonomy for timeline posts and blog articles. Names are stored
+// in canonical Title Case form (see normalizeCategoryName); names are
+// unique PER LANGUAGE (like channel translations), and a category only ever
+// appears in feeds, pickers, and filters of its own language.
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  // URL slug derived from the name ("Holy Name" → "holy-name"); suffixed
+  // when distinct names slugify alike. Lookup key for /blog/category/[slug].
+  slug      String
+  language  String   @default("en")
+  createdAt DateTime @default(now())
+  posts     PostCategory[]
+  blogPosts BlogPostCategory[]
+
+  @@unique([language, name])
+  @@unique([language, slug])
+  @@index([language])
+}
+
+model PostCategory {
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([postId, categoryId])
+  @@index([categoryId])
+}
+
+model BlogPostCategory {
+  blogPostId String
+  blogPost   BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([blogPostId, categoryId])
+  @@index([categoryId])
 }
 
 model Media {

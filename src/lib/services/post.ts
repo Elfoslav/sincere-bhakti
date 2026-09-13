@@ -1,41 +1,33 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
+import { deletePendingUploads } from "@/lib/pending-upload";
 import { canonicalizeUrl } from "@/lib/url";
 import { isChannelEditor } from "@/lib/services/channel";
+import { isBlogPubliclyVisible } from "@/lib/blog";
+import { blogPostInclude, toBlogPostResponse, type BlogPostResponse } from "@/lib/services/blog";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
 import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
 import { generateShortId } from "@/lib/id";
-import { derivePostSlug } from "@/lib/validation";
+import { derivePostSlug, normalizeCategoryName } from "@/lib/validation";
+import { resolveCategoryIds, setPostCategories } from "@/lib/services/category";
+import { resolveFeedScopeWhere } from "@/lib/services/feed-scope";
+import { ERROR_POST_ID_COLLISION } from "@/lib/error-messages";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
+import type { CategoryRef } from "@/types/category";
 
-async function deletePendingUploads(urls: string[]): Promise<void> {
-  const storageDomain = process.env.R2_PUBLIC_URL;
-  if (!storageDomain) return;
-  const keys = urls
-    .map((u) => extractKey(u, storageDomain))
-    .filter((k): k is string => k !== null);
-  if (keys.length > 0) {
-    await prisma.pendingUpload.deleteMany({ where: { key: { in: keys } } });
-  }
-}
-
-export class UnauthorizedError extends Error {
-  name = "UnauthorizedError" as const;
-}
-export class NotFoundError extends Error {
-  name = "NotFoundError" as const;
-}
-export class ForbiddenError extends Error {
-  name = "ForbiddenError" as const;
-}
-export class ValidationError extends Error {
-  name = "ValidationError" as const;
-}
-export class ConflictError extends Error {
-  name = "ConflictError" as const;
-}
+// Re-exported so existing importers (routes, tests) keep working — the
+// canonical classes live in @/lib/services/errors, shared with the blog
+// service so instanceof checks cross the module boundary.
+import {
+  UnauthorizedError,
+  NotFoundError,
+  ForbiddenError,
+  ValidationError,
+  ConflictError,
+} from "@/lib/services/errors";
+export { UnauthorizedError, NotFoundError, ForbiddenError, ValidationError, ConflictError };
 
 export interface PostMedia {
   url: string;
@@ -50,11 +42,17 @@ export interface PostResponse {
   shortId: string;
   slug: string | null;
   content: string | null;
+  blogPostId: string | null;
   isPublic: boolean;
   language: string;
+  // Null = visible immediately; a future date hides the post from public
+  // feeds until then (timeline promos of scheduled articles).
+  publishedAt: Date | null;
   createdAt: Date;
   channel: PostChannel;
   media: PostMedia[];
+  blogPost: BlogPostResponse | null;
+  categories: CategoryRef[];
 }
 
 export interface GetPostsParams {
@@ -64,6 +62,9 @@ export interface GetPostsParams {
   channelId?: string;
   language?: string;
   requestLanguage?: string;
+  blogPostId?: string;
+  // Canonical UPPERCASE category name; normalized again server-side.
+  category?: string;
 }
 
 export interface GetPostsResult {
@@ -84,7 +85,10 @@ export interface CreatePostData {
   media?: MediaInput[];
   isPublic?: boolean;
   language?: string;
+  publishedAt?: Date | null;
   channelId?: string;
+  blogPostId?: string;
+  categories?: string[];
 }
 
 export interface UpdatePostData {
@@ -92,6 +96,10 @@ export interface UpdatePostData {
   isPublic?: boolean;
   media?: MediaInput[];
   language?: string;
+  publishedAt?: Date | null;
+  blogPostId?: string | null;
+  // Undefined leaves categories alone; null or [] clears them.
+  categories?: string[] | null;
 }
 
 const postInclude = {
@@ -101,12 +109,20 @@ const postInclude = {
     },
   },
   media: { orderBy: { position: "asc" as const } },
+  blogPost: { include: blogPostInclude },
+  categories: { include: { category: { select: { id: true, name: true, slug: true, language: true } } } },
 };
 
-function toPostResponse<Raw extends { channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] } }>(
+function toPostResponse<
+  Raw extends {
+    channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] };
+    blogPost?: { channel: { id: string; avatarUrl: string | null; ownerId: string; translations?: TranslationInfo[] } } | null;
+    categories?: { category: { id: string; name: string; slug: string; language: string } }[];
+  },
+>(
   raw: Raw,
   language: string,
-): Omit<Raw, "channel"> & { channel: PostChannel } {
+): Omit<Raw, "channel" | "blogPost" | "categories"> & { channel: PostChannel; blogPost: BlogPostResponse | null; categories: CategoryRef[] } {
   const t = raw.channel.translations
     ? resolveTranslation(raw.channel.translations, language)
     : null;
@@ -119,59 +135,91 @@ function toPostResponse<Raw extends { channel: { id: string; avatarUrl: string |
       avatarUrl: raw.channel.avatarUrl,
       ownerId: raw.channel.ownerId,
     },
+    // The constraint only names the channel shape; the runtime payload carries
+    // the full article (spread inside toBlogPostResponse), hence the cast.
+    // Callers MUST null this for viewers who may not see the article (see
+    // hidePrivateBlogPost below) — serializing it unconditionally leaks
+    // private/scheduled articles through public post responses.
+    blogPost: raw.blogPost
+      ? (toBlogPostResponse(raw.blogPost, language) as unknown as BlogPostResponse)
+      : null,
+    categories: (raw.categories ?? []).map((c) => ({ id: c.category.id, name: c.category.name, slug: c.category.slug, language: c.category.language })),
   };
+}
+
+/**
+ * Null a linked article the viewer may not see. A public timeline post can
+ * otherwise leak a private/scheduled article's title, body, cover, and
+ * categories via the public post API (the UI hides the preview, but the JSON
+ * still carried it). This happens through the blogPostId link or by making an
+ * already-promoted article private afterwards.
+ *
+ * Keep the article when it is publicly visible, or when the viewer authors
+ * its channel (owner fast-path, editor lookup otherwise). The post and its
+ * article always share a channel (enforced at link time), so authoring either
+ * implies authoring both.
+ */
+async function hidePrivateBlogPost<
+  T extends { blogPost: BlogPostResponse | null; blogPostId?: string | null },
+>(
+  response: T,
+  rawBlogPost: { isPublic: boolean; publishedAt: Date | string | null; channel: { id: string; ownerId: string } } | null | undefined,
+  viewerId?: string,
+): Promise<T> {
+  // No link or a dangling link (relation null): never leak the scalar —
+  // the inconsistent state is exactly where the guard must stay defensive.
+  if (!response.blogPost || !rawBlogPost) return { ...response, blogPost: null, blogPostId: null };
+  if (isBlogPubliclyVisible(rawBlogPost)) return response;
+  if (viewerId) {
+    if (rawBlogPost.channel.ownerId === viewerId) return response;
+    if (await isChannelEditor(rawBlogPost.channel.id, viewerId)) return response;
+  }
+  // Null the object AND the scalar: leaking blogPostId tells anonymous
+  // callers a private article's id and its linkage (detail still 404s).
+  return { ...response, blogPost: null, blogPostId: null };
 }
 
 export async function getPosts(
   params: GetPostsParams,
   currentUserId?: string,
 ): Promise<GetPostsResult> {
-  const { scope, cursor, limit = 10, channelId, language, requestLanguage } = params;
+  const { scope, cursor, limit = 10, channelId, language, requestLanguage, blogPostId, category } = params;
+  const now = new Date();
+
+  if (blogPostId) {
+    // Existence gate: without it, ?blogPostId=<guess> oracles private
+    // article ids (a public promo row vs an empty set). Only proceed when
+    // the linked article is publicly visible or the viewer authors its
+    // channel — otherwise return empty (a list filter, never a 404).
+    const linked = await prisma.blogPost.findUnique({
+      where: { id: blogPostId },
+      select: { isPublic: true, publishedAt: true, channel: { select: { id: true, ownerId: true } } },
+    });
+    const openlyVisible = !!linked && isBlogPubliclyVisible(linked);
+    const authored = !!linked && !!currentUserId &&
+      (linked.channel.ownerId === currentUserId || await isChannelEditor(linked.channel.id, currentUserId));
+    if (!openlyVisible && !authored) return { posts: [], hasMore: false };
+  }
 
   const where: Prisma.PostWhereInput = {};
   if (language) where.language = language;
-
-  if (scope === "public") {
-    where.isPublic = true;
-    if (channelId) where.channelId = channelId;
-  } else if (scope === "private") {
-    if (!currentUserId) throw new UnauthorizedError();
-    if (channelId) {
-      const channel = await prisma.channel.findUnique({
-        where: { id: channelId },
-        select: { ownerId: true },
-      });
-      if (!channel || (channel.ownerId !== currentUserId && !await isChannelEditor(channelId, currentUserId))) {
-        throw new UnauthorizedError();
-      }
-      where.channelId = channelId;
-    } else {
-      where.OR = [
-        { channel: { ownerId: currentUserId } },
-        { channel: { editors: { some: { userId: currentUserId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
-      ];
-    }
-    where.isPublic = false;
-  } else {
-    if (!currentUserId) throw new UnauthorizedError();
-    if (channelId) {
-      // Non-owners may only see public posts of the channel
-      const channel = await prisma.channel.findUnique({
-        where: { id: channelId },
-        select: { ownerId: true },
-      });
-      if (!channel) throw new NotFoundError();
-      where.channelId = channelId;
-      if (channel.ownerId !== currentUserId && !await isChannelEditor(channelId, currentUserId)) {
-        where.isPublic = true;
-      }
-    } else {
-      where.OR = [
-        { channel: { ownerId: currentUserId } },
-        { channel: { editors: { some: { userId: currentUserId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
-      ];
-    }
+  if (blogPostId) where.blogPostId = blogPostId;
+  if (category?.trim()) {
+    // A category only ever matches its own language: scope to the feed
+    // language when the caller filters by one.
+    where.categories = {
+      some: {
+        category: {
+          name: normalizeCategoryName(category),
+          ...(language ? { language } : {}),
+        },
+      },
+    };
   }
+
+  // Scope/visibility lives in the shared feed-scope helper (same shape as
+  // the blog feed) — the keys never overlap the filters applied above.
+  Object.assign(where, await resolveFeedScopeWhere({ scope, channelId, currentUserId }, now));
 
   const posts = await prisma.post.findMany({
     take: limit + 1,
@@ -185,30 +233,33 @@ export async function getPosts(
   if (hasMore) posts.pop();
 
   const resolvedLanguage = requestLanguage ?? "en";
+  const visible = await Promise.all(
+    posts.map(async (p) => hidePrivateBlogPost(toPostResponse(p, resolvedLanguage), p.blogPost, currentUserId)),
+  );
   return {
-    posts: posts.map((p) => toPostResponse(p, resolvedLanguage)),
+    posts: visible,
     hasMore,
   };
 }
 
-export async function getPostById(id: string, language?: string): Promise<PostResponse | null> {
+export async function getPostById(id: string, language?: string, currentUserId?: string): Promise<PostResponse | null> {
   const post = await prisma.post.findUnique({
     where: { id },
     include: postInclude,
   });
 
   if (!post) return null;
-  return toPostResponse(post, language ?? "en");
+  return hidePrivateBlogPost(toPostResponse(post, language ?? "en"), post.blogPost, currentUserId);
 }
 
-export async function getPostByShortId(shortId: string, language?: string): Promise<PostResponse | null> {
+export async function getPostByShortId(shortId: string, language?: string, currentUserId?: string): Promise<PostResponse | null> {
   const post = await prisma.post.findUnique({
     where: { shortId },
     include: postInclude,
   });
 
   if (!post) return null;
-  return toPostResponse(post, language ?? "en");
+  return hidePrivateBlogPost(toPostResponse(post, language ?? "en"), post.blogPost, currentUserId);
 }
 
 // `generateMetadata` and the page body both need the same post data. React's
@@ -273,12 +324,27 @@ async function validateMediaOwnership(
 // giving up (a collision on an 8-hex id is already very unlikely).
 const MAX_SHORT_ID_ATTEMPTS = 5;
 
+/**
+ * Validate a promoted blog article link: the article must exist and belong
+ * to the same channel as the post (the caller already proved authorship of
+ * that channel). Same-channel keeps visibility coherent — excerpt rendering
+ * is additionally guarded per viewer by isBlogPubliclyVisible.
+ */
+async function validateBlogLink(blogPostId: string, channelId: string): Promise<void> {
+  const blog = await prisma.blogPost.findUnique({
+    where: { id: blogPostId },
+    select: { id: true, channelId: true },
+  });
+  if (!blog) throw new NotFoundError("blog_not_found");
+  if (blog.channelId !== channelId) throw new ValidationError("blog_channel_mismatch");
+}
+
 export async function createPost(
   data: CreatePostData,
   userId: string,
   requestLanguage?: string,
 ): Promise<PostResponse> {
-  const { id, content, media = [], isPublic = true, language = "en", channelId } = data;
+  const { id, content, media = [], isPublic = true, language = "en", publishedAt, channelId, blogPostId, categories } = data;
   await validateMediaOwnership(media, userId);
 
   if (!channelId) throw new ValidationError("channel_required");
@@ -299,6 +365,10 @@ export async function createPost(
     }
   }
 
+  if (blogPostId) await validateBlogLink(blogPostId, channelId);
+
+  const categoryIds = categories ? await resolveCategoryIds(prisma, categories, language) : [];
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let rawPost: any;
   // shortId is a server-generated 8-char id on a UNIQUE column. A collision is
@@ -315,7 +385,12 @@ export async function createPost(
           content: content || null,
           isPublic,
           language,
+          publishedAt: publishedAt ?? null,
           channelId,
+          ...(blogPostId ? { blogPostId } : {}),
+          categories: {
+            create: categoryIds.map((categoryId) => ({ category: { connect: { id: categoryId } } })),
+          },
           media: {
             create: media.map((m, i) => ({
               url: m.url,
@@ -337,7 +412,7 @@ export async function createPost(
           ? target.includes("shortId")
           : typeof target === "string" && target.includes("shortId");
         if (onShortId && attempt < MAX_SHORT_ID_ATTEMPTS) continue;
-        throw new ConflictError("post_id_collision");
+        throw new ConflictError(ERROR_POST_ID_COLLISION);
       }
       throw error;
     }
@@ -358,8 +433,10 @@ export async function deletePost(
     include: { media: { select: { url: true } }, channel: { select: { id: true, ownerId: true } } },
   });
   if (!post) throw new NotFoundError();
+  // 404 (not 403) for strangers: matches updatePost so delete doesn't
+  // oracle private-object existence.
   if (post.channel.ownerId !== userId && !await isChannelEditor(post.channel.id, userId)) {
-    throw new ForbiddenError();
+    throw new NotFoundError();
   }
 
   const urls = post.media.map((m) => canonicalizeUrl(m.url));
@@ -398,16 +475,19 @@ export async function updatePost(
 ): Promise<PostResponse> {
   const existing = await prisma.post.findUnique({
     where: { id },
-    include: { media: { select: { url: true } }, channel: { select: { id: true, ownerId: true } } },
+    select: { language: true, media: { select: { url: true } }, channel: { select: { id: true, ownerId: true } } },
   });
   if (!existing) throw new NotFoundError();
   if (existing.channel.ownerId !== userId && !await isChannelEditor(existing.channel.id, userId)) {
     throw new NotFoundError();
   }
 
-  const { media, ...rest } = data;
+  const { media, categories, ...rest } = data;
   if (media !== undefined) {
     await validateMediaOwnership(media, userId, existing.media.map((m) => m.url));
+  }
+  if (rest.blogPostId) {
+    await validateBlogLink(rest.blogPostId, existing.channel.id);
   }
 
   const postData: Prisma.PostUpdateManyMutationInput = { ...rest };
@@ -417,7 +497,33 @@ export async function updatePost(
     postData.slug = derivePostSlug(rest.content) ?? null;
   }
 
+  const ownershipFilter: Prisma.PostWhereInput = {
+    id,
+    OR: [
+      { channel: { ownerId: userId } },
+      { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
+    ],
+  };
+
+  // Prove ownership FIRST inside the transaction, then write relations: a
+  // role revoked between the pre-fetch above and this write fails closed
+  // before any category/media mutation lands. A categories/media-only patch
+  // carries no scalar changes (Prisma rejects empty data), so it proves
+  // ownership with a scoped count. Throwing rolls the whole transaction back.
   const post = await prisma.$transaction(async (tx) => {
+    if (Object.keys(postData).length > 0) {
+      const { count } = await tx.post.updateMany({ where: ownershipFilter, data: postData });
+      if (count === 0) throw new NotFoundError();
+    } else {
+      const owned = await tx.post.count({ where: ownershipFilter });
+      if (owned === 0) throw new NotFoundError();
+    }
+
+    if (categories !== undefined) {
+      // Resolved inside the transaction: a stranger's rejected patch must
+      // not create global taxonomy rows as a side effect.
+      await setPostCategories(tx, id, await resolveCategoryIds(tx, categories ?? [], data.language ?? existing.language));
+    }
     if (media !== undefined) {
       await tx.media.deleteMany({ where: { postId: id } });
       if (media.length > 0) {
@@ -435,27 +541,12 @@ export async function updatePost(
       }
     }
 
-    const { count } = await tx.post.updateMany({
-      where: {
-        id,
-        OR: [
-          { channel: { ownerId: userId } },
-          { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
-        ],
-      },
-      data: postData,
-    });
-
-    if (count === 0) {
-      throw new NotFoundError();
-    }
-
     const updated = await tx.post.findUnique({
       where: { id },
       include: postInclude,
     })!;
 
-    if (updated && !updated.content && updated.media.length === 0) {
+    if (updated && !updated.content && updated.media.length === 0 && !updated.blogPostId) {
       throw new ValidationError("post_must_have_content_or_media");
     }
 

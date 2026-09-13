@@ -28,7 +28,11 @@ const initialPost: Post = {
   content: "Test post with media",
   isPublic: true,
   language: "en",
+  publishedAt: null,
   createdAt: "2026-07-19T12:00:00.000Z",
+  blogPost: null,
+  blogPostId: null,
+  categories: [],
   channel: {
     id: "test-channel-1",
     name: "Test User",

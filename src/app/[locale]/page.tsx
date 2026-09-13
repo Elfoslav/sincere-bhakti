@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, Image as ImageIcon, Users } from "lucide-react";
 import { DEFAULT_OG_IMAGE } from "@/lib/seo";
+import HomepageBlogSection from "@/components/HomepageBlogSection";
 
 type Props = {
 	params: Promise<{ locale: string }>;
@@ -86,6 +87,8 @@ export default async function Home({ params }: Props) {
 						<p className="text-sm text-deep/60">{t("cardSangaDesc")}</p>
 					</Card>
 				</div>
+
+				<HomepageBlogSection />
 			</div>
 		</div>
 	);

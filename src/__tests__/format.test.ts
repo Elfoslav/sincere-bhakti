@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatBytes } from "@/lib/format";
+import { BYTES_PER_MB, formatBytes, formatDisplayDate } from "@/lib/format";
 
 describe("formatBytes", () => {
   it('returns "0 B" for zero', () => {
@@ -31,5 +31,35 @@ describe("formatBytes", () => {
 
   it("handles unexpected negative input gracefully", () => {
     expect(formatBytes(-100)).toBe("NaN undefined");
+  });
+});
+
+describe("BYTES_PER_MB", () => {
+  it("equals one mebibyte", () => {
+    expect(BYTES_PER_MB).toBe(1024 * 1024);
+  });
+});
+
+describe("formatDisplayDate", () => {
+  it("formats a Date with the locale month name", () => {
+    expect(formatDisplayDate(new Date(2026, 8, 11), "en")).toBe("September 11, 2026");
+  });
+
+  it("accepts ISO strings from API payloads", () => {
+    expect(formatDisplayDate("2026-09-01T00:00:00.000Z", "en")).toMatch(/September \d, 2026/);
+  });
+
+  it("uses the given locale for non-English month names", () => {
+    expect(formatDisplayDate(new Date(2026, 8, 11), "cs")).toBe("11. září 2026");
+  });
+
+  it("includes the time when requested", () => {
+    expect(formatDisplayDate(new Date(2026, 8, 11, 10, 5), "en", { withTime: true })).toContain("2026");
+  });
+
+  it("returns an empty string for nullish or invalid input", () => {
+    expect(formatDisplayDate(null, "en")).toBe("");
+    expect(formatDisplayDate(undefined, "en")).toBe("");
+    expect(formatDisplayDate("not-a-date", "en")).toBe("");
   });
 });

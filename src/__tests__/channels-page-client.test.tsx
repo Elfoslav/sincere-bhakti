@@ -44,4 +44,29 @@ describe("ChannelsPageClient", () => {
       expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     });
   });
+
+  it("keeps long channel names inside the grid (grid item clamps min-width)", async () => {
+    const longName = `${"Very Long Channel Name ".repeat(10)}${"A".repeat(120)}`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({
+        items: [{ id: "1", name: longName, slug: "long", avatarUrl: null, postCount: 1 }],
+        nextCursor: null,
+      })),
+    );
+
+    const { container } = render(<ChannelsPageClient />);
+
+    await waitFor(() => {
+      expect(screen.getByText(longName)).toBeInTheDocument();
+    });
+
+    // jsdom does no layout, so assert the clamping contract directly: the
+    // grid item (the channel link) must allow shrinking below content width
+    // (grid items default to min-width:auto, which sizes the track to the
+    // longest name), and the name itself must truncate instead of growing.
+    const link = container.querySelector('a[href="/channels/long"]');
+    expect(link?.className).toMatch(/(^|\s)min-w-0($|\s)/);
+    expect(screen.getByText(longName).className).toMatch(/(^|\s)truncate($|\s)/);
+  });
 });

@@ -37,17 +37,26 @@ function parseContentLength(value: string | null): number | null {
   return parsed;
 }
 
+export interface RemoteFetchResult {
+  bytes: Buffer;
+  /** URL after following redirects — never trust the pre-redirect URL. */
+  finalUrl: string;
+  /** Raw response content-type of the final hop (null when absent). */
+  contentType: string | null;
+}
+
 /**
- * Fetch `url` and return its body as a Buffer, with the following guards:
+ * Fetch `url` and return its body plus final-hop metadata, with guards:
  * - the resolved host (and every redirect hop) must not be private (SSRF);
- * - an AbortController timeout bounds total time;
+ * - a single deadline bounds TOTAL time across all redirect hops (a
+ *   per-hop timeout would allow (maxRedirects+1)×timeoutMs per request);
  * - content-length and the stream itself are capped at `maxBytes`.
  * Returns null on any non-2xx status, timeout, SSRF rejection, or overflow.
  */
 export async function fetchRemoteBytes(
   url: string,
   options: RemoteFetchOptions = {},
-): Promise<Buffer | null> {
+): Promise<RemoteFetchResult | null> {
   const {
     maxBytes = MAX_LINK_PREVIEW_IMAGE_BYTES,
     timeoutMs = LINK_PREVIEW_FETCH_TIMEOUT_MS,
@@ -55,6 +64,7 @@ export async function fetchRemoteBytes(
     guardRedirects = true,
   } = options;
 
+  const deadline = Date.now() + timeoutMs;
   let current = url;
   let redirects = 0;
 
@@ -67,8 +77,12 @@ export async function fetchRemoteBytes(
       }
     }
 
+    // Remaining budget of the single total deadline, not a fresh per-hop
+    // timeout — each redirect hop must not extend the request's lifetime.
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) return null;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), remainingMs);
 
     let res: Awaited<ReturnType<typeof undiciFetch>>;
     try {
@@ -101,6 +115,8 @@ export async function fetchRemoteBytes(
       return null;
     }
 
+    const contentType = res.headers.get("content-type");
+
     try {
       const contentLength = parseContentLength(res.headers.get("content-length"));
       if (contentLength !== null && contentLength > maxBytes) return null;
@@ -126,7 +142,7 @@ export async function fetchRemoteBytes(
         reader.releaseLock();
       }
 
-      return Buffer.concat(chunks, totalBytes);
+      return { bytes: Buffer.concat(chunks, totalBytes), finalUrl: current, contentType };
     } finally {
       clearTimeout(timeout);
     }

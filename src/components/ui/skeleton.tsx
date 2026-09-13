@@ -28,4 +28,14 @@ function PostCardSkeleton() {
   )
 }
 
-export { Skeleton, PostCardSkeleton }
+function FeedLoadingSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <div className="w-full max-w-3xl mx-auto px-4 py-8 space-y-4">
+      {Array.from({ length: count }, (_, i) => (
+        <PostCardSkeleton key={i} />
+      ))}
+    </div>
+  )
+}
+
+export { Skeleton, PostCardSkeleton, FeedLoadingSkeleton }

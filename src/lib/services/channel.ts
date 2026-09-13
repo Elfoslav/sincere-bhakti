@@ -17,9 +17,10 @@ import type { ChannelMember, ChannelSettings, ChannelSettingsTranslation } from 
 import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
 import { logServerError } from "@/lib/server-log";
 
-export class NotFoundError extends Error {
-  name = "NotFoundError" as const;
-}
+// Shared with the post/blog services so instanceof checks cross the module
+// boundary; re-exported for existing importers.
+import { NotFoundError } from "@/lib/services/errors";
+export { NotFoundError };
 export class NameTakenError extends Error {
   name = "NameTakenError" as const;
 }
@@ -295,7 +296,8 @@ export async function getChannelBySlug(slug: string, language: string = "en"): P
       renameCount: true,
       defaultLanguage: true,
       owner: { select: { id: true, name: true, image: true } },
-      _count: { select: { posts: { where: { isPublic: true } } } },
+      // Language-specific: the detail header count matches the locale feed.
+      _count: { select: { posts: { where: { isPublic: true, language } } } },
       translations: { select: { language: true } },
     },
   });

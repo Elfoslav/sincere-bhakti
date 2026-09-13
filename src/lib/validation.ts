@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { locales } from "@/i18n/routing";
+import { extractPlainText } from "@/lib/rich-text";
 import { CHANNEL_MEMBER_ACTIONS, CHANNEL_MEMBER_ROLES } from "@/lib/channel-roles";
 
 export const PASSWORD_MIN_LENGTH = 8;
@@ -11,6 +12,80 @@ export const MAX_RENAME_COUNT = 3;
 // the slug is cosmetic. Must stay in sync with the slug backfill in
 // prisma/migrations/20260728120000_add_post_shortid_slug.
 export const POST_SLUG_MAX_LENGTH = 60;
+
+// Blog post field limits. Titles stay short for cards/SEO; excerpts feed list
+// previews and meta descriptions; content allows long-form articles.
+export const BLOG_TITLE_MAX_LENGTH = 100;
+export const BLOG_EXCERPT_MAX_LENGTH = 300;
+export const BLOG_CONTENT_MAX_LENGTH = 20000;
+// Stored-content cap: article bodies are Tiptap JSON documents, so the raw
+// string carries markup overhead. The human-readable limit above is enforced
+// separately on the extracted plain text.
+export const BLOG_RAW_CONTENT_MAX_LENGTH = 60000;
+
+// Shared feed/picker bounds so SSR fetches, Zod schemas, and client hooks
+// stay in sync instead of hardcoding the same numbers in many places.
+export const FEED_DEFAULT_LIMIT = 10;
+export const FEED_MAX_LIMIT = 50;
+export const MAX_MEDIA_ITEMS_PER_POST = 10;
+export const MEDIA_URL_MAX_LENGTH = 2000;
+export const CATEGORY_SEARCH_LIMIT = 10;
+// Upper bound for picker searches. Decoupled from the feed page size above:
+// the picker taxonomy and the post feed scale independently.
+export const CATEGORY_SEARCH_MAX_LIMIT = 50;
+// Shared debounce for search inputs (category picker, channel search).
+export const SEARCH_DEBOUNCE_MS = 300;
+
+// Cuid-shaped entity ids (posts, blogs, drafts, R2 key namespaces): the same
+// charset everywhere, rejecting `/`, `..`, `?`, `#` that could escape a key
+// prefix — and so arbitrary strings can't be used as existence oracles via
+// id filters. Replaces the former per-schema copies and uploadPostIdField.
+export const entityIdField = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
+
+// Shared user-input fragments so the same shapes stay identical in every
+// schema instead of re-declaring the same chain per form.
+export const emailField = z.string().trim().toLowerCase().email().max(255);
+export const passwordField = z.string().trim().min(PASSWORD_MIN_LENGTH).max(128);
+export const nameField = z.string().trim().min(1).max(NAME_MAX_LENGTH);
+export const fileNameField = z.string().min(1).max(255);
+export const uploadContentTypeField = z.string().min(1).max(255).refine(isAllowedUploadContentType);
+export const safeUrlField = z.string().url().max(MEDIA_URL_MAX_LENGTH).refine(isSafeHttpUrl);
+export const publishedAtNullableField = z.coerce.date().nullish();
+
+// Unified category taxonomy: one global tag list for timeline posts and blog
+// articles. Names are forced to Title Case (multi-word allowed) and unique
+// across the whole app; the per-post cap keeps tag spam in check.
+export const CATEGORY_NAME_MAX_LENGTH = 50;
+export const CATEGORIES_MAX_PER_POST = 5;
+
+// Single category name from user input: trimmed and length-checked raw,
+// then normalized (parsed output is the canonical Title Case form, so
+// downstream code receives clean values without re-normalizing).
+const categoryNameField = z
+  .string()
+  .trim()
+  .min(1)
+  .max(CATEGORY_NAME_MAX_LENGTH)
+  .transform((v) => normalizeCategoryName(v));
+
+// Category name list for post/blog writes: capped, with duplicates rejected
+// AFTER normalization ("Bhakti" + "BHAKTI" counts as a duplicate).
+const categoryNamesField = z
+  .array(categoryNameField)
+  .max(CATEGORIES_MAX_PER_POST)
+  .refine((names) => new Set(names).size === names.length);
+
+export const categorySearchSchema = z.object({
+  search: z.string().trim().max(CATEGORY_NAME_MAX_LENGTH).optional(),
+  limit: z.coerce.number().int().min(1).max(CATEGORY_SEARCH_MAX_LIMIT).default(CATEGORY_SEARCH_LIMIT),
+  // Picker scope: categories only ever surface in their own language.
+  language: z.enum(locales).optional(),
+});
+
+export const createCategorySchema = z.object({
+  name: categoryNameField,
+  language: z.enum(locales).default("en"),
+});
 
 // Only http(s) URLs are allowed for user-supplied media. This blocks
 // dangerous schemes like `javascript:` and `data:` that would otherwise
@@ -69,6 +144,12 @@ export function getAcceptString(): string {
   return ALLOWED_UPLOAD_CONTENT_TYPES.join(",");
 }
 
+// Image-only accept string for cover pickers (blog covers never accept
+// video). Derived from the same allowlist so the picker can't drift.
+export function getImageAcceptString(): string {
+  return ALLOWED_UPLOAD_CONTENT_TYPES.filter((t) => t.startsWith("image/")).join(",");
+}
+
 // Max upload size (bytes), per media type. Enforced client-side before
 // requesting a presigned URL (the file goes browser→R2 directly, so this is
 // a UX guard, not server-side enforcement). Videos use a single presigned
@@ -109,22 +190,9 @@ export function maxUploadSizeForContentType(contentType: string): number {
 }
 
 export const registerSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(NAME_MAX_LENGTH),
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .email()
-    .max(255),
-  password: z
-    .string()
-    .trim()
-    .min(PASSWORD_MIN_LENGTH)
-    .max(128),
+  name: nameField,
+  email: emailField,
+  password: passwordField,
   terms: z
     .literal(true, { message: "terms_required" }),
   language: z.enum(locales).optional(),
@@ -136,14 +204,24 @@ export const registerSchema = z.object({
 const MAX_MEDIA_DIMENSION = 100_000;
 
 export const mediaItemSchema = z.object({
-  url: z.string().url().max(2000).refine(isSafeHttpUrl),
+  url: safeUrlField,
   type: z.enum(["image", "video", "youtube", "file"]),
   width: z.number().int().positive().max(MAX_MEDIA_DIMENSION).optional(),
   height: z.number().int().positive().max(MAX_MEDIA_DIMENSION).optional(),
 });
 
 const contentField = z.string().trim().max(5000).optional();
-const mediaField = z.array(mediaItemSchema).max(10).optional();
+const mediaField = z.array(mediaItemSchema).max(MAX_MEDIA_ITEMS_PER_POST).optional();
+// Optional publish date input. Accepts ISO date/datetime strings from
+// <input type="datetime-local"> (no timezone) or full ISO datetimes; coerced
+// to Date. When omitted the server defaults to now (posts) or now (blog).
+// Explicit null is treated as omitted (coercion would otherwise turn it into
+// the 1970 epoch). Shared by blog articles and timeline posts (promos of
+// scheduled articles carry the article's date so both go live together).
+const publishedAtField = z.preprocess(
+  (v) => (v === null ? undefined : v),
+  z.coerce.date().optional(),
+);
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -154,8 +232,17 @@ export const createPostSchema = z.object({
   media: mediaField.default([]),
   isPublic: z.boolean().default(true),
   language: z.enum(locales).default("en"),
+  // Optional publish date (timeline promos of scheduled articles carry the
+  // article's date so both go live together). Omitted/null = visible now.
+  publishedAt: publishedAtField,
+  // Optional link to a channel blog article promoted by this post.
+  // Entity-shaped so arbitrary strings can't be used as existence oracles
+  // via the feed filter.
+  blogPostId: entityIdField.optional(),
+  // Category names (canonicalized to Title Case by the field transform).
+  categories: categoryNamesField.optional(),
 }).refine(
-  (data) => data.content || data.media.length > 0,
+  (data) => data.content || data.media.length > 0 || data.blogPostId,
 );
 
 export const updatePostSchema = z.object({
@@ -163,28 +250,73 @@ export const updatePostSchema = z.object({
   media: mediaField,
   isPublic: z.boolean().optional(),
   language: z.enum(locales).optional(),
+  // Scheduled promo date mirrors the promoted article; null clears it.
+  publishedAt: publishedAtNullableField,
+  blogPostId: entityIdField.nullish(),
+  // Undefined leaves categories alone; null or [] clears them.
+  categories: categoryNamesField.nullish(),
 }).refine(
   (data) => {
+    // Linking an article counts as content: text/media may be cleared then.
+    if (typeof data.blogPostId === "string" && data.blogPostId) return true;
     const clearContent = data.content === null || data.content === "";
     const clearMedia = Array.isArray(data.media) && data.media.length === 0;
     return !(clearContent && clearMedia);
   },
 );
 
+const blogTitleField = z.string().trim().min(1).max(BLOG_TITLE_MAX_LENGTH);
+const blogExcerptField = z.string().trim().max(BLOG_EXCERPT_MAX_LENGTH).optional();
+// Stored article bodies are Tiptap JSON: cap the raw string for storage, and
+// the human-readable plain text for author-facing limits (legacy plain-text
+// bodies validate as themselves).
+const blogContentField = z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).optional()
+  .refine((v) => v === undefined || extractPlainText(v).length <= BLOG_CONTENT_MAX_LENGTH);
+const blogContentHtmlField = z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).optional();
+const blogCoverField = safeUrlField.optional();
+
+export const createBlogPostSchema = z.object({
+  id: z.string().regex(uuidRegex).optional(),
+  title: blogTitleField,
+  excerpt: blogExcerptField,
+  content: blogContentField,
+  coverUrl: blogCoverField,
+  contentHtml: blogContentHtmlField,
+  channelId: z.string().optional(),
+  isPublic: z.boolean().default(true),
+  language: z.enum(locales).default("en"),
+  publishedAt: publishedAtField,
+  // Category names (canonicalized to Title Case by the field transform).
+  categories: categoryNamesField.optional(),
+}).refine((data) => data.content || data.excerpt);
+
+export const updateBlogPostSchema = z.object({
+  title: blogTitleField.optional(),
+  excerpt: z.string().trim().max(BLOG_EXCERPT_MAX_LENGTH).nullish(),
+  content: z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).nullish().refine(
+    (v) => v == null || extractPlainText(v).length <= BLOG_CONTENT_MAX_LENGTH,
+  ),
+  coverUrl: safeUrlField.nullish(),
+  contentHtml: z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).nullish(),
+  isPublic: z.boolean().optional(),
+  language: z.enum(locales).optional(),
+  publishedAt: publishedAtNullableField,
+  // Undefined leaves categories alone; null or [] clears them.
+  categories: categoryNamesField.nullish(),
+}).refine((data) => {
+  const clearContent = data.content === null || data.content === "";
+  const clearExcerpt = data.excerpt === null || data.excerpt === "";
+  // Only reject when the patch explicitly clears both text fields.
+  if (data.content === undefined && data.excerpt === undefined) return true;
+  return !(clearContent && clearExcerpt);
+});
+
 export const updateNameSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(NAME_MAX_LENGTH),
+  name: nameField,
 });
 
 export const createChannelSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(NAME_MAX_LENGTH),
+  name: nameField,
   language: z.string().min(1).max(10).optional(),
 });
 
@@ -194,52 +326,57 @@ export const createChannelTranslationSchema = createChannelSchema.extend({
 
 export const addChannelMemberSchema = z.object({
   action: z.enum(CHANNEL_MEMBER_ACTIONS),
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .email()
-    .max(255),
+  email: emailField,
   role: z.enum(CHANNEL_MEMBER_ROLES),
 });
 
 export const paginationSchema = z.object({
   scope: z.enum(["public", "private"]).optional(),
   cursor: z.string().min(1).trim().optional(),
-  limit: z.coerce.number().int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(FEED_MAX_LIMIT).default(FEED_DEFAULT_LIMIT),
   channelId: z.string().min(1).optional(),
   language: z.enum(locales).optional(),
+  // Feed posts promoting a blog article (used by the blog editor to find
+  // the article's timeline post). Ignored by the blog feed itself.
+  blogPostId: entityIdField.optional(),
+  // Canonicalized again server-side; raw user input accepted here.
+  category: z.string().trim().max(CATEGORY_NAME_MAX_LENGTH).optional(),
 });
 
+// The blog feed never filters by promoting post id — drop the dead param so
+// callers can't send it and wonder why it's ignored.
+export const blogPaginationSchema = paginationSchema.omit({ blogPostId: true });
+
+// Top-level R2 folders for direct uploads. Blog covers live under `blog/`
+// so post tooling never mistakes them for timeline-post media (and orphan
+// sweeps can scope by prefix). Allowlisted — never a free-form client string.
+export const uploadFolderField = z.enum(["posts", "blog"]).optional().default("posts");
+
 export const uploadUrlSchema = z.object({
-  fileName: z.string().min(1).max(255),
-  contentType: z
-    .string()
-    .min(1)
-    .max(255)
-    .refine(isAllowedUploadContentType),
-  // UUID-constrained (like createPostSchema.id) so it can't inject `/`, `..`,
-  // `?`, `#` into the R2 object key.
-  postId: z.string().regex(uuidRegex),
+  fileName: fileNameField,
+  contentType: uploadContentTypeField,
+  postId: entityIdField,
   channelId: z.string().min(1).optional(),
+  folder: uploadFolderField,
   // Required so the presigned PUT is signed with a ContentLength cap (R2 rejects
   // a larger upload). Prevents unbounded object-size storage/egress abuse.
   contentLength: z.number().int().positive().max(MAX_VIDEO_SIZE_BYTES),
 });
 
 export const batchUploadUrlSchema = z.object({
-  postId: z.string().regex(uuidRegex),
+  postId: entityIdField,
   channelId: z.string().min(1).optional(),
+  folder: uploadFolderField,
   files: z
     .array(
       z.object({
-        fileName: z.string().min(1).max(255),
-        contentType: z.string().min(1).max(255).refine(isAllowedUploadContentType),
+        fileName: fileNameField,
+        contentType: uploadContentTypeField,
         size: z.number().int().positive(),
       }),
     )
     .min(1)
-    .max(10),
+    .max(MAX_MEDIA_ITEMS_PER_POST),
 });
 
 export const updateActiveIdentitySchema = z.object({
@@ -251,22 +388,13 @@ export const verifyEmailSchema = z.object({
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .email()
-    .max(255),
+  email: emailField,
   language: z.enum(locales).optional(),
 });
 
 export const resetPasswordSchema = z.object({
   token: z.string().trim().min(1),
-  password: z
-    .string()
-    .trim()
-    .min(PASSWORD_MIN_LENGTH)
-    .max(128),
+  password: passwordField,
 });
 
 export const compressSchema = z.object({
@@ -290,6 +418,21 @@ export function normalizeName(name: string): string {
   return stripDiacritics(name.trim().replace(/\s+/g, " ")).toLowerCase();
 }
 
+// Canonical category form: trim, collapse ALL whitespace runs (spaces,
+// tabs, newlines) to a single space, and force Title Case (first letter of
+// each word — including hyphenated compounds — uppercase, the rest
+// lowercase). The result doubles as the display value and the global
+// uniqueness key, so "holy  name", "Holy Name" and "HOLY NAME" are all the
+// same category. Unlike channel names, diacritics are preserved as typed
+// ("Kršna" stays "Kršna").
+export function normalizeCategoryName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/(^|[ -])(\S)/g, (_, space: string, char: string) => space + char.toUpperCase());
+}
+
 // Lowercases, folds diacritics, and collapses non-alphanumeric runs to single
 // dashes (no length limit). The building block for post slugs.
 function slugifyText(text: string): string {
@@ -305,6 +448,14 @@ function slugifyText(text: string): string {
 //   "Hello World!" → "hello-world"
 export function slugifyName(name: string): string {
   return slugifyText(name).slice(0, 80) || "channel";
+}
+
+// Derives a category's URL slug from its canonical name ("Holy Name" →
+// "holy-name"). Falls back to "category" when nothing slug-able remains
+// (e.g. "!!!"). Distinct names can slugify alike ("Holy-Name" vs "Holy
+// Name") — the service disambiguates with a numeric suffix.
+export function deriveCategorySlug(name: string): string {
+  return slugifyText(name).slice(0, CATEGORY_NAME_MAX_LENGTH) || "category";
 }
 
 // Builds a URL slug from post content. Folds diacritics (so "když" → "kdyz",

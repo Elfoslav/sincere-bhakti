@@ -26,7 +26,7 @@ describe("GET /api/link-preview/image", () => {
 
   it("returns proxied image bytes with a jpeg content type", async () => {
     const bytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
-    vi.mocked(fetchRemoteBytes).mockResolvedValue(bytes);
+    vi.mocked(fetchRemoteBytes).mockResolvedValue({ bytes, finalUrl: "https://cdn.example.com/img.jpg", contentType: "image/jpeg" });
 
     const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image?url=https%3A%2F%2Fcdn.example.com%2Fimg.jpg"));
     const body = Buffer.from(await res.arrayBuffer());
@@ -42,15 +42,35 @@ describe("GET /api/link-preview/image", () => {
   });
 
   it("uses image/png for a .png url", async () => {
-    vi.mocked(fetchRemoteBytes).mockResolvedValue(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    vi.mocked(fetchRemoteBytes).mockResolvedValue({ bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47]), finalUrl: "https://cdn.example.com/img.png", contentType: null });
     const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image?url=https%3A%2F%2Fcdn.example.com%2Fimg.png"));
     expect(res.headers.get("content-type")).toBe("image/png");
   });
 
   it("uses image/x-icon for a .ico url", async () => {
-    vi.mocked(fetchRemoteBytes).mockResolvedValue(Buffer.from([0x00, 0x00, 0x01, 0x00]));
+    vi.mocked(fetchRemoteBytes).mockResolvedValue({ bytes: Buffer.from([0x00, 0x00, 0x01, 0x00]), finalUrl: "https://cdn.example.com/favicon.ico", contentType: null });
     const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image?url=https%3A%2F%2Fcdn.example.com%2Ffavicon.ico"));
     expect(res.headers.get("content-type")).toBe("image/x-icon");
+  });
+
+  it("prefers the final hop content-type over the url extension", async () => {
+    vi.mocked(fetchRemoteBytes).mockResolvedValue({ bytes: Buffer.from([0x52, 0x49, 0x46, 0x46]), finalUrl: "https://cdn.example.com/photo", contentType: "image/webp" });
+    const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image?url=https%3A%2F%2Fcdn.example.com%2Fphoto"));
+    expect(res.headers.get("content-type")).toBe("image/webp");
+  });
+
+  it("rejects a redirect landing on an .svg payload", async () => {
+    vi.mocked(fetchRemoteBytes).mockResolvedValue({ bytes: Buffer.from("<svg></svg>"), finalUrl: "https://evil.example.com/x.svg", contentType: "image/svg+xml" });
+    const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image?url=https%3A%2F%2Fcdn.example.com%2Fimg.jpg"));
+    const json = await res.json();
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("bad_request");
+  });
+
+  it("rejects svg content served under a non-svg url", async () => {
+    vi.mocked(fetchRemoteBytes).mockResolvedValue({ bytes: Buffer.from("<svg></svg>"), finalUrl: "https://cdn.example.com/img.jpg", contentType: "image/svg+xml" });
+    const res = await GET(mockRequest("http://localhost:3000/api/link-preview/image?url=https%3A%2F%2Fcdn.example.com%2Fimg.jpg"));
+    expect(res.status).toBe(400);
   });
 
   it("rejects svg urls so the proxy cannot serve script-bearing svg", async () => {

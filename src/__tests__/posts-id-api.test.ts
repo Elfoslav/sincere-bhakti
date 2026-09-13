@@ -22,6 +22,9 @@ vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
 import { getPostById, deletePost, updatePost, NotFoundError, ForbiddenError } from "@/lib/services/post";
+// Real shared classes: the PATCH route maps errors via mutationErrorResponse,
+// which checks against @/lib/services/errors (mock-local classes won't match).
+import { NotFoundError as ServiceNotFoundError, ForbiddenError as ServiceForbiddenError } from "@/lib/services/errors";
 import { canAuthorChannel } from "@/lib/services/channel";
 import { GET, DELETE, PATCH } from "@/app/api/posts/[id]/route";
 
@@ -230,6 +233,26 @@ describe("PATCH /api/posts/[id]", () => {
     expect(updatePost).toHaveBeenCalledWith("post-1", "user-1", { isPublic: false });
   });
 
+  it("links a blog article", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(updatePost).mockResolvedValue({ ...basePost });
+
+    const res = await PATCH(patchRequest({ blogPostId: "blog-1" }), { params: Promise.resolve({ id: "post-1" }) });
+
+    expect(res.status).toBe(200);
+    expect(updatePost).toHaveBeenCalledWith("post-1", "user-1", { blogPostId: "blog-1" });
+  });
+
+  it("clears the blog link", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(updatePost).mockResolvedValue({ ...basePost });
+
+    const res = await PATCH(patchRequest({ blogPostId: null }), { params: Promise.resolve({ id: "post-1" }) });
+
+    expect(res.status).toBe(200);
+    expect(updatePost).toHaveBeenCalledWith("post-1", "user-1", { blogPostId: null });
+  });
+
   it("returns 401 without auth", async () => {
     vi.mocked(auth).mockResolvedValue(null as unknown as never);
 
@@ -240,7 +263,7 @@ describe("PATCH /api/posts/[id]", () => {
 
   it("returns 404 when post not found", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(updatePost).mockRejectedValue(new NotFoundError());
+    vi.mocked(updatePost).mockRejectedValue(new ServiceNotFoundError());
 
     const res = await PATCH(patchRequest({ content: "x" }), { params: Promise.resolve({ id: "missing" }) });
     const json = await res.json();
@@ -251,7 +274,7 @@ describe("PATCH /api/posts/[id]", () => {
 
   it("returns 403 when not the author", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-2" } } as any);
-    vi.mocked(updatePost).mockRejectedValue(new ForbiddenError());
+    vi.mocked(updatePost).mockRejectedValue(new ServiceForbiddenError());
 
     const res = await PATCH(patchRequest({ content: "x" }), { params: Promise.resolve({ id: "post-1" }) });
     const json = await res.json();

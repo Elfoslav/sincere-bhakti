@@ -17,7 +17,7 @@ vi.mock("@/lib/ssrf", () => ({
   guardedLookup: vi.fn(),
 }));
 
-import { fetchRemoteBytes } from "@/lib/remote-fetch";
+import { fetchRemoteBytes, LINK_PREVIEW_FETCH_TIMEOUT_MS } from "@/lib/remote-fetch";
 import { assertPublicHost } from "@/lib/ssrf";
 
 function makeResponse({
@@ -64,10 +64,12 @@ describe("fetchRemoteBytes", () => {
     vi.mocked(assertPublicHost).mockResolvedValue(undefined);
   });
 
-  it("returns the response body", async () => {
-    fetchMock.mockResolvedValue(makeResponse({ body: new TextEncoder().encode("hello world") }));
-    const buffer = await fetchRemoteBytes("https://example.com");
-    expect(buffer?.toString()).toBe("hello world");
+  it("returns the response body with final-hop metadata", async () => {
+    fetchMock.mockResolvedValue(makeResponse({ body: new TextEncoder().encode("hello world"), headers: { "content-type": "text/html; charset=utf-8" } }));
+    const result = await fetchRemoteBytes("https://example.com");
+    expect(result?.bytes.toString()).toBe("hello world");
+    expect(result?.finalUrl).toBe("https://example.com");
+    expect(result?.contentType).toBe("text/html; charset=utf-8");
   });
 
   it("returns null on non-ok status", async () => {
@@ -101,9 +103,27 @@ describe("fetchRemoteBytes", () => {
       .mockResolvedValueOnce(makeResponse({ status: 302, headers: { location: "https://example.com/final" } }))
       .mockResolvedValueOnce(makeResponse({ body: new TextEncoder().encode("done") }));
 
-    const buffer = await fetchRemoteBytes("https://example.com/start", { maxRedirects: 5 });
-    expect(buffer?.toString()).toBe("done");
+    const result = await fetchRemoteBytes("https://example.com/start", { maxRedirects: 5 });
+    expect(result?.bytes.toString()).toBe("done");
+    expect(result?.finalUrl).toBe("https://example.com/final");
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("bounds total time across hops with a single deadline", async () => {
+    fetchMock.mockResolvedValue(makeResponse({ status: 302, headers: { location: "https://example.com/next" } }));
+    const start = 1_700_000_000_000;
+    const nowSpy = vi.spyOn(Date, "now")
+      .mockReturnValueOnce(start)
+      .mockReturnValueOnce(start)
+      .mockReturnValue(start + LINK_PREVIEW_FETCH_TIMEOUT_MS + 1);
+    try {
+      // First hop is fetched, but by the second hop the total budget is
+      // spent — no fresh per-hop timeout may extend the request's lifetime.
+      expect(await fetchRemoteBytes("https://example.com/start")).toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it("returns null past the redirect cap", async () => {

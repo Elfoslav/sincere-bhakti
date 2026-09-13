@@ -6,6 +6,8 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     channel: { findMany: vi.fn() },
     post: { findMany: vi.fn() },
+    blogPost: { findMany: vi.fn(() => Promise.resolve([])) },
+    category: { findMany: vi.fn(() => Promise.resolve([])) },
   },
 }));
 
@@ -28,12 +30,14 @@ describe("sitemap", () => {
         createdAt: new Date("2026-06-01T00:00:00.000Z"),
         translations: [{ language: "en", slug: "first-channel" }],
         posts: [{ createdAt: firstChannelLatestPostAt }],
+        blogPosts: [],
       },
       {
         id: "ch-2",
         createdAt: new Date("2026-06-02T00:00:00.000Z"),
         translations: [{ language: "en", slug: "second-channel" }],
         posts: [{ createdAt: secondChannelLatestPostAt }],
+        blogPosts: [],
       },
     ] as unknown as Awaited<ReturnType<typeof prisma.channel.findMany>>);
     vi.mocked(prisma.post.findMany).mockResolvedValue([
@@ -46,8 +50,7 @@ describe("sitemap", () => {
     expect(entries.find((entry) => entry.url === "https://example.test/channels/second-channel")?.lastModified).toBe(secondChannelLatestPostAt);
   });
 
-  it("emits one sitemap entry per translation per channel", async () => {
-    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+  it("emits one sitemap entry per translation per channel", async () => {    vi.mocked(prisma.channel.findMany).mockResolvedValue([
       {
         id: "ch-1",
         createdAt: new Date("2026-01-01"),
@@ -57,6 +60,7 @@ describe("sitemap", () => {
           { language: "sk", slug: "moj-kanal" },
         ],
         posts: [{ createdAt: new Date("2026-06-01") }],
+        blogPosts: [],
       },
     ] as unknown as Awaited<ReturnType<typeof prisma.channel.findMany>>);
     vi.mocked(prisma.post.findMany).mockResolvedValue([] as any);
@@ -70,5 +74,72 @@ describe("sitemap", () => {
     expect(channelUrls).toContain("https://example.test/cs/channels/muj-kanal");
     expect(channelUrls).toContain("https://example.test/sk/channels/moj-kanal");
     expect(channelUrls).toHaveLength(3);
+  });
+
+  it("lists the blog index and only publicly visible articles", async () => {
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([
+      { id: "b-1", shortId: "blog1234", slug: "my-article", language: "en", publishedAt: new Date("2026-09-01"), createdAt: new Date("2026-09-01") },
+    ] as unknown as Awaited<ReturnType<typeof prisma.blogPost.findMany>>);
+
+    const entries = await sitemap();
+    const urls = entries.map((e) => e.url);
+
+    expect(urls).toContain("https://example.test/blog");
+    expect(urls).toContain("https://example.test/blog/blog1234/my-article");
+    expect(prisma.blogPost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ isPublic: true }),
+      }),
+    );
+  });
+
+  it("lists blog channel pages only for channels with public articles", async () => {
+    const latestBlogPostAt = new Date("2026-09-05T00:00:00.000Z");
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+      {
+        id: "ch-1",
+        createdAt: new Date("2026-06-01T00:00:00.000Z"),
+        translations: [{ language: "en", slug: "writing-channel" }],
+        posts: [{ createdAt: new Date("2026-07-01T00:00:00.000Z") }],
+        blogPosts: [{ createdAt: latestBlogPostAt }],
+      },
+      {
+        id: "ch-2",
+        createdAt: new Date("2026-06-02T00:00:00.000Z"),
+        translations: [{ language: "en", slug: "silent-channel" }],
+        posts: [{ createdAt: new Date("2026-07-02T00:00:00.000Z") }],
+        blogPosts: [],
+      },
+    ] as unknown as Awaited<ReturnType<typeof prisma.channel.findMany>>);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([]);
+
+    const entries = await sitemap();
+    const urls = entries.map((e) => e.url);
+
+    expect(urls).toContain("https://example.test/blog/channel/writing-channel");
+    expect(urls).not.toContain("https://example.test/blog/channel/silent-channel");
+    expect(entries.find((entry) => entry.url === "https://example.test/blog/channel/writing-channel")?.lastModified).toBe(latestBlogPostAt);
+  });
+
+  it("lists pretty landing pages for used categories, both feeds", async () => {    vi.mocked(prisma.channel.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.post.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.category.findMany).mockResolvedValue([
+      { slug: "bhakti", language: "en", createdAt: new Date("2026-09-01") },
+    ] as unknown as Awaited<ReturnType<typeof prisma.category.findMany>>);
+
+    const entries = await sitemap();
+    const urls = entries.map((e) => e.url);
+
+    expect(urls).toContain("https://example.test/posts/category/bhakti");
+    expect(urls).toContain("https://example.test/blog/category/bhakti");
+    expect(prisma.category.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { OR: [{ posts: { some: {} } }, { blogPosts: { some: {} } }] },
+      }),
+    );
   });
 });

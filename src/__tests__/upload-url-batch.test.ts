@@ -134,8 +134,8 @@ describe("POST /api/upload-url/batch", () => {
     expect(json.urls[0].publicUrl).toContain("file1.jpg");
     expect(json.urls[1].publicUrl).toContain("file2.jpg");
     expect(createUploadUrl).toHaveBeenCalledTimes(2);
-    expect(createUploadUrl).toHaveBeenCalledWith("file1.jpg", "image/jpeg", "11111111-1111-4111-8111-111111111111", 1024);
-    expect(createUploadUrl).toHaveBeenCalledWith("file2.png", "image/png", "11111111-1111-4111-8111-111111111111", 2048);
+    expect(createUploadUrl).toHaveBeenCalledWith("file1.jpg", "image/jpeg", "11111111-1111-4111-8111-111111111111", 1024, "posts");
+    expect(createUploadUrl).toHaveBeenCalledWith("file2.png", "image/png", "11111111-1111-4111-8111-111111111111", 2048, "posts");
     expect(resolveAuthorableChannelId).toHaveBeenCalledWith({
       explicitChannelId: "channel-2",
       preferredChannelId: undefined,
@@ -158,6 +158,94 @@ describe("POST /api/upload-url/batch", () => {
     );
 
     expect(res.status).toBe(403);
+    expect(createUploadUrl).not.toHaveBeenCalled();
+  });
+
+  it("accepts a cuid postId for edit-mode uploads to existing posts", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
+    vi.mocked(createUploadUrl).mockResolvedValue({
+      uploadUrl: "https://r2.example.com/upload-1",
+      publicUrl: "https://pub.r2.dev/posts/cm9x1a2b3c000108l4abcd1234/cover.jpg",
+      key: "posts/cm9x1a2b3c000108l4abcd1234/cover.jpg",
+    });
+
+    const res = await POST(
+      mockRequest({
+        postId: "cm9x1a2b3c000108l4abcd1234",
+        files: [{ fileName: "cover.jpg", contentType: "image/jpeg", size: 1024 }],
+      }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.urls).toHaveLength(1);
+    expect(createUploadUrl).toHaveBeenCalledWith(
+      "cover.jpg",
+      "image/jpeg",
+      "cm9x1a2b3c000108l4abcd1234",
+      1024,
+      "posts",
+    );
+  });
+
+  it("rejects a postId that could escape the R2 key prefix", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
+
+    const res = await POST(
+      mockRequest({
+        postId: "../evil",
+        files: [{ fileName: "test.jpg", contentType: "image/jpeg", size: 1024 }],
+      }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("postId");
+    expect(createUploadUrl).not.toHaveBeenCalled();
+  });
+
+  it("forwards the blog folder for cover uploads", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
+    vi.mocked(createUploadUrl).mockResolvedValue({
+      uploadUrl: "https://r2.example.com/upload-1",
+      publicUrl: "https://pub.r2.dev/blog/post-1/cover.jpg",
+      key: "blog/post-1/cover.jpg",
+    });
+
+    const res = await POST(
+      mockRequest({
+        postId: "11111111-1111-4111-8111-111111111111",
+        folder: "blog",
+        files: [{ fileName: "cover.jpg", contentType: "image/jpeg", size: 1024 }],
+      }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.urls).toHaveLength(1);
+    expect(createUploadUrl).toHaveBeenCalledWith(
+      "cover.jpg",
+      "image/jpeg",
+      "11111111-1111-4111-8111-111111111111",
+      1024,
+      "blog",
+    );
+  });
+
+  it("rejects a folder outside the allowlist", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
+
+    const res = await POST(
+      mockRequest({
+        postId: "11111111-1111-4111-8111-111111111111",
+        folder: "../../etc",
+        files: [{ fileName: "test.jpg", contentType: "image/jpeg", size: 1024 }],
+      }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("folder");
     expect(createUploadUrl).not.toHaveBeenCalled();
   });
 

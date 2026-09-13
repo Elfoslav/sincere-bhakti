@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPosts, createPost, ConflictError, NotFoundError, ForbiddenError, ValidationError } from "@/lib/services/post";
+import { getPosts, createPost, UnauthorizedError } from "@/lib/services/post";
 import { createPostSchema, paginationSchema, isTrustedMediaUrl } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { getPersonalChannel, createPersonalChannel, resolveAuthorableChannelId } from "@/lib/services/channel";
-import { getActiveIdentityCookie, setActiveIdentityCookie } from "@/lib/active-identity";
-import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_NOT_FOUND } from "@/lib/error-messages";
-import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_CREATED, HTTP_CONFLICT, HTTP_NOT_FOUND } from "@/lib/error-codes";
-import { requireAuth } from "@/lib/require-auth";
+import { requireVerifiedUser, resolveWriteChannel, ensurePersonalChannel, applyIdentityPreference, mutationErrorResponse } from "@/lib/api-helpers";
+import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_POST_ID_COLLISION, ERROR_VALIDATION_MEDIA_UNTRUSTED, ERROR_VALIDATION_POST_EMPTY } from "@/lib/error-messages";
+import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_CREATED } from "@/lib/error-codes";
 import { serverError } from "@/lib/error-handlers";
 import { parseBody } from "@/lib/parse-body";
 
@@ -25,6 +23,8 @@ export async function GET(request: NextRequest) {
       limit: searchParams.get("limit") ?? undefined,
       channelId: searchParams.get("channelId") ?? undefined,
       language: searchParams.get("language") ?? undefined,
+      blogPostId: searchParams.get("blogPostId") ?? undefined,
+      category: searchParams.get("category") ?? undefined,
     }, paginationSchema, "GET /api/posts");
     if (parsed.response) return parsed.response;
 
@@ -38,21 +38,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(result);
     }
 
-    const result = await getPosts({ ...parsed.data, requestLanguage: parsed.data.language ?? "en" });
+    // Public scope stays open, but the viewer (when logged in) determines
+    // whether a linked private/scheduled article is included — anonymous
+    // callers get blogPost: null for non-public articles.
+    const session = await auth();
+    const result = await getPosts({ ...parsed.data, requestLanguage: parsed.data.language ?? "en" }, session?.user?.id);
     return NextResponse.json(result);
   } catch (error) {
+    // Same shape as GET /api/blog-posts: an authenticated caller without
+    // access to the requested private scope is forbidden, not a 500.
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+    }
     return serverError("GET /api/posts", error, "failed_to_fetch_posts");
   }
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.createPost, RATE_LIMITS.createPost, { authErrorCode: "unauthorized", authErrorStatus: 401 });
-  if (auth.response) return auth.response;
-  const session = auth.session;
-
-  if (!session.user.emailVerifiedAt) {
-    return NextResponse.json({ error: "email_not_verified" }, { status: HTTP_FORBIDDEN });
-  }
+  const authResult = await requireVerifiedUser(request, RATE_LIMIT_PREFIX.createPost, RATE_LIMITS.createPost, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
+  if (authResult.response) return authResult.response;
+  const session = authResult.session;
 
   try {
     const body = await request.json();
@@ -67,48 +72,26 @@ export async function POST(request: NextRequest) {
     for (const m of parsed.data.media ?? []) {
       if (!isTrustedMediaUrl(m.url, m.type, storageDomain)) {
         return NextResponse.json(
-          { error: `validation_error:media:untrusted_url` },
+          { error: ERROR_VALIDATION_MEDIA_UNTRUSTED },
           { status: HTTP_BAD_REQUEST },
         );
       }
     }
 
-    const resolved = await resolveAuthorableChannelId({
-      explicitChannelId: parsed.data.channelId,
-      preferredChannelId: getActiveIdentityCookie(request),
-      fallbackChannelId: session.user.channelId ?? undefined,
-      userId: session.user.id,
-    });
-    if (resolved.explicitForbidden) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-    }
-
-    const channelId = resolved.channelId
-      ?? (await getPersonalChannel(session.user.id))?.id
-      ?? (await createPersonalChannel(session.user.id, session.user.name || "User")).id;
+    const channel = await resolveWriteChannel(request, session, parsed.data.channelId);
+    if (channel.response) return channel.response;
+    const channelId = await ensurePersonalChannel(session, channel.channelId);
 
     const post = await createPost({
       ...parsed.data,
       channelId,
     }, session.user.id, parsed.data.language);
     const response = NextResponse.json(post, { status: HTTP_CREATED });
-    if (resolved.shouldRefreshPreference) {
-      setActiveIdentityCookie(response, channelId);
-    }
+    applyIdentityPreference(response, channelId, channel.refreshPreference);
     return response;
   } catch (error) {
-    if (error instanceof ConflictError) {
-      return NextResponse.json({ error: "post_id_collision" }, { status: HTTP_CONFLICT });
-    }
-    if (error instanceof NotFoundError) {
-      return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-    }
-    if (error instanceof ValidationError) {
-      return NextResponse.json({ error: error.message }, { status: HTTP_BAD_REQUEST });
-    }
+    const mapped = mutationErrorResponse(error, { empty: ERROR_VALIDATION_POST_EMPTY, conflict: ERROR_POST_ID_COLLISION });
+    if (mapped) return mapped;
     return serverError("POST /api/posts", error, "failed_to_create_post");
   }
 }

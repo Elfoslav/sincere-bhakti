@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => new Headers({ host: "localhost:3000", "x-forwarded-for": "203.0.113.10" })),
@@ -102,8 +102,18 @@ async function expectJpegResponse(response: Response) {
 }
 
 describe("post opengraph image", () => {
+  const OLD_ENV = process.env.R2_PUBLIC_URL;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // Media URLs are trusted by storage origin: point it at the test CDN so
+    // the mocked photo URLs pass the route's SSRF re-check.
+    process.env.R2_PUBLIC_URL = "https://cdn.example.com";
+  });
+
+  afterEach(() => {
+    if (OLD_ENV === undefined) delete process.env.R2_PUBLIC_URL;
+    else process.env.R2_PUBLIC_URL = OLD_ENV;
   });
 
   it("returns the fallback JPEG immediately when rate limited (never shared-cached)", async () => {
@@ -133,6 +143,27 @@ describe("post opengraph image", () => {
     await expectJpegResponse(response);
     // The "no such post" fallback is the correct response for this URL — safe
     // to cache publicly for a short window.
+    const cc = response.headers.get("Cache-Control") ?? "";
+    expect(cc).toContain("public");
+    expect(cc).not.toContain("no-store");
+  });
+
+  it("falls back (cacheable) instead of fetching an untrusted media url", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue(true);
+    // Legacy / hand-written row pointing at a non-storage host (SSRF shape):
+    // never fetched server-side, even though the post itself is public.
+    vi.mocked(getCachedPostById).mockResolvedValue({
+      isPublic: true,
+      media: [{ type: "image", url: "http://169.254.169.254/latest/meta-data", width: 1600, height: 900 }],
+    } as any);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("must not fetch"));
+
+    const response = await Image({ params: Promise.resolve({ locale: "en", shortId: "post-1" }) });
+
+    await expectJpegResponse(response);
+    // The untrusted URL is never fetched (the logo fallback may still fetch
+    // the same-origin logo, which fails here → plain ivory canvas).
+    expect(fetchSpy).not.toHaveBeenCalledWith("http://169.254.169.254/latest/meta-data", expect.anything());
     const cc = response.headers.get("Cache-Control") ?? "";
     expect(cc).toContain("public");
     expect(cc).not.toContain("no-store");

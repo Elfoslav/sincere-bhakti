@@ -40,4 +40,37 @@ describe("updatePostSchema", () => {
     const result = updatePostSchema.safeParse({ isPublic: false });
     expect(result.success).toBe(true);
   });
+
+  it("accepts linking a blog article", () => {
+    const result = updatePostSchema.safeParse({ blogPostId: "blog-1" });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts clearing the blog link", () => {
+    const result = updatePostSchema.safeParse({ blogPostId: null });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts clearing text when linking an article", () => {
+    const result = updatePostSchema.safeParse({ content: null, media: [], blogPostId: "blog-1" });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts rescheduling the publish date", () => {
+    const result = updatePostSchema.safeParse({
+      publishedAt: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.publishedAt).toBeInstanceOf(Date);
+    }
+  });
+
+  it("accepts clearing the publish date with null", () => {
+    const result = updatePostSchema.safeParse({ publishedAt: null });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.publishedAt).toBeNull();
+    }
+  });
 });

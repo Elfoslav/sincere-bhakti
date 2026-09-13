@@ -7,8 +7,9 @@ import { handlePrismaCollision, serverError } from "@/lib/error-handlers";
 import { parseBody } from "@/lib/parse-body";
 import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/validation";
 import { createChannel, NameTakenError, ChannelLimitError } from "@/lib/services/channel";
-import { ERROR_NOT_FOUND, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
+import { ERROR_NOT_FOUND, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN, ERROR_TOO_MANY_REQUESTS, ERROR_EMAIL_NOT_VERIFIED } from "@/lib/error-messages";
 import { HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
+import { parseLanguageParam } from "@/lib/api-helpers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
-    const language = searchParams.get("language") ?? "en";
+    const language = parseLanguageParam(request);
 
     if (userId) {
       const session = await auth();
@@ -30,7 +31,8 @@ export async function GET(request: NextRequest) {
           avatarUrl: true,
           createdAt: true,
           ownerId: true,
-          _count: { select: { posts: isOwner ? true : { where: { isPublic: true } } } },
+          // Language-specific: the count matches the locale feed, not all languages.
+          _count: { select: { posts: isOwner ? { where: { language } } : { where: { isPublic: true, language } } } },
           translations: { where: { language }, select: { name: true, slug: true }, take: 1 },
         },
       });
@@ -68,7 +70,8 @@ export async function GET(request: NextRequest) {
         avatarUrl: true,
         createdAt: true,
         ownerId: true,
-        _count: { select: { posts: { where: { isPublic: true } } } },
+        // Language-specific: the count matches the locale feed, not all languages.
+        _count: { select: { posts: { where: { isPublic: true, language } } } },
         translations: { where: { language }, select: { name: true, slug: true }, take: 1 },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -100,7 +103,7 @@ export async function POST(request: NextRequest) {
   // Creating a channel permanently claims a global name; require a verified
   // email so throwaway/unverified accounts can't squat the namespace.
   if (!session.user.emailVerifiedAt) {
-    return NextResponse.json({ error: "email_not_verified" }, { status: HTTP_FORBIDDEN });
+    return NextResponse.json({ error: ERROR_EMAIL_NOT_VERIFIED }, { status: HTTP_FORBIDDEN });
   }
 
   try {

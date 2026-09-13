@@ -47,6 +47,7 @@ export async function uploadMediaFiles(
   postId: string,
   items: UploadItem[],
   channelId?: string,
+  folder?: string,
 ): Promise<{ media: MediaInput[]; error: string | null }> {
   if (items.length === 0) return { media: [], error: null };
 
@@ -63,6 +64,7 @@ export async function uploadMediaFiles(
     body: JSON.stringify({
       postId,
       channelId,
+      folder,
       files: preprocessed.map((p) => ({
         fileName: p.file.name,
         contentType: p.file.type,

@@ -2,26 +2,42 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getPosts } from "@/lib/services/post";
+import { getCategoryByName } from "@/lib/services/category";
+import { normalizeCategoryName } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
+import { FEED_DEFAULT_LIMIT } from "@/lib/validation";
 import type { Post } from "@/types/post";
 import PostsPageClient from "./posts-page-client";
-import { DEFAULT_OG_IMAGE } from "@/lib/seo";
+import { DEFAULT_OG_IMAGE, getLocalizedUrl } from "@/lib/seo";
 
 type Props = {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ category?: string }>;
 };
 
 // Render per-request: the first feed page is fetched live from the DB, so this
 // must not be statically prerendered at build time. Using headers() in the page
 // component already opts into dynamic rendering automatically.
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "PostsPage" });
+
+  // A ?category= view duplicates its pretty landing page: point crawlers at
+  // the canonical path so link equity isn't split across URL variants.
+  // Canonical only (no language alternates): same-slug categories of
+  // different languages are distinct taxonomies.
+  let alternates;
+  const { category: rawCategory } = await searchParams;
+  if (rawCategory?.trim()) {
+    const category = await getCategoryByName(locale, rawCategory);
+    if (category) alternates = { canonical: getLocalizedUrl(locale, `/posts/category/${category.slug}`) };
+  }
 
   return {
     title: t("metaTitle"),
     description: t("metaDescription"),
+    ...(alternates ? { alternates } : {}),
     openGraph: {
       title: t("metaTitle"),
       description: t("metaDescription"),
@@ -37,8 +53,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function PostsPage({ params }: Props) {
+export default async function PostsPage({ params, searchParams }: Props) {
   const { locale } = await params;
+  const { category: rawCategory } = await searchParams;
+  // Canonicalize for display and filtering (service normalizes again).
+  const category = rawCategory?.trim() ? normalizeCategoryName(rawCategory) : undefined;
   setRequestLocale(locale);
 
   // Rate-limit the SSR feed fetch so abusive/bot traffic hitting
@@ -53,12 +72,12 @@ export default async function PostsPage({ params }: Props) {
   let initialPublic: { posts: Post[]; hasMore: boolean } | undefined;
   if (allowed) {
     try {
-      const result = await getPosts({ scope: "public", language: locale, requestLanguage: locale, limit: 10 });
+      const result = await getPosts({ scope: "public", language: locale, requestLanguage: locale, limit: FEED_DEFAULT_LIMIT, category });
       initialPublic = JSON.parse(JSON.stringify(result)) as { posts: Post[]; hasMore: boolean };
     } catch {
       initialPublic = undefined;
     }
   }
 
-  return <PostsPageClient initialPublic={initialPublic} />;
+  return <PostsPageClient initialPublic={initialPublic} category={category} />;
 }

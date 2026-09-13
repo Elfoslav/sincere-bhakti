@@ -12,12 +12,15 @@ import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
 import { useIdentity } from "@/components/IdentityProvider";
+import CategoryFilterBanner from "@/components/CategoryFilterBanner";
 import type { Post } from "@/types/post";
 
 export default function PostsPageClient({
 	initialPublic,
+	category,
 }: {
 	initialPublic?: { posts: Post[]; hasMore: boolean };
+	category?: string;
 }) {
 	const { data: session } = useSession();
 	const { activeChannelId, identities } = useIdentity();
@@ -27,6 +30,7 @@ export default function PostsPageClient({
 	const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef } = useInfinitePosts({
 		scope: "public",
 		language: locale,
+		category,
 		initialData: initialPublic,
 	});
 	const {
@@ -48,7 +52,11 @@ export default function PostsPageClient({
 
 	function handleCreateSuccess(post: Post) {
 		setMyPosts((prev) => [post, ...prev]);
-		if (post.isPublic) setPosts((prev) => [post, ...prev]);
+		// A filtered feed only shows matching posts: don't prepend a fresh
+		// post that doesn't carry the active category.
+		if (post.isPublic && (!category || post.categories.some((c) => c.name === category))) {
+			setPosts((prev) => [post, ...prev]);
+		}
 	}
 
 	function handleDelete(id: string) {
@@ -74,10 +82,12 @@ export default function PostsPageClient({
 
 	return (
 		<div className="w-full max-w-3xl mx-auto px-4 py-8">
-			<div className="text-center mb-8">
-				<h1 className="text-3xl font-bold text-deep">{t("title")}</h1>
-				<p className="text-deep/60 mt-1">{t("subtitle")}</p>
-			</div>
+		<div className="text-center mb-8">
+			<h1 className="text-3xl font-bold text-deep">{t("title")}</h1>
+			<p className="text-deep/60 mt-1">{t("subtitle")}</p>
+		</div>
+
+		{category ? <CategoryFilterBanner name={category} href="/posts" /> : null}
 
 			<Card variant="default" padding="lg" className="mb-6">
 				{session ? (

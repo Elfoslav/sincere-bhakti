@@ -2,13 +2,20 @@
 
 import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { localeFlags, routing } from "@/i18n/routing";
-import { Link as LinkIcon, ExternalLink, Pencil, Trash2, MoreHorizontal } from "lucide-react";
+import { Link as LinkIcon, ExternalLink, Pencil, Trash2, MoreHorizontal, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { replaceEmoticons } from "@/lib/emoticons";
+import { formatDisplayDate } from "@/lib/format";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import { isStandaloneYouTubeUrl } from "@/lib/video";
 import { getPostUrl } from "@/lib/post-url";
+import { getBlogUrl } from "@/lib/blog-url";
+import { isBlogPubliclyVisible } from "@/lib/blog";
+import BlogExcerpt from "@/components/BlogExcerpt";
+import ChannelAvatar from "@/components/ChannelAvatar";
+import CategoryChips from "@/components/CategoryChips";
 import PostContent from "@/components/PostContent";
 import LinkPreview from "@/components/LinkPreview";
 import { Button } from "@/components/ui/button";
@@ -35,19 +42,14 @@ export default function PostCard({
   onEdit?: (postId: string) => void;
 }) {
   const locale = useLocale();
+  const router = useRouter();
   const t = useTranslations("PostCard");
   const commonT = useTranslations("Common");
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-  const date = new Date(post.createdAt).toLocaleDateString(locale === "en" ? "en-US" : locale, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const date = formatDisplayDate(post.createdAt, locale, { withTime: true });
 
   const displayContent = useMemo(() => replaceEmoticons(post.content), [post.content]);
   const isStandaloneVideo = isStandaloneYouTubeUrl(post.content);
@@ -56,11 +58,14 @@ export default function PostCard({
   const otherMedia = useMemo(() => post.media.filter((m) => m.type !== "image"), [post.media]);
   const canManage = !!(currentUserId === post.channel.ownerId || manageableChannelIds?.includes(post.channel.id));
 
-  const handleCopyLink = useCallback(() => {
+  const handleCopyLink = useCallback(async () => {
     const localePrefix = locale === routing.defaultLocale ? "" : `/${locale}`;
     const url = `${window.location.origin}${localePrefix}${getPostUrl(post.shortId, post.slug)}`;
-    navigator.clipboard.writeText(url);
-    toast.success(t("linkCopied"));
+    if (await copyTextToClipboard(url)) {
+      toast.success(t("linkCopied"));
+    } else {
+      toast.error(t("linkCopyFailed"));
+    }
   }, [locale, post.shortId, post.slug, t]);
 
   useEffect(() => {
@@ -97,9 +102,7 @@ export default function PostCard({
   return (
     <Card>
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white font-bold text-lg shrink-0">
-          {post.channel.name?.[0]?.toUpperCase() || "?"}
-        </div>
+        <ChannelAvatar name={post.channel.name} size="sm" />
         <div className="flex-1 min-w-0">
           <Link
             href={`/channels/${post.channel.slug}`}
@@ -144,6 +147,37 @@ export default function PostCard({
           )}
           <LinkPreview text={post.content} />
         </>
+      )}
+
+      <CategoryChips
+        categories={post.categories}
+        onSelect={(category) => router.push(`/posts/category/${category.slug}`)}
+        className="mb-3"
+      />
+
+      {post.blogPost && (isBlogPubliclyVisible(post.blogPost) || canManage) && (
+        <Link
+          href={getBlogUrl(post.blogPost.shortId, post.blogPost.slug)}
+          className="mb-3 flex overflow-hidden rounded-lg border border-sand bg-warm/30 transition-colors hover:bg-warm/60"
+        >
+          {post.blogPost.coverUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- R2-hosted blog cover, small fixed-size thumbnail
+            <img
+              src={post.blogPost.coverUrl}
+              alt=""
+              className="h-24 w-24 shrink-0 object-cover"
+              loading="lazy"
+            />
+          )}
+          <div className="min-w-0 flex-1 px-3 py-2">
+            <p className="truncate font-semibold text-deep">{post.blogPost.title}</p>
+            <BlogExcerpt post={post.blogPost} className="mt-0.5 text-sm text-deep/70" clampClassName="line-clamp-2" />
+            <span className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-saffron hover:text-saffron-dark">
+              {t("readArticle")}
+              <ArrowRight className="size-4" aria-hidden />
+            </span>
+          </div>
+        </Link>
       )}
 
       <ImageGallery images={images} t={t} />

@@ -42,5 +42,9 @@ export const NOT_FOUND_JOKES: NotFoundJoke[] = [
 ];
 
 export function getRandomJoke(): NotFoundJoke {
-  return NOT_FOUND_JOKES[Math.floor(Math.random() * NOT_FOUND_JOKES.length)];
+  return NOT_FOUND_JOKES[getRandomInt(NOT_FOUND_JOKES.length)];
+}
+
+export function getRandomInt(max: number): number {
+  return Math.floor(Math.random() * max);
 }

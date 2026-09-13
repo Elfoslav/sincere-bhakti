@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.updateIdentity, RATE_LIMITS.updateIdentity, { authErrorCode: "unauthorized", authErrorStatus: 401 });
+  const auth = await requireAuth(request, RATE_LIMIT_PREFIX.updateIdentity, RATE_LIMITS.updateIdentity, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
   if (auth.response) return auth.response;
   const session = auth.session;
 
