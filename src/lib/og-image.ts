@@ -25,7 +25,9 @@ export async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   const timeout = setTimeout(() => controller.abort(), 5000);
 
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    // Manual redirects: never follow a 3xx from a DB-stored URL to an
+    // attacker host (fail closed to the logo fallback instead).
+    const res = await fetch(url, { signal: controller.signal, redirect: "manual" });
     if (!res.ok) return null;
     const contentLength = parseContentLength(res.headers.get("content-length"));
     if (contentLength !== null && contentLength > MAX_OG_IMAGE_BYTES) return null;

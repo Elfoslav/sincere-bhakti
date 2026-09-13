@@ -5,8 +5,9 @@ import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/l
 import { isTrustedMediaUrl, updatePostSchema } from "@/lib/validation";
 import { isPostPubliclyVisible } from "@/lib/blog";
 import { canAuthorChannel } from "@/lib/services/channel";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
-import { HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST } from "@/lib/error-codes";
+import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_VALIDATION_MEDIA_UNTRUSTED, ERROR_VALIDATION_POST_EMPTY } from "@/lib/error-messages";
+import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST } from "@/lib/error-codes";
+import { locales } from "@/i18n/routing";
 import type { MediaInput } from "@/lib/services/post";
 import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
@@ -23,7 +24,8 @@ export async function GET(
     }
 
     const { id } = await params;
-    const language = new URL(request.url).searchParams.get("language") ?? "en";
+    const rawLanguage = new URL(request.url).searchParams.get("language") ?? "en";
+    const language = (locales as readonly string[]).includes(rawLanguage) ? rawLanguage : "en";
 
     // Optional viewer for linked-article visibility: public posts stay open,
     // but a private/scheduled article is only included for its channel authors.
@@ -50,7 +52,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth(request, RATE_LIMIT_PREFIX.updatePost, RATE_LIMITS.updatePost, { authErrorCode: "unauthorized", authErrorStatus: 401 });
+    const auth = await requireAuth(request, RATE_LIMIT_PREFIX.updatePost, RATE_LIMITS.updatePost, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
     if (auth.response) return auth.response;
     const session = auth.session;
 
@@ -68,7 +70,7 @@ export async function PATCH(
       const storageDomain = process.env.R2_PUBLIC_URL ?? "";
       for (const m of parsedMedia) {
         if (!isTrustedMediaUrl(m.url, m.type, storageDomain)) {
-          return NextResponse.json({ error: "validation_error:media:untrusted_url" }, { status: HTTP_BAD_REQUEST });
+          return NextResponse.json({ error: ERROR_VALIDATION_MEDIA_UNTRUSTED }, { status: HTTP_BAD_REQUEST });
         }
       }
     }
@@ -92,7 +94,7 @@ export async function PATCH(
       return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
     }
     if (error instanceof ValidationError) {
-      return NextResponse.json({ error: "validation_error:post:empty" }, { status: HTTP_BAD_REQUEST });
+      return NextResponse.json({ error: ERROR_VALIDATION_POST_EMPTY }, { status: HTTP_BAD_REQUEST });
     }
     return serverError("PATCH /api/posts/[id]", error, "failed_to_update_post");
   }
@@ -103,7 +105,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth(request, RATE_LIMIT_PREFIX.deletePost, RATE_LIMITS.deletePost, { authErrorCode: "unauthorized", authErrorStatus: 401 });
+    const auth = await requireAuth(request, RATE_LIMIT_PREFIX.deletePost, RATE_LIMITS.deletePost, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
     if (auth.response) return auth.response;
     const session = auth.session;
 

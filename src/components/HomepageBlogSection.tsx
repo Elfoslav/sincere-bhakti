@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import BlogCard from "@/components/BlogCard";
 import { useInfiniteBlogPosts } from "@/lib/hooks/useInfiniteBlogPosts";
+import { LATEST_BLOG_POSTS_LIMIT } from "@/lib/blog";
 
 export default function HomepageBlogSection() {
   const locale = useLocale();
@@ -11,14 +12,14 @@ export default function HomepageBlogSection() {
   const { posts, loading } = useInfiniteBlogPosts({
     scope: "public",
     language: locale,
-    pageSize: 3,
+    pageSize: LATEST_BLOG_POSTS_LIMIT,
   });
 
   // Don't flash empty state while loading; keep homepage clean
   if (loading) return null;
   if (posts.length === 0) return null;
 
-  const visible = posts.slice(0, 3);
+  const visible = posts.slice(0, LATEST_BLOG_POSTS_LIMIT);
 
   return (
     <section className="mt-16 text-left" aria-labelledby="home-blog-heading">

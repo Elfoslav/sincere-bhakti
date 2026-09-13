@@ -17,7 +17,9 @@ export function stripExcerptLinks(html: string): string {
     doc.querySelectorAll("a").forEach((a) => a.replaceWith(...Array.from(a.childNodes)));
     return doc.body.innerHTML;
   } catch {
-    return html.replace(/<a\b[^>]*>|<\/a>/gi, "");
+    // Parser unavailable: strip ALL markup to plain text so no script/img
+    // handler can survive into dangerouslySetInnerHTML below.
+    return html.replace(/<[^>]*>/g, "");
   }
 }
 

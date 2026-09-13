@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => new Headers({ host: "localhost:3000", "x-forwarded-for": "203.0.113.10" })),
@@ -82,8 +82,18 @@ const publicPost = {
 };
 
 describe("blog opengraph image", () => {
+  const OLD_ENV = process.env.R2_PUBLIC_URL;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // Covers are trusted by storage origin: point it at the test CDN so the
+    // mocked cover URL passes the route's SSRF re-check.
+    process.env.R2_PUBLIC_URL = "https://cdn.example.com";
+  });
+
+  afterEach(() => {
+    if (OLD_ENV === undefined) delete process.env.R2_PUBLIC_URL;
+    else process.env.R2_PUBLIC_URL = OLD_ENV;
   });
 
   it("returns the fallback JPEG immediately when rate limited (never shared-cached)", async () => {

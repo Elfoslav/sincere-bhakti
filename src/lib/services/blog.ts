@@ -406,8 +406,10 @@ export async function deleteBlogPost(
     select: { id: true, coverUrl: true, channel: { select: { id: true, ownerId: true } } },
   });
   if (!post) throw new NotFoundError();
+  // 404 (not 403) for strangers: matches updateBlogPost so delete doesn't
+  // oracle private-object existence.
   if (post.channel.ownerId !== userId && !await isChannelEditor(post.channel.id, userId)) {
-    throw new ForbiddenError();
+    throw new NotFoundError();
   }
 
   await prisma.blogPost.deleteMany({
@@ -476,30 +478,36 @@ export async function updateBlogPost(
     throw new ValidationError("blog_must_have_content_or_excerpt");
   }
 
-  const { count } = Object.keys(postData).length > 0
-    ? await prisma.blogPost.updateMany({
-        where: {
-          id,
-          OR: [
-            { channel: { ownerId: userId } },
-            { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
-          ],
-        },
-        data: postData,
-      })
-    // A categories-only patch carries no scalar changes: skip the no-op
-    // update (Prisma rejects empty data). Ownership was already verified
-    // against the pre-update row above.
-    : { count: 1 };
+  // Links resolve in the article's (possibly newly patched) language.
+  const categoryIds = data.categories !== undefined
+    ? await resolveCategoryIds(prisma, data.categories ?? [], data.language ?? existing.language)
+    : null;
 
-  if (count === 0) {
-    throw new NotFoundError();
-  }
+  const ownershipFilter: Prisma.BlogPostWhereInput = {
+    id,
+    OR: [
+      { channel: { ownerId: userId } },
+      { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
+    ],
+  };
 
-  if (data.categories !== undefined) {
-    // Links resolve in the article's (possibly newly patched) language.
-    await setBlogPostCategories(prisma, id, await resolveCategoryIds(prisma, data.categories ?? [], data.language ?? existing.language));
-  }
+  // Scalar + relation writes share one transaction guarded by the same
+  // ownership filter: a role revoked between the pre-fetch above and this
+  // write fails closed instead of mutating categories on a row we no longer
+  // own. A categories-only patch carries no scalar changes (Prisma rejects
+  // empty data), so it proves ownership with a scoped count first.
+  await prisma.$transaction(async (tx) => {
+    if (Object.keys(postData).length > 0) {
+      const { count } = await tx.blogPost.updateMany({ where: ownershipFilter, data: postData });
+      if (count === 0) throw new NotFoundError();
+    } else {
+      const owned = await tx.blogPost.count({ where: ownershipFilter });
+      if (owned === 0) throw new NotFoundError();
+    }
+    if (categoryIds !== null) {
+      await setBlogPostCategories(tx, id, categoryIds);
+    }
+  });
 
   const updated = await prisma.blogPost.findUnique({
     where: { id },

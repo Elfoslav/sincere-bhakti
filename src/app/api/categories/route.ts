@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchCategories, resolveCategoryIds } from "@/lib/services/category";
 import { categorySearchSchema, createCategorySchema } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
-import { ERROR_TOO_MANY_REQUESTS, ERROR_FORBIDDEN } from "@/lib/error-messages";
-import { HTTP_TOO_MANY_REQUESTS, HTTP_FORBIDDEN, HTTP_CREATED } from "@/lib/error-codes";
+import { ERROR_UNAUTHORIZED, ERROR_TOO_MANY_REQUESTS, ERROR_EMAIL_NOT_VERIFIED } from "@/lib/error-messages";
+import { HTTP_UNAUTHORIZED, HTTP_TOO_MANY_REQUESTS, HTTP_FORBIDDEN, HTTP_CREATED } from "@/lib/error-codes";
 import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
 import { parseBody } from "@/lib/parse-body";
 import { prisma } from "@/lib/prisma";
-import { validateOrigin } from "@/lib/csrf";
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,16 +32,13 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request, RATE_LIMIT_PREFIX.createCategory, RATE_LIMITS.createCategory, { authErrorCode: "unauthorized", authErrorStatus: 401 });
+  // requireAuth already enforces CSRF (validateOrigin) + rate limiting.
+  const authResult = await requireAuth(request, RATE_LIMIT_PREFIX.createCategory, RATE_LIMITS.createCategory, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
   if (authResult.response) return authResult.response;
   const session = authResult.session;
 
   if (!session.user.emailVerifiedAt) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
-  }
-
-  if (!validateOrigin(request)) {
-    return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
+    return NextResponse.json({ error: ERROR_EMAIL_NOT_VERIFIED }, { status: HTTP_FORBIDDEN });
   }
 
   try {

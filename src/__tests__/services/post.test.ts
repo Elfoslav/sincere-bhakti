@@ -10,6 +10,7 @@ vi.mock("@/lib/prisma", () => ({
       deleteMany: vi.fn(),
       delete: vi.fn(),
       updateMany: vi.fn(),
+      count: vi.fn(() => Promise.resolve(1)),
     },
     media: {
       deleteMany: vi.fn(),
@@ -93,7 +94,7 @@ function mockBlogPost(overrides: Record<string, unknown> = {}) {
 }
 
 function mockPostWithBlog(blogOverrides: Record<string, unknown> = {}) {
-  return { ...mockPost, blogPost: mockBlogPost(blogOverrides) };
+  return { ...mockPost, blogPostId: "blog-1", blogPost: mockBlogPost(blogOverrides) };
 }
 
 describe("getPosts", () => {
@@ -357,6 +358,7 @@ describe("getPosts", () => {
 
     expect(result.posts).toHaveLength(1);
     expect(result.posts[0].blogPost).toBeNull();
+    expect(result.posts[0].blogPostId).toBeNull();
   });
 
   it("nulls a scheduled linked article for anonymous public feed readers", async () => {
@@ -403,6 +405,7 @@ describe("getPosts", () => {
     const result = await getPosts({ scope: "public", limit: 10 }, "other-user");
 
     expect(result.posts[0].blogPost).toBeNull();
+    expect(result.posts[0].blogPostId).toBeNull();
   });
 });
 
@@ -432,6 +435,7 @@ describe("getPostById", () => {
     const post = await getPostById("post-1", "en");
 
     expect(post?.blogPost).toBeNull();
+    expect(post?.blogPostId).toBeNull();
   });
 
   it("keeps a private linked article for the channel owner", async () => {
@@ -757,10 +761,10 @@ describe("deletePost", () => {
     await expect(deletePost("missing", "user-1")).rejects.toThrow(NotFoundError);
   });
 
-  it("throws when not the author", async () => {
+  it("throws NotFoundError (not ForbiddenError) when not the author", async () => {
     vi.mocked(prisma.post.findUnique).mockResolvedValue({ ...mockPost, channel: { ownerId: "user-1" } } as any);
 
-    await expect(deletePost("post-1", "user-2")).rejects.toThrow(ForbiddenError);
+    await expect(deletePost("post-1", "user-2")).rejects.toThrow(NotFoundError);
   });
 });
 

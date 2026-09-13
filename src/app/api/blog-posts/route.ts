@@ -5,7 +5,7 @@ import { createBlogPostSchema, blogPaginationSchema, isTrustedMediaUrl } from "@
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { getPersonalChannel, createPersonalChannel, resolveAuthorableChannelId } from "@/lib/services/channel";
 import { getActiveIdentityCookie, setActiveIdentityCookie } from "@/lib/active-identity";
-import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_NOT_FOUND } from "@/lib/error-messages";
+import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_TOO_MANY_REQUESTS, ERROR_NOT_FOUND, ERROR_EMAIL_NOT_VERIFIED, ERROR_BLOG_ID_COLLISION, ERROR_VALIDATION_COVER_UNTRUSTED, ERROR_VALIDATION_BLOG_EMPTY } from "@/lib/error-messages";
 import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST, HTTP_CREATED, HTTP_CONFLICT, HTTP_NOT_FOUND } from "@/lib/error-codes";
 import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
@@ -47,12 +47,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request, RATE_LIMIT_PREFIX.createBlog, RATE_LIMITS.createBlog, { authErrorCode: "unauthorized", authErrorStatus: 401 });
+  const authResult = await requireAuth(request, RATE_LIMIT_PREFIX.createBlog, RATE_LIMITS.createBlog, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
   if (authResult.response) return authResult.response;
   const session = authResult.session;
 
   if (!session.user.emailVerifiedAt) {
-    return NextResponse.json({ error: "email_not_verified" }, { status: HTTP_FORBIDDEN });
+    return NextResponse.json({ error: ERROR_EMAIL_NOT_VERIFIED }, { status: HTTP_FORBIDDEN });
   }
 
   try {
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       const storageDomain = process.env.R2_PUBLIC_URL ?? "";
       if (!isTrustedMediaUrl(parsed.data.coverUrl, "image", storageDomain)) {
         return NextResponse.json(
-          { error: `validation_error:coverUrl:untrusted_url` },
+          { error: ERROR_VALIDATION_COVER_UNTRUSTED },
           { status: HTTP_BAD_REQUEST },
         );
       }
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     if (error instanceof ConflictError) {
-      return NextResponse.json({ error: "blog_id_collision" }, { status: HTTP_CONFLICT });
+      return NextResponse.json({ error: ERROR_BLOG_ID_COLLISION }, { status: HTTP_CONFLICT });
     }
     if (error instanceof NotFoundError) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
     }
     if (error instanceof ValidationError) {
-      return NextResponse.json({ error: error.message }, { status: HTTP_BAD_REQUEST });
+      return NextResponse.json({ error: ERROR_VALIDATION_BLOG_EMPTY }, { status: HTTP_BAD_REQUEST });
     }
     return serverError("POST /api/blog-posts", error, "failed_to_create_blog_post");
   }

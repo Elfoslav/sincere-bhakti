@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatBytes } from "@/lib/format";
+import { BYTES_PER_MB, formatBytes } from "@/lib/format";
 
 describe("formatBytes", () => {
   it('returns "0 B" for zero', () => {
@@ -31,5 +31,11 @@ describe("formatBytes", () => {
 
   it("handles unexpected negative input gracefully", () => {
     expect(formatBytes(-100)).toBe("NaN undefined");
+  });
+});
+
+describe("BYTES_PER_MB", () => {
+  it("equals one mebibyte", () => {
+    expect(BYTES_PER_MB).toBe(1024 * 1024);
   });
 });

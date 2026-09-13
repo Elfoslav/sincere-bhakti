@@ -44,6 +44,7 @@ export interface PostResponse {
   shortId: string;
   slug: string | null;
   content: string | null;
+  blogPostId: string | null;
   isPublic: boolean;
   language: string;
   // Null = visible immediately; a future date hides the post from public
@@ -161,7 +162,7 @@ function toPostResponse<
  * implies authoring both.
  */
 async function hidePrivateBlogPost<
-  T extends { blogPost: BlogPostResponse | null },
+  T extends { blogPost: BlogPostResponse | null; blogPostId?: string | null },
 >(
   response: T,
   rawBlogPost: { isPublic: boolean; publishedAt: Date | string | null; channel: { id: string; ownerId: string } } | null | undefined,
@@ -173,7 +174,9 @@ async function hidePrivateBlogPost<
     if (rawBlogPost.channel.ownerId === viewerId) return response;
     if (await isChannelEditor(rawBlogPost.channel.id, viewerId)) return response;
   }
-  return { ...response, blogPost: null };
+  // Null the object AND the scalar: leaking blogPostId tells anonymous
+  // callers a private article's id and its linkage (detail still 404s).
+  return { ...response, blogPost: null, blogPostId: null };
 }
 
 /**
@@ -472,8 +475,10 @@ export async function deletePost(
     include: { media: { select: { url: true } }, channel: { select: { id: true, ownerId: true } } },
   });
   if (!post) throw new NotFoundError();
+  // 404 (not 403) for strangers: matches updatePost so delete doesn't
+  // oracle private-object existence.
   if (post.channel.ownerId !== userId && !await isChannelEditor(post.channel.id, userId)) {
-    throw new ForbiddenError();
+    throw new NotFoundError();
   }
 
   const urls = post.media.map((m) => canonicalizeUrl(m.url));
@@ -534,10 +539,35 @@ export async function updatePost(
     postData.slug = derivePostSlug(rest.content) ?? null;
   }
 
+  // Links resolve in the post's (possibly newly patched) language.
+  const categoryIds = categories !== undefined
+    ? await resolveCategoryIds(prisma, categories ?? [], data.language ?? existing.language)
+    : null;
+
+  const ownershipFilter: Prisma.PostWhereInput = {
+    id,
+    OR: [
+      { channel: { ownerId: userId } },
+      { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
+    ],
+  };
+
+  // Prove ownership FIRST inside the transaction, then write relations: a
+  // role revoked between the pre-fetch above and this write fails closed
+  // before any category/media mutation lands. A categories/media-only patch
+  // carries no scalar changes (Prisma rejects empty data), so it proves
+  // ownership with a scoped count. Throwing rolls the whole transaction back.
   const post = await prisma.$transaction(async (tx) => {
-    if (categories !== undefined) {
-      // Links resolve in the post's (possibly newly patched) language.
-      await setPostCategories(tx, id, await resolveCategoryIds(tx, categories ?? [], data.language ?? existing.language));
+    if (Object.keys(postData).length > 0) {
+      const { count } = await tx.post.updateMany({ where: ownershipFilter, data: postData });
+      if (count === 0) throw new NotFoundError();
+    } else {
+      const owned = await tx.post.count({ where: ownershipFilter });
+      if (owned === 0) throw new NotFoundError();
+    }
+
+    if (categoryIds !== null) {
+      await setPostCategories(tx, id, categoryIds);
     }
     if (media !== undefined) {
       await tx.media.deleteMany({ where: { postId: id } });
@@ -554,27 +584,6 @@ export async function updatePost(
           })),
         });
       }
-    }
-
-    // A categories/media-only patch carries no scalar changes: skip the
-    // no-op update (Prisma rejects empty data). Ownership was already
-    // verified against the pre-update row above.
-    let count = 1;
-    if (Object.keys(postData).length > 0) {
-      ({ count } = await tx.post.updateMany({
-        where: {
-          id,
-          OR: [
-            { channel: { ownerId: userId } },
-            { channel: { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } } },
-          ],
-        },
-        data: postData,
-      }));
-    }
-
-    if (count === 0) {
-      throw new NotFoundError();
     }
 
     const updated = await tx.post.findUnique({

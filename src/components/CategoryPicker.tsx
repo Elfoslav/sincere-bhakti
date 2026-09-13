@@ -6,6 +6,8 @@ import { X } from "lucide-react";
 import {
   CATEGORIES_MAX_PER_POST,
   CATEGORY_NAME_MAX_LENGTH,
+  CATEGORY_SEARCH_DEBOUNCE_MS,
+  CATEGORY_SEARCH_LIMIT,
   normalizeCategoryName,
 } from "@/lib/validation";
 import type { CategoryRef } from "@/types/category";
@@ -41,7 +43,7 @@ export default function CategoryPicker({ value, onChange, max = CATEGORIES_MAX_P
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const params = new URLSearchParams({ limit: "10", language: locale });
+        const params = new URLSearchParams({ limit: String(CATEGORY_SEARCH_LIMIT), language: locale });
         if (query) params.set("search", query);
         const res = await fetch(`/api/categories?${params}`, { signal: controller.signal });
         if (!res.ok) {
@@ -53,7 +55,7 @@ export default function CategoryPicker({ value, onChange, max = CATEGORIES_MAX_P
       } catch {
         if (!controller.signal.aborted) setResults([]);
       }
-    }, 300);
+    }, CATEGORY_SEARCH_DEBOUNCE_MS);
     return () => {
       clearTimeout(timer);
       controller.abort();

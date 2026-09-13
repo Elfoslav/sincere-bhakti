@@ -17,14 +17,13 @@ import { getImageDimensions } from "@/lib/client-media";
 import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
 import { useIdentity } from "@/components/IdentityProvider";
 import CategoryPicker from "@/components/CategoryPicker";
-import { BLOG_TITLE_MAX_LENGTH, BLOG_EXCERPT_MAX_LENGTH, MAX_IMAGE_SIZE_BYTES, maxUploadSizeForContentType } from "@/lib/validation";
+import { BLOG_TITLE_MAX_LENGTH, BLOG_EXCERPT_MAX_LENGTH, MAX_IMAGE_SIZE_BYTES, maxUploadSizeForContentType, getImageAcceptString } from "@/lib/validation";
+import { BYTES_PER_MB } from "@/lib/format";
 import type { BlogPost } from "@/types/blog";
 
 // Tiptap touches `document` at module load: client-only, code-split out of
 // the initial bundle.
 const BlogEditor = dynamic(() => import("@/components/BlogEditor"), { ssr: false });
-
-const BYTES_PER_MB = 1024 * 1024;
 
 export interface BlogFormProps {
   mode: "create" | "edit";
@@ -333,7 +332,7 @@ export default function BlogForm({
         <input
           ref={coverInputRef}
           type="file"
-          accept="image/*"
+          accept={getImageAcceptString()}
           className="hidden"
           aria-label={t("uploadCover")}
           onChange={handleCoverSelect}

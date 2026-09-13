@@ -55,6 +55,19 @@ export function isPostPubliclyVisible(
   return publishedAt <= now;
 }
 
+/**
+ * Whether the viewer may manage (edit/delete) a blog article: the channel
+ * owner, or a channel in their manageable set. Pure helper kept out of
+ * components for unit testing.
+ */
+export function isBlogPostManager(
+  post: { channel: { id: string; ownerId: string } },
+  currentUserId?: string,
+  manageableChannelIds?: string[],
+): boolean {
+  return Boolean(currentUserId === post.channel.ownerId || manageableChannelIds?.includes(post.channel.id));
+}
+
 export interface TimelinePostBody {
   channelId: string;
   language: string;

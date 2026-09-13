@@ -83,6 +83,7 @@ export default function EditPostModal({
         createdAt: post.createdAt,
         channel: post.channel,
         blogPost: post.blogPost,
+        blogPostId: post.blogPostId,
         categories: previewValues.categories.map((name) => (
           post.categories.find((c) => c.name === name) ?? { id: name, name, slug: deriveCategorySlug(name), language: post.language }
         )),

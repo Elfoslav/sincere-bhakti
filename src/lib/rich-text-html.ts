@@ -52,10 +52,12 @@ export function sanitizeRichTextHtml(value: string | null | undefined): string |
 
 /**
  * Resolve display HTML for an article: stored sanitized HTML when present,
- * otherwise the legacy plain-text content escaped into paragraphs.
+ * otherwise the legacy plain-text content escaped into paragraphs. Stored
+ * HTML is re-sanitized on read (idempotent): any row that bypassed the
+ * writer (legacy data, backfill bug, manual edit) can't become stored XSS.
  */
 export function resolveArticleHtml(contentHtml: string | null | undefined, content: string | null | undefined): string {
-  if (contentHtml?.trim()) return contentHtml;
+  if (contentHtml?.trim()) return sanitizeRichTextHtml(contentHtml) ?? "";
   if (content && !isRichTextJson(content)) {
     const paragraphs = content
       .split(/\n{2,}/)

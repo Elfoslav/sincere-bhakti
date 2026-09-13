@@ -6,18 +6,11 @@ import { routing } from "@/i18n/routing";
 import { Link as LinkIcon, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getBlogUrl } from "@/lib/blog-url";
+import { isBlogPostManager } from "@/lib/blog";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { BlogPost } from "@/types/blog";
-
-export function isBlogPostManager(
-  post: BlogPost,
-  currentUserId?: string,
-  manageableChannelIds?: string[],
-): boolean {
-  return !!(currentUserId === post.channel.ownerId || manageableChannelIds?.includes(post.channel.id));
-}
 
 /**
  * Edit/delete/copy-link buttons for a blog article, with the delete

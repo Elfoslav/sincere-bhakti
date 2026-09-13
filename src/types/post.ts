@@ -23,6 +23,7 @@ export interface Post {
   shortId: string;
   slug: string | null;
   content: string | null;
+  blogPostId: string | null;
   media: PostMedia[];
   isPublic: boolean;
   language: string;

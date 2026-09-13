@@ -5,6 +5,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getPosts } from "@/lib/services/post";
 import { getCategoryBySlug } from "@/lib/services/category";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
+import { FEED_DEFAULT_LIMIT } from "@/lib/validation";
 import type { Post } from "@/types/post";
 import PostsPageClient from "../../posts-page-client";
 import { DEFAULT_OG_IMAGE, getLocalizedUrl } from "@/lib/seo";
@@ -58,7 +59,7 @@ export default async function PostsCategoryPage({ params }: Props) {
       scope: "public",
       language: locale,
       requestLanguage: locale,
-      limit: 10,
+      limit: FEED_DEFAULT_LIMIT,
       category: category.name,
     });
     initialPublic = JSON.parse(JSON.stringify(result)) as { posts: Post[]; hasMore: boolean };

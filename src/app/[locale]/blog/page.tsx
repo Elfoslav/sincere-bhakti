@@ -5,6 +5,7 @@ import { getBlogPosts } from "@/lib/services/blog";
 import { getCategoryByName } from "@/lib/services/category";
 import { normalizeCategoryName } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
+import { FEED_DEFAULT_LIMIT } from "@/lib/validation";
 import type { BlogPost } from "@/types/blog";
 import BlogPageClient from "./blog-page-client";
 import { DEFAULT_OG_IMAGE, getLocalizedUrl } from "@/lib/seo";
@@ -61,7 +62,7 @@ export default async function BlogPage({ params, searchParams }: Props) {
   let initialPublic: { posts: BlogPost[]; hasMore: boolean } | undefined;
   if (allowed && !channelId) {
     try {
-      const result = await getBlogPosts({ scope: "public", language: locale, requestLanguage: locale, limit: 10, category });
+      const result = await getBlogPosts({ scope: "public", language: locale, requestLanguage: locale, limit: FEED_DEFAULT_LIMIT, category });
       initialPublic = JSON.parse(JSON.stringify(result)) as { posts: BlogPost[]; hasMore: boolean };
     } catch {
       initialPublic = undefined;

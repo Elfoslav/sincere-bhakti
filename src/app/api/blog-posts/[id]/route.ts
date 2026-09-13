@@ -4,8 +4,9 @@ import { getBlogPostById, deleteBlogPost, updateBlogPost, isBlogPubliclyVisible,
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { updateBlogPostSchema, isSafeHttpUrl, isTrustedMediaUrl } from "@/lib/validation";
 import { canAuthorChannel } from "@/lib/services/channel";
-import { ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
-import { HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST } from "@/lib/error-codes";
+import { ERROR_UNAUTHORIZED, ERROR_FORBIDDEN, ERROR_NOT_FOUND, ERROR_TOO_MANY_REQUESTS, ERROR_VALIDATION_COVER_INVALID, ERROR_VALIDATION_COVER_UNTRUSTED, ERROR_VALIDATION_BLOG_EMPTY } from "@/lib/error-messages";
+import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST } from "@/lib/error-codes";
+import { locales } from "@/i18n/routing";
 import { requireAuth } from "@/lib/require-auth";
 import { serverError } from "@/lib/error-handlers";
 import { parseBody } from "@/lib/parse-body";
@@ -21,7 +22,8 @@ export async function GET(
     }
 
     const { id } = await params;
-    const language = new URL(request.url).searchParams.get("language") ?? "en";
+    const rawLanguage = new URL(request.url).searchParams.get("language") ?? "en";
+    const language = (locales as readonly string[]).includes(rawLanguage) ? rawLanguage : "en";
 
     const post = await getBlogPostById(id, language);
     if (!post) {
@@ -46,7 +48,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await requireAuth(request, RATE_LIMIT_PREFIX.updateBlog, RATE_LIMITS.updateBlog, { authErrorCode: "unauthorized", authErrorStatus: 401 });
+    const authResult = await requireAuth(request, RATE_LIMIT_PREFIX.updateBlog, RATE_LIMITS.updateBlog, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
     if (authResult.response) return authResult.response;
     const session = authResult.session;
 
@@ -58,12 +60,12 @@ export async function PATCH(
     const { title, excerpt, content, coverUrl, contentHtml, isPublic, language, publishedAt, categories } = parsed.data;
 
     if (coverUrl !== undefined && coverUrl !== null && !isSafeHttpUrl(coverUrl)) {
-      return NextResponse.json({ error: "validation_error:coverUrl:invalid" }, { status: HTTP_BAD_REQUEST });
+      return NextResponse.json({ error: ERROR_VALIDATION_COVER_INVALID }, { status: HTTP_BAD_REQUEST });
     }
     if (coverUrl) {
       const storageDomain = process.env.R2_PUBLIC_URL ?? "";
       if (!isTrustedMediaUrl(coverUrl, "image", storageDomain)) {
-        return NextResponse.json({ error: "validation_error:coverUrl:untrusted_url" }, { status: HTTP_BAD_REQUEST });
+        return NextResponse.json({ error: ERROR_VALIDATION_COVER_UNTRUSTED }, { status: HTTP_BAD_REQUEST });
       }
     }
 
@@ -88,7 +90,7 @@ export async function PATCH(
       return NextResponse.json({ error: ERROR_FORBIDDEN }, { status: HTTP_FORBIDDEN });
     }
     if (error instanceof ValidationError) {
-      return NextResponse.json({ error: "validation_error:blog:empty" }, { status: HTTP_BAD_REQUEST });
+      return NextResponse.json({ error: ERROR_VALIDATION_BLOG_EMPTY }, { status: HTTP_BAD_REQUEST });
     }
     return serverError("PATCH /api/blog-posts/[id]", error, "failed_to_update_blog_post");
   }
@@ -99,7 +101,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await requireAuth(request, RATE_LIMIT_PREFIX.deleteBlog, RATE_LIMITS.deleteBlog, { authErrorCode: "unauthorized", authErrorStatus: 401 });
+    const authResult = await requireAuth(request, RATE_LIMIT_PREFIX.deleteBlog, RATE_LIMITS.deleteBlog, { authErrorCode: ERROR_UNAUTHORIZED, authErrorStatus: HTTP_UNAUTHORIZED });
     if (authResult.response) return authResult.response;
     const session = authResult.session;
 

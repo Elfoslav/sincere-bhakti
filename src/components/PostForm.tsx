@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { InfoBox } from "@/components/ui/info-box";
 import { GripVertical, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { formatBytes } from "@/lib/format";
+import { BYTES_PER_MB, formatBytes } from "@/lib/format";
 import { genId } from "@/lib/id";
 import { getImageDimensions } from "@/lib/client-media";
 import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
@@ -28,8 +28,6 @@ import {
   maxUploadSizeForContentType,
   getAcceptString,
 } from "@/lib/validation";
-
-const BYTES_PER_MB = 1024 * 1024;
 
 interface MediaItem {
   id: string;

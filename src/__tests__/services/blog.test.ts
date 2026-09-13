@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
+vi.mock("@/lib/prisma", () => {
+  const prisma: any = {
     blogPost: {
       findMany: vi.fn(() => Promise.resolve([])),
       findUnique: vi.fn(),
       create: vi.fn(),
       updateMany: vi.fn(),
       deleteMany: vi.fn(),
+      count: vi.fn(() => Promise.resolve(1)),
     },
     post: {
       deleteMany: vi.fn(),
@@ -29,8 +30,10 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(() => Promise.resolve([])),
       deleteMany: vi.fn(),
     },
-  },
-}));
+  };
+  prisma.$transaction = vi.fn((cb: (tx: any) => any) => cb(prisma));
+  return { prisma };
+});
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -287,8 +290,12 @@ describe("updateBlogPost / deleteBlogPost", () => {  beforeEach(() => {
       data: [{ blogPostId: "blog-1", categoryId: "cat-1" }],
       skipDuplicates: true,
     });
-    // No scalar fields changed: the empty updateMany is skipped.
+    // No scalar fields changed: the empty updateMany is skipped in favor of
+    // an ownership-scoped count inside the same transaction.
     expect(prisma.blogPost.updateMany).not.toHaveBeenCalled();
+    expect(prisma.blogPost.count).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: "blog-1" }) }),
+    );
   });
 
   it("scopes delete by owner in the where clause", async () => {
@@ -305,6 +312,16 @@ describe("updateBlogPost / deleteBlogPost", () => {  beforeEach(() => {
         where: expect.objectContaining({ id: "blog-1" }),
       }),
     );
+  });
+
+  it("returns NotFoundError (not ForbiddenError) when a stranger deletes", async () => {
+    vi.mocked(prisma.blogPost.findUnique).mockResolvedValue({
+      id: "blog-1",
+      channel: { id: "channel-1", ownerId: "user-1" },
+    } as never);
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null);
+
+    await expect(deleteBlogPost("blog-1", "user-2")).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("deletes linked timeline promo posts with the article", async () => {

@@ -4,6 +4,7 @@ import { getSiteUrl } from "@/lib/url";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { POST_OG_IMAGE, OG_POST_IMAGE_CACHE_CONTROL, OG_IMAGE_FALLBACK_CACHE_CONTROL, OG_IMAGE_RATE_LIMITED_CACHE_CONTROL, OG_IMAGE_TRANSIENT_CACHE_CONTROL } from "@/lib/seo";
 import { fetchImageBuffer, ogJpegResponse, logoFallback, coverCropToJpeg } from "@/lib/og-image";
+import { isTrustedMediaUrl } from "@/lib/validation";
 
 export const runtime = "nodejs";
 export const alt = "Sincere Bhakti blog image";
@@ -42,16 +43,22 @@ export default async function Image({
   // scheduled, missing, or coverless posts get the logo fallback.
   const coverUrl = post && isBlogPubliclyVisible(post) ? post.coverUrl : null;
 
+  // Re-validate the stored URL before server-side fetch: write-time checks
+  // are fail-closed, but a legacy row or rotated storage domain must not turn
+  // this route into an open SSRF fetcher.
+  const storageDomain = process.env.R2_PUBLIC_URL ?? "";
+  const trustedCover = coverUrl && isTrustedMediaUrl(coverUrl, "image", storageDomain) ? coverUrl : null;
+
   // Genuinely imageless for this URL: the logo IS the correct response, so it
   // may be briefly shared-cached.
-  if (!coverUrl) {
+  if (!trustedCover) {
     return logoFallback(siteUrl, OG_IMAGE_FALLBACK_CACHE_CONTROL);
   }
 
   // The post HAS a cover but we couldn't fetch or decode it — likely transient
   // (upstream timeout/5xx, truncated/oversized stream, bad bytes). Fall back but
   // do NOT shared-cache it, so a blip can't pin the logo on a real cover.
-  const original = await fetchImageBuffer(coverUrl);
+  const original = await fetchImageBuffer(trustedCover);
   if (!original) {
     return logoFallback(siteUrl, OG_IMAGE_TRANSIENT_CACHE_CONTROL);
   }

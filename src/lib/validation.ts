@@ -18,10 +18,19 @@ export const POST_SLUG_MAX_LENGTH = 60;
 export const BLOG_TITLE_MAX_LENGTH = 100;
 export const BLOG_EXCERPT_MAX_LENGTH = 300;
 export const BLOG_CONTENT_MAX_LENGTH = 20000;
-export const BLOG_SLUG_MAX_LENGTH = 80;// Stored-content cap: article bodies are Tiptap JSON documents, so the raw
+// Stored-content cap: article bodies are Tiptap JSON documents, so the raw
 // string carries markup overhead. The human-readable limit above is enforced
 // separately on the extracted plain text.
 export const BLOG_RAW_CONTENT_MAX_LENGTH = 60000;
+
+// Shared feed/picker bounds so SSR fetches, Zod schemas, and client hooks
+// stay in sync instead of hardcoding the same numbers in many places.
+export const FEED_DEFAULT_LIMIT = 10;
+export const FEED_MAX_LIMIT = 50;
+export const MAX_MEDIA_ITEMS_PER_POST = 10;
+export const MEDIA_URL_MAX_LENGTH = 2000;
+export const CATEGORY_SEARCH_LIMIT = 10;
+export const CATEGORY_SEARCH_DEBOUNCE_MS = 300;
 
 // Unified category taxonomy: one global tag list for timeline posts and blog
 // articles. Names are forced to Title Case (multi-word allowed) and unique
@@ -48,7 +57,7 @@ const categoryNamesField = z
 
 export const categorySearchSchema = z.object({
   search: z.string().trim().max(CATEGORY_NAME_MAX_LENGTH).optional(),
-  limit: z.coerce.number().int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(FEED_MAX_LIMIT).default(FEED_DEFAULT_LIMIT),
   // Picker scope: categories only ever surface in their own language.
   language: z.enum(locales).optional(),
 });
@@ -113,6 +122,12 @@ export function isAllowedUploadContentType(contentType: string): boolean {
 // and server-side validation.
 export function getAcceptString(): string {
   return ALLOWED_UPLOAD_CONTENT_TYPES.join(",");
+}
+
+// Image-only accept string for cover pickers (blog covers never accept
+// video). Derived from the same allowlist so the picker can't drift.
+export function getImageAcceptString(): string {
+  return ALLOWED_UPLOAD_CONTENT_TYPES.filter((t) => t.startsWith("image/")).join(",");
 }
 
 // Max upload size (bytes), per media type. Enforced client-side before
@@ -182,14 +197,14 @@ export const registerSchema = z.object({
 const MAX_MEDIA_DIMENSION = 100_000;
 
 export const mediaItemSchema = z.object({
-  url: z.string().url().max(2000).refine(isSafeHttpUrl),
+  url: z.string().url().max(MEDIA_URL_MAX_LENGTH).refine(isSafeHttpUrl),
   type: z.enum(["image", "video", "youtube", "file"]),
   width: z.number().int().positive().max(MAX_MEDIA_DIMENSION).optional(),
   height: z.number().int().positive().max(MAX_MEDIA_DIMENSION).optional(),
 });
 
 const contentField = z.string().trim().max(5000).optional();
-const mediaField = z.array(mediaItemSchema).max(10).optional();
+const mediaField = z.array(mediaItemSchema).max(MAX_MEDIA_ITEMS_PER_POST).optional();
 // Optional publish date input. Accepts ISO date/datetime strings from
 // <input type="datetime-local"> (no timezone) or full ISO datetimes; coerced
 // to Date. When omitted the server defaults to now (posts) or now (blog).
@@ -214,7 +229,9 @@ export const createPostSchema = z.object({
   // article's date so both go live together). Omitted/null = visible now.
   publishedAt: publishedAtField,
   // Optional link to a channel blog article promoted by this post.
-  blogPostId: z.string().min(1).optional(),
+  // Cuid-shaped (same charset as uploadPostIdField) so arbitrary strings
+  // can't be used as existence oracles via the feed filter.
+  blogPostId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
   // Category names (canonicalized to Title Case by the field transform).
   categories: categoryNamesField.optional(),
 }).refine(
@@ -228,7 +245,7 @@ export const updatePostSchema = z.object({
   language: z.enum(locales).optional(),
   // Scheduled promo date mirrors the promoted article; null clears it.
   publishedAt: z.coerce.date().nullish(),
-  blogPostId: z.string().min(1).nullish(),
+  blogPostId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).nullish(),
   // Undefined leaves categories alone; null or [] clears them.
   categories: categoryNamesField.nullish(),
 }).refine(
@@ -249,7 +266,7 @@ const blogExcerptField = z.string().trim().max(BLOG_EXCERPT_MAX_LENGTH).optional
 const blogContentField = z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).optional()
   .refine((v) => v === undefined || extractPlainText(v).length <= BLOG_CONTENT_MAX_LENGTH);
 const blogContentHtmlField = z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).optional();
-const blogCoverField = z.string().url().max(2000).refine(isSafeHttpUrl).optional();
+const blogCoverField = z.string().url().max(MEDIA_URL_MAX_LENGTH).refine(isSafeHttpUrl).optional();
 
 export const createBlogPostSchema = z.object({
   id: z.string().regex(uuidRegex).optional(),
@@ -264,10 +281,7 @@ export const createBlogPostSchema = z.object({
   publishedAt: publishedAtField,
   // Category names (canonicalized to Title Case by the field transform).
   categories: categoryNamesField.optional(),
-}).refine(
-  (data) => data.content || data.excerpt,
-  { message: "blog_empty" },
-);
+}).refine((data) => data.content || data.excerpt);
 
 export const updateBlogPostSchema = z.object({
   title: blogTitleField.optional(),
@@ -275,23 +289,20 @@ export const updateBlogPostSchema = z.object({
   content: z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).nullish().refine(
     (v) => v == null || extractPlainText(v).length <= BLOG_CONTENT_MAX_LENGTH,
   ),
-  coverUrl: z.string().url().max(2000).refine(isSafeHttpUrl).nullish(),
+  coverUrl: z.string().url().max(MEDIA_URL_MAX_LENGTH).refine(isSafeHttpUrl).nullish(),
   contentHtml: z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).nullish(),
   isPublic: z.boolean().optional(),
   language: z.enum(locales).optional(),
   publishedAt: z.coerce.date().nullish(),
   // Undefined leaves categories alone; null or [] clears them.
   categories: categoryNamesField.nullish(),
-}).refine(
-  (data) => {
-    const clearContent = data.content === null || data.content === "";
-    const clearExcerpt = data.excerpt === null || data.excerpt === "";
-    // Only reject when the patch explicitly clears both text fields.
-    if (data.content === undefined && data.excerpt === undefined) return true;
-    return !(clearContent && clearExcerpt);
-  },
-  { message: "blog_empty" },
-);
+}).refine((data) => {
+  const clearContent = data.content === null || data.content === "";
+  const clearExcerpt = data.excerpt === null || data.excerpt === "";
+  // Only reject when the patch explicitly clears both text fields.
+  if (data.content === undefined && data.excerpt === undefined) return true;
+  return !(clearContent && clearExcerpt);
+});
 
 export const updateNameSchema = z.object({
   name: z
@@ -328,17 +339,19 @@ export const addChannelMemberSchema = z.object({
 export const paginationSchema = z.object({
   scope: z.enum(["public", "private"]).optional(),
   cursor: z.string().min(1).trim().optional(),
-  limit: z.coerce.number().int().min(1).max(50).default(10),
+  limit: z.coerce.number().int().min(1).max(FEED_MAX_LIMIT).default(FEED_DEFAULT_LIMIT),
   channelId: z.string().min(1).optional(),
   language: z.enum(locales).optional(),
   // Feed posts promoting a blog article (used by the blog editor to find
   // the article's timeline post). Ignored by the blog feed itself.
-  blogPostId: z.string().min(1).optional(),
+  blogPostId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
   // Canonicalized again server-side; raw user input accepted here.
   category: z.string().trim().max(CATEGORY_NAME_MAX_LENGTH).optional(),
 });
 
-export const blogPaginationSchema = paginationSchema;
+// The blog feed never filters by promoting post id — drop the dead param so
+// callers can't send it and wonder why it's ignored.
+export const blogPaginationSchema = paginationSchema.omit({ blogPostId: true });
 
 // R2 key namespace for direct browser uploads. Post/blog ids are cuids
 // while create-mode drafts use random UUIDs, so both shapes must pass —
@@ -379,7 +392,7 @@ export const batchUploadUrlSchema = z.object({
       }),
     )
     .min(1)
-    .max(10),
+    .max(MAX_MEDIA_ITEMS_PER_POST),
 });
 
 export const updateActiveIdentitySchema = z.object({
