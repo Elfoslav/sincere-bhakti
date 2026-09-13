@@ -118,7 +118,7 @@ export default function BlogDetailClient({
       </p>
       <hr className="mx-auto my-8 w-16 border-t-2 border-gold" />
       {displayedPost.excerpt ? (
-        <p className="text-center font-heading text-xl italic leading-relaxed text-deep/80">
+        <p className="text-center font-heading text-lg italic leading-relaxed text-deep/80">
           {displayedPost.excerpt}
         </p>
       ) : null}
@@ -135,7 +135,7 @@ export default function BlogDetailClient({
       <article>
         {html ? (
           <div
-            className="rich-text mt-8 text-lg leading-relaxed"
+            className="rich-text mt-8 text-base leading-relaxed"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : null}

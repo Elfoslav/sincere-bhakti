@@ -43,7 +43,17 @@
 /* Rich article bodies — shared by the Tiptap editor surface (.tiptap) and
    server-rendered article HTML. Plain CSS (not utilities) so stored markup
    looks right without Tailwind classes, and Tailwind's preflight stays
-   overridden regardless of purge. */
+   overridden regardless of purge.
+   Blog type scale (single source of truth — keep in sync):
+   - body: 16px (`text-base`) with relaxed leading — the article container
+     must use `text-base`; the editor surface has no size utility so it
+     renders at the 16px page base, and both stay WYSIWYG-identical.
+   - h1 / h2 / h3: 1.6em / 1.35em / 1.15em of the body size, tightened by
+     `line-height: 1.25` below. em-based so the scale holds at any body size.
+   - dek (article excerpt under the H1): `text-lg` heading italic.
+   - feed-card excerpt: `text-sm` via the caller's utility.
+   Do NOT put a base font-size on `.rich-text` itself: it is unlayered CSS
+   and would override callers' `text-sm`/`text-base` utilities. */
 .rich-text {
   color: var(--color-deep);
   overflow-wrap: break-word;
