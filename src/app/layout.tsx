@@ -8,6 +8,7 @@ import Providers from "@/components/Providers";
 import { routing } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 import { ACTIVE_IDENTITY_COOKIE } from "@/lib/active-identity";
+import { EXPLICIT_LOCALE_COOKIE, parseExplicitLocale } from "@/lib/locale-choice";
 import { resolveActiveIdentityState } from "@/lib/identity";
 import { getAuthorableChannels } from "@/lib/services/channel";
 import type { InitialIdentityState } from "@/types/identity";
@@ -68,7 +69,8 @@ export default async function RootLayout({
 }>) {
   const session = await auth();
   const cookieStore = await cookies();
-  const locale = cookieStore.get("NEXT_LOCALE")?.value ?? routing.defaultLocale;
+  const locale = parseExplicitLocale(cookieStore.get(EXPLICIT_LOCALE_COOKIE)?.value)
+    ?? cookieStore.get("NEXT_LOCALE")?.value ?? routing.defaultLocale;
 
   const initialIdentityState = session?.user?.id
     ? await getInitialIdentityState(session.user.id, locale, session.user.channelId)
