@@ -5,6 +5,8 @@ import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { persistExplicitLocale } from "@/lib/locale-choice";
+import type { Locale } from "@/i18n/routing";
 
 const locales = [
   { code: "en", label: "EN", flag: "🇬🇧" },
@@ -63,8 +65,11 @@ export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: bo
     setOpen((p) => !p);
   }
 
-  function switchLocale(next: string) {
+  function switchLocale(next: Locale) {
     setOpen(false);
+    // Freeze auto-detection from now on: the proxy resolves unprefixed URLs
+    // from this cookie instead of the Accept-Language header.
+    persistExplicitLocale(next);
     router.replace(pathname, { locale: next });
   }
 
