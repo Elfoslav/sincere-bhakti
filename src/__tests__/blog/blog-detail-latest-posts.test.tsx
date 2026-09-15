@@ -27,6 +27,7 @@ vi.mock("@/components/EditBlogModal", () => ({
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
+import { useSession } from "next-auth/react";
 import BlogDetailClient from "@/app/[locale]/blog/[shortId]/blog-detail-client";
 import type { BlogPost } from "@/types/blog";
 
@@ -128,5 +129,24 @@ describe("BlogDetailClient editorial layout", () => {
     // Bright reading surface behind the article.
     const card = body.closest("div.bg-white");
     expect(card).not.toBeNull();
+  });
+
+  it("never nests a div inside a paragraph (hydration-safe)", () => {
+    // As the channel owner the action buttons render — the guard below is
+    // only exercised when they do.
+    vi.mocked(useSession).mockReturnValue({ data: { user: { id: "user-1" } } } as any);
+    try {
+      const { container } = render(
+        <BlogDetailClient
+          post={mainPost}
+          contentHtml="<p>body</p>"
+          latestPosts={[makePost("a", "Alpha")]}
+        />,
+      );
+      expect(screen.getAllByRole("button", { name: "copyLink" }).length).toBeGreaterThan(0);
+      expect(container.querySelectorAll("p div")).toHaveLength(0);
+    } finally {
+      vi.mocked(useSession).mockReturnValue({ data: null } as any);
+    }
   });
 });

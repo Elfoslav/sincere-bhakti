@@ -106,7 +106,9 @@ export default function BlogDetailClient({
       <h1 className="mt-4 text-center font-heading text-4xl font-bold leading-tight text-deep sm:text-5xl">
         {displayedPost.title}
       </h1>
-      <p className="mt-4 flex items-center justify-center gap-2 text-center text-sm text-deep/60">
+      {/* div, not p: BlogPostActions renders a div (invalid inside a
+      paragraph and a hydration error). */}
+      <div className="mt-4 flex items-center justify-center gap-2 text-center text-sm text-deep/60">
         {date}
         {!displayedPost.isPublic ? (
           <span className="rounded bg-deep/10 px-1.5 py-0.5 text-[11px] font-medium text-deep/70">
@@ -124,7 +126,7 @@ export default function BlogDetailClient({
           onDelete={handleDelete}
           onEdit={() => displayedPost && handleEdit(displayedPost.id)}
         />
-      </p>
+      </div>
       <hr className="mx-auto my-8 w-16 border-t-2 border-gold" />
       {displayedPost.excerpt ? (
         <p className="text-center font-heading text-xl italic leading-relaxed text-deep/80">
