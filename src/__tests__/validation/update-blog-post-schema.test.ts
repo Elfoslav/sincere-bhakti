@@ -27,4 +27,21 @@ describe("updateBlogPostSchema", () => {
     const parsed = updateBlogPostSchema.safeParse({ publishedAt: null });
     expect(parsed.success).toBe(true);
   });
+
+  it("accepts a custom slug", () => {
+    const parsed = updateBlogPostSchema.safeParse({ slug: "my-custom-slug" });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.slug).toBe("my-custom-slug");
+    }
+  });
+
+  it("accepts null slug (clear back to derived)", () => {
+    const parsed = updateBlogPostSchema.safeParse({ slug: null });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects over-long slugs", () => {
+    expect(updateBlogPostSchema.safeParse({ slug: "x".repeat(101) }).success).toBe(false);
+  });
 });

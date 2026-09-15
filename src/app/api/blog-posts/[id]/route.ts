@@ -56,7 +56,7 @@ export async function PATCH(
     const parsed = parseBody(body, updateBlogPostSchema, "PATCH /api/blog-posts/[id]");
     if (parsed.response) return parsed.response;
 
-    const { title, excerpt, content, coverUrl, contentHtml, isPublic, language, publishedAt, categories } = parsed.data;
+    const { title, slug, excerpt, content, coverUrl, contentHtml, isPublic, language, publishedAt, categories } = parsed.data;
 
     if (coverUrl !== undefined && coverUrl !== null && !isSafeHttpUrl(coverUrl)) {
       return NextResponse.json({ error: ERROR_VALIDATION_COVER_INVALID }, { status: HTTP_BAD_REQUEST });
@@ -68,8 +68,9 @@ export async function PATCH(
       }
     }
 
-    const data: { title?: string; excerpt?: string | null; content?: string | null; coverUrl?: string | null; contentHtml?: string | null; isPublic?: boolean; language?: string; publishedAt?: Date | null; categories?: string[] | null } = {};
+    const data: { title?: string; slug?: string | null; excerpt?: string | null; content?: string | null; coverUrl?: string | null; contentHtml?: string | null; isPublic?: boolean; language?: string; publishedAt?: Date | null; categories?: string[] | null } = {};
     if (title !== undefined) data.title = title;
+    if (slug !== undefined) data.slug = slug;
     if (excerpt !== undefined) data.excerpt = excerpt || null;
     if (content !== undefined) data.content = content || null;
     if (coverUrl !== undefined) data.coverUrl = coverUrl || null;

@@ -46,6 +46,14 @@ describe("buttonVariants rounded styles", () => {
     expect(mergedClasses({ variant: "icon", size: "icon" })).toContain("cursor-pointer");
   });
 
+  it("destructive variant is a solid button, not a tinted label", () => {
+    const classes = mergedClasses({ variant: "destructive", size: "default" });
+    expect(classes).toContain("bg-destructive");
+    expect(classes).toContain("text-white");
+    expect(classes).not.toContain("bg-destructive/10");
+    expect(classes).not.toContain("bg-destructive/20");
+  });
+
   it("default variant avoids glossy gradient borders", () => {
     const classes = mergedClasses({ variant: "default", size: "default" });
     expect(classes).toContain("bg-saffron");

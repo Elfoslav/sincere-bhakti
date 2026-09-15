@@ -8,6 +8,7 @@ import BlogLayout from "@/components/BlogLayout";
 import BlogPostActions from "@/components/BlogPostActions";
 import CategoryChips from "@/components/CategoryChips";
 import EditBlogModal from "@/components/EditBlogModal";
+import { Card } from "@/components/ui/card";
 import { useIdentity } from "@/components/IdentityProvider";
 import { getBlogUrl } from "@/lib/blog-url";
 import { formatBlogDate } from "@/lib/blog";
@@ -88,7 +89,15 @@ export default function BlogDetailClient({
   const isScheduled = displayedPost.publishedAt ? new Date(displayedPost.publishedAt) > new Date() : false;
 
   return (
-    <BlogLayout title={displayedPost.title} containerClassName="w-full max-w-2xl mx-auto px-4 py-12">
+    // Reading column: 48rem measure with 16px/1.5 body — same scale as the
+    // surrounding UI text, tight enough to scan, loose enough to breathe.
+    // Inner elements scale in em, so only these two change.
+    <BlogLayout title={displayedPost.title} containerClassName="w-full max-w-3xl mx-auto px-4 py-12">
+      {/* Bright reading surface: pure-white card over the gray page focuses
+      the article and keeps dark-navy text readable in every theme (the Card
+      stays bright while page chrome goes dark). Breadcrumb and latest posts
+      stay on the page background. */}
+      <Card variant="default" padding="lg">
       <p className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-saffron-dark">
         <Link href={`/blog/channel/${displayedPost.channel.slug}`} className="hover:text-gold">
           {displayedPost.channel.name}
@@ -97,7 +106,9 @@ export default function BlogDetailClient({
       <h1 className="mt-4 text-center font-heading text-4xl font-bold leading-tight text-deep sm:text-5xl">
         {displayedPost.title}
       </h1>
-      <p className="mt-4 flex items-center justify-center gap-2 text-center text-sm text-deep/60">
+      {/* div, not p: BlogPostActions renders a div (invalid inside a
+      paragraph and a hydration error). */}
+      <div className="mt-4 flex items-center justify-center gap-2 text-center text-sm text-deep/60">
         {date}
         {!displayedPost.isPublic ? (
           <span className="rounded bg-deep/10 px-1.5 py-0.5 text-[11px] font-medium text-deep/70">
@@ -115,10 +126,10 @@ export default function BlogDetailClient({
           onDelete={handleDelete}
           onEdit={() => displayedPost && handleEdit(displayedPost.id)}
         />
-      </p>
+      </div>
       <hr className="mx-auto my-8 w-16 border-t-2 border-gold" />
       {displayedPost.excerpt ? (
-        <p className="text-center font-heading text-lg italic leading-relaxed text-deep/80">
+        <p className="text-center font-heading text-xl italic leading-relaxed text-deep/80">
           {displayedPost.excerpt}
         </p>
       ) : null}
@@ -135,7 +146,7 @@ export default function BlogDetailClient({
       <article>
         {html ? (
           <div
-            className="rich-text mt-8 text-base leading-relaxed"
+            className="rich-text mt-8 text-base leading-normal"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : null}
@@ -145,6 +156,7 @@ export default function BlogDetailClient({
         onSelect={(category) => router.push(`/blog/category/${category.slug}`)}
         className="mt-8 justify-center"
       />
+      </Card>
       <hr className="my-10 border-deep/10" />
       {latestPosts.length > 0 ? (
         <section aria-label={t("latestPosts")}>

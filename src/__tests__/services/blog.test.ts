@@ -237,6 +237,35 @@ describe("createBlogPost", () => {
       }),
     );
   });
+
+  it("stores a normalized custom slug on create", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as never);
+    vi.mocked(prisma.blogPost.create).mockResolvedValue(mockBlog as never);
+
+    await createBlogPost(
+      { title: "My Title", slug: "My Custom Slug!", content: "Hello", channelId: "channel-1" },
+      "user-1",
+    );
+
+    expect(prisma.blogPost.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ slug: "my-custom-slug" }),
+      }),
+    );
+  });
+
+  it("derives the slug from the title when none is supplied", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as never);
+    vi.mocked(prisma.blogPost.create).mockResolvedValue(mockBlog as never);
+
+    await createBlogPost({ title: "My Title", content: "Hello", channelId: "channel-1" }, "user-1");
+
+    expect(prisma.blogPost.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ slug: "my-title" }),
+      }),
+    );
+  });
 });
 
 describe("updateBlogPost / deleteBlogPost", () => {  beforeEach(() => {
@@ -273,6 +302,48 @@ describe("updateBlogPost / deleteBlogPost", () => {  beforeEach(() => {
     expect(prisma.blogPost.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ excerpt: null }),
+      }),
+    );
+  });
+
+  it("prefers an explicit slug over the title on update", async () => {
+    vi.mocked(prisma.blogPost.findUnique)
+      .mockResolvedValueOnce({
+        id: "blog-1",
+        title: "Old",
+        excerpt: null,
+        content: "Hello world",
+        channel: { id: "channel-1", ownerId: "user-1" },
+      } as never)
+      .mockResolvedValueOnce({ ...mockBlog } as never);
+    vi.mocked(prisma.blogPost.updateMany).mockResolvedValue({ count: 1 } as never);
+
+    await updateBlogPost("blog-1", "user-1", { title: "New Title", slug: "Custom Slug!" });
+
+    expect(prisma.blogPost.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ title: "New Title", slug: "custom-slug" }),
+      }),
+    );
+  });
+
+  it("re-derives the slug on retitle when no explicit slug is sent", async () => {
+    vi.mocked(prisma.blogPost.findUnique)
+      .mockResolvedValueOnce({
+        id: "blog-1",
+        title: "Old",
+        excerpt: null,
+        content: "Hello world",
+        channel: { id: "channel-1", ownerId: "user-1" },
+      } as never)
+      .mockResolvedValueOnce({ ...mockBlog } as never);
+    vi.mocked(prisma.blogPost.updateMany).mockResolvedValue({ count: 1 } as never);
+
+    await updateBlogPost("blog-1", "user-1", { title: "Brand New Title" });
+
+    expect(prisma.blogPost.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ title: "Brand New Title", slug: "brand-new-title" }),
       }),
     );
   });

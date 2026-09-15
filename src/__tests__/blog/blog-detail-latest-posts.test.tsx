@@ -27,6 +27,7 @@ vi.mock("@/components/EditBlogModal", () => ({
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
+import { useSession } from "next-auth/react";
 import BlogDetailClient from "@/app/[locale]/blog/[shortId]/blog-detail-client";
 import type { BlogPost } from "@/types/blog";
 
@@ -110,5 +111,42 @@ describe("BlogDetailClient editorial layout", () => {
       expect(within(section).getByText(title)).toBeInTheDocument();
     }
     expect(container.querySelector("section div.grid")).toBeNull();
+  });
+
+  it("uses the long-form measure with 16px/1.5 body text", () => {
+    const { container } = render(
+      <BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />,
+    );
+    // 48rem reading column (roomier than the old 42rem).
+    const column = container.firstElementChild!;
+    expect(column.className.split(/\s+/)).toContain("max-w-3xl");
+    expect(column.className.split(/\s+/)).not.toContain("max-w-2xl");
+    // 16px/1.5 body, same scale as surrounding UI text; dek stays above it.
+    const body = container.querySelector("article .rich-text")!;
+    expect(body.className.split(/\s+/)).toContain("text-base");
+    expect(body.className.split(/\s+/)).toContain("leading-normal");
+    expect(screen.getByText("Excerpt Main Article").className.split(/\s+/)).toContain("text-xl");
+    // Bright reading surface behind the article.
+    const card = body.closest("div.bg-white");
+    expect(card).not.toBeNull();
+  });
+
+  it("never nests a div inside a paragraph (hydration-safe)", () => {
+    // As the channel owner the action buttons render — the guard below is
+    // only exercised when they do.
+    vi.mocked(useSession).mockReturnValue({ data: { user: { id: "user-1" } } } as any);
+    try {
+      const { container } = render(
+        <BlogDetailClient
+          post={mainPost}
+          contentHtml="<p>body</p>"
+          latestPosts={[makePost("a", "Alpha")]}
+        />,
+      );
+      expect(screen.getAllByRole("button", { name: "copyLink" }).length).toBeGreaterThan(0);
+      expect(container.querySelectorAll("p div")).toHaveLength(0);
+    } finally {
+      vi.mocked(useSession).mockReturnValue({ data: null } as any);
+    }
   });
 });

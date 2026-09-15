@@ -69,7 +69,10 @@ export default function BlogPageClient({
   }, [effectiveChannelId, activeChannelId, identities]);
 
   function handleCreateSuccess(post: BlogPost) {
-    setMyPosts((prev) => [post, ...prev]);
+    // Private drafts save repeatedly into the same article: upsert so
+    // continued saves update the row instead of prepending duplicates. A
+    // draft that just went public also appears in the public feed.
+    setMyPosts((prev) => (prev.some((p) => p.id === post.id) ? prev.map((p) => (p.id === post.id ? post : p)) : [post, ...prev]));
     // A filtered feed only shows matching posts: don't prepend a fresh
     // post that doesn't carry the active category or channel.
     if (
@@ -77,7 +80,9 @@ export default function BlogPageClient({
       (!category || post.categories.some((c) => c.name === category)) &&
       (!effectiveChannelId || post.channel.id === effectiveChannelId)
     ) {
-      setPosts((prev) => [post, ...prev]);
+      setPosts((prev) => (prev.some((p) => p.id === post.id) ? prev.map((p) => (p.id === post.id ? post : p)) : [post, ...prev]));
+    } else if (!post.isPublic) {
+      setPosts((prev) => prev.filter((p) => p.id !== post.id));
     }
   }
 

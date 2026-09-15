@@ -14,8 +14,10 @@ export const MAX_RENAME_COUNT = 3;
 export const POST_SLUG_MAX_LENGTH = 60;
 
 // Blog post field limits. Titles stay short for cards/SEO; excerpts feed list
-// previews and meta descriptions; content allows long-form articles.
+// previews and meta descriptions; content allows long-form articles. Slugs
+// share the title's length so a fully slugified title is never truncated.
 export const BLOG_TITLE_MAX_LENGTH = 100;
+export const BLOG_SLUG_MAX_LENGTH = BLOG_TITLE_MAX_LENGTH;
 export const BLOG_EXCERPT_MAX_LENGTH = 300;
 export const BLOG_CONTENT_MAX_LENGTH = 20000;
 // Stored-content cap: article bodies are Tiptap JSON documents, so the raw
@@ -266,6 +268,10 @@ export const updatePostSchema = z.object({
 );
 
 const blogTitleField = z.string().trim().min(1).max(BLOG_TITLE_MAX_LENGTH);
+// User-supplied blog slugs are permissive on purpose (any 1..100 chars):
+// the service normalizes them with deriveBlogSlug so "My Custom Slug!"
+// stores as "my-custom-slug" instead of failing validation.
+const blogSlugField = z.string().trim().min(1).max(BLOG_SLUG_MAX_LENGTH);
 const blogExcerptField = z.string().trim().max(BLOG_EXCERPT_MAX_LENGTH).optional();
 // Stored article bodies are Tiptap JSON: cap the raw string for storage, and
 // the human-readable plain text for author-facing limits (legacy plain-text
@@ -278,6 +284,7 @@ const blogCoverField = safeUrlField.optional();
 export const createBlogPostSchema = z.object({
   id: z.string().regex(uuidRegex).optional(),
   title: blogTitleField,
+  slug: blogSlugField.optional(),
   excerpt: blogExcerptField,
   content: blogContentField,
   coverUrl: blogCoverField,
@@ -292,6 +299,7 @@ export const createBlogPostSchema = z.object({
 
 export const updateBlogPostSchema = z.object({
   title: blogTitleField.optional(),
+  slug: blogSlugField.nullish(),
   excerpt: z.string().trim().max(BLOG_EXCERPT_MAX_LENGTH).nullish(),
   content: z.string().trim().max(BLOG_RAW_CONTENT_MAX_LENGTH).nullish().refine(
     (v) => v == null || extractPlainText(v).length <= BLOG_CONTENT_MAX_LENGTH,
@@ -460,18 +468,18 @@ export function deriveCategorySlug(name: string): string {
 
 // Builds a URL slug from post content. Folds diacritics (so "když" → "kdyz",
 // "Śrī" → "sri"), lowercases, and joins words with dashes. When the content is
-// longer than POST_SLUG_MAX_LENGTH it prefers to END ON A SENTENCE BOUNDARY:
+// longer than `maxLength` it prefers to END ON A SENTENCE BOUNDARY:
 // it accumulates whole sentences (split on . ! ? and line breaks) while they
 // fit, so the slug reads as complete thoughts instead of cutting mid-sentence
 // or trailing off into the start of the next one. Falls back to a word-boundary
 // cut when even the first sentence exceeds the limit, and to a hard cut for a
 // single word longer than the limit.
-export function derivePostSlug(content: string | null | undefined): string | undefined {
+export function derivePostSlug(content: string | null | undefined, maxLength: number = POST_SLUG_MAX_LENGTH): string | undefined {
   if (!content) return undefined;
 
   const full = slugifyText(content);
   if (!full) return undefined;
-  if (full.length <= POST_SLUG_MAX_LENGTH) return full;
+  if (full.length <= maxLength) return full;
 
   // Accumulate whole sentences while they still fit within the limit.
   const sentences = content
@@ -482,7 +490,7 @@ export function derivePostSlug(content: string | null | undefined): string | und
   let accumulated = "";
   for (const sentence of sentences) {
     const candidate = accumulated ? `${accumulated}-${sentence}` : sentence;
-    if (candidate.length <= POST_SLUG_MAX_LENGTH) {
+    if (candidate.length <= maxLength) {
       accumulated = candidate;
     } else {
       break;
@@ -492,14 +500,23 @@ export function derivePostSlug(content: string | null | undefined): string | und
   // the limit. If accumulation stopped far short — e.g. a tiny first sentence
   // ("Hi.") followed by one long sentence — fall through to the word-boundary
   // cut below so the slug stays useful instead of collapsing to a few chars.
-  if (accumulated.length >= POST_SLUG_MAX_LENGTH / 2) return accumulated;
+  if (accumulated.length >= maxLength / 2) return accumulated;
 
   // First sentence alone exceeds the limit (or accumulation was too short): cut
   // the full text back to the last whole word, or hard-cut a single over-long
   // word.
-  const truncated = full.slice(0, POST_SLUG_MAX_LENGTH);
+  const truncated = full.slice(0, maxLength);
   const lastDash = truncated.lastIndexOf("-");
   return (lastDash > 0 ? truncated.slice(0, lastDash) : truncated) || undefined;
+}
+
+// Builds a blog article's URL slug from its title. Same sentence-aware
+// derivation as timeline posts, but capped at BLOG_SLUG_MAX_LENGTH (== title
+// length) instead of POST_SLUG_MAX_LENGTH. Also normalizes user-supplied
+// slugs: the service runs custom slugs through here so free-typed input
+// ("My Custom Slug!") stores URL-safe ("my-custom-slug").
+export function deriveBlogSlug(title: string | null | undefined): string | undefined {
+  return derivePostSlug(title, BLOG_SLUG_MAX_LENGTH);
 }
 
 // Checks whether `name` contains all words from the brand name (case-insensitive).

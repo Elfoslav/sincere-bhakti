@@ -5,19 +5,20 @@ import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { Lock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
-import { buildTimelinePostBody, parseDateTimeLocalValue, toDateTimeLocalValue } from "@/lib/blog";
+import { buildTimelinePostBody, parseDateTimeLocalValue, toDateTimeLocalValue, isBlogDraftDirty, type BlogDraftSnapshot } from "@/lib/blog";
 import { extractPlainText } from "@/lib/rich-text";
 import { getImageDimensions } from "@/lib/client-media";
 import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
 import { useIdentity } from "@/components/IdentityProvider";
 import CategoryPicker from "@/components/CategoryPicker";
-import { BLOG_TITLE_MAX_LENGTH, BLOG_EXCERPT_MAX_LENGTH, MAX_IMAGE_SIZE_BYTES, maxUploadSizeForContentType, getImageAcceptString } from "@/lib/validation";
+import { BLOG_TITLE_MAX_LENGTH, BLOG_SLUG_MAX_LENGTH, BLOG_EXCERPT_MAX_LENGTH, MAX_IMAGE_SIZE_BYTES, maxUploadSizeForContentType, getImageAcceptString, deriveBlogSlug } from "@/lib/validation";
 import { BYTES_PER_MB } from "@/lib/format";
 import type { BlogPost } from "@/types/blog";
 
@@ -29,14 +30,19 @@ export interface BlogFormProps {
   mode: "create" | "edit";
   postId?: string;
   initialTitle?: string;
+  initialSlug?: string | null;
   initialExcerpt?: string | null;
   initialContent?: string | null;
   initialCoverUrl?: string | null;
   initialIsPublic?: boolean;
   initialPublishedAt?: string | null;
   initialCategories?: string[];
-  onSuccess: (post: BlogPost) => void;
+  // `exit` tells the caller whether the author is done (Save & leave / Save):
+  // edit callers keep the modal open on stay and close on leave.
+  onSuccess: (post: BlogPost, exit: boolean) => void;
   onCancel?: () => void;
+  // Reports unsaved-changes state for host leave-guards (edit modal confirm).
+  onDirtyChange?: (dirty: boolean) => void;
   postingChannel?: {
     id: string;
     name: string;
@@ -47,6 +53,7 @@ export default function BlogForm({
   mode,
   postId,
   initialTitle = "",
+  initialSlug = "",
   initialExcerpt = "",
   initialContent = "",
   initialCoverUrl = "",
@@ -55,6 +62,7 @@ export default function BlogForm({
   initialCategories = [],
   onSuccess,
   onCancel,
+  onDirtyChange,
   postingChannel,
 }: BlogFormProps) {
   const { data: session } = useSession();
@@ -64,6 +72,11 @@ export default function BlogForm({
   const common = useTranslations("Common");
 
   const [title, setTitle] = useState(initialTitle);
+  // URL slug: auto-derived from the title until the author customizes it.
+  // Locked (disabled) by default; the appended button toggles editing.
+  const [slug, setSlug] = useState(initialSlug ?? "");
+  const [slugCustomized, setSlugCustomized] = useState(!!(initialSlug && initialSlug.trim()));
+  const [slugEnabled, setSlugEnabled] = useState(false);
   const [excerpt, setExcerpt] = useState(initialExcerpt ?? "");
   const [content, setContent] = useState(initialContent ?? "");
   const [contentHtml, setContentHtml] = useState<string | undefined>(undefined);
@@ -87,6 +100,36 @@ export default function BlogForm({
   const [publishInTimeline, setPublishInTimeline] = useState(false);
   const [timelineIds, setTimelineIds] = useState<string[]>([]);
   const [timelineLoaded, setTimelineLoaded] = useState(mode === "create");
+  // Private draft continuation: after the first private save in create mode
+  // the server id is kept so further saves PATCH the same article instead of
+  // creating duplicates. The form stays filled so writing can continue.
+  const [draftId, setDraftId] = useState<string | null>(null);
+  // Unsaved-changes detection: the last saved (initially the initial props)
+  // field values. The initializer reads the state above so the snapshot
+  // matches exactly (no second `new Date()` that could straddle a minute).
+  const [savedSnapshot, setSavedSnapshot] = useState<BlogDraftSnapshot>(() => ({
+    title,
+    slug,
+    excerpt,
+    content,
+    coverUrl,
+    hasCoverFile: false,
+    categories,
+    isPublic,
+    publishedAt,
+  }));
+  const currentSnapshot: BlogDraftSnapshot = {
+    title,
+    slug,
+    excerpt,
+    content,
+    coverUrl,
+    hasCoverFile: coverFile !== null,
+    categories,
+    isPublic,
+    publishedAt,
+  };
+  const isDirty = isBlogDraftDirty(currentSnapshot, savedSnapshot);
 
   useEffect(() => {
     if (mode !== "edit" || !postId || !session) return;
@@ -110,6 +153,23 @@ export default function BlogForm({
     };
   }, [mode, postId, session]);
 
+  // Report dirtiness for host leave-guards (the edit modal confirm); fires
+  // on mount too so reopened forms reset the host flag.
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  // Guard tab close / reload / navigation while edits are unsaved. In-app
+  // dismissal (edit modal) is guarded by the host with ConfirmDialog instead.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   const isVerified = !!session?.user?.emailVerifiedAt;
   const contentText = extractPlainText(content).trim();
   const canSubmit = title.trim().length > 0 && (contentText.length > 0 || excerpt.trim().length > 0);
@@ -119,6 +179,34 @@ export default function BlogForm({
   const resolvedPublishedAt = parseDateTimeLocalValue(publishedAt);
   const isScheduled = isPublic && !!resolvedPublishedAt && resolvedPublishedAt > new Date();
   const effectiveCover = coverFile ? coverPreview : (coverUrl || null);
+
+  function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const next = e.target.value;
+    setTitle(next);
+    // Keep the locked slug in step with the title; a customized slug stays
+    // untouched so title edits never clobber it.
+    if (!slugCustomized) {
+      setSlug(deriveBlogSlug(next) ?? "");
+    }
+  }
+
+  function handleSlugChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setSlug(e.target.value);
+    setSlugCustomized(true);
+  }
+
+  // Normalize free-typed input to URL-safe form when the author leaves the
+  // field ("My Custom Slug!" → "my-custom-slug"). Nothing slug-able left
+  // (cleared or punctuation-only) resumes auto-derivation from the title.
+  function handleSlugBlur() {
+    const formatted = deriveBlogSlug(slug);
+    if (formatted) {
+      if (formatted !== slug) setSlug(formatted);
+    } else {
+      setSlug(deriveBlogSlug(title) ?? "");
+      setSlugCustomized(false);
+    }
+  }
 
   function handleCoverSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -183,11 +271,49 @@ export default function BlogForm({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function resetCreateForm() {
+    setTitle("");
+    setSlug("");
+    setSlugCustomized(false);
+    setSlugEnabled(false);
+    setExcerpt("");
+    setContent("");
+    setContentHtml(undefined);
+    setCategories([]);
+    setCoverUrl("");
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverFile(null);
+    setCoverPreview(null);
+    setIsPublic(true);
+    const nextPublishedAt = toDateTimeLocalValue(new Date());
+    setPublishedAt(nextPublishedAt);
+    setPublishInTimeline(false);
+    setTimelineIds([]);
+    setDraftId(null);
+    setEditorKey((k) => k + 1);
+    // A cleared composer has nothing unsaved.
+    setSavedSnapshot({
+      title: "",
+      slug: "",
+      excerpt: "",
+      content: "",
+      coverUrl: "",
+      hasCoverFile: false,
+      categories: [],
+      isPublic: true,
+      publishedAt: nextPublishedAt,
+    });
+  }
+
+  async function persistArticle(exit: boolean) {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError("");
+    // A saved private draft is continued in place: further saves PATCH the
+    // same article so the form can stay filled while writing.
+    const isContinuation = mode === "create" && draftId !== null;
+    const isEditLike = mode === "edit" || isContinuation;
+    const targetId = mode === "edit" ? postId! : (draftId ?? undefined);
     try {
       // Upload a newly picked cover first (browser→R2 direct, same flow as
       // post media). The server proves ownership via the PendingUpload claim.
@@ -196,11 +322,11 @@ export default function BlogForm({
         setUploading(true);
         try {
           const dims = await getImageDimensions(coverFile);
-          const draftId = mode === "create" ? crypto.randomUUID() : postId!;
+          const uploadScopeId = mode === "create" ? (draftId ?? crypto.randomUUID()) : postId!;
           const { media: uploaded, error: uploadError } = await uploadMediaFiles(
-            draftId,
+            uploadScopeId,
             [{ file: coverFile, width: dims?.width, height: dims?.height }],
-            mode === "create" ? (postingChannel?.id ?? activeChannelId ?? undefined) : undefined,
+            mode === "create" && !isContinuation ? (postingChannel?.id ?? activeChannelId ?? undefined) : undefined,
             // Blog covers live under the `blog/` R2 prefix, not `posts/`.
             "blog",
           );
@@ -219,22 +345,25 @@ export default function BlogForm({
       const resolvedContent = contentText.length > 0 ? content : undefined;
       const body: Record<string, unknown> = {
         title: title.trim(),
+        // An empty slug omits the field so the server derives it from the
+        // title; a filled one is normalized server-side (deriveBlogSlug).
+        ...(slug.trim() ? { slug: slug.trim() } : {}),
         excerpt: excerpt.trim() || undefined,
         content: resolvedContent,
         contentHtml: resolvedContent ? contentHtml : undefined,
         // Explicit null clears the cover on edit; create omits it instead
         // (the create schema doesn't accept null).
-        coverUrl: resolvedCoverUrl ?? (mode === "create" ? undefined : null),
+        coverUrl: resolvedCoverUrl ?? (isEditLike ? null : undefined),
         // Edit always sends the set (possibly empty = cleared); create omits
         // it when untouched so the schema default applies.
-        categories: mode === "edit" ? categories : (categories.length > 0 ? categories : undefined),
+        categories: isEditLike ? categories : (categories.length > 0 ? categories : undefined),
         isPublic,
         language: locale,
         ...(parsedPublishedAt ? { publishedAt: parsedPublishedAt.toISOString() } : {}),
       };
-      const url = mode === "create" ? "/api/blog-posts" : `/api/blog-posts/${postId}`;
+      const url = isEditLike ? `/api/blog-posts/${targetId}` : "/api/blog-posts";
       const res = await fetch(url, {
-        method: mode === "create" ? "POST" : "PATCH",
+        method: isEditLike ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -242,50 +371,105 @@ export default function BlogForm({
         const data = await res.json().catch(() => ({}));
         if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
           setError(common("tooManyRequests"));
+        } else if (mode === "edit") {
+          setError(t("updateFailed"));
         } else {
-          setError(mode === "create" ? t("createFailed") : t("updateFailed"));
+          setError(isPublic ? t("createFailed") : t("saveFailed"));
         }
         return;
       }
       const post = (await res.json()) as BlogPost;
-      toast.success(mode === "create" ? t("published") : t("updated"));
-      if (mode === "create") {
-        setTitle("");
-        setExcerpt("");
-        setContent("");
-        setContentHtml(undefined);
-        setCategories([]);
-        setCoverUrl("");
-        if (coverPreview) URL.revokeObjectURL(coverPreview);
-        setCoverFile(null);
-        setCoverPreview(null);
-        setIsPublic(true);
-        setPublishedAt(toDateTimeLocalValue(new Date()));
-        setPublishInTimeline(false);
-        setEditorKey((k) => k + 1);
+      if (mode === "edit") {
+        toast.success(t("updated"));
+      } else {
+        toast.success(isPublic ? t("published") : t("saved"));
+      }
+      if (mode === "create" && !isPublic) {
+        if (exit) {
+          // Save & leave: draft appears in private posts, composer clears.
+          resetCreateForm();
+        } else {
+          // Save & stay: keep the form filled so writing can continue. Point
+          // the local cover at the uploaded URL so the next save patches
+          // instead of re-uploading, and remember the draft for PATCH updates.
+          // The saved state becomes the new clean baseline.
+          if (resolvedCoverUrl) {
+            setCoverUrl(resolvedCoverUrl);
+            if (coverPreview) URL.revokeObjectURL(coverPreview);
+            setCoverFile(null);
+            setCoverPreview(null);
+          }
+          setDraftId(post.id);
+          setSavedSnapshot({
+            title,
+            slug,
+            excerpt,
+            content,
+            coverUrl: resolvedCoverUrl ?? coverUrl,
+            hasCoverFile: false,
+            categories,
+            isPublic,
+            publishedAt,
+          });
+        }
+      } else if (mode === "create" && isPublic) {
+        // Publishing (fresh or a finished draft) clears the composer.
+        resetCreateForm();
+      } else {
+        // Edit: snapshot the form as-is (a picked cover file stays selected
+        // for the next save, so mirror it instead of marking it pending).
+        setSavedSnapshot(currentSnapshot);
       }
       try {
         await syncTimelinePromo(post, publishInTimeline, timelineIds);
+        // After creating the first promo for a draft, refresh the linked ids
+        // so the next save updates instead of creating a duplicate promo.
+        if (mode === "create" && publishInTimeline && timelineIds.length === 0) {
+          const timelineRes = await fetch(`/api/posts?blogPostId=${post.id}`);
+          if (timelineRes.ok) {
+            const data = await timelineRes.json().catch(() => null);
+            const ids = data ? (data.posts ?? []).map((p: { id: string }) => p.id) : [];
+            setTimelineIds(ids);
+          }
+        }
       } catch {
         setError(t("timelineSyncFailed"));
       }
-      onSuccess(post);
+      onSuccess(post, exit);
     } catch (err) {
       if (err instanceof Error && err.message === "rate_limited") {
         setError(common("tooManyRequests"));
       } else if (err instanceof Error && err.message === "upload_failed") {
         setError(t("uploadFailed"));
+      } else if (mode === "edit") {
+        setError(t("updateFailed"));
       } else {
-        setError(mode === "create" ? t("createFailed") : t("updateFailed"));
+        setError(isPublic ? t("createFailed") : t("saveFailed"));
       }
     } finally {
       setSubmitting(false);
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    // Enter key / primary button: private forms stay so writing can continue;
+    // public publishes clear as before; a public edit leaves (closes).
+    void persistArticle(mode === "edit" && isPublic);
+  }
+
+  function handleSaveAndLeave() {
+    void persistArticle(true);
+  }
+
   if (!session) {
     return null;
   }
+
+  const submitDisabled = !canSubmit || submitting || uploading || !isVerified;
+  // Private articles (create and edit alike) offer Save & stay / Save & leave;
+  // public ones keep the single Save (Publish on create) + Cancel.
+  const isPrivate = !isPublic;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -300,11 +484,38 @@ export default function BlogForm({
       <Input
         name="title"
         value={title}
-        onChange={(e) => setTitle(e.target.value)}
+        onChange={handleTitleChange}
         placeholder={t("titlePlaceholder")}
         maxLength={BLOG_TITLE_MAX_LENGTH}
         autoComplete="off"
       />
+      <div className="flex items-start">
+        <div className="min-w-0 flex-1 [&_input]:rounded-r-none [&_input]:border-r-0">
+          <Input
+            name="slug"
+            value={slug}
+            onChange={handleSlugChange}
+            onBlur={handleSlugBlur}
+            placeholder={t("slugPlaceholder")}
+            aria-label={t("slugPlaceholder")}
+            maxLength={BLOG_SLUG_MAX_LENGTH}
+            autoComplete="off"
+            disabled={!slugEnabled}
+          />
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          aria-pressed={slugEnabled}
+          aria-label={slugEnabled ? t("slugLock") : t("slugEdit")}
+          title={slugEnabled ? t("slugLock") : t("slugEdit")}
+          onClick={() => setSlugEnabled((v) => !v)}
+          className="h-10 shrink-0 rounded-l-none"
+          icon={slugEnabled ? <Lock /> : <Pencil />}
+        >
+          {slugEnabled ? t("slugLock") : t("slugEdit")}
+        </Button>
+      </div>
       <Textarea
         name="excerpt"
         value={excerpt}
@@ -392,9 +603,20 @@ export default function BlogForm({
       </div>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <div className="flex items-center gap-2">
-        <Button type="submit" disabled={!canSubmit || submitting || uploading || !isVerified}>
-          {submitting || uploading ? t("saving") : mode === "create" ? t("publish") : t("save")}
-        </Button>
+        {isPrivate ? (
+          <>
+            <Button type="submit" disabled={submitDisabled}>
+              {submitting || uploading ? t("saving") : t("saveAndStay")}
+            </Button>
+            <Button type="button" variant="outline" disabled={submitDisabled} onClick={handleSaveAndLeave}>
+              {t("saveAndLeave")}
+            </Button>
+          </>
+        ) : (
+          <Button type="submit" disabled={submitDisabled}>
+            {submitting || uploading ? t("saving") : mode === "edit" ? t("save") : t("publish")}
+          </Button>
+        )}
         {onCancel ? (
           <Button type="button" variant="outline" onClick={onCancel}>
             {t("cancel")}

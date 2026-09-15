@@ -84,6 +84,7 @@ vi.mock("@/components/BlogEditor", async () => {
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import BlogForm from "@/components/BlogForm";
+import { toast } from "sonner";
 
 const blog = {
   id: "blog-1",
@@ -123,12 +124,99 @@ describe("BlogForm reset after publish", () => {
     fireEvent.change(editor, { target: { value: "Hello" } });
     fireEvent.click(screen.getByRole("button", { name: "publish" }));
 
-    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(blog));
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(blog, false));
 
     // Text inputs reset...
     expect(screen.getByPlaceholderText("titlePlaceholder")).toHaveValue("");
     // ...and the mount-once editor remounted with empty content (the remount
     // commits after the submit resolves, hence the wait).
+    await waitFor(() => {
+      const mounts = (globalThis as any).__editorMounts as (string | undefined)[];
+      expect(mounts.length).toBeGreaterThan(1);
+      expect(mounts[mounts.length - 1]).toBe("");
+    });
+  });
+});
+
+describe("BlogForm private draft", () => {
+  const privateBlog = { ...blog, id: "draft-1", isPublic: false };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (globalThis as any).__editorMounts = [];
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(privateBlog),
+    });
+  });
+
+  it("shows Save & stay / Save & leave instead of Publish when switched to private", async () => {
+    const onSuccess = vi.fn();
+    render(<BlogForm mode="create" onSuccess={onSuccess} />);
+
+    // Public by default: Publish button visible.
+    expect(screen.getByRole("button", { name: "publish" })).toBeInTheDocument();
+
+    // Flip the public switch to private (first switch on the form).
+    fireEvent.click(screen.getAllByRole("switch")[0]);
+
+    expect(screen.getByRole("button", { name: "saveAndStay" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "saveAndLeave" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "publish" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the form filled after Save & stay so writing can continue", async () => {
+    const onSuccess = vi.fn();
+    render(<BlogForm mode="create" onSuccess={onSuccess} />);
+
+    fireEvent.change(screen.getByPlaceholderText("titlePlaceholder"), {
+      target: { value: "My Draft" },
+    });
+    const editor = await screen.findByLabelText("mock-editor");
+    fireEvent.change(editor, { target: { value: "Hello draft" } });
+    // Switch to private -> Save & stay / Save & leave appear.
+    fireEvent.click(screen.getAllByRole("switch")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "saveAndStay" }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(privateBlog, false));
+
+    // Only the saved notification, form stays filled for continued writing.
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("saved");
+    expect(screen.getByPlaceholderText("titlePlaceholder")).toHaveValue("My Draft");
+    const mounts = (globalThis as any).__editorMounts as (string | undefined)[];
+    expect(mounts.length).toBe(1);
+
+    // Second save patches the same draft instead of creating a duplicate.
+    vi.mocked(toast.success).mockClear();
+    onSuccess.mockClear();
+    (global.fetch as any).mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "saveAndStay" }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(privateBlog, false));
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = (global.fetch as any).mock.calls[0];
+    expect(url).toBe(`/api/blog-posts/${privateBlog.id}`);
+    expect(init.method).toBe("PATCH");
+    // Still filled after the second save.
+    expect(screen.getByPlaceholderText("titlePlaceholder")).toHaveValue("My Draft");
+  });
+
+  it("clears the form after Save & leave while still showing the draft in private posts", async () => {
+    const onSuccess = vi.fn();
+    render(<BlogForm mode="create" onSuccess={onSuccess} />);
+
+    fireEvent.change(screen.getByPlaceholderText("titlePlaceholder"), {
+      target: { value: "My Draft" },
+    });
+    const editor = await screen.findByLabelText("mock-editor");
+    fireEvent.change(editor, { target: { value: "Hello draft" } });
+    fireEvent.click(screen.getAllByRole("switch")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "saveAndLeave" }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(privateBlog, true));
+
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("saved");
+    expect(screen.getByPlaceholderText("titlePlaceholder")).toHaveValue("");
     await waitFor(() => {
       const mounts = (globalThis as any).__editorMounts as (string | undefined)[];
       expect(mounts.length).toBeGreaterThan(1);
