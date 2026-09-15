@@ -168,7 +168,9 @@ describe("EditBlogModal private save buttons", () => {
     fireEvent.click(screen.getByRole("button", { name: "saveAndStay" }));
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalled());
-    // Stay: the parent receives the update but the modal remains open.
+    // Stay: the parent receives the update with exit=false but the modal
+    // remains open (parents dismiss only on exit=true).
+    expect(onSuccess).toHaveBeenCalledWith(expect.anything(), false);
     expect(onOpenChange).not.toHaveBeenCalled();
     expect(screen.getByLabelText("mock-editor")).toBeInTheDocument();
 
@@ -176,6 +178,7 @@ describe("EditBlogModal private save buttons", () => {
 
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     expect(onSuccess).toHaveBeenCalledTimes(2);
+    expect(onSuccess).toHaveBeenLastCalledWith(expect.anything(), true);
   });
 });
 

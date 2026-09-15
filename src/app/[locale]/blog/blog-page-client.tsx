@@ -96,7 +96,7 @@ export default function BlogPageClient({
     if (found) setEditingPost(found);
   }, [posts, myPosts]);
 
-  const handleEditSuccess = useCallback((updatedPost: BlogPost) => {
+  const handleEditSuccess = useCallback((updatedPost: BlogPost, exit: boolean) => {
     setMyPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
     setPosts((prev) => {
       if (updatedPost.isPublic) {
@@ -104,7 +104,8 @@ export default function BlogPageClient({
       }
       return prev.filter((p) => p.id !== updatedPost.id);
     });
-    setEditingPost(null);
+    // Save & stay refreshes the lists behind the still-open modal.
+    if (exit) setEditingPost(null);
   }, [setMyPosts, setPosts]);
 
   function renderList(
