@@ -441,9 +441,10 @@ export default function ChannelPageClient({
         post={editingBlog}
         open={editingBlog !== null}
         onOpenChange={(open) => { if (!open) setEditingBlog(null); }}
-        onSuccess={(updated) => {
+        onSuccess={(updated, exit) => {
           setBlogPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-          setEditingBlog(null);
+          // Save & stay refreshes the list behind the still-open modal.
+          if (exit) setEditingBlog(null);
         }}
       />
     </div>

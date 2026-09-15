@@ -20,7 +20,10 @@ export default function EditBlogModal({
   post: BlogPost | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess: (post: BlogPost) => void;
+  // `exit` mirrors BlogForm: parents refresh lists on every save but dismiss
+  // the modal (null the editing post) only on leave — otherwise Save & stay
+  // would close through the parent even though the modal stays open.
+  onSuccess: (post: BlogPost, exit: boolean) => void;
 }) {
   const t = useTranslations("BlogPage");
   const [fetchedPost, setFetchedPost] = useState<BlogPost | null>(null);
@@ -58,7 +61,7 @@ export default function EditBlogModal({
   // A fresh save clears the guard: staying on is never "unsaved".
   const handleSuccess = useCallback(
     (updatedPost: BlogPost, exit: boolean) => {
-      onSuccess(updatedPost);
+      onSuccess(updatedPost, exit);
       if (exit) {
         setShowLeaveConfirm(false);
         onOpenChange(false);

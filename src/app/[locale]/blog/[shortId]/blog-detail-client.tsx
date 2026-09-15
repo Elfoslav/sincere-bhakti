@@ -44,7 +44,7 @@ export default function BlogDetailClient({
       ? editedPost.contentHtml
       : contentHtml;
 
-  const handleEditSuccess = useCallback((updatedPost: BlogPost) => {
+  const handleEditSuccess = useCallback((updatedPost: BlogPost, exit: boolean) => {
     const current = editedPost ?? initialPost;
     if (initialPost && updatedPost.id === initialPost.id) {
       if (current && current.slug !== updatedPost.slug) {
@@ -56,7 +56,8 @@ export default function BlogDetailClient({
         prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)),
       );
     }
-    setEditingPost(null);
+    // Save & stay refreshes the page behind the still-open modal.
+    if (exit) setEditingPost(null);
   }, [editedPost, initialPost, router]);
   const manageableChannelIds = useMemo(() => identities.map((identity) => identity.id), [identities]);
 
