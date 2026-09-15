@@ -8,6 +8,7 @@ import BlogLayout from "@/components/BlogLayout";
 import BlogPostActions from "@/components/BlogPostActions";
 import CategoryChips from "@/components/CategoryChips";
 import EditBlogModal from "@/components/EditBlogModal";
+import { Card } from "@/components/ui/card";
 import { useIdentity } from "@/components/IdentityProvider";
 import { getBlogUrl } from "@/lib/blog-url";
 import { formatBlogDate } from "@/lib/blog";
@@ -92,6 +93,11 @@ export default function BlogDetailClient({
     // long-form sweet spot between the old narrow 42rem/16px and an
     // over-wide line. Inner elements scale in em, so only these two change.
     <BlogLayout title={displayedPost.title} containerClassName="w-full max-w-3xl mx-auto px-4 py-12">
+      {/* Bright reading surface: pure-white card over the gray page focuses
+      the article and keeps dark-navy text readable in every theme (the Card
+      stays bright while page chrome goes dark). Breadcrumb and latest posts
+      stay on the page background. */}
+      <Card variant="default" padding="lg">
       <p className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-saffron-dark">
         <Link href={`/blog/channel/${displayedPost.channel.slug}`} className="hover:text-gold">
           {displayedPost.channel.name}
@@ -148,6 +154,7 @@ export default function BlogDetailClient({
         onSelect={(category) => router.push(`/blog/category/${category.slug}`)}
         className="mt-8 justify-center"
       />
+      </Card>
       <hr className="my-10 border-deep/10" />
       {latestPosts.length > 0 ? (
         <section aria-label={t("latestPosts")}>

@@ -125,5 +125,8 @@ describe("BlogDetailClient editorial layout", () => {
     expect(body.className.split(/\s+/)).toContain("text-lg");
     expect(body.className.split(/\s+/)).toContain("leading-relaxed");
     expect(screen.getByText("Excerpt Main Article").className.split(/\s+/)).toContain("text-xl");
+    // Bright reading surface behind the article.
+    const card = body.closest("div.bg-white");
+    expect(card).not.toBeNull();
   });
 });
