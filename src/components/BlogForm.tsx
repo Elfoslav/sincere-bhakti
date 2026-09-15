@@ -87,6 +87,10 @@ export default function BlogForm({
   const [publishInTimeline, setPublishInTimeline] = useState(false);
   const [timelineIds, setTimelineIds] = useState<string[]>([]);
   const [timelineLoaded, setTimelineLoaded] = useState(mode === "create");
+  // Private draft continuation: after the first private save in create mode
+  // the server id is kept so further saves PATCH the same article instead of
+  // creating duplicates. The form stays filled so writing can continue.
+  const [draftId, setDraftId] = useState<string | null>(null);
 
   useEffect(() => {
     if (mode !== "edit" || !postId || !session) return;
@@ -183,11 +187,33 @@ export default function BlogForm({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function resetCreateForm() {
+    setTitle("");
+    setExcerpt("");
+    setContent("");
+    setContentHtml(undefined);
+    setCategories([]);
+    setCoverUrl("");
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverFile(null);
+    setCoverPreview(null);
+    setIsPublic(true);
+    setPublishedAt(toDateTimeLocalValue(new Date()));
+    setPublishInTimeline(false);
+    setTimelineIds([]);
+    setDraftId(null);
+    setEditorKey((k) => k + 1);
+  }
+
+  async function persistArticle(exit: boolean) {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError("");
+    // A saved private draft is continued in place: further saves PATCH the
+    // same article so the form can stay filled while writing.
+    const isContinuation = mode === "create" && draftId !== null;
+    const isEditLike = mode === "edit" || isContinuation;
+    const targetId = mode === "edit" ? postId! : (draftId ?? undefined);
     try {
       // Upload a newly picked cover first (browser→R2 direct, same flow as
       // post media). The server proves ownership via the PendingUpload claim.
@@ -196,11 +222,11 @@ export default function BlogForm({
         setUploading(true);
         try {
           const dims = await getImageDimensions(coverFile);
-          const draftId = mode === "create" ? crypto.randomUUID() : postId!;
+          const uploadScopeId = mode === "create" ? (draftId ?? crypto.randomUUID()) : postId!;
           const { media: uploaded, error: uploadError } = await uploadMediaFiles(
-            draftId,
+            uploadScopeId,
             [{ file: coverFile, width: dims?.width, height: dims?.height }],
-            mode === "create" ? (postingChannel?.id ?? activeChannelId ?? undefined) : undefined,
+            mode === "create" && !isContinuation ? (postingChannel?.id ?? activeChannelId ?? undefined) : undefined,
             // Blog covers live under the `blog/` R2 prefix, not `posts/`.
             "blog",
           );
@@ -224,17 +250,17 @@ export default function BlogForm({
         contentHtml: resolvedContent ? contentHtml : undefined,
         // Explicit null clears the cover on edit; create omits it instead
         // (the create schema doesn't accept null).
-        coverUrl: resolvedCoverUrl ?? (mode === "create" ? undefined : null),
+        coverUrl: resolvedCoverUrl ?? (isEditLike ? null : undefined),
         // Edit always sends the set (possibly empty = cleared); create omits
         // it when untouched so the schema default applies.
-        categories: mode === "edit" ? categories : (categories.length > 0 ? categories : undefined),
+        categories: isEditLike ? categories : (categories.length > 0 ? categories : undefined),
         isPublic,
         language: locale,
         ...(parsedPublishedAt ? { publishedAt: parsedPublishedAt.toISOString() } : {}),
       };
-      const url = mode === "create" ? "/api/blog-posts" : `/api/blog-posts/${postId}`;
+      const url = isEditLike ? `/api/blog-posts/${targetId}` : "/api/blog-posts";
       const res = await fetch(url, {
-        method: mode === "create" ? "POST" : "PATCH",
+        method: isEditLike ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -242,30 +268,51 @@ export default function BlogForm({
         const data = await res.json().catch(() => ({}));
         if (isApiErrorCode(data, ERROR_TOO_MANY_REQUESTS)) {
           setError(common("tooManyRequests"));
+        } else if (mode === "edit") {
+          setError(t("updateFailed"));
         } else {
-          setError(mode === "create" ? t("createFailed") : t("updateFailed"));
+          setError(isPublic ? t("createFailed") : t("saveFailed"));
         }
         return;
       }
       const post = (await res.json()) as BlogPost;
-      toast.success(mode === "create" ? t("published") : t("updated"));
-      if (mode === "create") {
-        setTitle("");
-        setExcerpt("");
-        setContent("");
-        setContentHtml(undefined);
-        setCategories([]);
-        setCoverUrl("");
-        if (coverPreview) URL.revokeObjectURL(coverPreview);
-        setCoverFile(null);
-        setCoverPreview(null);
-        setIsPublic(true);
-        setPublishedAt(toDateTimeLocalValue(new Date()));
-        setPublishInTimeline(false);
-        setEditorKey((k) => k + 1);
+      if (mode === "edit") {
+        toast.success(t("updated"));
+      } else {
+        toast.success(isPublic ? t("published") : t("saved"));
+      }
+      if (mode === "create" && !isPublic) {
+        if (exit) {
+          // Save & exit: draft appears in private posts, composer clears.
+          resetCreateForm();
+        } else {
+          // Save & stay: keep the form filled so writing can continue. Point
+          // the local cover at the uploaded URL so the next save patches
+          // instead of re-uploading, and remember the draft for PATCH updates.
+          if (resolvedCoverUrl) {
+            setCoverUrl(resolvedCoverUrl);
+            if (coverPreview) URL.revokeObjectURL(coverPreview);
+            setCoverFile(null);
+            setCoverPreview(null);
+          }
+          setDraftId(post.id);
+        }
+      } else if (mode === "create" && isPublic) {
+        // Publishing (fresh or a finished draft) clears the composer.
+        resetCreateForm();
       }
       try {
         await syncTimelinePromo(post, publishInTimeline, timelineIds);
+        // After creating the first promo for a draft, refresh the linked ids
+        // so the next save updates instead of creating a duplicate promo.
+        if (mode === "create" && publishInTimeline && timelineIds.length === 0) {
+          const timelineRes = await fetch(`/api/posts?blogPostId=${post.id}`);
+          if (timelineRes.ok) {
+            const data = await timelineRes.json().catch(() => null);
+            const ids = data ? (data.posts ?? []).map((p: { id: string }) => p.id) : [];
+            setTimelineIds(ids);
+          }
+        }
       } catch {
         setError(t("timelineSyncFailed"));
       }
@@ -275,17 +322,33 @@ export default function BlogForm({
         setError(common("tooManyRequests"));
       } else if (err instanceof Error && err.message === "upload_failed") {
         setError(t("uploadFailed"));
+      } else if (mode === "edit") {
+        setError(t("updateFailed"));
       } else {
-        setError(mode === "create" ? t("createFailed") : t("updateFailed"));
+        setError(isPublic ? t("createFailed") : t("saveFailed"));
       }
     } finally {
       setSubmitting(false);
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    // Enter key / primary button: private drafts stay so writing can
+    // continue; public publishes clear as before.
+    void persistArticle(false);
+  }
+
+  function handleSaveAndExit() {
+    void persistArticle(true);
+  }
+
   if (!session) {
     return null;
   }
+
+  const submitDisabled = !canSubmit || submitting || uploading || !isVerified;
+  const isPrivateDraft = mode === "create" && !isPublic;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -392,9 +455,20 @@ export default function BlogForm({
       </div>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <div className="flex items-center gap-2">
-        <Button type="submit" disabled={!canSubmit || submitting || uploading || !isVerified}>
-          {submitting || uploading ? t("saving") : mode === "create" ? t("publish") : t("save")}
-        </Button>
+        {isPrivateDraft ? (
+          <>
+            <Button type="submit" disabled={submitDisabled}>
+              {submitting || uploading ? t("saving") : t("saveAndStay")}
+            </Button>
+            <Button type="button" variant="outline" disabled={submitDisabled} onClick={handleSaveAndExit}>
+              {t("saveAndExit")}
+            </Button>
+          </>
+        ) : (
+          <Button type="submit" disabled={submitDisabled}>
+            {submitting || uploading ? t("saving") : mode === "edit" ? t("save") : t("publish")}
+          </Button>
+        )}
         {onCancel ? (
           <Button type="button" variant="outline" onClick={onCancel}>
             {t("cancel")}
