@@ -47,7 +47,7 @@ const buttonVariants = cva(
         "icon-light":
           "text-white/70 hover:bg-white/10 hover:text-white aria-expanded:bg-white/10 aria-expanded:text-white",
         destructive:
-          "rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          "rounded-full bg-destructive text-white font-semibold shadow-[0_2px_8px_rgba(231,76,60,0.24)] hover:bg-destructive/90 hover:shadow-[0_3px_10px_rgba(231,76,60,0.28)] active:bg-destructive/90 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:hover:bg-destructive/50 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
       },
     },

@@ -9,7 +9,7 @@ import { isChannelEditor } from "@/lib/services/channel";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
 import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
 import { generateShortId } from "@/lib/id";
-import { derivePostSlug, normalizeCategoryName } from "@/lib/validation";
+import { deriveBlogSlug, normalizeCategoryName } from "@/lib/validation";
 import { resolveCategoryIds, setBlogPostCategories } from "@/lib/services/category";
 import { resolveFeedScopeWhere } from "@/lib/services/feed-scope";
 import { ERROR_BLOG_ID_COLLISION } from "@/lib/error-messages";
@@ -66,6 +66,7 @@ export interface GetBlogPostsResult {
 export interface CreateBlogPostData {
   id?: string;
   title: string;
+  slug?: string;
   excerpt?: string;
   content?: string;
   coverUrl?: string;
@@ -79,6 +80,7 @@ export interface CreateBlogPostData {
 
 export interface UpdateBlogPostData {
   title?: string;
+  slug?: string | null;
   excerpt?: string | null;
   content?: string | null;
   coverUrl?: string | null;
@@ -287,7 +289,7 @@ export async function createBlogPost(
   userId: string,
   requestLanguage?: string,
 ): Promise<BlogPostResponse> {
-  const { id, title, excerpt, content, coverUrl, contentHtml, isPublic = true, language = "en", publishedAt, channelId, categories } = data;
+  const { id, title, slug, excerpt, content, coverUrl, contentHtml, isPublic = true, language = "en", publishedAt, channelId, categories } = data;
 
   if (!title?.trim()) throw new ValidationError("title_required");
   if (!content && !excerpt) throw new ValidationError("blog_must_have_content_or_excerpt");
@@ -323,7 +325,10 @@ export async function createBlogPost(
         data: {
           ...(id ? { id } : {}),
           shortId: generateShortId(),
-          slug: derivePostSlug(title),
+          // A user-supplied slug wins after normalization; otherwise derive
+          // from the title. Garbage that normalizes to nothing falls back to
+          // the title so the URL stays useful.
+          slug: deriveBlogSlug(slug) ?? deriveBlogSlug(title) ?? null,
           title: title.trim(),
           // No summary is a valid state: cards fall back to the formatted
           // body (or a plain preview for legacy rows).
@@ -424,10 +429,19 @@ export async function updateBlogPost(
   }
 
   const postData: Prisma.BlogPostUpdateManyMutationInput = {};
+  if (data.slug !== undefined) {
+    if (data.slug === null) {
+      postData.slug = null;
+    } else {
+      postData.slug = deriveBlogSlug(data.slug) ?? (data.title !== undefined ? deriveBlogSlug(data.title) ?? null : null);
+    }
+  }
   if (data.title !== undefined) {
     if (!data.title.trim()) throw new ValidationError("title_required");
     postData.title = data.title.trim();
-    postData.slug = derivePostSlug(data.title) ?? null;
+    // A retitle re-slugs only when no explicit slug travels with the patch —
+    // a custom slug is never clobbered by a title edit.
+    if (data.slug === undefined) postData.slug = deriveBlogSlug(data.title) ?? null;
   }
   if (data.excerpt !== undefined) postData.excerpt = data.excerpt?.trim() || null;
   if (data.content !== undefined) postData.content = data.content?.trim() || null;

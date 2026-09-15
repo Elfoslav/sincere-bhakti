@@ -112,8 +112,16 @@ export default function BlogEditor({
   );
 
   return (
-    <div className="overflow-hidden rounded-lg border border-input bg-transparent focus-within:border-ring">
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-sand/60 p-1.5" role="toolbar" aria-label={t("formattingToolbar")}>
+    // No overflow-hidden here: it would trap position:sticky and the toolbar
+    // could never engage. Only the bottom counter keeps a radius (the sticky
+    // toolbar top stays square so no background wedges appear above it).
+    <div className="rounded-lg border border-input bg-transparent focus-within:border-ring">
+      {/* Sticky so long articles keep formatting in reach while scrolling (page
+      scroll and the edit-modal scroll alike). Solid surface: transparent would
+      let the scrolled body show through — white matches the card and the light
+      modal, card-tinted in dark mode. Square top: rounded corners would leave
+      background wedges above the stuck bar. */}
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 border-b border-sand/60 bg-white p-1.5 dark:bg-card" role="toolbar" aria-label={t("formattingToolbar")}>
         {tool(editor.isActive("bold"), t("formatBold"), <Bold className="size-4" />, () =>
           editor.chain().focus().toggleBold().run(),
         )}
@@ -173,7 +181,7 @@ export default function BlogEditor({
         </div>
       )}
       <EditorContent editor={editor} />
-      <p className="border-t border-sand/60 px-3 py-1 text-right text-[11px] tabular-nums text-deep/40">
+      <p className="rounded-b-lg border-t border-sand/60 px-3 py-1 text-right text-[11px] tabular-nums text-deep/40">
         {t("characterCount", {
           count: extractPlainText(JSON.stringify(editor.getJSON())).trim().length,
           max: BLOG_CONTENT_MAX_LENGTH,

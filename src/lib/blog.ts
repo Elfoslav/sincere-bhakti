@@ -1,3 +1,5 @@
+import { extractPlainText } from "@/lib/rich-text";
+
 /**
  * Format a Date/ISO string for <input type="datetime-local"> (local time,
  * `YYYY-MM-DDTHH:mm`). Pure helper kept out of components for unit testing.
@@ -128,4 +130,42 @@ export function formatBlogDate(
     month: "long",
     day: "numeric",
   });
+}
+
+/**
+ * Snapshot of the blog composer fields compared for unsaved-changes
+ * detection. Content is compared by normalized form (see below); a picked
+ * cover file is tracked separately since a File has no URL yet.
+ */
+export interface BlogDraftSnapshot {
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  coverUrl: string;
+  hasCoverFile: boolean;
+  categories: string[];
+  isPublic: boolean;
+  publishedAt: string;
+}
+
+/**
+ * Whether the composer differs from its last saved state. Text fields compare
+ * trimmed; bodies compare by plain text when either side is text-empty (an
+ * empty Tiptap doc serializes differently from "" but means the same), and
+ * raw otherwise so formatting-only edits still count as changes.
+ */
+export function isBlogDraftDirty(current: BlogDraftSnapshot, saved: BlogDraftSnapshot): boolean {
+  if (current.title.trim() !== saved.title.trim()) return true;
+  if (current.slug.trim() !== saved.slug.trim()) return true;
+  if (current.excerpt.trim() !== saved.excerpt.trim()) return true;
+  const currentBody = extractPlainText(current.content).trim() ? current.content : "";
+  const savedBody = extractPlainText(saved.content).trim() ? saved.content : "";
+  if (currentBody !== savedBody) return true;
+  if (current.coverUrl.trim() !== saved.coverUrl.trim()) return true;
+  if (current.hasCoverFile !== saved.hasCoverFile) return true;
+  if (current.categories.join("\0") !== saved.categories.join("\0")) return true;
+  if (current.isPublic !== saved.isPublic) return true;
+  if (current.publishedAt !== saved.publishedAt) return true;
+  return false;
 }

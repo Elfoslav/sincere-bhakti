@@ -86,4 +86,26 @@ describe("createBlogPostSchema", () => {
   it("rejects raw bodies over the storage cap", () => {
     expect(createBlogPostSchema.safeParse({ title: "T", content: "x".repeat(60001) }).success).toBe(false);
   });
+
+  it("accepts an optional custom slug", () => {
+    const parsed = createBlogPostSchema.safeParse({ title: "T", content: "y", slug: "my-custom-slug" });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.slug).toBe("my-custom-slug");
+    }
+  });
+
+  it("omits the slug when not supplied (server derives it from the title)", () => {
+    const parsed = createBlogPostSchema.safeParse({ title: "T", content: "y" });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.slug).toBeUndefined();
+    }
+  });
+
+  it("rejects over-long slugs", () => {
+    expect(
+      createBlogPostSchema.safeParse({ title: "T", content: "y", slug: "x".repeat(101) }).success,
+    ).toBe(false);
+  });
 });

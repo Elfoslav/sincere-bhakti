@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 vi.mock("next-auth/react", () => ({
   useSession: vi.fn(() => ({
@@ -147,5 +147,111 @@ describe("EditBlogModal article body", () => {
 
     await screen.findByRole("alert");
     expect(screen.queryByLabelText("mock-editor")).not.toBeInTheDocument();
+  });
+});
+
+describe("EditBlogModal private save buttons", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ posts: [] }) });
+  });
+
+  it("stays open on Save & stay and closes on Save & leave", async () => {
+    const onOpenChange = vi.fn();
+    const onSuccess = vi.fn();
+    render(
+      <EditBlogModal post={makePost({ isPublic: false })} open onOpenChange={onOpenChange} onSuccess={onSuccess} />,
+    );
+
+    // Private articles offer Save & stay / Save & leave (same pair as create).
+    await screen.findByRole("button", { name: "saveAndStay" });
+    fireEvent.click(screen.getByRole("button", { name: "saveAndStay" }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+    // Stay: the parent receives the update but the modal remains open.
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("mock-editor")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "saveAndLeave" }));
+
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(onSuccess).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("EditBlogModal unsaved-changes guard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ posts: [] }) });
+  });
+
+  it("closes immediately when nothing changed", async () => {
+    const onOpenChange = vi.fn();
+    render(
+      <EditBlogModal post={makePost()} open onOpenChange={onOpenChange} onSuccess={() => {}} />,
+    );
+
+    await screen.findByLabelText("mock-editor");
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(screen.queryByText("unsavedTitle")).not.toBeInTheDocument();
+  });
+
+  it("confirms before discarding edits on Cancel", async () => {
+    const onOpenChange = vi.fn();
+    const onSuccess = vi.fn();
+    render(
+      <EditBlogModal post={makePost()} open onOpenChange={onOpenChange} onSuccess={onSuccess} />,
+    );
+
+    await screen.findByLabelText("mock-editor");
+    fireEvent.change(screen.getByPlaceholderText("titlePlaceholder"), {
+      target: { value: "Edited title" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }));
+
+    // Dirty: the custom confirm appears instead of closing.
+    await screen.findByText("unsavedTitle");
+    // The confirm dims the edit modal beneath it: both overlays render, the
+    // confirm's last in DOM order so it paints on top (equal z-index).
+    const overlays = document.querySelectorAll('[data-slot="dialog-overlay"]');
+    expect(overlays).toHaveLength(2);
+    expect(overlays[1].compareDocumentPosition(screen.getByText("unsavedTitle"))).toBe(
+      overlays[1].DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(screen.getByText("unsavedDescription")).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    // Backing out keeps the modal open with edits intact.
+    fireEvent.click(screen.getByRole("button", { name: "keepEditing" }));
+    await waitFor(() => expect(screen.queryByText("unsavedTitle")).not.toBeInTheDocument());
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText("titlePlaceholder")).toHaveValue("Edited title");
+
+    // Confirming discards the edits and closes.
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }));
+    await screen.findByText("unsavedTitle");
+    fireEvent.click(screen.getByRole("button", { name: "leaveWithoutSaving" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("EditBlogModal sticky toolbar spacing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ posts: [] }) });
+  });
+
+  it("leaves no top padding above the sticky toolbar", async () => {
+    render(<EditBlogModal post={makePost()} open onOpenChange={() => {}} onSuccess={() => {}} />);
+
+    await screen.findByLabelText("mock-editor");
+    // Sticky respects container padding: any top padding would leave a
+    // content strip above the stuck bar. The header carries its own instead.
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.className.split(/\s+/)).toContain("pt-0");
+    const header = document.querySelector('[data-slot="dialog-header"]');
+    expect(header?.className.split(/\s+/)).toContain("pt-4");
   });
 });

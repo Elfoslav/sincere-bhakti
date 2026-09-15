@@ -124,7 +124,7 @@ describe("BlogForm reset after publish", () => {
     fireEvent.change(editor, { target: { value: "Hello" } });
     fireEvent.click(screen.getByRole("button", { name: "publish" }));
 
-    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(blog));
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(blog, false));
 
     // Text inputs reset...
     expect(screen.getByPlaceholderText("titlePlaceholder")).toHaveValue("");
@@ -150,7 +150,7 @@ describe("BlogForm private draft", () => {
     });
   });
 
-  it("shows Save & stay / Save & exit instead of Publish when switched to private", async () => {
+  it("shows Save & stay / Save & leave instead of Publish when switched to private", async () => {
     const onSuccess = vi.fn();
     render(<BlogForm mode="create" onSuccess={onSuccess} />);
 
@@ -161,7 +161,7 @@ describe("BlogForm private draft", () => {
     fireEvent.click(screen.getAllByRole("switch")[0]);
 
     expect(screen.getByRole("button", { name: "saveAndStay" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "saveAndExit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "saveAndLeave" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "publish" })).not.toBeInTheDocument();
   });
 
@@ -174,11 +174,11 @@ describe("BlogForm private draft", () => {
     });
     const editor = await screen.findByLabelText("mock-editor");
     fireEvent.change(editor, { target: { value: "Hello draft" } });
-    // Switch to private -> Save & stay / Save & exit appear.
+    // Switch to private -> Save & stay / Save & leave appear.
     fireEvent.click(screen.getAllByRole("switch")[0]);
     fireEvent.click(screen.getByRole("button", { name: "saveAndStay" }));
 
-    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(privateBlog));
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(privateBlog, false));
 
     // Only the saved notification, form stays filled for continued writing.
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith("saved");
@@ -192,7 +192,7 @@ describe("BlogForm private draft", () => {
     (global.fetch as any).mockClear();
     fireEvent.click(screen.getByRole("button", { name: "saveAndStay" }));
 
-    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(privateBlog));
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(privateBlog, false));
     expect(global.fetch).toHaveBeenCalledTimes(1);
     const [url, init] = (global.fetch as any).mock.calls[0];
     expect(url).toBe(`/api/blog-posts/${privateBlog.id}`);
@@ -201,7 +201,7 @@ describe("BlogForm private draft", () => {
     expect(screen.getByPlaceholderText("titlePlaceholder")).toHaveValue("My Draft");
   });
 
-  it("clears the form after Save & exit while still showing the draft in private posts", async () => {
+  it("clears the form after Save & leave while still showing the draft in private posts", async () => {
     const onSuccess = vi.fn();
     render(<BlogForm mode="create" onSuccess={onSuccess} />);
 
@@ -211,9 +211,9 @@ describe("BlogForm private draft", () => {
     const editor = await screen.findByLabelText("mock-editor");
     fireEvent.change(editor, { target: { value: "Hello draft" } });
     fireEvent.click(screen.getAllByRole("switch")[0]);
-    fireEvent.click(screen.getByRole("button", { name: "saveAndExit" }));
+    fireEvent.click(screen.getByRole("button", { name: "saveAndLeave" }));
 
-    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(privateBlog));
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(privateBlog, true));
 
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith("saved");
     expect(screen.getByPlaceholderText("titlePlaceholder")).toHaveValue("");
