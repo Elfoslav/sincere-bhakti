@@ -48,14 +48,14 @@ describe("ChannelTranslationsCard personal channel", () => {
     );
 
     expect(screen.getByText("personalTranslationsNote")).toBeInTheDocument();
-    // Default row: neither edit nor delete (profile-owned).
+    // Default row: buttons stay visible but disabled (profile-owned).
     const defaultRow = rowFor("Krishna Das");
-    expect(within(defaultRow).queryByRole("button", { name: "editTranslation" })).not.toBeInTheDocument();
-    expect(within(defaultRow).queryByRole("button", { name: "deleteTranslation" })).not.toBeInTheDocument();
+    expect(within(defaultRow).getByRole("button", { name: "editTranslation" })).toBeDisabled();
+    expect(within(defaultRow).getByRole("button", { name: "deleteTranslation" })).toBeDisabled();
     // Other languages stay manageable, and adding is offered.
     const czechRow = rowFor("Krišna Dás");
-    expect(within(czechRow).getByRole("button", { name: "editTranslation" })).toBeInTheDocument();
-    expect(within(czechRow).getByRole("button", { name: "deleteTranslation" })).toBeInTheDocument();
+    expect(within(czechRow).getByRole("button", { name: "editTranslation" })).not.toBeDisabled();
+    expect(within(czechRow).getByRole("button", { name: "deleteTranslation" })).not.toBeDisabled();
     expect(screen.getByRole("button", { name: "addTranslation" })).toBeInTheDocument();
   });
 

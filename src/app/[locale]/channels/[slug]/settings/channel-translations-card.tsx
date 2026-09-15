@@ -172,22 +172,24 @@ export default function ChannelTranslationsCard({
                     </p>
                   )}
                 </div>
-                {!isDefaultLanguage(tr.language) && (
+                {/* The profile-owned default translation stays visible but
+                disabled (rather than hidden) so the lock is discoverable;
+                the header note explains it follows the profile name. */}
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   aria-label={t("editTranslation")}
-                  disabled={tr.renameCount >= MAX_RENAME_COUNT}
+                  disabled={isDefaultLanguage(tr.language) || tr.renameCount >= MAX_RENAME_COUNT}
                   onClick={() => setEditing(tr)}
                 >
                   <Pencil className="size-4" />
                 </Button>
-                )}
-                  {translations.length > 1 && !isDefaultLanguage(tr.language) && (
+                  {translations.length > 1 && (
                     <Button
                       variant="ghost"
                       size="icon-sm"
                       aria-label={t("deleteTranslation")}
+                      disabled={isDefaultLanguage(tr.language)}
                       onClick={() => handleDeleteClick(tr)}
                     >
                       <Trash2 className="size-4 text-red" />
