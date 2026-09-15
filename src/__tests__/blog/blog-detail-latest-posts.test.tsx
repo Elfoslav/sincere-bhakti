@@ -111,4 +111,19 @@ describe("BlogDetailClient editorial layout", () => {
     }
     expect(container.querySelector("section div.grid")).toBeNull();
   });
+
+  it("uses the long-form measure with 18px relaxed body text", () => {
+    const { container } = render(
+      <BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />,
+    );
+    // 48rem reading column (roomier than the old 42rem).
+    const column = container.firstElementChild!;
+    expect(column.className.split(/\s+/)).toContain("max-w-3xl");
+    expect(column.className.split(/\s+/)).not.toContain("max-w-2xl");
+    // 18px body with generous leading; dek stays a step above the body.
+    const body = container.querySelector("article .rich-text")!;
+    expect(body.className.split(/\s+/)).toContain("text-lg");
+    expect(body.className.split(/\s+/)).toContain("leading-relaxed");
+    expect(screen.getByText("Excerpt Main Article").className.split(/\s+/)).toContain("text-xl");
+  });
 });

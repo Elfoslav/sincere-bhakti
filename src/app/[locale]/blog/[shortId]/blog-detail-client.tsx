@@ -88,7 +88,10 @@ export default function BlogDetailClient({
   const isScheduled = displayedPost.publishedAt ? new Date(displayedPost.publishedAt) > new Date() : false;
 
   return (
-    <BlogLayout title={displayedPost.title} containerClassName="w-full max-w-2xl mx-auto px-4 py-12">
+    // Reading column: 48rem measure with 18px relaxed body (~68ch) — the
+    // long-form sweet spot between the old narrow 42rem/16px and an
+    // over-wide line. Inner elements scale in em, so only these two change.
+    <BlogLayout title={displayedPost.title} containerClassName="w-full max-w-3xl mx-auto px-4 py-12">
       <p className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-saffron-dark">
         <Link href={`/blog/channel/${displayedPost.channel.slug}`} className="hover:text-gold">
           {displayedPost.channel.name}
@@ -118,7 +121,7 @@ export default function BlogDetailClient({
       </p>
       <hr className="mx-auto my-8 w-16 border-t-2 border-gold" />
       {displayedPost.excerpt ? (
-        <p className="text-center font-heading text-lg italic leading-relaxed text-deep/80">
+        <p className="text-center font-heading text-xl italic leading-relaxed text-deep/80">
           {displayedPost.excerpt}
         </p>
       ) : null}
@@ -135,7 +138,7 @@ export default function BlogDetailClient({
       <article>
         {html ? (
           <div
-            className="rich-text mt-8 text-base leading-relaxed"
+            className="rich-text mt-8 text-lg leading-relaxed"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : null}
