@@ -89,9 +89,9 @@ export default function BlogDetailClient({
   const isScheduled = displayedPost.publishedAt ? new Date(displayedPost.publishedAt) > new Date() : false;
 
   return (
-    // Reading column: 48rem measure with 17px relaxed body (~72ch) — the
-    // long-form sweet spot between the old narrow 42rem/16px and an
-    // over-wide line. Inner elements scale in em, so only these two change.
+    // Reading column: 48rem measure with 16px/1.5 body — same scale as the
+    // surrounding UI text, tight enough to scan, loose enough to breathe.
+    // Inner elements scale in em, so only these two change.
     <BlogLayout title={displayedPost.title} containerClassName="w-full max-w-3xl mx-auto px-4 py-12">
       {/* Bright reading surface: pure-white card over the gray page focuses
       the article and keeps dark-navy text readable in every theme (the Card
@@ -144,7 +144,7 @@ export default function BlogDetailClient({
       <article>
         {html ? (
           <div
-            className="rich-text mt-8 text-[17px] leading-relaxed"
+            className="rich-text mt-8 text-base leading-normal"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : null}

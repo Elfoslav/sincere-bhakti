@@ -112,7 +112,7 @@ describe("BlogDetailClient editorial layout", () => {
     expect(container.querySelector("section div.grid")).toBeNull();
   });
 
-  it("uses the long-form measure with 17px relaxed body text", () => {
+  it("uses the long-form measure with 16px/1.5 body text", () => {
     const { container } = render(
       <BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />,
     );
@@ -120,10 +120,10 @@ describe("BlogDetailClient editorial layout", () => {
     const column = container.firstElementChild!;
     expect(column.className.split(/\s+/)).toContain("max-w-3xl");
     expect(column.className.split(/\s+/)).not.toContain("max-w-2xl");
-    // 17px body with generous leading; dek stays a step above the body.
+    // 16px/1.5 body, same scale as surrounding UI text; dek stays above it.
     const body = container.querySelector("article .rich-text")!;
-    expect(body.className.split(/\s+/)).toContain("text-[17px]");
-    expect(body.className.split(/\s+/)).toContain("leading-relaxed");
+    expect(body.className.split(/\s+/)).toContain("text-base");
+    expect(body.className.split(/\s+/)).toContain("leading-normal");
     expect(screen.getByText("Excerpt Main Article").className.split(/\s+/)).toContain("text-xl");
     // Bright reading surface behind the article.
     const card = body.closest("div.bg-white");
