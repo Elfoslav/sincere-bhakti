@@ -183,6 +183,9 @@ export async function createPersonalChannel(
         data: {
           ownerId: userId,
           isPersonal: true,
+          // The creation language owns the profile link: settings may add and
+          // rename other languages, but this one follows the profile name.
+          defaultLanguage: language,
           translations: {
             create: { language, name, normalizedName: normalized, slug: finalSlug },
           },
@@ -190,7 +193,7 @@ export async function createPersonalChannel(
       });
       return toPostChannel(channel, [{ language, name, slug: finalSlug }], language);
     } catch (err) {
-      if ((err as { code?: string })?.code === "P2002") continue;
+      if ((err as { code?: string })?.code !== "P2002") throw err;
       throw err;
     }
   }
@@ -200,6 +203,7 @@ export async function createPersonalChannel(
     data: {
       ownerId: userId,
       isPersonal: true,
+      defaultLanguage: language,
       translations: {
         create: { language, name: `${userName} (${uuid})`, normalizedName: normalizeName(`${userName} (${uuid})`), slug: `${slug}-${uuid}` },
       },
@@ -520,6 +524,7 @@ export async function getChannelSettingsBySlug(
       avatarUrl: true,
       ownerId: true,
       isPersonal: true,
+      defaultLanguage: true,
       renameCount: true,
       owner: { select: { id: true, name: true, email: true } },
     },
@@ -544,6 +549,7 @@ export async function getChannelSettingsBySlug(
       ownerName: channel.owner.name,
       ownerEmail: channel.owner.email,
       isPersonal: channel.isPersonal,
+      defaultLanguage: channel.defaultLanguage,
       renameCount: channel.renameCount,
     },
     members: await getChannelMembers(channel.id),
@@ -805,6 +811,7 @@ export async function createChannel(
       data: {
         ownerId: userId,
         isPersonal: false,
+        defaultLanguage: language,
         translations: {
           create: { language, name: channelName, normalizedName: normalized, slug },
         },

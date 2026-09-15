@@ -199,33 +199,89 @@ describe("POST /api/channels/[slug]/translations", () => {
     expect(json.error).toBe("rename_limit_reached");
   });
 
-  it("returns 400 when trying to rename a personal channel translation", async () => {
+  it("returns 400 when renaming the default-language translation of a personal channel", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    vi.mocked(prisma.channelTranslation.findFirst)
-      .mockResolvedValueOnce({
-        id: "existing-trans", slug: "my-channel", language: "en",
-        channel: { id: "ch-1", ownerId: "user-1", isPersonal: true },
-      } as any) // anchor
-      .mockResolvedValue(null); // name check
-    vi.mocked(prisma.channelTranslation.findUnique)
-      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Old Name", slug: "old-name" } as any); // existing translation
+    // Anchor only: the guard fires before any translation lookup.
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValueOnce({
+      id: "trans-en", slug: "my-channel", language: "en",
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: true, defaultLanguage: "en" },
+    } as any); // anchor
 
-    const res = await POST(mockRequest({ name: "New Name", language: "cs" }), params);
+    const res = await POST(mockRequest({ name: "New Name", language: "en" }), params);
     const json = await res.json();
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("cannot_rename_personal_channel");
+    expect(prisma.channelTranslation.updateMany).not.toHaveBeenCalled();
   });
 
-  it("blocks ADDING a new-language translation to a personal channel (no rename-lock bypass)", async () => {
+  it("renames a non-default translation of a personal channel", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
-    // Anchor resolves a personal channel; the guard fires before create.
-    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValue({
-      id: "trans-en", slug: "my-channel", language: "en",
-      channel: { id: "ch-1", ownerId: "user-1", isPersonal: true },
+    vi.mocked(prisma.channelTranslation.findFirst)
+      .mockResolvedValueOnce({
+        id: "trans-en", slug: "my-channel", language: "en",
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: true, defaultLanguage: "en" },
+      } as any) // anchor
+      .mockResolvedValue(null); // name check
+    vi.mocked(prisma.channelTranslation.findUnique)
+      .mockResolvedValueOnce({ id: "trans-cs", language: "cs", name: "Old Name", slug: "old-name", renameCount: 1 } as any) // existing translation
+      .mockResolvedValueOnce(null as any)    // slug not taken
+      .mockResolvedValueOnce({ id: "trans-cs", normalizedName: "old name", previousNormalizedNames: [] } as any); // fetch prev names inside service
+    vi.mocked(prisma.channelEditor.findUnique).mockResolvedValue(null); // owner check — not an editor
+    vi.mocked(prisma.channelTranslation.updateMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(prisma.channelTranslation.update).mockResolvedValue({
+      id: "trans-cs", language: "cs", name: "Nový kanál", slug: "novy-kanal",
     } as any);
 
-    const res = await POST(mockRequest({ name: "Totally Different", language: "cs" }), params);
+    const res = await POST(mockRequest({ name: "Nový kanál", language: "cs" }), params);
+    const json = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(json.name).toBe("Nový kanál");
+    expect(json.slug).toBe("novy-kanal");
+    expect(json.renameCount).toBe(2);
+  });
+
+  it("adds a non-default translation to a personal channel", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    // Anchor resolves a personal channel; a non-default language proceeds to create.
+    vi.mocked(prisma.channelTranslation.findFirst)
+      .mockResolvedValueOnce({
+        id: "trans-en", slug: "my-channel", language: "en",
+        channel: { id: "ch-1", ownerId: "user-1", isPersonal: true, defaultLanguage: "en" },
+      } as any) // anchor
+      .mockResolvedValue(null); // name check
+    vi.mocked(prisma.channelTranslation.findUnique)
+      .mockResolvedValueOnce(null as any)    // no existing translation → create
+      .mockResolvedValueOnce(null as any);   // slug not taken
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValueOnce(null as any);
+    vi.mocked(prisma.channelTranslation.create).mockResolvedValue({
+      id: "trans-cs", language: "cs", name: "Můj kanál", slug: "muj-kanal",
+    } as any);
+
+    const res = await POST(mockRequest({ name: "Můj kanál", language: "cs" }), params);
+    const json = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(json.name).toBe("Můj kanál");
+    expect(json.slug).toBe("muj-kanal");
+    expect(json.renameCount).toBe(0);
+    expect(prisma.channelTranslation.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ channelId: "ch-1", language: "cs" }),
+      }),
+    );
+  });
+
+  it("blocks ADDING the default language to a personal channel (profile-owned)", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    // Anchor only: the guard fires before any create is attempted.
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValueOnce({
+      id: "trans-cs", slug: "my-channel", language: "cs",
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: true, defaultLanguage: "en" },
+    } as any); // anchor
+
+    const res = await POST(mockRequest({ name: "My Channel", language: "en" }), params);
     const json = await res.json();
 
     expect(res.status).toBe(400);
@@ -463,5 +519,20 @@ describe("DELETE /api/channels/[slug]/translations", () => {
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("validation_error:language:required");
+  });
+
+  it("returns 400 when deleting the default-language translation of a personal channel", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.channelTranslation.findFirst).mockResolvedValueOnce({
+      id: "trans-en", slug: "my-channel", language: "en",
+      channel: { id: "ch-1", ownerId: "user-1", isPersonal: true, defaultLanguage: "en" },
+    } as any);
+
+    const res = await DELETE(mockRequest({}, "http://localhost:3000/api/channels/my-channel/translations?language=en"), { params: Promise.resolve({ slug: "my-channel" }) } as any);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("cannot_remove_default_translation");
+    expect(prisma.channelTranslation.deleteMany).not.toHaveBeenCalled();
   });
 });

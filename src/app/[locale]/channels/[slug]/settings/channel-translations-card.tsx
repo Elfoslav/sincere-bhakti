@@ -17,10 +17,12 @@ export default function ChannelTranslationsCard({
   translations: initialTranslations,
   channelSlug,
   isPersonal,
+  defaultLanguage,
 }: {
   translations: ChannelSettingsTranslation[];
   channelSlug: string;
   isPersonal: boolean;
+  defaultLanguage: string;
 }) {
   const t = useTranslations("ChannelSettingsPage");
   const common = useTranslations("Common");
@@ -32,6 +34,13 @@ export default function ChannelTranslationsCard({
 
   const usedLanguages = new Set(translations.map((tr) => tr.language));
   const availableLocales = locales.filter((loc) => !usedLanguages.has(loc));
+  // On personal channels the default-language translation is profile-owned
+  // (renamed via the profile flow): it can be neither added here when missing
+  // nor renamed nor removed — other languages are fully manageable.
+  const isDefaultLanguage = (language: string) => isPersonal && language === defaultLanguage;
+  const addableLocales = isPersonal
+    ? availableLocales.filter((loc) => loc !== defaultLanguage)
+    : availableLocales;
 
   // The `channelSlug` prop is the page-locale slug at load time; renaming that
   // translation moves its slug to history, so reusing the prop would 404 the
@@ -98,7 +107,11 @@ export default function ChannelTranslationsCard({
 
       if (!response.ok) {
         const result = await response.json();
-        toast.error(result.error === "cannot_remove_last_translation" ? t("cannotRemoveLastTranslation") : t("translationsDeleteError"));
+        toast.error(
+          result.error === "cannot_remove_last_translation" ? t("cannotRemoveLastTranslation")
+          : result.error === "cannot_remove_default_translation" ? t("cannotRemoveDefaultTranslation")
+          : t("translationsDeleteError"),
+        );
         return;
       }
 
@@ -125,8 +138,16 @@ export default function ChannelTranslationsCard({
                 {common("renameCountInfo")}
               </p>
             )}
+            {isPersonal && (
+              <p className="mt-1 text-xs text-deep/40">
+                {t("personalTranslationsNote")}
+              </p>
+            )}
           </div>
-          {availableLocales.length > 0 && (
+          {/* The profile-owned default translation is rejected server-side, so
+          only genuinely addable targets get buttons (no generic-error dead
+          ends). */}
+          {addableLocales.length > 0 && (
             <Button variant="outline" size="sm" icon={<Plus className="size-4" />} onClick={() => setShowAdd(true)}>
               {t("addTranslation")}
             </Button>
@@ -151,11 +172,14 @@ export default function ChannelTranslationsCard({
                     </p>
                   )}
                 </div>
+                {/* The profile-owned default translation stays visible but
+                disabled (rather than hidden) so the lock is discoverable;
+                the header note explains it follows the profile name. */}
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   aria-label={t("editTranslation")}
-                  disabled={tr.renameCount >= MAX_RENAME_COUNT}
+                  disabled={isDefaultLanguage(tr.language) || tr.renameCount >= MAX_RENAME_COUNT}
                   onClick={() => setEditing(tr)}
                 >
                   <Pencil className="size-4" />
@@ -165,6 +189,7 @@ export default function ChannelTranslationsCard({
                       variant="ghost"
                       size="icon-sm"
                       aria-label={t("deleteTranslation")}
+                      disabled={isDefaultLanguage(tr.language)}
                       onClick={() => handleDeleteClick(tr)}
                     >
                       <Trash2 className="size-4 text-red" />
@@ -191,7 +216,7 @@ export default function ChannelTranslationsCard({
       {(showAdd || editing) && (
         <EditTranslationDialog
           translation={editing}
-          availableLocales={showAdd ? availableLocales : []}
+          availableLocales={showAdd ? addableLocales : []}
           renameCount={editing?.renameCount ?? 0}
           onSave={handleSave}
           onClose={() => {

@@ -164,12 +164,18 @@ export async function PATCH(
 
       const personalChannel = await tx.channel.findFirst({
         where: { ownerId: id, isPersonal: true },
-        select: { id: true },
+        select: { id: true, defaultLanguage: true },
       });
 
       let personalTranslation: { id: string; channelId: string; language: string; name: string; slug: string } | null = null;
       if (personalChannel) {
+        // The profile owns the default-language translation (other languages
+        // are user-managed in channel settings). Fall back to first-asc for
+        // legacy rows whose default translation is missing.
         personalTranslation = await tx.channelTranslation.findFirst({
+          where: { channelId: personalChannel.id, language: personalChannel.defaultLanguage },
+          select: { id: true, channelId: true, language: true, name: true, slug: true },
+        }) ?? await tx.channelTranslation.findFirst({
           where: { channelId: personalChannel.id },
           orderBy: { language: "asc" },
           select: { id: true, channelId: true, language: true, name: true, slug: true },

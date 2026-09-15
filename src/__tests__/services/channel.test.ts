@@ -125,8 +125,22 @@ describe("createPersonalChannel", () => {
     expect(result.name).toBe("Krishna Das");
     expect(result.slug).toBe("krishna-das");
     expect(prisma.channel.create).toHaveBeenCalledWith({
-      data: { ownerId: "user-1", isPersonal: true, translations: { create: { language: "en", name: "Krishna Das", normalizedName: "krishna das", slug: "krishna-das" } } },
+      data: { ownerId: "user-1", isPersonal: true, defaultLanguage: "en", translations: { create: { language: "en", name: "Krishna Das", normalizedName: "krishna das", slug: "krishna-das" } } },
     });
+  });
+
+  it("stores the creation language as defaultLanguage", async () => {
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
+    vi.mocked(prisma.channel.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channel.create).mockResolvedValue(mockChannel("ch-1", "Krishna Das", "krishna-das") as any);
+
+    await createPersonalChannel("user-1", "Krishna Das", "cs");
+
+    expect(prisma.channel.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ defaultLanguage: "cs" }) }),
+    );
   });
 
   it("returns existing channel if user already has one", async () => {
@@ -791,7 +805,7 @@ describe("createChannel", () => {
     expect(result.slug).toBe("my-devotees");
     expect(result.postCount).toBe(0);
     expect(prisma.channel.create).toHaveBeenCalledWith({
-      data: { ownerId: "user-1", isPersonal: false, translations: { create: { language: "en", name: "My Devotees", normalizedName: "my devotees", slug: "my-devotees" } } },
+      data: { ownerId: "user-1", isPersonal: false, defaultLanguage: "en", translations: { create: { language: "en", name: "My Devotees", normalizedName: "my devotees", slug: "my-devotees" } } },
     });
   });
 
