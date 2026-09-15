@@ -237,10 +237,41 @@ describe("PATCH /api/users/[id]", () => {
     expect(json.personalChannel).toEqual({ id: "channel-1", name: "New Name", slug: "new-name" });
     expect(prisma.channel.findFirst).toHaveBeenCalledWith({
       where: { ownerId: "user-1", isPersonal: true },
-      select: { id: true },
+      select: { id: true, defaultLanguage: true },
     });
     expect(prisma.channelTranslation.update).toHaveBeenCalledWith({
       where: { id: "trans-1" },
+      data: expect.objectContaining({ name: "New Name", slug: "new-name" }),
+    });
+  });
+
+  it("propagates profile rename to the default-language translation, not first-asc", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce({ name: "Devotee", renameCount: 0, sessionVersion: 0, email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01") } as any)
+      .mockResolvedValueOnce({ id: "user-1", name: "New Name", email: "devotee@example.com", image: null, createdAt: new Date("2026-01-01"), renameCount: 1, sessionVersion: 0 } as any);
+    vi.mocked(prisma.channel.findFirst)
+      .mockResolvedValueOnce({ id: "channel-1", defaultLanguage: "cs" } as any);
+    vi.mocked(prisma.channelTranslation.findFirst)
+      .mockResolvedValueOnce({ id: "trans-cs", channelId: "channel-1", language: "cs", name: "Devotee", slug: "devotee" } as any)
+      .mockResolvedValue(null);
+    vi.mocked(prisma.channelTranslation.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.channelSlugHistory.create).mockResolvedValue({} as any);
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(prisma.channelTranslation.update).mockResolvedValue({ id: "trans-cs", channelId: "channel-1", name: "New Name", slug: "new-name" } as any);
+
+    const res = await PATCH(mockRequest({ name: "New Name" }), { params: Promise.resolve({ id: "user-1" }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.personalChannel).toEqual({ id: "channel-1", name: "New Name", slug: "new-name" });
+    // The default-language (cs) row is updated even though "en" sorts first.
+    expect(prisma.channelTranslation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { channelId: "channel-1", language: "cs" } }),
+    );
+    expect(prisma.channelTranslation.update).toHaveBeenCalledWith({
+      where: { id: "trans-cs" },
       data: expect.objectContaining({ name: "New Name", slug: "new-name" }),
     });
   });

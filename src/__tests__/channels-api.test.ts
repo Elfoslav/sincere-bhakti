@@ -156,6 +156,7 @@ describe("POST /api/channels", () => {
     expect(prisma.channel.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          defaultLanguage: "cs",
           translations: expect.objectContaining({
             create: expect.objectContaining({ language: "cs" }),
           }),

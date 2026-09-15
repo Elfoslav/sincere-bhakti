@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 
 vi.mock("next-intl", () => ({
   useTranslations: vi.fn(() => (key: string) => key),
@@ -25,39 +25,47 @@ vi.spyOn(console, "error").mockImplementation(() => {});
 
 import ChannelTranslationsCard from "@/app/[locale]/channels/[slug]/settings/channel-translations-card";
 
-const translation = {
-  id: "trans-1",
-  language: "en",
-  name: "Krishna Das",
-  slug: "krishna-das",
-  renameCount: 0,
-};
+const english = { id: "trans-en", language: "en", name: "Krishna Das", slug: "krishna-das", renameCount: 0 };
+const czech = { id: "trans-cs", language: "cs", name: "Krišna Dás", slug: "krisna-das", renameCount: 0 };
+
+function rowFor(name: string) {
+  return screen.getByText(name).closest("div.flex.items-center")!;
+}
 
 describe("ChannelTranslationsCard personal channel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("hides add/edit and explains profile ownership instead of failing on save", () => {
+  it("locks the default translation but allows other languages", () => {
     render(
       <ChannelTranslationsCard
-        translations={[translation]}
+        translations={[english, czech]}
         channelSlug="krishna-das"
         isPersonal
+        defaultLanguage="en"
       />,
     );
 
     expect(screen.getByText("personalTranslationsNote")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "addTranslation" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "editTranslation" })).not.toBeInTheDocument();
+    // Default row: neither edit nor delete (profile-owned).
+    const defaultRow = rowFor("Krishna Das");
+    expect(within(defaultRow).queryByRole("button", { name: "editTranslation" })).not.toBeInTheDocument();
+    expect(within(defaultRow).queryByRole("button", { name: "deleteTranslation" })).not.toBeInTheDocument();
+    // Other languages stay manageable, and adding is offered.
+    const czechRow = rowFor("Krišna Dás");
+    expect(within(czechRow).getByRole("button", { name: "editTranslation" })).toBeInTheDocument();
+    expect(within(czechRow).getByRole("button", { name: "deleteTranslation" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "addTranslation" })).toBeInTheDocument();
   });
 
   it("still offers add/edit for regular channels", () => {
     render(
       <ChannelTranslationsCard
-        translations={[translation]}
+        translations={[english]}
         channelSlug="krishna-das"
         isPersonal={false}
+        defaultLanguage="en"
       />,
     );
 

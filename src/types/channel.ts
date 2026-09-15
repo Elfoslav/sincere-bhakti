@@ -49,6 +49,7 @@ export interface ChannelSettings {
     ownerName: string;
     ownerEmail: string;
     isPersonal: boolean;
+    defaultLanguage: string;
     renameCount: number;
   };
   members: ChannelMember[];

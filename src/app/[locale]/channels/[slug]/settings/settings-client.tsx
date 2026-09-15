@@ -162,6 +162,7 @@ export default function ChannelSettingsClient({
           translations={initialSettings.translations}
           channelSlug={initialSettings.channel.slug}
           isPersonal={initialSettings.channel.isPersonal}
+          defaultLanguage={initialSettings.channel.defaultLanguage}
         />
       </div>
 

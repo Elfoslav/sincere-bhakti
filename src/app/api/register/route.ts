@@ -34,6 +34,7 @@ async function createPersonalChannelForRegistration(
     data: {
       ownerId: userId,
       isPersonal: true,
+      defaultLanguage: language,
       translations: {
         create: { language, name: userName, normalizedName: normalizeName(userName), slug: slugifyName(userName) },
       },

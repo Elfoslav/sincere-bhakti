@@ -35,19 +35,19 @@ export async function POST(
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
     }
 
-    // Personal channels track the user's own name and are renamed only via the
-    // profile flow. Adding/renaming a per-language translation here would let an
-    // owner give the personal channel an arbitrary name per locale, bypassing
-    // the profile rename lock and its rename cap. Block it for both branches.
-    if (translation.channel.isPersonal) {
-      return NextResponse.json({ error: "cannot_rename_personal_channel" }, { status: HTTP_BAD_REQUEST });
-    }
-
+    // Personal channels track the user's own name in their default language
+    // (renamed via the profile flow, which propagates to that translation).
+    // Only that translation is profile-owned: other languages are freely
+    // added and renamed here, so authors can localize a personal channel.
     const body = await request.json();
     const parsed = parseBody(body, createChannelTranslationSchema, "POST /api/channels/[slug]/translations");
     if (parsed.response) return parsed.response;
 
     const { name, language } = parsed.data;
+
+    if (translation.channel.isPersonal && language === translation.channel.defaultLanguage) {
+      return NextResponse.json({ error: "cannot_rename_personal_channel" }, { status: HTTP_BAD_REQUEST });
+    }
 
     if (isBrandNameBlocked(name, session.user.email)) {
       return NextResponse.json({ error: ERROR_NAME_TAKEN }, { status: HTTP_CONFLICT });
@@ -72,10 +72,6 @@ export async function POST(
             slug: existingTranslation.slug,
             renameCount: existingTranslation.renameCount,
           };
-        }
-
-        if (translation.channel.isPersonal) {
-          throw new CannotRenamePersonalChannelError();
         }
 
         const result = await renameChannelTranslation(tx, {
@@ -156,6 +152,12 @@ export async function DELETE(
     const channelId = translation.channel.id;
     if (!await canManageChannelSettings(channelId, session.user.id)) {
       return NextResponse.json({ error: ERROR_NOT_FOUND }, { status: HTTP_NOT_FOUND });
+    }
+
+    // The profile-owned default translation of a personal channel cannot be
+    // removed (profile renames propagate to it); other languages are free.
+    if (translation.channel.isPersonal && language === translation.channel.defaultLanguage) {
+      return NextResponse.json({ error: "cannot_remove_default_translation" }, { status: HTTP_BAD_REQUEST });
     }
 
     await prisma.$transaction(async (tx) => {
