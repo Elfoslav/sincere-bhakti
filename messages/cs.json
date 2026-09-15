@@ -420,6 +420,7 @@
 		"validationError": "Zadejte platný e-mail a roli.",
 		"translationsTitle": "Jazyky kanálu",
 		"translationsSubtitle": "Spravujte přeložené názvy tohoto kanálu v různých jazycích.",
+		"personalTranslationsNote": "Osobní kanál používá ve všech jazycích jméno z vašeho profilu.",
 		"addTranslation": "Přidat překlad",
 		"editTranslation": "Upravit překlad",
 		"deleteTranslation": "Odebrat",

@@ -125,8 +125,16 @@ export default function ChannelTranslationsCard({
                 {common("renameCountInfo")}
               </p>
             )}
+            {isPersonal && (
+              <p className="mt-1 text-xs text-deep/40">
+                {t("personalTranslationsNote")}
+              </p>
+            )}
           </div>
-          {availableLocales.length > 0 && (
+          {/* Personal channels track the profile name: the server rejects
+          add/rename here (profile flow owns them), so don't offer the buttons
+          that would only fail with a generic error. */}
+          {!isPersonal && availableLocales.length > 0 && (
             <Button variant="outline" size="sm" icon={<Plus className="size-4" />} onClick={() => setShowAdd(true)}>
               {t("addTranslation")}
             </Button>
@@ -151,6 +159,7 @@ export default function ChannelTranslationsCard({
                     </p>
                   )}
                 </div>
+                {!isPersonal && (
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -160,6 +169,7 @@ export default function ChannelTranslationsCard({
                 >
                   <Pencil className="size-4" />
                 </Button>
+                )}
                   {translations.length > 1 && (
                     <Button
                       variant="ghost"

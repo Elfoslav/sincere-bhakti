@@ -420,6 +420,7 @@
 		"validationError": "Enter a valid email and role.",
 		"translationsTitle": "Channel languages",
 		"translationsSubtitle": "Manage translated names for this channel in different languages.",
+		"personalTranslationsNote": "Personal channels use your profile name in every language.",
 		"addTranslation": "Add translation",
 		"editTranslation": "Edit translation",
 		"deleteTranslation": "Remove",
