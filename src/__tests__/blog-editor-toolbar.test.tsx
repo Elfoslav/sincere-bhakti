@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, waitFor } from "@testing-library/react";
 
 vi.mock("next-intl", () => ({
   useTranslations: vi.fn(() => (key: string) => key),
@@ -18,22 +18,61 @@ vi.mock("sonner", () => ({
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
+type ObserverCallback = (entries: Array<{ isIntersecting: boolean }>) => void;
+
+let observerCallback: ObserverCallback | null = null;
+
+class MockIntersectionObserver {
+  constructor(callback: ObserverCallback) {
+    observerCallback = callback;
+  }
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 import BlogEditor from "@/components/BlogEditor";
 
 describe("BlogEditor toolbar", () => {
-  it("sticks to the top with an opaque surface for long articles", async () => {
+  beforeEach(() => {
+    observerCallback = null;
+    globalThis.IntersectionObserver = MockIntersectionObserver as any;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete (globalThis as any).IntersectionObserver;
+  });
+
+  it("sticks to the top with an opaque surface and rounds only when not stuck", async () => {
     render(<BlogEditor onChange={() => {}} />);
 
     const toolbar = await screen.findByRole("toolbar");
-    const classes = toolbar.className.split(/\s+/);
-    expect(classes).toContain("sticky");
-    expect(classes).toContain("top-0");
-    expect(classes).toContain("z-10");
+    await waitFor(() => expect(observerCallback).not.toBeNull());
+
+    const classes = () => toolbar.className.split(/\s+/);
+    expect(classes()).toContain("sticky");
+    expect(classes()).toContain("top-0");
+    expect(classes()).toContain("z-10");
     // Opaque, or scrolled body text would show through underneath.
-    expect(classes).toContain("bg-white");
-    // Square top: rounded corners would leave background wedges above the
-    // stuck bar.
-    expect(classes).not.toContain("rounded-t-lg");
+    expect(classes()).toContain("bg-white");
+    // At rest the top follows the box radius.
+    expect(classes()).toContain("rounded-t-lg");
+
+    // Scrolled (stuck): square top so no background wedges appear above.
+    act(() => {
+      observerCallback?.([{ isIntersecting: false }]);
+    });
+    expect(classes()).toContain("sticky");
+    expect(classes()).toContain("top-0");
+    expect(classes()).not.toContain("rounded-t-lg");
+
+    // Back at rest: rounded again.
+    act(() => {
+      observerCallback?.([{ isIntersecting: true }]);
+    });
+    expect(classes()).toContain("rounded-t-lg");
+
     // The editor box itself must not clip overflow: overflow-hidden would
     // trap position:sticky and the bar could never engage on scroll.
     const boxClasses = (toolbar.parentElement?.className ?? "").split(/\s+/);

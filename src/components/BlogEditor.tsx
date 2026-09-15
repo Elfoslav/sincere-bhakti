@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { useTranslations } from "next-intl";
 import {
@@ -68,6 +68,38 @@ export default function BlogEditor({
 
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  // Whether the toolbar is currently stuck to the scrollport top. Drives the
+  // top radius: rounded at rest, square while stuck (rounded corners would
+  // leave background wedges above the stuck bar).
+  const [stuck, setStuck] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // A 1px sentinel above the toolbar reports stuck state: fully visible at
+  // rest, clipped once the bar sticks. The nearest scrolling ancestor is the
+  // observer root (page viewport for the create form, dialog scroll area for
+  // the edit modal); without one there is nothing to stick to (or no
+  // IntersectionObserver, e.g. old browsers) and the bar stays rounded.
+  useEffect(() => {
+    if (!editor) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel || typeof IntersectionObserver === "undefined") return;
+    let scrollParent: HTMLElement | null = null;
+    let node = sentinel.parentElement;
+    while (node) {
+      const overflowY = getComputedStyle(node).overflowY;
+      if (overflowY === "auto" || overflowY === "scroll") {
+        scrollParent = node;
+        break;
+      }
+      node = node.parentElement;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => setStuck(!entry.isIntersecting),
+      { root: scrollParent, threshold: 1 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [editor]);
 
   function openLinkBar() {
     if (!editor) return;
@@ -113,15 +145,22 @@ export default function BlogEditor({
 
   return (
     // No overflow-hidden here: it would trap position:sticky and the toolbar
-    // could never engage. Only the bottom counter keeps a radius (the sticky
-    // toolbar top stays square so no background wedges appear above it).
+    // could never engage. Only the bottom counter keeps a radius; the toolbar
+    // rounds its top at rest and squares off while stuck (see `stuck`).
     <div className="rounded-lg border border-input bg-transparent focus-within:border-ring">
+      <div ref={sentinelRef} aria-hidden="true" className="h-px" />
       {/* Sticky so long articles keep formatting in reach while scrolling (page
       scroll and the edit-modal scroll alike). Solid surface: transparent would
       let the scrolled body show through — white matches the card and the light
-      modal, card-tinted in dark mode. Square top: rounded corners would leave
-      background wedges above the stuck bar. */}
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 border-b border-sand/60 bg-white p-1.5 dark:bg-card" role="toolbar" aria-label={t("formattingToolbar")}>
+      modal, card-tinted in dark mode. */}
+      <div
+        className={cn(
+          "sticky top-0 z-10 flex flex-wrap items-center gap-0.5 border-b border-sand/60 bg-white p-1.5 dark:bg-card",
+          !stuck && "rounded-t-lg",
+        )}
+        role="toolbar"
+        aria-label={t("formattingToolbar")}
+      >
         {tool(editor.isActive("bold"), t("formatBold"), <Bold className="size-4" />, () =>
           editor.chain().focus().toggleBold().run(),
         )}
