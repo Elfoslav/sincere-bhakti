@@ -2,6 +2,7 @@ import { z } from "zod";
 import { locales } from "@/i18n/routing";
 import { extractPlainText } from "@/lib/rich-text";
 import { CHANNEL_MEMBER_ACTIONS, CHANNEL_MEMBER_ROLES } from "@/lib/channel-roles";
+import { tokenizeUrls } from "@/lib/autolink";
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const BCRYPT_SALT_ROUNDS = 12;
@@ -12,6 +13,7 @@ export const MAX_RENAME_COUNT = 3;
 // the slug is cosmetic. Must stay in sync with the slug backfill in
 // prisma/migrations/20260728120000_add_post_shortid_slug.
 export const POST_SLUG_MAX_LENGTH = 60;
+export const POST_LINK_TITLE_MAX_LENGTH = 200;
 
 // Blog post field limits. Titles stay short for cards/SEO; excerpts feed list
 // previews and meta descriptions; content allows long-form articles. Slugs
@@ -214,6 +216,7 @@ export const mediaItemSchema = z.object({
 
 const contentField = z.string().trim().max(5000).optional();
 const mediaField = z.array(mediaItemSchema).max(MAX_MEDIA_ITEMS_PER_POST).optional();
+const linkTitleField = z.string().trim().min(1).max(POST_LINK_TITLE_MAX_LENGTH).optional();
 // Optional publish date input. Accepts ISO date/datetime strings from
 // <input type="datetime-local"> (no timezone) or full ISO datetimes; coerced
 // to Date. When omitted the server defaults to now (posts) or now (blog).
@@ -243,6 +246,10 @@ export const createPostSchema = z.object({
   blogPostId: entityIdField.optional(),
   // Category names (canonicalized to Title Case by the field transform).
   categories: categoryNamesField.optional(),
+  // Optional page title for link-only posts (e.g. YouTube). When content is
+  // effectively a bare URL, the slug is derived from this title instead of the
+  // `https://...` string. Cosmetic only, so no trust boundary — re-slugified.
+  linkTitle: linkTitleField,
 }).refine(
   (data) => data.content || data.media.length > 0 || data.blogPostId,
 );
@@ -257,6 +264,7 @@ export const updatePostSchema = z.object({
   blogPostId: entityIdField.nullish(),
   // Undefined leaves categories alone; null or [] clears them.
   categories: categoryNamesField.nullish(),
+  linkTitle: linkTitleField.nullish(),
 }).refine(
   (data) => {
     // Linking an article counts as content: text/media may be cleared then.
@@ -517,6 +525,61 @@ export function derivePostSlug(content: string | null | undefined, maxLength: nu
 // ("My Custom Slug!") stores URL-safe ("my-custom-slug").
 export function deriveBlogSlug(title: string | null | undefined): string | undefined {
   return derivePostSlug(title, BLOG_SLUG_MAX_LENGTH);
+}
+
+// Returns content with all http(s) URLs removed (tokens from autolink).
+// Used so a bare URL never becomes a `https-www-...` slug.
+export function stripUrlsFromContent(content: string): string {
+  const tokens = tokenizeUrls(content);
+  return tokens
+    .filter((t) => t.type === "text")
+    .map((t) => t.value)
+    .join("");
+}
+
+// True when content contains at least one URL and nothing else after
+// stripping URLs (trimmed). e.g. "https://youtu.be/xxx" or
+// "  https://example.com \n https://other.com  " -> true; mixed text -> false.
+export function isUrlOnlyContent(content: string | null | undefined): boolean {
+  if (!content) return false;
+  const tokens = tokenizeUrls(content);
+  const hasUrl = tokens.some((t) => t.type === "url");
+  if (!hasUrl) return false;
+  const stripped = stripUrlsFromContent(content);
+  return stripped.trim() === "";
+}
+
+// Derive a post slug preferring human text. Rules:
+// - For URL-only posts with a supplied linkTitle, slug from linkTitle.
+// - Otherwise slug from content stripped of URLs.
+// - Fallback to linkTitle when stripped content yields nothing.
+// Avoids `https-www-youtube-com-...` slugs while preserving meaningful text
+// for mixed posts (`Hello https://... world` -> `hello-world`).
+export function derivePostSlugFromContent(
+  content: string | null | undefined,
+  linkTitle?: string | null | undefined,
+  maxLength: number = POST_SLUG_MAX_LENGTH,
+): string | undefined {
+  const trimmedTitle = linkTitle?.trim() || undefined;
+  const isUrlOnly = isUrlOnlyContent(content ?? undefined);
+
+  if (isUrlOnly && trimmedTitle) {
+    const fromTitle = derivePostSlug(trimmedTitle, maxLength);
+    if (fromTitle) return fromTitle;
+  }
+
+  const stripped = content ? stripUrlsFromContent(content) : "";
+  const fromStripped = derivePostSlug(stripped, maxLength);
+  if (fromStripped) return fromStripped;
+
+  if (trimmedTitle) {
+    const fromTitle = derivePostSlug(trimmedTitle, maxLength);
+    if (fromTitle) return fromTitle;
+  }
+
+  // For URL-only with unreadable title, return undefined (stored as null)
+  // rather than a garbage `https-...` slug.
+  return undefined;
 }
 
 // Checks whether `name` contains all words from the brand name (case-insensitive).

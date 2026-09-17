@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect, forwardRef, useImperativeHandle } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -27,7 +27,9 @@ import {
   MAX_TOTAL_UPLOAD_SIZE_BYTES,
   maxUploadSizeForContentType,
   getAcceptString,
+  isUrlOnlyContent,
 } from "@/lib/validation";
+import { getFirstUrl } from "@/lib/autolink";
 
 interface MediaItem {
   id: string;
@@ -129,6 +131,34 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
     () => mediaItems.reduce((sum, item) => sum + (item.file?.size ?? 0), 0),
     [mediaItems],
   );
+
+  // For URL-only posts, capture the link's page title to derive a meaningful
+  // slug (e.g. YouTube title) instead of `https-www-youtube-...`. Debounced
+  // so typing doesn't hammer the preview endpoint. Mirrors LinkPreview's
+  // 400ms debounce and rate-limit friendly behaviour.
+  const [linkPreviewTitle, setLinkPreviewTitle] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isUrlOnlyContent(content)) {
+      setLinkPreviewTitle(null);
+      return;
+    }
+    const url = getFirstUrl(content);
+    if (!url) {
+      setLinkPreviewTitle(null);
+      return;
+    }
+    const id = setTimeout(() => {
+      fetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          const title = data?.preview?.title as string | undefined;
+          setLinkPreviewTitle(title?.trim() || null);
+        })
+        .catch(() => setLinkPreviewTitle(null));
+    }, 400);
+    return () => clearTimeout(id);
+  }, [content]);
 
   useImperativeHandle(ref, () => ({
     getValues: () => ({
@@ -286,6 +316,8 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
         // Edit always sends the set (possibly empty = cleared); create omits
         // it when untouched so the schema default applies.
         categories: mode === "edit" ? categories : (categories.length > 0 ? categories : undefined),
+        // Slug hint for URL-only posts: a human title instead of `https-...`.
+        linkTitle: isUrlOnlyContent(trimmed) && linkPreviewTitle ? linkPreviewTitle : undefined,
       };
 
       const res = await fetch(url, {
