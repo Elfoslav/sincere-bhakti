@@ -9,7 +9,15 @@ import { blogPostInclude, toBlogPostResponse, type BlogPostResponse } from "@/li
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
 import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translation";
 import { generateShortId } from "@/lib/id";
-import { derivePostSlug, normalizeCategoryName } from "@/lib/validation";
+import {
+  derivePostSlugFromContent,
+  isUrlOnlyContent,
+  normalizeCategoryName,
+} from "@/lib/validation";
+import { getFirstUrl } from "@/lib/autolink";
+import { parseYouTubeUrl } from "@/lib/video";
+import { parseLinkPreview } from "@/lib/link-preview";
+import { fetchRemoteBytes } from "@/lib/remote-fetch";
 import { resolveCategoryIds, setPostCategories } from "@/lib/services/category";
 import { resolveFeedScopeWhere } from "@/lib/services/feed-scope";
 import { ERROR_POST_ID_COLLISION } from "@/lib/error-messages";
@@ -89,6 +97,7 @@ export interface CreatePostData {
   channelId?: string;
   blogPostId?: string;
   categories?: string[];
+  linkTitle?: string;
 }
 
 export interface UpdatePostData {
@@ -100,6 +109,7 @@ export interface UpdatePostData {
   blogPostId?: string | null;
   // Undefined leaves categories alone; null or [] clears them.
   categories?: string[] | null;
+  linkTitle?: string | null;
 }
 
 const postInclude = {
@@ -339,12 +349,51 @@ async function validateBlogLink(blogPostId: string, channelId: string): Promise<
   if (blog.channelId !== channelId) throw new ValidationError("blog_channel_mismatch");
 }
 
+// Best-effort server-side title resolver for URL-only posts when the client
+// didn't supply `linkTitle` (e.g. API clients). Only triggered for url-only
+// content. Uses guarded fetch with a short timeout so post creation never
+// blocks long on a slow upstream.
+async function fetchLinkTitleForContent(
+  content: string | null | undefined,
+  supplied: string | null | undefined,
+): Promise<string | undefined> {
+  const trimmedSupplied = supplied?.trim();
+  if (trimmedSupplied) return trimmedSupplied;
+  if (!content || !isUrlOnlyContent(content)) return undefined;
+  const url = getFirstUrl(content);
+  if (!url) return undefined;
+
+  // YouTube oEmbed is lighter and more reliable than scraping watch pages
+  // (which often require consent walls for bots).
+  if (parseYouTubeUrl(url)) {
+    try {
+      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+      const fetched = await fetchRemoteBytes(oembedUrl, { maxBytes: 16 * 1024, timeoutMs: 1500 });
+      if (fetched) {
+        const json = JSON.parse(fetched.bytes.toString("utf8")) as { title?: string };
+        if (json.title?.trim()) return json.title.trim();
+      }
+    } catch {
+      // fall through to OG fetch
+    }
+  }
+
+  try {
+    const fetched = await fetchRemoteBytes(url, { maxBytes: 512 * 1024, timeoutMs: 1500 });
+    if (!fetched) return undefined;
+    const preview = parseLinkPreview(fetched.bytes.toString("utf8"), fetched.finalUrl ?? url);
+    return preview.title ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function createPost(
   data: CreatePostData,
   userId: string,
   requestLanguage?: string,
 ): Promise<PostResponse> {
-  const { id, content, media = [], isPublic = true, language = "en", publishedAt, channelId, blogPostId, categories } = data;
+  const { id, content, media = [], isPublic = true, language = "en", publishedAt, channelId, blogPostId, categories, linkTitle } = data;
   await validateMediaOwnership(media, userId);
 
   if (!channelId) throw new ValidationError("channel_required");
@@ -368,6 +417,7 @@ export async function createPost(
   if (blogPostId) await validateBlogLink(blogPostId, channelId);
 
   const categoryIds = categories ? await resolveCategoryIds(prisma, categories, language) : [];
+  const resolvedLinkTitle = await fetchLinkTitleForContent(content, linkTitle);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let rawPost: any;
@@ -381,7 +431,7 @@ export async function createPost(
         data: {
           ...(id ? { id } : {}),
           shortId: generateShortId(),
-          slug: derivePostSlug(content),
+          slug: derivePostSlugFromContent(content, resolvedLinkTitle),
           content: content || null,
           isPublic,
           language,
@@ -475,14 +525,14 @@ export async function updatePost(
 ): Promise<PostResponse> {
   const existing = await prisma.post.findUnique({
     where: { id },
-    select: { language: true, media: { select: { url: true } }, channel: { select: { id: true, ownerId: true } } },
+    select: { language: true, content: true, media: { select: { url: true } }, channel: { select: { id: true, ownerId: true } } },
   });
   if (!existing) throw new NotFoundError();
   if (existing.channel.ownerId !== userId && !await isChannelEditor(existing.channel.id, userId)) {
     throw new NotFoundError();
   }
 
-  const { media, categories, ...rest } = data;
+  const { media, categories, linkTitle, ...rest } = data;
   if (media !== undefined) {
     await validateMediaOwnership(media, userId, existing.media.map((m) => m.url));
   }
@@ -491,10 +541,16 @@ export async function updatePost(
   }
 
   const postData: Prisma.PostUpdateManyMutationInput = { ...rest };
-  if (rest.content !== undefined) {
-    // Recompute the slug whenever content changes; clear it (null) when the new
-    // content has no slug-able characters.
-    postData.slug = derivePostSlug(rest.content) ?? null;
+  // Recompute slug when content changes (or when a linkTitle is supplied
+  // for a URL-only post without content change). Otherwise leave slug as-is.
+  if (rest.content !== undefined || linkTitle !== undefined) {
+    const slugContent = rest.content !== undefined ? rest.content : existing.content;
+    const resolvedTitle = await fetchLinkTitleForContent(slugContent, linkTitle ?? undefined);
+    postData.slug = derivePostSlugFromContent(slugContent, resolvedTitle) ?? null;
+    // linkTitle-only updates must not touch the content column.
+    if (rest.content === undefined) {
+      delete (postData as Record<string, unknown>).content;
+    }
   }
 
   const ownershipFilter: Prisma.PostWhereInput = {
