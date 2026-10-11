@@ -12,6 +12,9 @@ import {
   getPostOpenGraphImageUrl,
   getPostSeoDescription,
   getPostSeoTitle,
+  getAlbumOpenGraphImageUrl,
+  getAlbumSeoDescription,
+  getAlbumSeoTitle,
   normalizeSeoText,
   truncateSeoText,
 } from "@/lib/seo";
@@ -119,5 +122,13 @@ describe("seo helpers", () => {
         },
       },
     });
+  });
+
+  it("builds album titles and descriptions", () => {
+    expect(getAlbumSeoTitle("Devotees", " Festival 2026 ")).toBe("Devotees: Festival 2026");
+    expect(getAlbumSeoDescription("Devotees", null)).toBe("A photo album from Devotees.");
+    expect(getAlbumOpenGraphImageUrl("en", "abc12345")).toBe(
+      "https://example.test/gallery/abc12345/opengraph-image",
+    );
   });
 });

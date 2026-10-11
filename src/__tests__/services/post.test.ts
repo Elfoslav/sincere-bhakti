@@ -18,6 +18,10 @@ vi.mock("@/lib/prisma", () => ({
       // Orphan detection: defaults to "nothing else references these URLs".
       findMany: vi.fn(() => Promise.resolve([])),
     },
+    albumItem: {
+      // Cross-table media checks (shared R2 namespace with albums).
+      findMany: vi.fn(() => Promise.resolve([])),
+    },
     channel: {
       findUnique: vi.fn(),
       findMany: vi.fn(),
@@ -28,6 +32,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     blogPost: {
       findUnique: vi.fn(),
+      findMany: vi.fn(() => Promise.resolve([])),
     },
     category: {
       upsert: vi.fn(),

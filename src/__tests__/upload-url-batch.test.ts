@@ -72,7 +72,7 @@ describe("POST /api/upload-url/batch", () => {
     expect(json.error).toContain("files");
   });
 
-  it("returns 400 when files exceed max of 10", async () => {
+  it("returns 400 when non-gallery files exceed max of 10", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
 
     const files = Array.from({ length: 11 }, (_, i) => ({
@@ -260,5 +260,45 @@ describe("POST /api/upload-url/batch", () => {
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("failed_to_generate_upload_urls");
+  });
+
+  it("accepts more than 10 files for the gallery folder", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
+    vi.mocked(createUploadUrl).mockImplementation(async (fileName: string) => ({
+      uploadUrl: `https://r2.example.com/${fileName}`,
+      publicUrl: `https://pub.r2.dev/gallery/post-1/${fileName}`,
+      key: `gallery/post-1/${fileName}`,
+    }));
+
+    const files = Array.from({ length: 11 }, (_, i) => ({
+      fileName: `photo-${i}.jpg`,
+      contentType: "image/jpeg",
+      size: 1024,
+    }));
+    const res = await POST(
+      mockRequest({ postId: "11111111-1111-4111-8111-111111111111", folder: "gallery", files }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.urls).toHaveLength(11);
+  });
+
+  it("rejects a gallery batch over the 2 GB cap", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1", emailVerifiedAt: "2026-01-01T00:00:00.000Z" } } as any);
+
+    const files = Array.from({ length: 5 }, (_, i) => ({
+      fileName: `video-${i}.mp4`,
+      contentType: "video/mp4",
+      size: 500 * 1024 * 1024, // 500 MB each, 2.5 GB total > 2 GB
+    }));
+    const res = await POST(
+      mockRequest({ postId: "11111111-1111-4111-8111-111111111111", folder: "gallery", files }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("total_size");
+    expect(createUploadUrl).not.toHaveBeenCalled();
   });
 });

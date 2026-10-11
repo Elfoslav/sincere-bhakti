@@ -79,6 +79,18 @@ export const RATE_LIMITS = {
   searchCategories: { limit: 30, windowMs: 60_000 },
   // Category creation: 20 per hour per user
   createCategory: { limit: 20, windowMs: 3_600_000 },
+  // Album creation: 20 per hour per user
+  createAlbum: { limit: 20, windowMs: 3_600_000 },
+  // Album update: 30 per hour per user
+  updateAlbum: { limit: 30, windowMs: 3_600_000 },
+  // Album deletion: 30 per hour per user
+  deleteAlbum: { limit: 30, windowMs: 3_600_000 },
+  // Read albums: 120 requests per 60s per IP (2 req/s average)
+  readAlbums: { limit: 120, windowMs: 60_000 },
+  // Read single album by id: 120 requests per 60s per IP
+  readAlbumDetail: { limit: 120, windowMs: 60_000 },
+  // Read album Open Graph images: 240 requests per 60s per IP
+  readAlbumOgImage: { limit: 240, windowMs: 60_000 },
 } as const;
 
 // Rate-limit key prefixes — shared across API routes and SSR pages so every
@@ -121,6 +133,12 @@ export const RATE_LIMIT_PREFIX = {
   readLinkPreviewImage: "read-link-preview-image",
   searchCategories: "search-categories",
   createCategory: "create-category",
+  createAlbum: "create-album",
+  updateAlbum: "update-album",
+  deleteAlbum: "delete-album",
+  readAlbums: "read-albums",
+  readAlbumDetail: "read-album-detail",
+  readAlbumOgImage: "read-album-og-image",
 } as const;
 
 const CLEANUP_INTERVAL = 60_000;

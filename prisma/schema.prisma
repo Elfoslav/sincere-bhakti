@@ -25,6 +25,7 @@ model User {
   channels        Channel[]       @relation("ChannelOwner")
   editors         ChannelEditor[]
   media           Media[]
+  albumItems      AlbumItem[]
   pendingUploads  PendingUpload[]
   verificationTokens VerificationToken[]
 }
@@ -54,6 +55,7 @@ model Channel {
   owner    User              @relation("ChannelOwner", fields: [ownerId], references: [id])
   posts    Post[]
   blogPosts BlogPost[]
+  albums   Album[]
   editors  ChannelEditor[]
   slugHistory     ChannelSlugHistory[]
   translations    ChannelTranslation[]
@@ -228,6 +230,48 @@ model Media {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([postId])
+  @@index([userId])
+}
+
+// Gallery albums: photo/video collections owned by a channel. Media lives
+// in R2 under `gallery/<albumId>/` (see uploadFolderField) and is tracked
+// in AlbumItem so removes/reorders are explicit row writes — never orphaned
+// by URL string matching across posts.
+model Album {
+  id          String      @id @default(cuid())
+  shortId     String      @unique
+  title       String
+  slug        String?
+  description String?
+  coverUrl    String?
+  isPublic    Boolean     @default(true)
+  language    String      @default("en")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  channelId   String
+  channel     Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  items       AlbumItem[]
+
+  @@index([channelId])
+  @@index([isPublic, createdAt])
+  @@index([language, isPublic, createdAt])
+  @@index([createdAt, id])
+}
+
+model AlbumItem {
+  id        String   @id @default(cuid())
+  url       String
+  type      String   // "image" | "video"
+  position  Int      @default(0)
+  width     Int?
+  height    Int?
+  createdAt DateTime @default(now())
+  albumId   String
+  album     Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([albumId])
   @@index([userId])
 }
 
