@@ -215,7 +215,7 @@ export default function RegisterPage() {
               autoComplete="new-password"
               required
               minLength={PASSWORD_MIN_LENGTH}
-              placeholder={t("passwordPlaceholder")}
+              placeholder={t("passwordPlaceholder", { min: PASSWORD_MIN_LENGTH })}
               onBlur={handleBlur("password")}
               onChange={() => errors.password && setErrors((prev) => ({ ...prev, password: null }))}
             />
