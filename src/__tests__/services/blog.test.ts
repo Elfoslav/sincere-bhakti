@@ -18,6 +18,7 @@ vi.mock("@/lib/prisma", () => {
       // Cross-table orphan checks (shared R2 namespace with posts).
       findMany: vi.fn(() => Promise.resolve([])),
     },
+    album: { findMany: vi.fn(() => Promise.resolve([])) },
     albumItem: {
       // Cross-table orphan checks (shared R2 namespace with albums).
       findMany: vi.fn(() => Promise.resolve([])),

@@ -4,6 +4,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     media: { findMany: vi.fn() },
     albumItem: { findMany: vi.fn() },
+    album: { findMany: vi.fn() },
     blogPost: { findMany: vi.fn() },
   },
 }));
@@ -18,6 +19,7 @@ describe("filterOrphanedMediaUrls", () => {
     vi.clearAllMocks();
     vi.mocked(prisma.media.findMany).mockResolvedValue([]);
     vi.mocked(prisma.albumItem.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.album.findMany).mockResolvedValue([]);
     vi.mocked(prisma.blogPost.findMany).mockResolvedValue([]);
   });
 
@@ -56,6 +58,14 @@ describe("filterOrphanedMediaUrls", () => {
     const result = await filterOrphanedMediaUrls(["https://pub.r2.dev/blog/b/cover.jpg"]);
 
     expect(result).toEqual([]);
+  });
+
+  it("keeps URLs still used solely as an album cover", async () => {
+    vi.mocked(prisma.album.findMany).mockResolvedValue([{ coverUrl: "https://pub.r2.dev/gallery/a/cover.jpg" }] as never);
+    expect(await filterOrphanedMediaUrls(["https://pub.r2.dev/gallery/a/cover.jpg"])).toEqual([]);
+    expect(prisma.album.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { coverUrl: { in: ["https://pub.r2.dev/gallery/a/cover.jpg"] } },
+    }));
   });
 
   it("matches URLs ignoring query fragments", async () => {

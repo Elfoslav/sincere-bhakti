@@ -74,19 +74,15 @@ export default async function AlbumPage({
 
   const [session] = await Promise.all([auth()]);
 
-  // eslint-disable-next-line prefer-const
   let album = await getCachedAlbumByShortId(shortId, locale);
 
   // Backward compatibility: if not found by shortId, try by full ID and redirect
-  if (!album) {
-    const oldAlbum = await getCachedAlbumById(shortId, locale);
-    if (oldAlbum) {
-      redirect(getLocalizedPath(oldAlbum.language, getAlbumUrl(oldAlbum.shortId, oldAlbum.slug)));
-    }
-  }
+  const legacyId = !album;
+  if (legacyId) album = await getCachedAlbumById(shortId, locale);
 
   if (!album) notFound();
   if (!album.isPublic && (!session?.user?.id || !await canAuthorChannel(album.channel.id, session.user.id))) notFound();
+  if (legacyId) redirect(getLocalizedPath(album.language, getAlbumUrl(album.shortId, album.slug)));
 
   // Canonical slug enforcement: looked up by permanent shortId, so a stale
   // slug segment still resolves here — redirect it to the current slug.

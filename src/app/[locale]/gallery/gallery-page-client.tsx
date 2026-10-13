@@ -109,11 +109,9 @@ export default function GalleryPageClient({
         </div>
       );
     }
-    if (items.length === 0) {
-      return <Card><p className="text-deep/60 text-sm">{t(emptyKey)}</p></Card>;
-    }
     return (
       <div className="space-y-4">
+        {items.length === 0 && <Card><p className="text-deep/60 text-sm">{t(emptyKey)}</p></Card>}
         {items.map((album) => (
           <AlbumCard
             key={album.id}

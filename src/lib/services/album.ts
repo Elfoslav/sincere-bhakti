@@ -136,7 +136,7 @@ export async function getAlbums(
   if (language) where.language = language;
 
   // Same visibility semantics as posts/blog: strangers see public rows only.
-  Object.assign(where, await resolveFeedScopeWhere({ scope, channelId, currentUserId }, now));
+  Object.assign(where, await resolveFeedScopeWhere({ scope, channelId, currentUserId, supportsScheduling: false }, now));
 
   const albums = await prisma.album.findMany({
     take: limit + 1,
@@ -230,10 +230,36 @@ async function validateAlbumMediaOwnership(
     select: { key: true, userId: true },
   });
   const pendingMap = new Map(pending.map((p) => [p.key, p.userId]));
+  // Covers have no media-owner row after their upload claim is consumed.
+  // Reuse requires authorship of a channel that already references the URL.
+  const urls = storageUrls.map((s) => canonicalizeUrl(s.item.url));
+  const coverQuery = {
+    where: {
+      coverUrl: { in: urls },
+      channel: { OR: [
+        { ownerId: userId },
+        { editors: { some: { userId, role: { in: [...CHANNEL_AUTHOR_ROLES] } } } },
+      ] },
+    },
+    select: { coverUrl: true },
+    distinct: ["coverUrl" as const],
+    take: media.length,
+  };
+  const [albumCovers, blogCovers] = await Promise.all([
+    prisma.album.findMany(coverQuery),
+    prisma.blogPost.findMany(coverQuery),
+  ]);
+  const ownedCovers = new Set([...albumCovers, ...blogCovers]
+    .map((cover) => cover.coverUrl).filter((url): url is string => url !== null).map(canonicalizeUrl));
   for (const { item, key } of storageUrls) {
-    if (allowed.has(canonicalizeUrl(item.url))) continue;
+    const url = canonicalizeUrl(item.url);
+    if (allowed.has(url)) continue;
     const ownerId = pendingMap.get(key);
     if (ownerId && ownerId !== userId) {
+      throw new ForbiddenError("media_not_owned");
+    }
+    const ownsMedia = claimed.some((r) => canonicalizeUrl(r.url) === url && r.userId === userId);
+    if (ownerId !== userId && !ownsMedia && !ownedCovers.has(url)) {
       throw new ForbiddenError("media_not_owned");
     }
   }
@@ -314,7 +340,7 @@ export async function createAlbum(
     }
   }
 
-  await deletePendingUploads(media.map((m) => m.url));
+  await deletePendingUploads([...media.map((m) => m.url), ...(coverUrl ? [coverUrl] : [])]);
 
   return toAlbumResponse(rawAlbum, requestLanguage ?? "en") as AlbumResponse;
 }
@@ -446,8 +472,8 @@ export async function updateAlbum(
     return updated;
   });
 
-  if (media !== undefined) {
-    await deletePendingUploads(media.map((m) => m.url));
+  if (media !== undefined || coverUrl) {
+    await deletePendingUploads([...(media ?? []).map((m) => m.url), ...(coverUrl ? [coverUrl] : [])]);
   }
 
   // Sweep R2 files the album no longer links: removed items plus a replaced

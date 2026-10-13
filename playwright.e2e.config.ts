@@ -41,7 +41,7 @@ export default defineConfig({
     env: {
       PORT: String(TEST_PORT),
       DATABASE_URL: TEST_DATABASE_URL,
-      NEXTAUTH_SECRET: "sincere-bhakti-test-secret",
+      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ?? "",
       NEXTAUTH_URL: `http://localhost:${TEST_PORT}`,
       R2_ENDPOINT: "",
       R2_ACCESS_KEY_ID: "",
