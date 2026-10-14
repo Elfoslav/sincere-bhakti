@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { cleanupUsersByEmail, createUserWithPersonalChannel, loginViaUi, uniqueE2EEmail, TEST_PASSWORD } from "./helpers";
+import messages from "../messages/en.json";
+import { PASSWORD_MIN_LENGTH } from "../src/lib/validation";
 
 async function openRegisterForm(page: Page) {
   for (const path of ["/register", "/en/register", "/register"]) {
@@ -26,12 +28,12 @@ test("user can register", async ({ page }) => {
   try {
     await (await openRegisterForm(page)).fill(name);
     await page.getByPlaceholder("your@email.com").fill(email);
-    await page.getByPlaceholder("At least 6 characters").fill(TEST_PASSWORD);
+    await page.getByPlaceholder(messages.Auth.register.passwordPlaceholder.replace("{min}", String(PASSWORD_MIN_LENGTH))).fill(TEST_PASSWORD);
     await page.getByRole("checkbox").check();
-    await page.getByRole("button", { name: "Create Account" }).click();
+    await page.getByRole("button", { name: messages.Auth.register.button }).click();
 
     await page.waitForURL("**/login?registered=true");
-    await expect(page.getByText("Account created successfully")).toBeVisible();
+    await expect(page.getByText(messages.Auth.login.registeredVerify)).toBeVisible();
   } finally {
     await page.close();
     await cleanupUsersByEmail([email]);

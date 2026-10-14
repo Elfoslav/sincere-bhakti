@@ -108,7 +108,7 @@ export default function ResetPasswordPage() {
               autoComplete="new-password"
               required
               minLength={PASSWORD_MIN_LENGTH}
-              placeholder={t("passwordPlaceholder")}
+              placeholder={t("passwordPlaceholder", { min: PASSWORD_MIN_LENGTH })}
               value={password}
               onChange={(e) => { setPassword(e.target.value); setError(""); }}
             />

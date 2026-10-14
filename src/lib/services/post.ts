@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
+import { filterOrphanedMediaUrls } from "@/lib/services/media-refs";
 import { deletePendingUploads } from "@/lib/pending-upload";
 import { canonicalizeUrl } from "@/lib/url";
 import { isChannelEditor } from "@/lib/services/channel";
@@ -298,17 +299,26 @@ async function validateMediaOwnership(
   }
   if (storageUrls.length === 0) return;
 
-  // Check existing media in DB — if a record exists with a different userId, reject
+  // Check existing media in DB — if a record exists with a different userId, reject.
+  // Album items share the R2 namespace, so a photo already used in someone
+  // else's album can't be claimed by a post either (and vice versa).
   const allowed = new Set(allowedUrls.map(canonicalizeUrl));
-  const existing = await prisma.media.findMany({
-    where: { url: { in: storageUrls.map((s) => canonicalizeUrl(s.item.url)) } },
-    select: { url: true, userId: true },
-  });
+  const [existing, existingAlbums] = await Promise.all([
+    prisma.media.findMany({
+      where: { url: { in: storageUrls.map((s) => canonicalizeUrl(s.item.url)) } },
+      select: { url: true, userId: true },
+    }),
+    prisma.albumItem.findMany({
+      where: { url: { in: storageUrls.map((s) => canonicalizeUrl(s.item.url)) } },
+      select: { url: true, userId: true },
+    }),
+  ]);
+  const claimed = [...existing, ...existingAlbums];
 
   for (const { item } of storageUrls) {
     const url = canonicalizeUrl(item.url);
     if (allowed.has(url)) continue;
-    const record = existing.find((r) => canonicalizeUrl(r.url) === url);
+    const record = claimed.find((r) => canonicalizeUrl(r.url) === url);
     if (record && record.userId !== userId) {
       throw new ForbiddenError("media_not_owned");
     }
@@ -491,7 +501,7 @@ export async function deletePost(
 
   const urls = post.media.map((m) => canonicalizeUrl(m.url));
 
-  const orphaned = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     await tx.post.deleteMany({
       where: {
         id,
@@ -501,19 +511,12 @@ export async function deletePost(
         ],
       },
     });
-    // One query instead of one count per URL: any URL still present in Media
-    // is referenced by another post and must not be deleted from storage.
-    const stillReferenced = await tx.media.findMany({
-      where: { url: { in: urls } },
-      select: { url: true },
-      distinct: ["url"],
-    });
-    const referenced = new Set(stillReferenced.map((m) => m.url));
-    return urls.filter((url) => !referenced.has(url));
   });
 
-  if (orphaned.length > 0) {
-    await deleteMediaFiles(orphaned);
+  // Delete R2 files only when no post, album, or blog cover references them
+  // anymore — the helper runs after commit so it sees the final state.
+  if (urls.length > 0) {
+    await deleteMediaFiles(await filterOrphanedMediaUrls(urls));
   }
 }
 
@@ -618,14 +621,9 @@ export async function updatePost(
         (old) => !media.some((m) => canonicalizeUrl(m.url) === canonicalizeUrl(old.url)),
       )
       .map((m) => canonicalizeUrl(m.url));
-    // One query instead of one count per URL (see deletePost).
-    const stillReferenced = await prisma.media.findMany({
-      where: { url: { in: removed } },
-      select: { url: true },
-      distinct: ["url"],
-    });
-    const referenced = new Set(stillReferenced.map((m) => m.url));
-    const orphaned = removed.filter((url) => !referenced.has(url));
+    // Cross-table orphan check (posts, albums, blog covers) — see
+    // filterOrphanedMediaUrls. Runs after the transaction committed.
+    const orphaned = await filterOrphanedMediaUrls(removed);
     await deleteMediaFiles(orphaned);
   }
 

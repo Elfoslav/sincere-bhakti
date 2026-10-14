@@ -1,4 +1,4 @@
-export type ContentKind = "posts" | "blog";
+export type ContentKind = "posts" | "blog" | "gallery";
 
 export function makeContentUrl(kind: ContentKind, shortId: string, slug?: string | null): string {
   return slug ? `/${kind}/${shortId}/${slug}` : `/${kind}/${shortId}`;

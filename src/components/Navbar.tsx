@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
-import { CircleUserRound, Hash, LogIn, LogOut, Newspaper, BookOpen } from "lucide-react";
+import { CircleUserRound, Hash, Images, LogIn, LogOut, Newspaper, BookOpen } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { isAuthenticated } from "@/lib/session";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,9 @@ export default function Navbar() {
 							</Link>
 							<Link href="/blog" className="hover:text-gold-light transition-colors">
 								{t("blog")}
+							</Link>
+							<Link href="/gallery" className="hover:text-gold-light transition-colors">
+								{t("gallery")}
 							</Link>
 							<Link href="/channels" className="hover:text-gold-light transition-colors">
 								{t("channels")}
@@ -132,6 +135,9 @@ export default function Navbar() {
 					</MobileLink>
 					<MobileLink href="/blog" onClick={close} icon={<BookOpen className="size-4" />}>
 						{t("blog")}
+					</MobileLink>
+					<MobileLink href="/gallery" onClick={close} icon={<Images className="size-4" />}>
+						{t("gallery")}
 					</MobileLink>
 					<MobileLink href="/channels" onClick={close} icon={<Hash className="size-4" />}>
 						{t("channels")}

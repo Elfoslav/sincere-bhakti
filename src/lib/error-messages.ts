@@ -23,3 +23,5 @@ export const ERROR_VALIDATION_COVER_UNTRUSTED = "validation_error:coverUrl:untru
 export const ERROR_VALIDATION_MEDIA_UNTRUSTED = "validation_error:media:untrusted_url";
 export const ERROR_VALIDATION_BLOG_EMPTY = "validation_error:blog:empty";
 export const ERROR_VALIDATION_POST_EMPTY = "validation_error:post:empty";
+export const ERROR_VALIDATION_ALBUM_EMPTY = "validation_error:album:empty";
+export const ERROR_ALBUM_ID_COLLISION = "album_id_collision";
