@@ -27,6 +27,8 @@ export const RATE_LIMITS = {
   updateProfile: { limit: 20, windowMs: 3_600_000 },
   // Read posts: 120 requests per 60s per IP (2 req/s average)
   readPosts: { limit: 120, windowMs: 60_000 },
+  // Read privacy policy pages: 120 requests per 60s per IP
+  readPrivacy: { limit: 120, windowMs: 60_000 },
   // Read post Open Graph images: 240 requests per 60s per IP
   readPostOgImage: { limit: 240, windowMs: 60_000 },
   // Read channel by slug: 60 requests per 60s per IP
@@ -88,6 +90,7 @@ export const RATE_LIMIT_PREFIX = {
   register: "register",
   login: "login",
   readPosts: "read-posts",
+  readPrivacy: "read-privacy",
   readPostOgImage: "read-post-og-image",
   createPost: "create-post",
   updatePost: "update-post",

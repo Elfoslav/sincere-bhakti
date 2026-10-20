@@ -19,6 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/blog", changeFrequency: "daily", priority: 0.8 },
     { path: "/channels", changeFrequency: "daily", priority: 0.7 },
     { path: "/terms", changeFrequency: "yearly", priority: 0.2 },
+    { path: "/privacy/krishna-chaitanya-mandir", changeFrequency: "yearly", priority: 0.2 },
   ];
 
   const entries: MetadataRoute.Sitemap = [];

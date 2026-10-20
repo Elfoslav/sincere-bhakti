@@ -444,10 +444,18 @@
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
 		"footerLine2": "Venované učeniu Śrīlu Prabhupādu",
 		"terms": "Podmienky používania",
+		"privacy": "Zásady ochrany osobných údajov",
 		"tooManyRequests": "Robíte to príliš rýchlo. Počkajte prosím chvíľu a skúste to znova.",
 		"renameCountInfo": "Počet premenovaní je obmedzený:",
 		"renameCount": "{count} / {max}",
 		"renameLimitReached": "Dosiahli ste limit premenovania pre tento kanál."
+	},
+	"PrivacyPolicy": {
+		"metaTitle": "Zásady ochrany osobných údajov — Krishna Chaitanya Mandir",
+		"metaDescription": "Informácie o ochrane osobných údajov mobilnej aplikácie Krishna Chaitanya Mandir.",
+		"lastUpdated": "Naposledy aktualizované: {date}",
+		"rateLimited": "Skúste to prosím neskôr.",
+		"backHome": "Späť na úvod"
 	},
 	"ErrorPages": {
 		"backToPosts": "← Späť na príspevky",

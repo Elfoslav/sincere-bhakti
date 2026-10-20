@@ -83,6 +83,12 @@ export default async function LocaleLayout({ children, params }: Props) {
             >
               {commonT("terms")}
             </Link>
+            <Link
+              href="/privacy/krishna-chaitanya-mandir"
+              className="hover:text-gold-light transition-colors order-first sm:absolute sm:left-40 mb-2 sm:mb-0"
+            >
+              {commonT("privacy")}
+            </Link>
             <div className="text-center">
               <p>{commonT("footerLine1", { year: String(new Date().getFullYear()) })}</p>
               <p>{commonT("footerLine2")}</p>

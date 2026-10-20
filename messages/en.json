@@ -445,10 +445,18 @@
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
 		"footerLine2": "Dedicated to the teachings of Śrīla Prabhupāda",
 		"terms": "Terms & Conditions",
+		"privacy": "Privacy Policy",
 		"tooManyRequests": "You're doing that too quickly. Please wait a moment and try again.",
 		"renameCountInfo": "Number of renames is limited:",
 		"renameCount": "{count} / {max}",
 		"renameLimitReached": "You have reached the rename limit for this channel."
+	},
+	"PrivacyPolicy": {
+		"metaTitle": "Privacy Policy — Krishna Chaitanya Mandir",
+		"metaDescription": "Privacy information for the Krishna Chaitanya Mandir mobile application.",
+		"lastUpdated": "Last updated: {date}",
+		"rateLimited": "Please try again later.",
+		"backHome": "Back to home"
 	},
 	"ErrorPages": {
 		"backToPosts": "← Back to posts",
