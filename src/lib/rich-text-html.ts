@@ -3,6 +3,7 @@
 // browser bundle must not carry the sanitizer. Client-safe helpers live in
 // rich-text.ts.
 
+import { getPrivateYouTubeEmbedUrl } from "@/lib/video";
 import sanitizeHtml from "sanitize-html";
 import { escapeHtml, isRichTextJson, legacyTextToDocJson } from "@/lib/rich-text";
 
@@ -10,6 +11,7 @@ import { escapeHtml, isRichTextJson, legacyTextToDocJson } from "@/lib/rich-text
 // bold/italic/strike, links. Everything else is stripped on save (h1
 // included: the article title owns that level, stray h1s collapse to text).
 const RICH_TEXT_ALLOWED_TAGS = [
+  "iframe",
   "p",
   "h2",
   "h3",
@@ -37,10 +39,21 @@ export function sanitizeRichTextHtml(value: string | null | undefined): string |
     allowedTags: RICH_TEXT_ALLOWED_TAGS,
     // transformTags below adds rel/target to links: allow them through so
     // they survive attribute filtering.
-    allowedAttributes: { a: ["href", "rel", "target"] },
+    allowedAttributes: {
+      a: ["href", "rel", "target"],
+      iframe: ["src", "title", "loading", "allow", "allowfullscreen", "referrerpolicy"],
+    },
+    exclusiveFilter: (frame) => frame.tag === "iframe" && !frame.attribs.src,
     // Mirrors isSafeHttpUrl: user links are http(s) only (no javascript:/data:).
     allowedSchemes: ["http", "https"],
     transformTags: {
+      iframe: (tagName, attribs) => ({ tagName, attribs: {
+        src: getPrivateYouTubeEmbedUrl(attribs.src ?? "") ?? "",
+        title: attribs.title ?? "",
+        loading: "lazy", allowfullscreen: "true",
+        allow: "encrypted-media; picture-in-picture; fullscreen",
+        referrerpolicy: "strict-origin-when-cross-origin",
+      } }),
       a: (tagName, attribs) => ({
         tagName,
         attribs: { ...attribs, rel: "noopener", target: "_blank" },

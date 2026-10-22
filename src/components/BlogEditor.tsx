@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { useTranslations } from "next-intl";
 import {
+  Video,
   Bold,
   Italic,
   Strikethrough,
@@ -23,6 +24,7 @@ import { createBlogEditorExtensions } from "@/lib/rich-text-extensions";
 import { extractPlainText, toEditorContent } from "@/lib/rich-text";
 import { BLOG_CONTENT_MAX_LENGTH, isSafeHttpUrl } from "@/lib/validation";
 import { toast } from "sonner";
+import { getPrivateYouTubeEmbedUrl } from "@/lib/video";
 import { cn } from "@/lib/utils";
 
 export interface BlogEditorChange {
@@ -66,6 +68,7 @@ export default function BlogEditor({
     },
   });
 
+  const [videoMode, setVideoMode] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   // Whether the toolbar is currently stuck to the scrollport top. Drives the
@@ -103,6 +106,7 @@ export default function BlogEditor({
 
   function openLinkBar() {
     if (!editor) return;
+    setVideoMode(false);
     setLinkUrl(editor.getAttributes("link").href ?? "");
     setLinkOpen(true);
   }
@@ -111,6 +115,16 @@ export default function BlogEditor({
     if (!editor) return;
     const url = linkUrl.trim();
     if (!url) {
+      setLinkOpen(false);
+      return;
+    }
+    if (videoMode) {
+      const src = getPrivateYouTubeEmbedUrl(url);
+      if (!src) {
+        toast.error(t("invalidYoutubeUrl"));
+        return;
+      }
+      editor.chain().focus().insertContent({ type: "youtube", attrs: { src, title: t("youtubeVideo") } }).run();
       setLinkOpen(false);
       return;
     }
@@ -185,6 +199,11 @@ export default function BlogEditor({
         {tool(editor.isActive("blockquote"), t("formatQuote"), <Quote className="size-4" />, () =>
           editor.chain().focus().toggleBlockquote().run(),
         )}
+        {tool(editor.isActive("youtube"), t("embedYoutube"), <Video className="size-4" />, () => {
+          setVideoMode(true);
+          setLinkUrl("");
+          setLinkOpen(true);
+        })}
         {tool(editor.isActive("link"), t("formatLink"), <Link2 className="size-4" />, openLinkBar)}
         {editor.isActive("link")
           ? tool(false, t("formatUnlink"), <Unlink className="size-4" />, () =>
@@ -207,7 +226,8 @@ export default function BlogEditor({
               }
               if (e.key === "Escape") setLinkOpen(false);
             }}
-            placeholder={t("linkUrlPlaceholder")}
+            aria-label={t(videoMode ? "youtubeUrlPlaceholder" : "linkUrlPlaceholder")}
+            placeholder={t(videoMode ? "youtubeUrlPlaceholder" : "linkUrlPlaceholder")}
             autoComplete="off"
             className="h-8"
           />

@@ -6,6 +6,7 @@ describe("createBlogEditorExtensions", () => {
     const names = createBlogEditorExtensions("Write...").map((ext) => ext.name);
     expect(names).toContain("starterKit");
     expect(names).toContain("placeholder");
+    expect(names).toContain("youtube");
     // Links ship bundled inside StarterKit (a separate Link instance would
     // register a duplicate "link" name): assert the bundled configuration.
     const starterKit = createBlogEditorExtensions("Write...")[0];
@@ -15,6 +16,6 @@ describe("createBlogEditorExtensions", () => {
 
   it("omits the placeholder when none is given", () => {
     const names = createBlogEditorExtensions().map((ext) => ext.name);
-    expect(names).toEqual(["starterKit"]);
+    expect(names).toEqual(["starterKit", "youtube"]);
   });
 });

@@ -1,6 +1,7 @@
 // Pure, DOM-free rich-text helpers. Safe for client bundles (no tiptap or
 // sanitize-html imports here — see rich-text-extensions.ts and
 // rich-text-html.ts for those).
+import { getPrivateYouTubeEmbedUrl } from "@/lib/video";
 import type { JSONContent } from "@tiptap/core";
 
 interface RichTextNode {
@@ -119,4 +120,16 @@ export function escapeHtml(value: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/** Visible text or a supported media block makes a non-empty article body. */
+export function hasRichTextContent(value: string | null | undefined): boolean {
+  if (extractPlainText(value).trim()) return true;
+  const doc = parseRichTextDoc(value);
+  const containsVideo = (node: JSONContent, depth = 0): boolean => {
+    if (depth > MAX_WALK_DEPTH) return false;
+    if (node.type === "youtube" && typeof node.attrs?.src === "string" && getPrivateYouTubeEmbedUrl(node.attrs.src)) return true;
+    return node.content?.some((child) => containsVideo(child, depth + 1)) ?? false;
+  };
+  return doc ? containsVideo(doc) : false;
 }

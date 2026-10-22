@@ -4,6 +4,8 @@ import { useState, useCallback, useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import { Link, useRouter } from "@/i18n/navigation";
+import BlogAnalytics from "@/components/BlogAnalytics";
+import { isBlogPubliclyVisible } from "@/lib/blog";
 import BlogLayout from "@/components/BlogLayout";
 import BlogPostActions from "@/components/BlogPostActions";
 import CategoryChips from "@/components/CategoryChips";
@@ -151,6 +153,7 @@ export default function BlogDetailClient({
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : null}
+      {isBlogPubliclyVisible(displayedPost) && <BlogAnalytics key={displayedPost.id} postId={displayedPost.id} />}
       </article>
       <CategoryChips
         categories={displayedPost.categories}

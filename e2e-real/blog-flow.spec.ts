@@ -19,6 +19,7 @@ test("author publishes a formatted article with a timeline promo", async ({ page
   const bodyText = `E2E article body ${Date.now()}`;
 
   try {
+    await page.route("https://www.youtube-nocookie.com/**", (route) => route.abort());
     await loginViaUi(page, email);
     await page.goto("/blog");
     await expect(page.getByRole("heading", { name: "Blog" })).toBeVisible();
@@ -35,7 +36,13 @@ test("author publishes a formatted article with a timeline promo", async ({ page
     // Stored mark applies to subsequently typed text: wait for the active
     // state so typing cannot race the toggle.
     await expect(boldButton).toHaveClass(/bg-sand/);
-    await page.keyboard.type(bodyText);
+    await expect(editor).toBeFocused();
+    await editor.pressSequentially(bodyText);
+
+    await composer.getByRole("button", { name: "Embed YouTube video" }).click();
+    await composer.getByRole("textbox", { name: "YouTube video URL" }).fill("https://youtu.be/dQw4w9WgXcQ");
+    await composer.getByRole("button", { name: "Apply", exact: true }).click();
+    await expect(editor.locator("iframe")).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
 
     await composer.getByRole("switch", { name: "Publish in posts timeline" }).click();
     await composer.getByRole("button", { name: "Publish", exact: true }).click();
@@ -62,6 +69,9 @@ test("author publishes a formatted article with a timeline promo", async ({ page
     await expect(page).toHaveURL(new RegExp(`/blog/${article!.shortId}`));
     await expect(page.getByRole("main").getByText(excerpt)).toBeVisible();
     await expect(page.getByRole("main").locator("strong", { hasText: bodyText })).toBeVisible();
+    await expect(page.locator("article iframe")).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+    await page.getByRole("button", { name: "Edit article" }).first().click();
+    await expect(page.getByRole("dialog").locator(".tiptap iframe")).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
   } finally {
     await page.close();
     await cleanupUsersByEmail([email]);

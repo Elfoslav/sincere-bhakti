@@ -1,6 +1,39 @@
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import type { Extensions } from "@tiptap/core";
+import { Node, type Extensions } from "@tiptap/core";
+
+import { getPrivateYouTubeEmbedUrl } from "@/lib/video";
+
+const YouTube = Node.create({
+  name: "youtube",
+  group: "block",
+  atom: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      src: { default: null },
+      title: { default: null },
+    };
+  },
+  parseHTML() {
+    return [{
+      tag: "iframe[src]",
+      getAttrs: (element) => {
+        const src = getPrivateYouTubeEmbedUrl(element.getAttribute("src") ?? "");
+        return src ? { src, title: element.getAttribute("title") } : false;
+      },
+    }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    const src = getPrivateYouTubeEmbedUrl(HTMLAttributes.src ?? "");
+    if (!src) return ["p"];
+    return ["iframe", {
+      src, title: HTMLAttributes.title, loading: "lazy", allowfullscreen: "true",
+      allow: "encrypted-media; picture-in-picture; fullscreen",
+      referrerpolicy: "strict-origin-when-cross-origin",
+    }];
+  },
+});
 
 /**
  * The single editor schema for blog articles, shared by the client editor
@@ -18,6 +51,7 @@ export function createBlogEditorExtensions(placeholder?: string): Extensions {
       // would register a duplicate "link" name.
       link: { openOnClick: false, autolink: true, defaultProtocol: "https" },
     }),
+    YouTube,
     ...(placeholder ? [Placeholder.configure({ placeholder })] : []),
   ];
 }

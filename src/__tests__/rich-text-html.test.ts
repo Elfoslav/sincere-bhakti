@@ -73,3 +73,16 @@ describe("convertLegacyArticle", () => {
     expect(convertLegacyArticle(JSON.stringify({ type: "doc", content: [] }))).toBeNull();
   });
 });
+
+describe("YouTube embed sanitization", () => {
+  it("keeps only a canonical privacy-enhanced player and safe attributes, idempotently", () => {
+    const result = sanitizeRichTextHtml('<iframe src="https://youtube.com/watch?v=dQw4w9WgXcQ&amp;autoplay=1" srcdoc="evil" onload="evil()" title="Video"></iframe>');
+    expect(result).toContain('src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"');
+    expect(result).toContain('loading="lazy"');
+    expect(result).not.toMatch(/srcdoc|onload|autoplay/);
+    expect(sanitizeRichTextHtml(result)).toBe(result);
+  });
+  it.each(["https://evil.test/embed/dQw4w9WgXcQ", "javascript:alert(1)", "//youtube.com/embed/dQw4w9WgXcQ", "https://youtube.com.evil.test/embed/dQw4w9WgXcQ"])("removes unsafe iframe %s", (src) => {
+    expect(sanitizeRichTextHtml(`<iframe src="${src}"></iframe>`)).toBeNull();
+  });
+});

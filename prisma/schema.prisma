@@ -244,3 +244,25 @@ model PendingUpload {
   @@index([key])
   @@index([userId])
 }
+
+// Aggregate-only history: resource + day + metric supports future content/events.
+model AnalyticsDaily {
+  resourceType String
+  resourceId   String
+  day          DateTime @db.Date
+  metric       String
+  count        Int      @default(0)
+
+  @@id([resourceType, resourceId, day, metric])
+  @@index([resourceType, resourceId, metric])
+}
+
+// Short-lived keyed hashes only; no raw IP, UA, URL, user id, or browser storage.
+model AnalyticsReceipt {
+  key       String   @id
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  readAt    DateTime?
+
+  @@index([expiresAt])
+}

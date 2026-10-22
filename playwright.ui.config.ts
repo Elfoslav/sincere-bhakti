@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 import "dotenv/config";
 
+if (!process.env.NEXTAUTH_SECRET) throw new Error("NEXTAUTH_SECRET is required for browser tests");
+
 const TEST_PORT = Number(process.env.PLAYWRIGHT_PORT ?? 3099);
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${TEST_PORT}`;
 const useExistingServer = process.env.PLAYWRIGHT_USE_EXISTING_SERVER === "1";
@@ -32,7 +34,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       PORT: String(TEST_PORT),
-      NEXTAUTH_SECRET: "sincere-bhakti-test-secret",
+      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET!,
       NEXTAUTH_URL: `http://localhost:${TEST_PORT}`,
       R2_ENDPOINT: "",
       R2_ACCESS_KEY_ID: "",

@@ -1,18 +1,21 @@
 import { getFirstUrl } from "@/lib/autolink";
 
 export function parseYouTubeUrl(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
+  try {
+    const parsed = new URL(url.trim());
+    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) return null;
+    const host = parsed.hostname;
+    let id: string | null = null;
+    if (host === "youtu.be") id = parsed.pathname.slice(1);
+    if (["youtube.com", "www.youtube.com", "m.youtube.com", "www.youtube-nocookie.com"].includes(host)) {
+      id = parsed.pathname === "/watch"
+        ? parsed.searchParams.get("v")
+        : parsed.pathname.match(/^\/(?:embed|shorts|live)\/([^/]+)$/)?.[1] ?? null;
+    }
+    return id && /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+  } catch {
+    return null;
   }
-
-  return null;
 }
 
 export function getYouTubeEmbedUrl(url: string): string | null {
@@ -32,4 +35,9 @@ export function isStandaloneYouTubeUrl(text: string | null | undefined): boolean
   if (!url) return false;
   if (!getYouTubeEmbedUrl(url)) return false;
   return text.trim() === url;
+}
+/** Canonical privacy-enhanced player URL; never preserve supplied query parameters. */
+export function getPrivateYouTubeEmbedUrl(url: string): string | null {
+  const id = parseYouTubeUrl(url);
+  return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
 }

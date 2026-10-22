@@ -28,7 +28,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.r2.dev https://*.cloudflarestorage.com https://media.sincerebhakti.com",
   "media-src 'self' blob: https://*.r2.dev https://*.cloudflarestorage.com https://media.sincerebhakti.com",
-  "frame-src https://www.youtube.com",
+  "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
   `connect-src 'self' https://*.r2.dev https://*.cloudflarestorage.com https://o4511292367175680.ingest.de.sentry.io ${UMAMI_SCRIPT_HOST} ${UMAMI_API_HOST}`,
   "base-uri 'self'",
   "form-action 'self'",

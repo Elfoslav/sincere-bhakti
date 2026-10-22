@@ -259,6 +259,15 @@
 		"previewTab": "Preview"
 	},
 	"BlogPage": {
+		"embedYoutube": "Embed YouTube video",
+		"youtubeUrlPlaceholder": "YouTube video URL",
+		"invalidYoutubeUrl": "Enter a valid YouTube video URL.",
+		"youtubeVideo": "YouTube video",
+		"views": "{count, plural, one {# view} other {# views}}",
+		"reads": "{count, plural, one {# read} other {# reads}}",
+		"uniqueVisitors": "{count, plural, one {# unique daily visitor} other {# unique daily visitors}}",
+		"analyticsExplanation": "Reads: at least 30 seconds visible and the end of the article reached. Unique visitors are estimated per UTC day and summed across days.",
+
 		"title": "Blog",
 		"subtitle": "Long-form articles from the channels",
 		"metaTitle": "Blog — Sincere Bhakti",

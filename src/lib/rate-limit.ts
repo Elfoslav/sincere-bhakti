@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 const memStore = new Map<string, { count: number; resetAt: number }>();
 
 export const RATE_LIMITS = {
+  // Analytics ingestion: 120 events per 60s per IP
+  writeAnalytics: { limit: 120, windowMs: 60_000 },
+  // Public aggregate counts: 120 requests per 60s per IP
+  readAnalytics: { limit: 120, windowMs: 60_000 },
   // Registration: 20 attempts per hour per IP
   register: { limit: 20, windowMs: 3_600_000 },
   // Login: 15 attempts per 15 minutes per IP
@@ -87,6 +91,8 @@ export const RATE_LIMITS = {
 // caller uses the same string.  These double as the `route` value in the
 // rate_limited warning log.
 export const RATE_LIMIT_PREFIX = {
+  writeAnalytics: "write-analytics",
+  readAnalytics: "read-analytics",
   register: "register",
   login: "login",
   readPosts: "read-posts",

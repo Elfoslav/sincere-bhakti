@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { buildTimelinePostBody, parseDateTimeLocalValue, toDateTimeLocalValue, isBlogDraftDirty, type BlogDraftSnapshot } from "@/lib/blog";
-import { extractPlainText } from "@/lib/rich-text";
+import { hasRichTextContent } from "@/lib/rich-text";
 import { getImageDimensions } from "@/lib/client-media";
 import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
 import { useIdentity } from "@/components/IdentityProvider";
@@ -171,8 +171,8 @@ export default function BlogForm({
   }, [isDirty]);
 
   const isVerified = !!session?.user?.emailVerifiedAt;
-  const contentText = extractPlainText(content).trim();
-  const canSubmit = title.trim().length > 0 && (contentText.length > 0 || excerpt.trim().length > 0);
+  const hasContent = hasRichTextContent(content);
+  const canSubmit = title.trim().length > 0 && (hasContent || excerpt.trim().length > 0);
   // A scheduled (future-dated, public) article yields a scheduled timeline
   // promo with the same date: both go live together, so the promo never
   // appears as an empty public card ahead of the article.
@@ -342,7 +342,7 @@ export default function BlogForm({
       const parsedPublishedAt = parseDateTimeLocalValue(publishedAt);
       // Omitted content keeps the stored body on edit; the HTML twin always
       // travels with the JSON source so the two stay in sync.
-      const resolvedContent = contentText.length > 0 ? content : undefined;
+      const resolvedContent = hasContent ? content : undefined;
       const body: Record<string, unknown> = {
         title: title.trim(),
         // An empty slug omits the field so the server derives it from the

@@ -259,6 +259,15 @@
 		"previewTab": "Náhled"
 	},
 	"BlogPage": {
+		"embedYoutube": "Vložit video z YouTube",
+		"youtubeUrlPlaceholder": "URL videa na YouTube",
+		"invalidYoutubeUrl": "Zadejte platnou URL videa na YouTube.",
+		"youtubeVideo": "Video z YouTube",
+		"views": "{count, plural, one {# zobrazení} few {# zobrazení} other {# zobrazení}}",
+		"reads": "{count, plural, one {# přečtení} few {# přečtení} other {# přečtení}}",
+		"uniqueVisitors": "{count, plural, one {# unikátní denní návštěvník} few {# unikátní denní návštěvníci} other {# unikátních denních návštěvníků}}",
+		"analyticsExplanation": "Přečtení: alespoň 30 sekund zobrazení a dosažení konce článku. Unikátní návštěvníci se odhadují za každý den UTC a sčítají se napříč dny.",
+
 		"title": "Blog",
 		"subtitle": "Delší články z kanálů",
 		"metaTitle": "Blog — Sincere Bhakti",

@@ -1,3 +1,4 @@
+import { ANALYTICS_RESOURCE_TYPES, ANALYTICS_EVENTS } from "@/lib/analytics";
 import { z } from "zod";
 import { locales } from "@/i18n/routing";
 import { extractPlainText } from "@/lib/rich-text";
@@ -609,3 +610,13 @@ export function isBrandNameBlocked(name: string, callerEmail: string | null | un
 export function isNameUnchanged(newName: string, currentName: string): boolean {
   return normalizeName(newName) === normalizeName(currentName);
 }
+
+// Shared analytics ingestion contract; resource visibility is resolved server-side.
+export const analyticsResourceSchema = z.object({
+  resourceType: z.enum(ANALYTICS_RESOURCE_TYPES),
+  resourceId: entityIdField,
+});
+export const analyticsEventSchema = analyticsResourceSchema.extend({
+  event: z.enum(ANALYTICS_EVENTS),
+  visitId: z.string().trim().uuid(),
+});
