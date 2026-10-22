@@ -20,8 +20,8 @@ describe("maxUploadSizeForContentType", () => {
     );
   });
 
-  it("caps videos at 200 MB and images at 10 MB", () => {
-    expect(MAX_VIDEO_SIZE_BYTES).toBe(200 * 1024 * 1024);
+  it("caps videos at 500 MB and images at 10 MB", () => {
+    expect(MAX_VIDEO_SIZE_BYTES).toBe(500 * 1024 * 1024);
     expect(MAX_IMAGE_SIZE_BYTES).toBe(10 * 1024 * 1024);
   });
 });

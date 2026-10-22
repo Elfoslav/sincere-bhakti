@@ -25,3 +25,5 @@ export const ERROR_VALIDATION_BLOG_EMPTY = "validation_error:blog:empty";
 export const ERROR_VALIDATION_POST_EMPTY = "validation_error:post:empty";
 
 export const ERROR_VALIDATION_ANALYTICS_BODY = "validation_error:body:invalid_type";
+export const ERROR_VALIDATION_ALBUM_EMPTY = "validation_error:album:empty";
+export const ERROR_ALBUM_ID_COLLISION = "album_id_collision";

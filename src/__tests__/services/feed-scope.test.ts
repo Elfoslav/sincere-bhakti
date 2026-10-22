@@ -42,6 +42,22 @@ describe("resolveFeedScopeWhere", () => {
     await expect(resolveFeedScopeWhere({ scope: "private" })).rejects.toBeInstanceOf(UnauthorizedError);
   });
 
+  it("filters public albums without scheduling fields", async () => {
+    expect(await resolveFeedScopeWhere({ scope: "public", supportsScheduling: false })).toEqual({ isPublic: true });
+  });
+
+  it("returns own private albums without scheduling fields", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "user-1" } as never);
+    expect(await resolveFeedScopeWhere({ scope: "private", channelId: "channel-1", currentUserId: "user-1", supportsScheduling: false }))
+      .toEqual({ channelId: "channel-1", isPublic: false });
+  });
+
+  it("excludes another channel's private albums in the default scope", async () => {
+    vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as never);
+    expect(await resolveFeedScopeWhere({ channelId: "channel-1", currentUserId: "user-2", supportsScheduling: false }))
+      .toEqual({ channelId: "channel-1", isPublic: true });
+  });
+
   it("rejects the private scope for non-members of the channel", async () => {
     vi.mocked(prisma.channel.findUnique).mockResolvedValue({ ownerId: "owner-1" } as never);
     await expect(

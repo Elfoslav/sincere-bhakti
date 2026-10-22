@@ -102,14 +102,14 @@ describe("sendVerificationEmail", () => {
     await sendVerificationEmail("user@example.com", "tok", "cs");
 
     const cmd = vi.mocked(SendEmailCommand).mock.calls[0][0];
-    expect(cmd.Content?.Simple?.Subject?.Data).toContain("Ověřte svůj e-mail");
+    expect(cmd.Content?.Simple?.Subject?.Data).toContain("Ověř svůj e-mail");
   });
 
   it("uses the correct subject for a Slovak locale", async () => {
     await sendVerificationEmail("user@example.com", "tok", "sk");
 
     const cmd = vi.mocked(SendEmailCommand).mock.calls[0][0];
-    expect(cmd.Content?.Simple?.Subject?.Data).toContain("Overte svoj e-mail");
+    expect(cmd.Content?.Simple?.Subject?.Data).toContain("Over svoj e-mail");
   });
 
   it("uses English subject for an unsupported locale", async () => {

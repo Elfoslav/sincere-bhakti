@@ -28,6 +28,12 @@ export const BLOG_CONTENT_MAX_LENGTH = 20000;
 // separately on the extracted plain text.
 export const BLOG_RAW_CONTENT_MAX_LENGTH = 60000;
 
+// Album field limits. Titles stay short for cards/SEO; descriptions feed
+// list previews and meta descriptions. Slugs share the title's length so a
+// fully slugified title is never truncated.
+export const ALBUM_TITLE_MAX_LENGTH = 100;
+export const ALBUM_SLUG_MAX_LENGTH = ALBUM_TITLE_MAX_LENGTH;
+export const ALBUM_DESCRIPTION_MAX_LENGTH = 2000;
 // Shared feed/picker bounds so SSR fetches, Zod schemas, and client hooks
 // stay in sync instead of hardcoding the same numbers in many places.
 export const FEED_DEFAULT_LIMIT = 10;
@@ -158,10 +164,24 @@ export function getImageAcceptString(): string {
 // Max upload size (bytes), per media type. Enforced client-side before
 // requesting a presigned URL (the file goes browser→R2 directly, so this is
 // a UX guard, not server-side enforcement). Videos use a single presigned
-// PUT; 200 MB is a safe ceiling for that flow — larger files need multipart.
+// PUT (R2 allows up to 5 GiB per PUT); 500 MB fits a ~5-10 min 1080p clip
+// while staying well under the single-PUT ceiling. Larger files need
+// multipart. R2 free tier is 10 GB-month storage, so ~20 full-size videos
+// fill it — beyond that storage is $0.015/GB-month (egress is free).
 export const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-export const MAX_VIDEO_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
-export const MAX_TOTAL_UPLOAD_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB
+export const MAX_VIDEO_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB
+export const MAX_TOTAL_UPLOAD_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB per post/blog batch
+// Gallery albums allow bigger batches: up to 2 GB per batch request so a
+// whole shoot (dozens of compressed photos + a few videos) goes in one go.
+// Still browser→R2 direct PUTs — Vercel only signs URLs (4.5 MB body limit
+// never sees file bytes). 2 GB = ~4 full batches fill the 10 GB free tier.
+export const MAX_GALLERY_BATCH_SIZE_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+// Per-batch file count: posts stay at 10 (feed cards), gallery batches allow
+// up to 50 presigned URLs per request (each PUT is 1 R2 Class A op — 50 ops
+// is negligible against the 1M/month free tier).
+export const MAX_GALLERY_ITEMS_PER_BATCH = 50;
+// Hard ceiling per album across all edits (create + later additions).
+export const MAX_GALLERY_ITEMS_PER_ALBUM = 200;
 
 // Server-side: longest edge capped at 2048px. Client pre-resizes to this
 // so small uploads pass through; server re-resizes anything larger as a
@@ -366,8 +386,9 @@ export const blogPaginationSchema = paginationSchema.omit({ blogPostId: true });
 
 // Top-level R2 folders for direct uploads. Blog covers live under `blog/`
 // so post tooling never mistakes them for timeline-post media (and orphan
-// sweeps can scope by prefix). Allowlisted — never a free-form client string.
-export const uploadFolderField = z.enum(["posts", "blog"]).optional().default("posts");
+// sweeps can scope by prefix). Gallery album media lives under `gallery/`.
+// Allowlisted — never a free-form client string.
+export const uploadFolderField = z.enum(["posts", "blog", "gallery"]).optional().default("posts");
 
 export const uploadUrlSchema = z.object({
   fileName: fileNameField,
@@ -393,8 +414,50 @@ export const batchUploadUrlSchema = z.object({
       }),
     )
     .min(1)
-    .max(MAX_MEDIA_ITEMS_PER_POST),
+    // Gallery batches allow up to 50 files per request; posts/blog callers
+    // are capped back to MAX_MEDIA_ITEMS_PER_POST in the route itself.
+    .max(MAX_GALLERY_ITEMS_PER_BATCH),
 });
+
+// Gallery albums: photo/video collections with a title + optional
+// description. Media caps mirror posts (same R2 trust model) but allow up
+// to MAX_GALLERY_ITEMS_PER_ALBUM items so a whole shoot fits one album —
+// overflow is added later via edit, never auto-suffixed into new albums.
+const albumTitleField = z.string().trim().min(1).max(ALBUM_TITLE_MAX_LENGTH);
+const albumDescriptionField = z.string().trim().max(ALBUM_DESCRIPTION_MAX_LENGTH).optional();
+const albumMediaField = z.array(mediaItemSchema).max(MAX_GALLERY_ITEMS_PER_ALBUM).optional();
+
+export const createAlbumSchema = z.object({
+  id: z.string().regex(uuidRegex).optional(),
+  title: albumTitleField,
+  description: albumDescriptionField,
+  coverUrl: safeUrlField.optional(),
+  channelId: z.string().optional(),
+  media: albumMediaField.default([]),
+  isPublic: z.boolean().default(true),
+  language: z.enum(locales).default("en"),
+}).refine(
+  (data) => data.description || data.media.length > 0,
+);
+
+export const updateAlbumSchema = z.object({
+  title: albumTitleField.optional(),
+  description: z.string().trim().max(ALBUM_DESCRIPTION_MAX_LENGTH).nullish(),
+  coverUrl: safeUrlField.nullish(),
+  media: albumMediaField,
+  isPublic: z.boolean().optional(),
+  language: z.enum(locales).optional(),
+}).refine(
+  (data) => {
+    const clearDescription = data.description === null || data.description === "";
+    const clearMedia = Array.isArray(data.media) && data.media.length === 0;
+    return !(clearDescription && clearMedia);
+  },
+);
+
+// Album feed never filters by promoting post id — same shape as the blog
+// pagination (scope/cursor/limit/channelId/language), no extra params.
+export const albumPaginationSchema = paginationSchema.omit({ blogPostId: true, category: true });
 
 export const updateActiveIdentitySchema = z.object({
   channelId: z.string().min(1),

@@ -6,7 +6,12 @@ beforeAll(() => { process.env.DATABASE_URL = ""; });
 afterAll(() => { process.env.DATABASE_URL = origDbUrl; });
 
 vi.unmock("@/lib/rate-limit");
-vi.mock("@/lib/prisma", () => ({ prisma: { $queryRaw: vi.fn() } }));
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    $queryRaw: vi.fn(),
+    rateLimit: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+  },
+}));
 
 import { prisma } from "@/lib/prisma";
 import { rateLimit, rateLimitKey } from "@/lib/rate-limit";

@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { Pool } from "pg";
+import messages from "../messages/en.json";
 
 export const TEST_PASSWORD = "testpassword123";
 
@@ -107,7 +108,7 @@ export async function loginViaUi(page: Page, email: string, password = TEST_PASS
   await page.goto("/login");
   await page.getByPlaceholder("your@email.com").fill(email);
   await page.getByPlaceholder("••••••••").fill(password);
-  await page.getByRole("button", { name: "Sign In" }).click();
+  await page.getByRole("button", { name: messages.Auth.login.button }).click();
   await page.waitForURL("**/posts");
   await expect(page.getByRole("heading", { name: "Posts" })).toBeVisible();
   await page.waitForLoadState("networkidle");

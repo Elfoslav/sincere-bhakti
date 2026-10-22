@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { deleteMediaFiles, extractKey } from "@/lib/services/upload";
+import { filterOrphanedMediaUrls } from "@/lib/services/media-refs";
 import { deletePendingUploads } from "@/lib/pending-upload";
 import { canonicalizeUrl } from "@/lib/url";
 import { isBlogPubliclyVisible } from "@/lib/blog";
@@ -265,23 +266,13 @@ async function validateCoverOwnership(
 }
 
 /**
- * Delete cover files from R2 that no remaining blog post references. Mirrors
- * the post media orphan check: one query for all URLs instead of one per URL.
+ * Delete cover files from R2 that nothing references anymore. A cover URL
+ * may also be linked from a post or an album (shared R2 namespace), so the
+ * shared cross-table helper decides — never delete on a blog-only check.
  */
 async function deleteOrphanedCovers(urls: string[]): Promise<void> {
-  const canonical = urls.map(canonicalizeUrl);
-  if (canonical.length === 0) return;
-  const stillReferenced = await prisma.blogPost.findMany({
-    where: { coverUrl: { in: canonical } },
-    select: { coverUrl: true },
-  });
-  const referenced = new Set(
-    stillReferenced.map((b) => b.coverUrl).filter((u): u is string => u !== null).map(canonicalizeUrl),
-  );
-  const orphaned = canonical.filter((url) => !referenced.has(url));
-  if (orphaned.length > 0) {
-    await deleteMediaFiles(orphaned);
-  }
+  if (urls.length === 0) return;
+  await deleteMediaFiles(await filterOrphanedMediaUrls(urls));
 }
 
 export async function createBlogPost(

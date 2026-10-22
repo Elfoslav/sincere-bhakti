@@ -152,6 +152,20 @@ export function getChannelOpenGraphImageUrl(locale: string, slug: string): strin
   return getLocalizedUrl(locale, `/channels/${slug}/opengraph-image`);
 }
 
+export function getAlbumOpenGraphImageUrl(locale: string, shortId: string): string {
+  return getLocalizedUrl(locale, `/gallery/${shortId}/opengraph-image`);
+}
+
+export function getAlbumSeoTitle(channelName: string, title: string): string {
+  const trimmed = truncateSeoText(title, 72);
+  return trimmed ? `${channelName}: ${trimmed}` : channelName;
+}
+
+export function getAlbumSeoDescription(channelName: string, description: string | null | undefined): string {
+  const trimmed = truncateSeoText(description, 155);
+  return trimmed || `A photo album from ${channelName}.`;
+}
+
 export function createJsonLdScript(value: Record<string, unknown> | Array<Record<string, unknown>>) {
   return {
     __html: JSON.stringify(value).replace(/</g, "\\u003c"),
