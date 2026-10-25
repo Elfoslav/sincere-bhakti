@@ -147,3 +147,9 @@ export async function disconnectPrisma() {
   await prisma.$disconnect();
   await pool.end();
 }
+
+/** Expands the collapsed create-post composer and fills it. */
+export async function fillComposer(page: Page, content: string) {
+  await page.getByRole("button", { name: messages.PostsPage.composePlaceholder }).click();
+  await page.getByPlaceholder(messages.PostsPage.composePlaceholder).fill(content);
+}

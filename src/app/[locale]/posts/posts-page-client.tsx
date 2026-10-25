@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import PostCard from "@/components/PostCard";
-import PostForm from "@/components/PostForm";
+import CollapsibleComposer from "@/components/CollapsibleComposer";
 import EditPostModal from "@/components/EditPostModal";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
@@ -91,7 +91,7 @@ export default function PostsPageClient({
 
 			<Card variant="default" padding="lg" className="mb-6">
 				{session ? (
-					<PostForm mode="create" onSuccess={handleCreateSuccess} />
+					<CollapsibleComposer onSuccess={handleCreateSuccess} />
 				) : (
 					<p className="text-center text-deep/50 py-8">
 						<Link

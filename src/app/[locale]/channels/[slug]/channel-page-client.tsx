@@ -23,7 +23,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import PostCard from "@/components/PostCard";
-import PostForm from "@/components/PostForm";
+import CollapsibleComposer from "@/components/CollapsibleComposer";
 import EditPostModal from "@/components/EditPostModal";
 import EditBlogModal from "@/components/EditBlogModal";
 import BlogCard from "@/components/BlogCard";
@@ -358,8 +358,7 @@ export default function ChannelPageClient({
 
       {canAuthorChannel && (
         <Card variant="default" padding="lg" className="mb-8">
-          <PostForm
-            mode="create"
+          <CollapsibleComposer
             onSuccess={handleCreateSuccess}
             postingChannel={{ id: channel.id, name: channel.name, avatarUrl: channel.avatarUrl }}
           />

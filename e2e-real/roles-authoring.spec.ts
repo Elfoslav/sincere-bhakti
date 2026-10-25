@@ -3,6 +3,7 @@ import { CHANNEL_ROLE_EDITOR } from "@/lib/channel-roles";
 import {
   cleanupUsersByEmail,
   createUserWithPersonalChannel,
+  fillComposer,
   loginViaUi,
   prisma,
   uniqueE2EEmail,
@@ -37,7 +38,7 @@ test("editor can switch identity, create and edit posts, but cannot open setting
     await expect(page.getByRole("button", { name: `Switch identity: ${ownerName}` })).toBeVisible();
 
     const content = `Editor-created post ${Date.now()}`;
-    await page.getByPlaceholder(/Share your realization/).fill(content);
+    await fillComposer(page, content);
     await page.getByRole("button", { name: "Share" }).click();
     await expect(page.getByText(content).first()).toBeVisible();
 

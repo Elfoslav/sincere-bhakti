@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   cleanupUsersByEmail,
   createUserWithPersonalChannel,
+  fillComposer,
   loginViaUi,
   prisma,
   uniqueE2EEmail,
@@ -16,7 +17,7 @@ test("owner can use crucial authenticated pages with the real database", async (
     await loginViaUi(page, email);
 
     const content = `Real database post ${Date.now()}`;
-    await page.getByPlaceholder(/Share your realization/).fill(content);
+    await fillComposer(page, content);
     await page.getByRole("button", { name: "Share" }).click();
     await expect(page.getByText(content)).toBeVisible();
 
