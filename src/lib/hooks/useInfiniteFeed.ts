@@ -8,6 +8,8 @@ export type FeedParams<T> = {
   pageSize?: number;
   language?: string;
   category?: string;
+  // Free-text search; blank/undefined means unfiltered.
+  search?: string;
   // Server-rendered first page. When provided, the hook seeds state from it and
   // skips the initial client fetch — removing the hydrate→fetch→render waterfall.
   initialData?: { posts: T[]; hasMore: boolean };
@@ -20,7 +22,7 @@ export type FeedParams<T> = {
  * data skip) with one implementation.
  */
 export function useInfiniteFeed<T extends { id: string }>(endpoint: string, params?: FeedParams<T>) {
-  const { scope, channelId, disabled, pageSize = FEED_DEFAULT_LIMIT, language, category, initialData } = params ?? {};
+  const { scope, channelId, disabled, pageSize = FEED_DEFAULT_LIMIT, language, category, search, initialData } = params ?? {};
   const [posts, setPosts] = useState<T[]>(initialData?.posts ?? []);
   const [loading, setLoading] = useState(!disabled && !initialData);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -45,6 +47,7 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
         if (channelId) query.set("channelId", channelId);
         if (language) query.set("language", language);
         if (category) query.set("category", category);
+        if (search) query.set("q", search);
 
         const res = await fetch(`${endpoint}?${query}`);
         if (!res.ok) return null;
@@ -54,7 +57,7 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
         return null;
       }
     },
-    [endpoint, scope, channelId, pageSize, language, category],
+    [endpoint, scope, channelId, pageSize, language, category, search],
   );
 
   useEffect(() => {

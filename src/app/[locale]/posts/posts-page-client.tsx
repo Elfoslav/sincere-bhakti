@@ -13,6 +13,10 @@ import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
 import { useIdentity } from "@/components/IdentityProvider";
 import CategoryFilterBanner from "@/components/CategoryFilterBanner";
+import FeedFilterBar from "@/components/FeedFilterBar";
+import FeedEmptyState from "@/components/FeedEmptyState";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { SEARCH_DEBOUNCE_MS } from "@/lib/validation";
 import type { Post } from "@/types/post";
 
 export default function PostsPageClient({
@@ -27,10 +31,13 @@ export default function PostsPageClient({
 	const locale = useLocale();
 	const t = useTranslations("PostsPage");
 	const [editingPost, setEditingPost] = useState<Post | null>(null);
+	const [searchInput, setSearchInput] = useState("");
+	const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
 	const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef } = useInfinitePosts({
 		scope: "public",
 		language: locale,
 		category,
+		search,
 		initialData: initialPublic,
 	});
 	const {
@@ -44,6 +51,7 @@ export default function PostsPageClient({
 		channelId: activeChannelId ?? undefined,
 		disabled: !session || !activeChannelId,
 		language: locale,
+		search,
 	});
 
 	const myPublicPosts = useMemo(() => myPosts.filter((p) => p.isPublic), [myPosts]);
@@ -89,6 +97,15 @@ export default function PostsPageClient({
 
 		{category ? <CategoryFilterBanner name={category} href="/posts" /> : null}
 
+			<FeedFilterBar
+				search={searchInput}
+				onSearchChange={setSearchInput}
+				searchPlaceholder={t("searchPlaceholder")}
+				basePath="/posts"
+				activeCategory={category}
+				loading={Boolean(search) && loading}
+			/>
+
 			<Card variant="default" padding="lg" className="mb-6">
 				{session ? (
 					<CollapsibleComposer onSuccess={handleCreateSuccess} />
@@ -125,10 +142,7 @@ export default function PostsPageClient({
 								<PostCardSkeleton />
 							</div>
 						) : posts.length === 0 ? (
-							<Card variant="ghost" className="text-center py-12 px-6">
-								<div className="text-4xl mb-3">📿</div>
-								<p className="text-deep/60">{t("emptyPublic")}</p>
-							</Card>
+							<FeedEmptyState search={search} message={t("emptyPublic")} />
 						) : (
 							<div className="space-y-4">
 								{posts.map((post) => (
@@ -165,9 +179,7 @@ export default function PostsPageClient({
 						) : (
 							<div>
 								{myPublicPosts.length === 0 ? (
-									<Card variant="ghost" className="text-center py-8 text-deep/50">
-										{t("emptyMyPublic")}
-									</Card>
+									<FeedEmptyState compact search={search} message={t("emptyMyPublic")} />
 								) : (
 									<div className="space-y-4">
 									{myPublicPosts.map((post) => (
@@ -205,9 +217,7 @@ export default function PostsPageClient({
 						) : (
 							<div>
 								{myPrivatePosts.length === 0 ? (
-									<Card variant="ghost" className="text-center py-8 text-deep/50">
-										{t("emptyMyPrivate")}
-									</Card>
+									<FeedEmptyState compact search={search} message={t("emptyMyPrivate")} />
 								) : (
 									<div className="space-y-4">
 									{myPrivatePosts.map((post) => (
@@ -244,10 +254,7 @@ export default function PostsPageClient({
 							<PostCardSkeleton />
 						</div>
 					) : posts.length === 0 ? (
-						<Card variant="ghost" className="text-center py-12 px-6">
-							<div className="text-4xl mb-3">📿</div>
-							<p className="text-deep/60">{t("emptyPublic")}</p>
-						</Card>
+						<FeedEmptyState search={search} message={t("emptyPublic")} />
 					) : (
 						<div className="space-y-4">
 							{posts.map((post) => (

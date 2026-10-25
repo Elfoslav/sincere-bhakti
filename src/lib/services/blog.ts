@@ -12,7 +12,7 @@ import { resolveTranslation, type TranslationInfo } from "@/lib/channel-translat
 import { generateShortId } from "@/lib/id";
 import { deriveBlogSlug, normalizeCategoryName } from "@/lib/validation";
 import { resolveCategoryIds, setBlogPostCategories } from "@/lib/services/category";
-import { resolveFeedScopeWhere } from "@/lib/services/feed-scope";
+import { andWhere, buildFeedSearchWhere, resolveFeedScopeWhere } from "@/lib/services/feed-scope";
 import { ERROR_BLOG_ID_COLLISION } from "@/lib/error-messages";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
@@ -57,6 +57,8 @@ export interface GetBlogPostsParams {
   requestLanguage?: string;
   // Canonical UPPERCASE category name; normalized again server-side.
   category?: string;
+  // Free-text search over article title and excerpt.
+  q?: string;
 }
 
 export interface GetBlogPostsResult {
@@ -141,7 +143,7 @@ export async function getBlogPosts(
   params: GetBlogPostsParams,
   currentUserId?: string,
 ): Promise<GetBlogPostsResult> {
-  const { scope, cursor, limit = 10, channelId, language, requestLanguage, category } = params;
+  const { scope, cursor, limit = 10, channelId, language, requestLanguage, category, q } = params;
   const now = new Date();
 
   const where: Prisma.BlogPostWhereInput = {};
@@ -162,6 +164,13 @@ export async function getBlogPosts(
   // Scope/visibility lives in the shared feed-scope helper (same shape as
   // the timeline-post feed) — the keys never overlap the filters above.
   Object.assign(where, await resolveFeedScopeWhere({ scope, channelId, currentUserId }, now));
+  andWhere(
+    where,
+    buildFeedSearchWhere(q, (term) => [
+      { title: { contains: term, mode: "insensitive" } },
+      { excerpt: { contains: term, mode: "insensitive" } },
+    ]),
+  );
 
   // List views (feed, channel lists, link pickers) never need the raw JSON
   // body: project it away so a page of cards doesn't haul up to ~60 KB of

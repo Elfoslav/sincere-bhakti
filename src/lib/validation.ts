@@ -46,6 +46,12 @@ export const CATEGORY_SEARCH_LIMIT = 10;
 export const CATEGORY_SEARCH_MAX_LIMIT = 50;
 // Shared debounce for search inputs (category picker, channel search).
 export const SEARCH_DEBOUNCE_MS = 300;
+// Free-text feed search (posts + articles). Terms are AND-ed; the caps keep a
+// single request from fanning out into an unbounded number of LIKE clauses.
+export const FEED_SEARCH_MAX_LENGTH = 100;
+export const FEED_SEARCH_MAX_TERMS = 5;
+// Category chips shown above the feeds (a browsable head of the taxonomy).
+export const FEED_CATEGORY_CHIPS_LIMIT = 12;
 
 // Cuid-shaped entity ids (posts, blogs, drafts, R2 key namespaces): the same
 // charset everywhere, rejecting `/`, `..`, `?`, `#` that could escape a key
@@ -378,6 +384,8 @@ export const paginationSchema = z.object({
   blogPostId: entityIdField.optional(),
   // Canonicalized again server-side; raw user input accepted here.
   category: z.string().trim().max(CATEGORY_NAME_MAX_LENGTH).optional(),
+  // Free-text search over the feed's text fields; split into terms server-side.
+  q: z.string().trim().max(FEED_SEARCH_MAX_LENGTH).optional(),
 });
 
 // The blog feed never filters by promoting post id — drop the dead param so
@@ -457,7 +465,7 @@ export const updateAlbumSchema = z.object({
 
 // Album feed never filters by promoting post id — same shape as the blog
 // pagination (scope/cursor/limit/channelId/language), no extra params.
-export const albumPaginationSchema = paginationSchema.omit({ blogPostId: true, category: true });
+export const albumPaginationSchema = paginationSchema.omit({ blogPostId: true, category: true, q: true });
 
 export const updateActiveIdentitySchema = z.object({
   channelId: z.string().min(1),

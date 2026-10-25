@@ -20,7 +20,7 @@ import { parseYouTubeUrl } from "@/lib/video";
 import { parseLinkPreview } from "@/lib/link-preview";
 import { fetchRemoteBytes } from "@/lib/remote-fetch";
 import { resolveCategoryIds, setPostCategories } from "@/lib/services/category";
-import { resolveFeedScopeWhere } from "@/lib/services/feed-scope";
+import { andWhere, buildFeedSearchWhere, resolveFeedScopeWhere } from "@/lib/services/feed-scope";
 import { ERROR_POST_ID_COLLISION } from "@/lib/error-messages";
 import type { Prisma } from "@prisma/client";
 import type { PostChannel } from "@/types/post";
@@ -74,6 +74,8 @@ export interface GetPostsParams {
   blogPostId?: string;
   // Canonical UPPERCASE category name; normalized again server-side.
   category?: string;
+  // Free-text search over post text.
+  q?: string;
 }
 
 export interface GetPostsResult {
@@ -194,7 +196,7 @@ export async function getPosts(
   params: GetPostsParams,
   currentUserId?: string,
 ): Promise<GetPostsResult> {
-  const { scope, cursor, limit = 10, channelId, language, requestLanguage, blogPostId, category } = params;
+  const { scope, cursor, limit = 10, channelId, language, requestLanguage, blogPostId, category, q } = params;
   const now = new Date();
 
   if (blogPostId) {
@@ -231,6 +233,12 @@ export async function getPosts(
   // Scope/visibility lives in the shared feed-scope helper (same shape as
   // the blog feed) — the keys never overlap the filters applied above.
   Object.assign(where, await resolveFeedScopeWhere({ scope, channelId, currentUserId }, now));
+  andWhere(
+    where,
+    // Post text only: matching the linked article's title would let a search
+    // probe private/scheduled article titles through their promo posts.
+    buildFeedSearchWhere(q, (term) => [{ content: { contains: term, mode: "insensitive" } }]),
+  );
 
   const posts = await prisma.post.findMany({
     take: limit + 1,

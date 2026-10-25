@@ -256,6 +256,46 @@ describe("getPosts", () => {
     );
   });
 
+  it("searches post text with every term required", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
+
+    await getPosts({ scope: "public", limit: 10, q: "  holy   name " });
+
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [
+            {
+              AND: [
+                { OR: [{ content: { contains: "holy", mode: "insensitive" } }] },
+                { OR: [{ content: { contains: "name", mode: "insensitive" } }] },
+              ],
+            },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("keeps the private-scope draft filter when a search is added", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
+
+    await getPosts({ scope: "private", limit: 10, q: "krishna" }, "user-1");
+
+    const where = vi.mocked(prisma.post.findMany).mock.calls[0][0]!.where as { AND: unknown[] };
+    expect(where.AND).toHaveLength(2);
+    expect(where.AND[0]).toEqual({ OR: [{ isPublic: false }, { publishedAt: { gt: expect.any(Date) } }] });
+  });
+
+  it("does not search when the query is blank", async () => {
+    vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
+
+    await getPosts({ scope: "public", limit: 10, q: "   " });
+
+    const where = vi.mocked(prisma.post.findMany).mock.calls[0][0]!.where as { AND?: unknown };
+    expect(where.AND).toBeUndefined();
+  });
+
   it("passes cursor for pagination", async () => {
     vi.mocked(prisma.post.findMany).mockResolvedValue([mockPost]);
 

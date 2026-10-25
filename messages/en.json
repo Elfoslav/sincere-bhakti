@@ -86,7 +86,8 @@
 		"updatePostFailed": "Failed to update post",
 		"categoriesLabel": "Categories",
 		"categoryMetaTitle": "Posts about {name} — Sincere Bhakti",
-		"categoryMetaDescription": "Timeline posts filed under {name}."
+		"categoryMetaDescription": "Timeline posts filed under {name}.",
+		"searchPlaceholder": "Search posts…"
 	},
 	"Auth": {
 		"login": {
@@ -352,7 +353,8 @@
 		"categoryMetaTitle": "Articles about {name} — Sincere Bhakti",
 		"categoryMetaDescription": "Blog articles filed under {name}.",
 		"channelMetaTitle": "Articles from {name} — Sincere Bhakti",
-		"channelMetaDescription": "Blog articles from the {name} channel."
+		"channelMetaDescription": "Blog articles from the {name} channel.",
+		"searchPlaceholder": "Search articles…"
 	},
 	"Categories": {
 		"searchPlaceholder": "Search or create categories...",
@@ -361,7 +363,10 @@
 		"removeCategory": "Remove {name}",
 		"filteringByCategory": "Showing category \"{name}\"",
 		"filteringByChannel": "Showing channel \"{name}\"",
-		"clearFilter": "Clear filter"
+		"clearFilter": "Clear filter",
+		"all": "All",
+		"browse": "Browse by category",
+		"noResults": "Nothing found for “{query}”. Try another word or browse a category."
 	},
 	"ChannelsPage": {
 		"title": "All channels",
@@ -514,6 +519,7 @@
 		"retry": "Retry"
 	},
 	"Common": {
+		"clearSearch": "Clear search",
 		"cancel": "Cancel",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
 		"footerLine2": "Dedicated to the teachings of Śrīla Prabhupāda",

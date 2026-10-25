@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { isChannelEditor } from "@/lib/services/channel";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
 import { NotFoundError, UnauthorizedError } from "@/lib/services/errors";
+import { FEED_SEARCH_MAX_TERMS } from "@/lib/validation";
 import type { Prisma } from "@prisma/client";
 
 // Timeline posts, blog articles, and albums filter the same
@@ -91,4 +92,32 @@ export async function resolveFeedScopeWhere(
   }
 
   return where;
+}
+
+/**
+ * Free-text search clause shared by the timeline and blog feeds: every term
+ * must match at least one of the fields the caller names (case-insensitive
+ * substring). `fieldFilters` returns the per-term alternatives so each feed
+ * decides which columns/relations are searchable. Returns undefined for a
+ * blank query so callers can skip it.
+ */
+export function buildFeedSearchWhere(
+  query: string | undefined,
+  fieldFilters: (term: string) => FeedScopeWhere[],
+): FeedScopeWhere | undefined {
+  const terms = (query ?? "").split(/\s+/).filter(Boolean).slice(0, FEED_SEARCH_MAX_TERMS);
+  if (terms.length === 0) return undefined;
+  return { AND: terms.map((term) => ({ OR: fieldFilters(term) })) };
+}
+
+/**
+ * Append clauses to `where.AND` without clobbering what `resolveFeedScopeWhere`
+ * already put there (the private scope uses `AND` for its draft/scheduled
+ * filter), and without competing for the scope's top-level `OR`.
+ */
+export function andWhere<T extends { AND?: unknown }>(where: T, ...clauses: (object | undefined)[]): void {
+  const extra = clauses.filter((c): c is object => c !== undefined);
+  if (extra.length === 0) return;
+  const existing = where.AND === undefined ? [] : Array.isArray(where.AND) ? where.AND : [where.AND];
+  where.AND = [...existing, ...extra];
 }

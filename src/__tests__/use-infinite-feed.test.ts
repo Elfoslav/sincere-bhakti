@@ -37,6 +37,28 @@ describe("useInfiniteFeed", () => {
     expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/blog-posts?"));
   });
 
+  it("sends the search query as q and refetches when it changes", async () => {
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ posts: [item("a")], hasMore: false }),
+    });
+
+    const { rerender } = renderHook(
+      ({ search }: { search?: string }) => useInfiniteFeed("/api/posts", { scope: "public", search }),
+      { initialProps: { search: undefined as string | undefined } },
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect((global.fetch as any).mock.calls[0][0]).not.toContain("q=");
+
+    rerender({ search: "holy name" });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect((global.fetch as any).mock.calls[1][0]).toContain("q=holy+name");
+  });
+
   it("seeds state from initialData and skips the initial fetch", async () => {
     (global.fetch as any).mockResolvedValue({
       ok: true,

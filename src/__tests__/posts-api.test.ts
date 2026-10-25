@@ -181,6 +181,20 @@ describe("GET /api/posts", () => {
     );
   });
 
+  it("passes the search query through", async () => {
+    vi.mocked(auth).mockResolvedValue(null as unknown as never);
+    vi.mocked(getPosts).mockResolvedValue({ posts: [], hasMore: false });
+
+    const res = await GET(mockGetRequest({ scope: "public", q: "krishna" }));
+    expect(res.status).toBe(200);
+    expect(getPosts).toHaveBeenCalledWith(expect.objectContaining({ q: "krishna" }), undefined);
+  });
+
+  it("rejects an over-long search query", async () => {
+    const res = await GET(mockGetRequest({ scope: "public", q: "x".repeat(101) }));
+    expect(res.status).toBe(400);
+  });
+
   it("filters by linked blog article", async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } } as any);
     vi.mocked(getPosts).mockResolvedValue({ posts: [], hasMore: false });

@@ -153,6 +153,26 @@ describe("getBlogPosts", () => {
     );
   });
 
+  it("searches article title and excerpt with every term required", async () => {
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([mockBlog] as never);
+
+    await getBlogPosts({ scope: "public", limit: 10, q: "holy name" });
+
+    const alternatives = (term: string) => ({
+      OR: [
+        { title: { contains: term, mode: "insensitive" } },
+        { excerpt: { contains: term, mode: "insensitive" } },
+      ],
+    });
+    expect(prisma.blogPost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [{ AND: [alternatives("holy"), alternatives("name")] }],
+        }),
+      }),
+    );
+  });
+
   it("requires auth for private scope", async () => {
     await expect(getBlogPosts({ scope: "private" })).rejects.toBeInstanceOf(UnauthorizedError);
   });

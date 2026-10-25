@@ -189,4 +189,13 @@ describe("POST /api/blog-posts", () => {
     expect(json.error).toBe("validation_error:coverUrl:untrusted_url");
     expect(createBlogPost).not.toHaveBeenCalled();
   });
+
+  it("passes the search query through", async () => {
+    vi.mocked(getBlogPosts).mockResolvedValue({ posts: [], hasMore: false });
+
+    const res = await GET(mockGetRequest({ scope: "public", q: "bhakti" }));
+
+    expect(res.status).toBe(200);
+    expect(getBlogPosts).toHaveBeenCalledWith(expect.objectContaining({ q: "bhakti" }));
+  });
 });

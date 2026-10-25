@@ -13,6 +13,10 @@ import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfiniteBlogPosts } from "@/lib/hooks/useInfiniteBlogPosts";
 import { useIdentity } from "@/components/IdentityProvider";
 import CategoryFilterBanner, { ChannelFilterBanner } from "@/components/CategoryFilterBanner";
+import FeedFilterBar from "@/components/FeedFilterBar";
+import FeedEmptyState from "@/components/FeedEmptyState";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { SEARCH_DEBOUNCE_MS } from "@/lib/validation";
 import type { BlogPost } from "@/types/blog";
 
 export default function BlogPageClient({
@@ -32,11 +36,14 @@ export default function BlogPageClient({
   const t = useTranslations("BlogPage");
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const effectiveChannelId = channelId ?? undefined;
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
   const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef } = useInfiniteBlogPosts({
     scope: "public",
     channelId: effectiveChannelId,
     language: locale,
     category,
+    search,
     initialData: initialPublic,
   });
   const {
@@ -50,6 +57,7 @@ export default function BlogPageClient({
     channelId: effectiveChannelId ?? activeChannelId ?? undefined,
     disabled: !session || !(effectiveChannelId ?? activeChannelId),
     language: locale,
+    search,
   });
 
   const now = useMemo(() => new Date(), []);
@@ -126,11 +134,7 @@ export default function BlogPageClient({
       );
     }
     if (list.length === 0) {
-      return (
-        <Card variant="ghost" className="text-center py-12 px-6">
-          <p className="text-deep/60">{t(emptyKey)}</p>
-        </Card>
-      );
+      return <FeedEmptyState search={search} message={t(emptyKey)} />;
     }
     return (
       <div className="space-y-4">
@@ -166,6 +170,15 @@ export default function BlogPageClient({
 
       {category ? <CategoryFilterBanner name={category} href="/blog" /> : null}
       {channelName ? <ChannelFilterBanner name={channelName} href="/blog" /> : null}
+
+      <FeedFilterBar
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder={t("searchPlaceholder")}
+        basePath="/blog"
+        activeCategory={category}
+        loading={Boolean(search) && loading}
+      />
 
       <Card variant="default" padding="lg" className="mb-6">
         {session ? (

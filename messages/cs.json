@@ -86,7 +86,8 @@
 		"updatePostFailed": "Aktualizace příspěvku se nezdařila",
 		"categoriesLabel": "Kategorie",
 		"categoryMetaTitle": "Příspěvky na téma {name} — Sincere Bhakti",
-		"categoryMetaDescription": "Příspěvky v kategorii {name}."
+		"categoryMetaDescription": "Příspěvky v kategorii {name}.",
+		"searchPlaceholder": "Hledat v příspěvcích…"
 	},
 	"Auth": {
 		"login": {
@@ -352,7 +353,8 @@
 		"categoryMetaTitle": "Články na téma {name} — Sincere Bhakti",
 		"categoryMetaDescription": "Blogové články v kategorii {name}.",
 		"channelMetaTitle": "Články z kanálu {name} — Sincere Bhakti",
-		"channelMetaDescription": "Blogové články z kanálu {name}."
+		"channelMetaDescription": "Blogové články z kanálu {name}.",
+		"searchPlaceholder": "Hledat v článcích…"
 	},
 	"Categories": {
 		"searchPlaceholder": "Hledat nebo vytvořit kategorie...",
@@ -361,7 +363,10 @@
 		"removeCategory": "Odebrat {name}",
 		"filteringByCategory": "Zobrazuji kategorii „{name}“",
 		"filteringByChannel": "Zobrazuji kanál „{name}“",
-		"clearFilter": "Zrušit filtr"
+		"clearFilter": "Zrušit filtr",
+		"all": "Vše",
+		"browse": "Procházet podle kategorie",
+		"noResults": "Nic nenalezeno pro „{query}“. Zkuste jiné slovo nebo procházejte kategorie."
 	},
 	"ChannelsPage": {
 		"title": "Všechny kanály",
@@ -514,6 +519,7 @@
 		"retry": "Zkusit znovu"
 	},
 	"Common": {
+		"clearSearch": "Vymazat hledání",
 		"cancel": "Zrušit",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
 		"footerLine2": "Věnováno učení Śrīly Prabhupādy",

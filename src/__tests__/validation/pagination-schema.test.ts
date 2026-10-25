@@ -53,4 +53,10 @@ describe("paginationSchema", () => {
     const result = paginationSchema.safeParse({ language: "fr" });
     expect(result.success).toBe(false);
   });
+
+  it("trims the search query and caps its length", () => {
+    const ok = paginationSchema.safeParse({ q: "  holy name  " });
+    expect(ok.success && ok.data.q).toBe("holy name");
+    expect(paginationSchema.safeParse({ q: "x".repeat(101) }).success).toBe(false);
+  });
 });
