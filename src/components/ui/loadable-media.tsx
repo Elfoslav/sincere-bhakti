@@ -8,16 +8,33 @@ import { cn } from "@/lib/utils";
 
 export type MediaLoadStatus = "loading" | "loaded" | "error";
 
+/**
+ * Status of media that settled before React attached its listeners, or null
+ * while it is still in flight.
+ */
+export function getSettledMediaStatus(el: HTMLImageElement | HTMLVideoElement): MediaLoadStatus | null {
+  if (el instanceof HTMLVideoElement) {
+    if (el.error) return "error";
+    return el.readyState >= HTMLMediaElement.HAVE_METADATA ? "loaded" : null;
+  }
+  if (!el.complete) return null;
+  // SVGs without intrinsic dimensions report naturalWidth 0 in some browsers
+  // even though they rendered fine, so a zero width only means "broken" for
+  // raster images.
+  const isSvg = /\.svg(?:[?#]|$)|^data:image\/svg/i.test(el.currentSrc || el.src);
+  return el.naturalWidth > 0 || isSvg ? "loaded" : "error";
+}
+
 export interface LoadableMediaHandlers {
   status: MediaLoadStatus;
   onLoad: () => void;
   onError: () => void;
   /**
-   * Ref callback for `<img>`: an image that finished (or failed) before
-   * hydration never fires `load`/`error` into React, so settle it from
-   * `complete`/`naturalWidth` on mount.
+   * Ref callback for `<img>` / `<video>`: media that finished (or failed)
+   * before hydration never fires `load`/`error` into React, so settle it from
+   * its own state on mount.
    */
-  ref: (el: HTMLImageElement | null) => void;
+  ref: (el: HTMLImageElement | HTMLVideoElement | null) => void;
 }
 
 /**
@@ -45,8 +62,10 @@ export function LoadableMedia({
 
   const onLoad = useCallback(() => setStatus("loaded"), []);
   const onError = useCallback(() => setStatus("error"), []);
-  const ref = useCallback((el: HTMLImageElement | null) => {
-    if (el?.complete) setStatus(el.naturalWidth > 0 ? "loaded" : "error");
+  const ref = useCallback((el: HTMLImageElement | HTMLVideoElement | null) => {
+    if (!el) return;
+    const settled = getSettledMediaStatus(el);
+    if (settled) setStatus(settled);
   }, []);
 
   function retry() {

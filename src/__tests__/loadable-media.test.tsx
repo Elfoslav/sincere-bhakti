@@ -68,4 +68,29 @@ describe("LoadableMedia", () => {
     complete.mockRestore();
     width.mockRestore();
   });
+
+  it("does not flag an already-rendered SVG with zero natural width as failed", () => {
+    const complete = vi.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(true);
+    const width = vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(0);
+    const { container } = render(
+      <LoadableMedia>
+        {({ ref, onLoad, onError }) => <img ref={ref} src="/logo.svg" alt="logo" onLoad={onLoad} onError={onError} />}
+      </LoadableMedia>,
+    );
+    expect(container.firstElementChild).toHaveAttribute("data-status", "loaded");
+    complete.mockRestore();
+    width.mockRestore();
+  });
+
+  it("settles a video whose metadata loaded before hydration", () => {
+    const ready = vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockReturnValue(1);
+    const { container } = render(
+      <LoadableMedia>
+        {({ ref, onLoad, onError }) => <video ref={ref} src="/v.mp4" onLoadedMetadata={onLoad} onError={onError} />}
+      </LoadableMedia>,
+    );
+    expect(container.firstElementChild).toHaveAttribute("data-status", "loaded");
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+    ready.mockRestore();
+  });
 });

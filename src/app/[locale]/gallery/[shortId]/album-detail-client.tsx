@@ -79,6 +79,7 @@ export default function AlbumDetailClient({ album: initial }: { album: Album }) 
             <LoadableMedia key={v.url} className="overflow-hidden rounded-lg bg-black">
               {({ onLoad, onError }) => (
                 <video
+                  ref={ref}
                   src={v.url}
                   controls
                   preload="metadata"
