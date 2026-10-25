@@ -59,6 +59,43 @@ describe("useInfiniteFeed", () => {
     expect((global.fetch as any).mock.calls[1][0]).toContain("q=holy+name");
   });
 
+  it("drops a loadMore page that started under a previous query", async () => {
+    let fireIntersect!: () => void;
+    globalThis.IntersectionObserver = class {
+      constructor(cb: (entries: { isIntersecting: boolean }[]) => void) {
+        fireIntersect = () => cb([{ isIntersecting: true }]);
+      }
+      observe() {}
+      disconnect() {}
+    } as any;
+    let resolveStale!: (v: unknown) => void;
+    (global.fetch as any)
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ posts: [item("a")], hasMore: true }) })
+      .mockReturnValueOnce(new Promise((r) => { resolveStale = r; }))
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ posts: [item("match")], hasMore: false }) });
+
+    const { result, rerender } = renderHook(
+      ({ search }: { search?: string }) => useInfiniteFeed<{ id: string }>("/api/posts", { scope: "public", search }),
+      { initialProps: { search: undefined as string | undefined } },
+    );
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+
+    // The sentinel scrolls into view: loadMore starts under the unfiltered
+    // query and stays in flight...
+    act(() => { result.current.sentinelRef(document.createElement("div")); });
+    await act(async () => { fireIntersect(); });
+    rerender({ search: "krishna" });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(result.current.posts.map((p) => p.id)).toEqual(["match"]);
+
+    // ...then resolves late: its page must not be appended.
+    await act(async () => {
+      resolveStale({ ok: true, json: () => Promise.resolve({ posts: [item("stale")], hasMore: false }) });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(result.current.posts.map((p) => p.id)).toEqual(["match"]);
+  });
+
   it("seeds state from initialData and skips the initial fetch", async () => {
     (global.fetch as any).mockResolvedValue({
       ok: true,

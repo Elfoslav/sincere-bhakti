@@ -36,6 +36,9 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
   // True until the first fetch effect runs once; lets us skip the initial fetch
   // when server-provided initialData already populated state.
   const skipInitialFetch = useRef(Boolean(initialData));
+  // Bumped whenever the query changes. A loadMore that started under an older
+  // query must not append its page to the new query's list.
+  const queryGenerationRef = useRef(0);
 
   const fetchPosts = useCallback(
     async (cursor?: string) => {
@@ -68,6 +71,7 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
       return;
     }
     let mounted = true;
+    queryGenerationRef.current += 1;
 
     setLoading(true);
     setPosts([]);
@@ -101,8 +105,9 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
       return;
     }
 
+    const generation = queryGenerationRef.current;
     const data = await fetchPosts(last.id);
-    if (data) {
+    if (data && generation === queryGenerationRef.current) {
       startTransition(() => {
         // Dedupe by id: an earlier double-fire of the observer could have
         // already appended this page, and a create/update could race the fetch.
