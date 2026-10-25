@@ -502,6 +502,13 @@
 		"linkCopied": "Album link copied to clipboard",
 		"linkCopyFailed": "Could not copy the link"
 	},
+	"MediaLightbox": {
+		"title": "Image viewer",
+		"close": "Close",
+		"previous": "Previous image",
+		"next": "Next image",
+		"imageAlt": "Image {current} of {total}"
+	},
 	"Common": {
 		"cancel": "Cancel",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",

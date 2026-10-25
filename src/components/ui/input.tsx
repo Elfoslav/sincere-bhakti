@@ -10,6 +10,7 @@ interface InputProps extends React.ComponentProps<"input"> {
 }
 
 function Input({ className, type, errorMessage, maxLength, minLengthHint, onChange, defaultValue, minLength, ...props }: InputProps) {
+  const errorId = React.useId();
   const [internalValue, setInternalValue] = React.useState(
     defaultValue?.toString() ?? ""
   );
@@ -40,6 +41,10 @@ function Input({ className, type, errorMessage, maxLength, minLengthHint, onChan
         defaultValue={defaultValue}
         onChange={handleChange}
         {...props}
+        aria-invalid={errorMessage ? true : props["aria-invalid"]}
+        aria-describedby={
+          [props["aria-describedby"], errorMessage ? errorId : undefined].filter(Boolean).join(" ") || undefined
+        }
       />
       {maxLength !== undefined && (
         <p className={cn("text-xs mt-1 tabular-nums", isBelowMin ? "text-amber-600" : "text-deep/50")}>
@@ -47,7 +52,11 @@ function Input({ className, type, errorMessage, maxLength, minLengthHint, onChan
           {minLengthHint !== undefined && <> (min {minLengthHint})</>}
         </p>
       )}
-      {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+      {errorMessage && (
+        <p id={errorId} className="text-destructive text-xs mt-1">
+          {errorMessage}
+        </p>
+      )}
     </div>
   )
 }

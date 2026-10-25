@@ -502,6 +502,13 @@
 		"linkCopied": "Odkaz na album skopírovaný do schránky",
 		"linkCopyFailed": "Odkaz sa nepodarilo skopírovať"
 	},
+	"MediaLightbox": {
+		"title": "Prehliadač obrázkov",
+		"close": "Zavrieť",
+		"previous": "Predchádzajúci obrázok",
+		"next": "Ďalší obrázok",
+		"imageAlt": "Obrázok {current} z {total}"
+	},
 	"Common": {
 		"cancel": "Zrušiť",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -15,8 +16,48 @@ export default function MediaLightbox({
 	onClose: () => void;
 	onNavigate: (index: number) => void;
 }) {
+	const t = useTranslations("MediaLightbox");
+	const dialogRef = useRef<HTMLDivElement>(null);
+
+	// Move focus into the dialog on open and hand it back to the opener on close.
+	useEffect(() => {
+		const opener = document.activeElement as HTMLElement | null;
+		dialogRef.current?.focus();
+		return () => opener?.focus?.();
+	}, []);
+
+	// Navigating to the first/last image unmounts the focused arrow button;
+	// recapture focus so it never falls back to the page behind the dialog.
+	useEffect(() => {
+		const dialog = dialogRef.current;
+		if (dialog && !dialog.contains(document.activeElement)) dialog.focus();
+	}, [currentIndex]);
+
 	const handleKeyDown = useCallback(
 		(e: KeyboardEvent) => {
+			if (e.key === "Tab") {
+				const dialog = dialogRef.current;
+				if (!dialog) return;
+				const focusable = dialog.querySelectorAll<HTMLElement>("button:not([disabled])");
+				if (focusable.length === 0) {
+					e.preventDefault();
+					return;
+				}
+				const first = focusable[0];
+				const last = focusable[focusable.length - 1];
+				const active = document.activeElement;
+				if (e.shiftKey && (active === first || active === dialog)) {
+					e.preventDefault();
+					last.focus();
+				} else if (!e.shiftKey && active === last) {
+					e.preventDefault();
+					first.focus();
+				} else if (!dialog.contains(active)) {
+					e.preventDefault();
+					first.focus();
+				}
+				return;
+			}
 			if (e.key === "Escape") onClose();
 			if (e.key === "ArrowLeft" && currentIndex > 0) onNavigate(currentIndex - 1);
 			if (e.key === "ArrowRight" && currentIndex < images.length - 1) onNavigate(currentIndex + 1);
@@ -37,18 +78,20 @@ export default function MediaLightbox({
 
 	return (
 		<div
-			className="fixed inset-0 z-50 flex items-center justify-center bg-black/75"
+			ref={dialogRef}
+			tabIndex={-1}
+			className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 outline-none"
 			onClick={onClose}
 			role="dialog"
 			aria-modal="true"
-			aria-label="Image viewer"
+			aria-label={t("title")}
 		>
 			<Button
 				onClick={onClose}
 				variant="icon-light"
 				size="icon-lg"
 				className="absolute top-4 right-4 rounded-full bg-black/50 hover:bg-black/70"
-				aria-label="Close"
+				aria-label={t("close")}
 				icon={<X className="size-6" />}
 			/>
 
@@ -60,7 +103,7 @@ export default function MediaLightbox({
 					}}
 					variant="icon-light"
 					className="absolute left-4 top-1/2 size-12 -translate-y-1/2 rounded-full bg-black/50 hover:bg-black/70"
-					aria-label="Previous image"
+					aria-label={t("previous")}
 					icon={<ChevronLeft className="size-8" />}
 				/>
 			)}
@@ -70,7 +113,7 @@ export default function MediaLightbox({
 				    on R2, shown at original resolution, no optimization needed for modal view. */}
 				<img
 					src={img.url}
-					alt=""
+					alt={t("imageAlt", { current: currentIndex + 1, total: images.length })}
 					className="max-w-[90vw] max-h-[90vh] object-contain"
 					onClick={(e) => e.stopPropagation()}
 				/>
@@ -84,7 +127,7 @@ export default function MediaLightbox({
 					}}
 					variant="icon-light"
 					className="absolute right-4 top-1/2 size-12 -translate-y-1/2 rounded-full bg-black/50 hover:bg-black/70"
-					aria-label="Next image"
+					aria-label={t("next")}
 					icon={<ChevronRight className="size-8" />}
 				/>
 			)}
