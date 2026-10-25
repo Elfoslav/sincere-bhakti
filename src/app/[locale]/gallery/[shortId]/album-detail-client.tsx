@@ -77,7 +77,7 @@ export default function AlbumDetailClient({ album: initial }: { album: Album }) 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {videos.map((v) => (
             <LoadableMedia key={v.url} className="overflow-hidden rounded-lg bg-black">
-              {({ onLoad, onError }) => (
+              {({ ref, onLoad, onError }) => (
                 <video
                   ref={ref}
                   src={v.url}

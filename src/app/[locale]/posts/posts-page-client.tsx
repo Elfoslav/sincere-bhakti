@@ -58,7 +58,6 @@ export default function PostsPageClient({
 	const manageableChannelIds = useMemo(() => identities.map((identity) => identity.id), [identities]);
 
 	function handleCreateSuccess(post: Post) {
-		setMyPosts((prev) => [post, ...prev]);
 		// A filtered feed only shows matching posts: don't prepend a fresh
 		// post that doesn't carry the active category or match the search.
 		const matches = matchesSearch(search, post.content);

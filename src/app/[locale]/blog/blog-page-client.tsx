@@ -86,6 +86,7 @@ export default function BlogPageClient({
     // A filtered feed only shows matching posts: don't prepend a fresh
     // post that doesn't carry the active category or channel.
     if (
+      matches &&
       post.isPublic &&
       (!category || post.categories.some((c) => c.name === category)) &&
       (!effectiveChannelId || post.channel.id === effectiveChannelId)
