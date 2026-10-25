@@ -109,24 +109,27 @@ export default function MediaLightbox({
 				/>
 			)}
 
-			<LoadableMedia
-				key={currentIndex}
-				className="bg-[conic-gradient(#e5e5e5_25%,#f5f5f5_0_50%,#e5e5e5_0_75%,#f5f5f5_0)] bg-[length:24px_24px] rounded overflow-hidden data-[status=loading]:min-h-[40vh] data-[status=loading]:min-w-[min(90vw,24rem)] data-[status=error]:min-w-[min(90vw,24rem)]"
-			>
-				{({ ref, onLoad, onError }) => (
-					// Using <img> for lightbox full-size display: user-uploaded images already
-					// on R2, shown at original resolution, no optimization needed for modal view.
-					<img
-						ref={ref}
-						src={img.url}
-						alt={t("imageAlt", { current: currentIndex + 1, total: images.length })}
-						className="max-w-[90vw] max-h-[90vh] object-contain"
-						onClick={(e) => e.stopPropagation()}
-						onLoad={onLoad}
-						onError={onError}
-					/>
-				)}
-			</LoadableMedia>
+			{/* Clicks inside the media frame (incl. the Retry button) must not
+			    reach the backdrop's close handler. */}
+			<div onClick={(e) => e.stopPropagation()}>
+				<LoadableMedia
+					key={currentIndex}
+					className="bg-[conic-gradient(#e5e5e5_25%,#f5f5f5_0_50%,#e5e5e5_0_75%,#f5f5f5_0)] bg-[length:24px_24px] rounded overflow-hidden data-[status=loading]:min-h-[40vh] data-[status=loading]:min-w-[min(90vw,24rem)] data-[status=error]:min-w-[min(90vw,24rem)]"
+				>
+					{({ ref, onLoad, onError }) => (
+						// Using <img> for lightbox full-size display: user-uploaded images already
+						// on R2, shown at original resolution, no optimization needed for modal view.
+						<img
+							ref={ref}
+							src={img.url}
+							alt={t("imageAlt", { current: currentIndex + 1, total: images.length })}
+							className="max-w-[90vw] max-h-[90vh] object-contain"
+							onLoad={onLoad}
+							onError={onError}
+						/>
+					)}
+				</LoadableMedia>
+			</div>
 
 			{currentIndex < images.length - 1 && (
 				<Button

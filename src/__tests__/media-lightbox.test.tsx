@@ -76,4 +76,18 @@ describe("MediaLightbox", () => {
     expect(screen.queryByRole("button", { name: "next" })).not.toBeInTheDocument();
     expect(screen.getByRole("dialog").contains(document.activeElement)).toBe(true);
   });
+
+  it("keeps the viewer open when Retry is clicked after an image fails", () => {
+    render(<Harness />);
+    fireEvent.error(screen.getByAltText("imageAlt 2/3"));
+    fireEvent.click(screen.getByRole("button", { name: "retry" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("still closes when the backdrop is clicked", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("dialog"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
 });
