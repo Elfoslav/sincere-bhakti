@@ -15,8 +15,8 @@ export function Heading({
   return (
     <Tag
       className={cn(
-        "font-heading text-deep",
-        Tag === "h1" ? "text-2xl font-bold" : Tag === "h2" ? "text-xl font-semibold" : "text-lg font-medium",
+        "font-heading text-foreground break-words",
+        Tag === "h1" ? "type-title" : Tag === "h2" ? "text-xl" : "text-lg",
         className,
       )}
     >

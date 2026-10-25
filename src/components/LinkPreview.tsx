@@ -120,9 +120,9 @@ function LinkPreviewCard({ url }: { url: string }) {
           <p className="text-sm font-semibold text-deep line-clamp-2">{preview.title}</p>
         )}
         {preview.description && (
-          <p className="text-xs text-deep/70 line-clamp-2 mt-1">{preview.description}</p>
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{preview.description}</p>
         )}
-        <p className="flex items-center gap-1.5 text-xs text-deep/40 mt-2">
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
           {faviconSrc && (
             // eslint-disable-next-line @next/next/no-img-element -- proxied favicon; arbitrary host, must not be fetched directly
             <img src={faviconSrc} alt="" loading="lazy" className="size-3.5 rounded-sm" />

@@ -23,13 +23,13 @@ export default function ErrorState({
   }, [error]);
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4">
+    <div className="auth-layout">
       <div className="text-center">
         <div className="text-6xl mb-4">🪷</div>
-        <h1 className="text-4xl font-bold text-deep mb-2">
+        <h1 className="type-title mb-3">
           {t("somethingWentWrong")}
         </h1>
-        <p className="text-lg text-deep/60 mb-6 max-w-md mx-auto">
+        <p className="text-lg text-muted-foreground mb-6 max-w-md mx-auto">
           {t("errorDescription")}
         </p>
         <Button onClick={reset} variant="default">

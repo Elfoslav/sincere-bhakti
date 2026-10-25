@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { feedbackContainerClasses, feedbackIconClasses } from "@/components/ui/feedback-palette";
 
 const alertVariants = cva(
-  "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-sm",
+  "flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-sm",
   {
     variants: {
       variant: {

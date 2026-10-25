@@ -30,10 +30,10 @@ export default function AlbumCard({
   const isCoverVideo = !album.coverUrl && album.items[0]?.type === "video";
 
   return (
-    <Card>
+    <Card variant="editorial" className="py-7">
       <div className="flex items-start justify-between gap-3">
         <Link href={getAlbumUrl(album.shortId, album.slug)} className="min-w-0 flex-1 text-deep hover:text-gold transition-colors">
-          <h3 className="font-heading text-xl font-bold leading-tight line-clamp-2 sm:text-[22px]">
+          <h3 className="font-heading text-xl leading-tight line-clamp-2 sm:text-[22px]">
             {album.title}
           </h3>
         </Link>
@@ -52,8 +52,8 @@ export default function AlbumCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
             <ChannelAvatar name={album.channel.name} size="xs" ariaHidden className="shrink-0" />
-            <span className="flex min-w-0 flex-1 items-center gap-x-1.5 gap-y-0.5 flex-wrap text-xs text-deep/60">
-              <span className="min-w-0 max-w-full truncate font-medium text-deep/70">
+            <span className="flex min-w-0 flex-1 items-center gap-x-1.5 gap-y-0.5 flex-wrap text-xs text-muted-foreground">
+              <span className="min-w-0 max-w-full truncate font-medium text-muted-foreground">
                 {album.channel.name}
               </span>
               <span className="shrink-0 text-deep/30" aria-hidden>
@@ -66,19 +66,19 @@ export default function AlbumCard({
               <span className="shrink-0 whitespace-nowrap">{t("itemCount", { count: album.itemCount })}</span>
             </span>
             {!album.isPublic && (
-              <span className="shrink-0 rounded-full bg-deep/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-deep/70">
+              <span className="shrink-0 rounded-full bg-deep/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-muted-foreground">
                 {t("private")}
               </span>
             )}
           </div>
           {album.description && (
-            <p className="mt-2 text-sm text-deep/70 line-clamp-2">{album.description}</p>
+            <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{album.description}</p>
           )}
         </div>
         {cover && !isCoverVideo && (
           <Link
             href={getAlbumUrl(album.shortId, album.slug)}
-            className="relative block h-20 w-28 shrink-0 overflow-hidden rounded-md bg-deep/5"
+            className="relative block h-20 w-28 shrink-0 overflow-hidden rounded-lg bg-deep/5"
             aria-label={t("openAlbum")}
           >
             <Image

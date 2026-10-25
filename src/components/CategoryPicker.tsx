@@ -123,7 +123,7 @@ export default function CategoryPicker({ value, onChange, max = CATEGORIES_MAX_P
                 type="button"
                 onClick={() => remove(name)}
                 aria-label={t("removeCategory", { name })}
-                className="rounded-full p-0.5 text-deep/50 hover:text-deep"
+                className="rounded-full p-0.5 text-muted-foreground hover:text-deep"
               >
                 <X className="size-3" aria-hidden />
               </button>
@@ -151,7 +151,7 @@ export default function CategoryPicker({ value, onChange, max = CATEGORIES_MAX_P
         onKeyDown={handleKeyDown}
         className={inputClassName}
       />
-      {full && <p className="mt-1 text-xs text-deep/50">{t("maxReached", { max })}</p>}
+      {full && <p className="mt-1 text-xs text-muted-foreground">{t("maxReached", { max })}</p>}
       {open && (options.length > 0 || canCreate) && (
         <ul
           id={listId}

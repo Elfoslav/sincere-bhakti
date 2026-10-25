@@ -169,7 +169,7 @@ export default function BlogEditor({
       modal, card-tinted in dark mode. */}
       <div
         className={cn(
-          "sticky top-0 z-10 flex flex-wrap items-center gap-0.5 border-b border-sand/60 bg-white p-1.5 dark:bg-card",
+          "sticky top-0 z-10 flex flex-wrap items-center gap-0.5 border-b border-sand/60 bg-card p-1.5 ",
           !stuck && "rounded-t-lg",
         )}
         role="toolbar"
@@ -240,7 +240,7 @@ export default function BlogEditor({
         </div>
       )}
       <EditorContent editor={editor} />
-      <p className="rounded-b-lg border-t border-sand/60 px-3 py-1 text-right text-[11px] tabular-nums text-deep/40">
+      <p className="rounded-b-lg border-t border-sand/60 px-3 py-1 text-right text-xs tabular-nums text-muted-foreground">
         {t("characterCount", {
           count: extractPlainText(JSON.stringify(editor.getJSON())).trim().length,
           max: BLOG_CONTENT_MAX_LENGTH,

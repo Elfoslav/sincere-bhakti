@@ -101,7 +101,7 @@ export default function PostCard({
   }, [post.id, t, onDelete]);
 
   return (
-    <Card>
+    <Card variant="editorial" className="py-7">
       <div className="flex items-start gap-3 mb-3">
         <ChannelAvatar name={post.channel.name} size="sm" />
         <div className="flex-1 min-w-0">
@@ -111,7 +111,7 @@ export default function PostCard({
           >
             {post.channel.name || t("anonymous")}
           </Link>
-          <p className="text-xs text-deep/60">
+          <p className="text-xs text-muted-foreground">
             <span className="mr-1 text-sm text-deep" title={post.language}>
               {localeFlags[post.language] || post.language}
             </span>
@@ -172,7 +172,7 @@ export default function PostCard({
           )}
           <div className="min-w-0 flex-1 px-3 py-2">
             <p className="truncate font-semibold text-deep">{post.blogPost.title}</p>
-            <BlogExcerpt post={post.blogPost} className="mt-0.5 text-sm text-deep/70" clampClassName="line-clamp-2" />
+            <BlogExcerpt post={post.blogPost} className="mt-0.5 text-sm text-muted-foreground" clampClassName="line-clamp-2" />
             <span className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-saffron hover:text-saffron-dark">
               {t("readArticle")}
               <ArrowRight className="size-4" aria-hidden />
@@ -225,7 +225,7 @@ export default function PostCard({
       ))}
 
       {canManage && (
-        <div className="flex items-center gap-2 text-xs text-deep/50">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {post.isPublic ? (
             <span className="bg-tulsi/20 text-tulsi px-2 py-0.5 rounded-full">
               {t("public")}
@@ -349,12 +349,12 @@ function ActionsRow({
               icon={<MoreHorizontal />}
             />
             {showMobileActions && (
-              <div className="absolute right-0 top-full mt-1 z-50 w-max min-w-28 rounded-lg border border-sand bg-white py-1 shadow-lg">
+              <div className="absolute right-0 top-full mt-1 z-50 w-max min-w-28 rounded-lg border border-sand bg-popover py-1 shadow-lg">
                 {allActions.map((a) => {
                   const itemClassName = "flex w-full items-center gap-2.5 whitespace-nowrap border-b border-sand/50 px-3 py-1.5 text-sm text-deep last:border-b-0 hover:bg-sand/40";
                   const itemContent = (
                     <>
-                      <span className="size-4 shrink-0 text-deep/40 [&>svg]:size-4">{a.icon}</span>
+                      <span className="size-4 shrink-0 text-muted-foreground [&>svg]:size-4">{a.icon}</span>
                       {a.dropdownLabel}
                     </>
                   );

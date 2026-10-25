@@ -12,7 +12,9 @@ function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
 
 function PostCardSkeleton() {
   return (
-    <Card className="w-full space-y-3">
+    // Editorial rows, like PostCard / BlogCard / AlbumCard, so loading and
+    // loaded states share one silhouette.
+    <Card variant="editorial" className="w-full space-y-3 py-7">
       <div className="flex items-start gap-3">
         <Skeleton className="w-10 h-10 rounded-full" />
         <div className="flex-1 space-y-2">
@@ -30,7 +32,7 @@ function PostCardSkeleton() {
 
 function FeedLoadingSkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-8 space-y-4">
+    <div className="reading-container page-space flex flex-col">
       {Array.from({ length: count }, (_, i) => (
         <PostCardSkeleton key={i} />
       ))}

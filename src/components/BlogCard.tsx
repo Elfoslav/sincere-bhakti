@@ -17,8 +17,14 @@ export default function BlogCard({
   manageableChannelIds,
   onDelete,
   onEdit,
+  variant = "default",
+  featured = false,
 }: {
   post: BlogPost;
+  // default: boxed card; editorial: cover-on-top grid tile (home); list: divider row
+  // with a small thumbnail, matching the timeline's PostCard rows.
+  variant?: "default" | "editorial" | "list";
+  featured?: boolean;
   currentUserId?: string;
   manageableChannelIds?: string[];
   onDelete?: (id: string) => void;
@@ -31,13 +37,22 @@ export default function BlogCard({
   const isScheduled = post.publishedAt ? new Date(post.publishedAt) > new Date() : false;
 
   return (
-    <Card>
+    <Card
+      variant={variant === "default" ? "default" : "editorial"}
+      className={variant === "editorial" ? "flex h-full flex-col pb-6" : variant === "list" ? "py-7" : undefined}
+    >
+      {variant === "editorial" && post.coverUrl ? (
+        <Link href={getBlogUrl(post.shortId, post.slug)} className="media-zoom mb-5 block overflow-hidden rounded-lg">
+          {/* eslint-disable-next-line @next/next/no-img-element -- user-hosted article cover */}
+          <img src={post.coverUrl} alt="" className={featured ? "aspect-[8/5] w-full object-cover" : "aspect-[3/1] w-full object-cover"} loading="lazy" />
+        </Link>
+      ) : null}
       {/* Title row — actions sit tight to the title on the right so they are
           always discoverable but don't compete with the cover. When there is
           a cover, the thumb lives in the body row below — no overlap. */}
       <div className="flex items-start justify-between gap-3">
         <Link href={getBlogUrl(post.shortId, post.slug)} className="min-w-0 flex-1 text-deep hover:text-gold transition-colors">
-          <h3 className="font-heading text-xl font-bold leading-tight line-clamp-2 sm:text-[22px]">
+          <h3 className={featured ? "font-heading text-3xl leading-tight line-clamp-3 sm:text-4xl" : "font-heading text-xl leading-tight line-clamp-2 sm:text-2xl"}>
             {post.title}
           </h3>
         </Link>
@@ -59,10 +74,10 @@ export default function BlogCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
             <ChannelAvatar name={post.channel.name} size="xs" ariaHidden className="shrink-0" />
-            <span className="flex min-w-0 flex-1 items-center gap-x-1.5 gap-y-0.5 flex-wrap text-xs text-deep/60">
+            <span className="flex min-w-0 flex-1 items-center gap-x-1.5 gap-y-0.5 flex-wrap text-xs text-muted-foreground">
               <Link
                 href={`/blog/channel/${post.channel.slug}`}
-                className="min-w-0 max-w-full truncate font-medium text-deep/70 hover:text-gold transition-colors"
+                className="min-w-0 max-w-full truncate font-medium text-muted-foreground hover:text-gold transition-colors"
               >
                 {post.channel.name}
               </Link>
@@ -72,11 +87,11 @@ export default function BlogCard({
               <span className="shrink-0 whitespace-nowrap">{date}</span>
             </span>
             {!post.isPublic ? (
-              <span className="shrink-0 rounded-full bg-deep/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-deep/70">
+              <span className="shrink-0 rounded-full bg-deep/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-muted-foreground">
                 {t("private")}
               </span>
             ) : isScheduled ? (
-              <span className="shrink-0 rounded-full bg-gold-light/25 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-gold-dark">
+              <span className="shrink-0 rounded-full bg-gold-light/25 px-2 py-0.5 text-xs font-semibold tracking-wide text-primary">
                 {t("scheduled")}
               </span>
             ) : null}
@@ -84,7 +99,7 @@ export default function BlogCard({
 
           <BlogExcerpt
             post={post}
-            className="mt-2 text-sm leading-relaxed text-deep/60"
+            className="mt-2 text-sm leading-relaxed text-muted-foreground"
             clampClassName="line-clamp-2"
           />
 
@@ -95,7 +110,7 @@ export default function BlogCard({
           />
         </div>
 
-        {post.coverUrl ? (
+        {variant !== "editorial" && post.coverUrl ? (
           <Link
             href={getBlogUrl(post.shortId, post.slug)}
             className="block shrink-0 overflow-hidden rounded-lg"

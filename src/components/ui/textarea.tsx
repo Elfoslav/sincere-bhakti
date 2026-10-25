@@ -18,7 +18,7 @@ const textareaVariants = cva(
         // relaxed leading, no manual resizer (auto-grows). The mobile variant
         // is shorter with touch-friendly text-base; desktop gets extra room.
         compose:
-          "min-h-28 resize-none rounded-xl px-4 py-3.5 text-base leading-relaxed shadow-sm md:min-h-40 md:px-5 md:py-4",
+          "min-h-28 resize-none rounded-lg px-4 py-3.5 text-base leading-relaxed md:min-h-40 md:px-5 md:py-4",
       },
     },
     defaultVariants: {

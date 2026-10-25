@@ -2,16 +2,17 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
 type CardPadding = "none" | "sm" | "md" | "lg" | "xl";
-type CardVariant = "default" | "elevated" | "flat" | "hover" | "ghost" | "ghost-muted";
+type CardVariant = "default" | "elevated" | "flat" | "hover" | "ghost" | "ghost-muted" | "editorial";
 
-/* Dawn Sādhana: warm gold-tinted shadows instead of neutral grey ones. */
+/** Surfaces share semantic tokens; editorial entries use whitespace and rules. */
 const variantClasses: Record<CardVariant, string> = {
-  default: "bg-white rounded-2xl shadow-[0_2px_10px_rgba(120,90,30,0.07)] border border-sand",
-  elevated: "bg-white rounded-2xl shadow-[0_6px_24px_rgba(120,90,30,0.12)] border border-sand",
-  flat: "bg-white rounded-2xl border border-sand",
-  hover: "bg-white hover:bg-sand/30 active:bg-sand/50 rounded-2xl border border-sand transition-colors",
-  ghost: "bg-white rounded-2xl border border-sand",
-  "ghost-muted": "bg-white/60 rounded-2xl border border-sand",
+  default: "bg-card text-card-foreground rounded-lg border border-border",
+  elevated: "bg-card text-card-foreground rounded-lg border border-border shadow-sm",
+  flat: "bg-card text-card-foreground rounded-lg border border-border",
+  hover: "bg-card text-card-foreground hover:bg-secondary rounded-lg border border-border transition-colors",
+  ghost: "bg-card text-card-foreground rounded-lg border border-border",
+  "ghost-muted": "bg-muted text-foreground rounded-lg border border-border",
+  editorial: "bg-transparent border-b border-border rounded-none",
 };
 
 const paddingClasses: Record<CardPadding, string> = {
@@ -29,6 +30,7 @@ const defaultPadding: Record<CardVariant, CardPadding> = {
   hover: "sm",
   ghost: "none",
   "ghost-muted": "none",
+  editorial: "none",
 };
 
 export function Card({

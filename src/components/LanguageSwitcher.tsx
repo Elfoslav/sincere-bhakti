@@ -80,8 +80,10 @@ export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: bo
       <button
         ref={btnRef}
         onClick={toggle}
+        aria-expanded={open}
+        aria-label={current.label}
         className={cn(
-          "flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors px-3 py-2 rounded-md border border-white/10 hover:border-white/20 min-h-10",
+          "flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-md border border-transparent hover:border-border min-h-10",
           fullWidth && "w-full justify-between",
         )}
       >
@@ -100,7 +102,7 @@ export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: bo
         <div
           ref={menuRef}
           style={{ top: pos.top, left: pos.left, minWidth: pos.width }}
-          className="fixed z-50 bg-white rounded-lg shadow-lg border border-sand overflow-hidden"
+          className="fixed z-50 bg-popover rounded-lg shadow-lg border border-sand overflow-hidden"
         >
           {locales.map((l) => (
             <button
@@ -108,7 +110,7 @@ export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: bo
               onClick={() => switchLocale(l.code)}
               className={`flex items-center gap-2 w-full px-3 py-2.5 text-sm text-left transition-colors ${
                 locale === l.code
-                  ? "bg-gold/10 text-gold font-medium cursor-default"
+                  ? "bg-secondary text-primary font-medium cursor-default"
                   : "text-deep hover:bg-sand/30"
               }`}
             >

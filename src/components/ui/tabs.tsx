@@ -5,7 +5,7 @@ import { cva } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const listVariants = cva(
-  "flex gap-8 border-b border-sand rounded-none bg-transparent p-0",
+  "flex flex-wrap gap-2 sm:gap-6 border-b border-sand rounded-none bg-transparent p-0",
   {
     variants: {
       orientation: {
@@ -20,7 +20,7 @@ const listVariants = cva(
 )
 
 const tabVariants = cva(
-  "pb-2.5 px-1 rounded-none bg-transparent shadow-none text-sm font-medium text-deep/50 hover:text-deep transition-all border-b-2 border-transparent data-[active]:text-gold data-[active]:border-gold data-[active]:bg-transparent data-[active]:shadow-none",
+  "min-h-11 pb-2.5 px-1 rounded-none bg-transparent shadow-none text-sm font-medium text-muted-foreground hover:text-deep transition-all border-b-2 border-transparent data-[active]:text-gold data-[active]:border-gold data-[active]:bg-transparent data-[active]:shadow-none",
   {
     variants: {},
     defaultVariants: {},

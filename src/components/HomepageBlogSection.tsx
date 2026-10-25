@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import BlogCard from "@/components/BlogCard";
@@ -22,22 +23,22 @@ export default function HomepageBlogSection() {
   const visible = posts.slice(0, LATEST_BLOG_POSTS_LIMIT);
 
   return (
-    <section className="mt-16 text-left" aria-labelledby="home-blog-heading">
+    <section className="section-space text-left" aria-labelledby="home-blog-heading">
       <div className="flex items-baseline justify-between gap-4 mb-2">
-        <h2 id="home-blog-heading" className="font-heading text-2xl font-bold text-deep">
+        <h2 id="home-blog-heading" className="type-section">
           {t("blogLatestTitle")}
         </h2>
         <Link
           href="/blog"
           className="shrink-0 text-sm font-medium text-saffron hover:text-saffron-dark transition-colors"
         >
-          {t("viewAllBlog")} →
+          {t("viewAllBlog")} <ArrowRight className="ml-1 inline size-4" aria-hidden />
         </Link>
       </div>
-      <p className="text-sm text-deep/60 mb-6">{t("blogLatestSubtitle")}</p>
-      <div className="space-y-4">
-        {visible.map((post) => (
-          <BlogCard key={post.id} post={post} />
+      <p className="text-sm text-muted-foreground mb-6">{t("blogLatestSubtitle")}</p>
+      <div className="editorial-grid" data-featured-media={Boolean(visible[0]?.coverUrl)}>
+        {visible.map((post, index) => (
+          <BlogCard key={post.id} post={post} variant="editorial" featured={index === 0} />
         ))}
       </div>
     </section>

@@ -78,7 +78,7 @@ export default function BlogAnalytics({ postId }: { postId: string }) {
   }, [postId]);
 
   return (
-    <div ref={endRef} className="mt-6 text-center text-xs text-deep/50" title={t("analyticsExplanation")}>
+    <div ref={endRef} className="mt-6 text-center text-xs text-muted-foreground" title={t("analyticsExplanation")}>
       {counts ? <span>{t("views", { count: counts.views })} · {t("reads", { count: counts.reads })} · {t("uniqueVisitors", { count: counts.uniqueVisitors })}</span> : null}
     </div>
   );

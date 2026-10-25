@@ -474,12 +474,12 @@ export default function BlogForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       {postingChannel ? (
-        <p className="text-sm text-deep/60">
+        <p className="text-sm text-muted-foreground">
           {t("postingAs")} <span className="font-semibold text-deep">{postingChannel.name}</span>
         </p>
       ) : null}
       {!isVerified ? (
-        <p className="text-sm text-deep/60">{t("verifyToPost")}</p>
+        <p className="text-sm text-muted-foreground">{t("verifyToPost")}</p>
       ) : null}
       <Input
         name="title"
@@ -534,7 +534,7 @@ export default function BlogForm({
         }}
       />
       <div>
-        <label htmlFor="blog-categories" className="mb-1 block text-sm font-medium text-deep/70">
+        <label htmlFor="blog-categories" className="mb-1 block text-sm font-medium text-muted-foreground">
           {t("categoriesLabel")}
         </label>
         <CategoryPicker id="blog-categories" value={categories} onChange={setCategories} />
@@ -598,10 +598,10 @@ export default function BlogForm({
           {t("publishInTimeline")}
         </label>
         {isScheduled && (
-          <p className="mt-1 text-xs text-deep/50">{t("timelineScheduledHint")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("timelineScheduledHint")}</p>
         )}
       </div>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="flex items-center gap-2">
         {isPrivate ? (
           <>

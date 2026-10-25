@@ -48,7 +48,7 @@ function Input({ className, type, errorMessage, maxLength, minLengthHint, onChan
         }
       />
       {maxLength !== undefined && (
-        <p className={cn("text-xs mt-1 tabular-nums", isBelowMin ? "text-amber-600" : "text-deep/50")}>
+        <p className={cn("text-xs mt-1 tabular-nums", isBelowMin ? "text-primary" : "text-muted-foreground")}>
           {currentLength} / {maxLength}
           {minLengthHint !== undefined && <> (min {minLengthHint})</>}
         </p>

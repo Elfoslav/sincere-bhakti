@@ -16,7 +16,7 @@ function FilterBanner({ message, href, clearLabel }: { message: string; href: st
         <Link
           href={href}
           aria-label={clearLabel}
-          className="rounded-full p-0.5 text-deep/50 hover:text-deep"
+          className="rounded-full p-0.5 text-muted-foreground hover:text-deep"
         >
           <X className="size-3.5" aria-hidden />
         </Link>

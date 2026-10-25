@@ -365,7 +365,7 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
     <>
       <form onSubmit={handleSubmit} id={formId}>
         {mode === "create" && postingIdentity && (
-          <div className="mb-3 flex items-center gap-2 text-sm text-deep/60">
+          <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
             <span>{t("postingAs")}</span>
             <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-deep/5 py-1 pl-1 pr-3 font-medium text-deep">
               {postingIdentity.avatarUrl ? (
@@ -419,11 +419,11 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
                     )
                   )}
                 </div>
-                <span className="text-xs text-deep/60 truncate flex-1 min-w-0 hidden md:block">
+                <span className="text-xs text-muted-foreground truncate flex-1 min-w-0 hidden md:block">
                   {item.file ? item.file.name : item.url?.split("/").pop()}
                 </span>
                 {item.file && (
-                  <span className="text-[10px] text-deep/40 shrink-0 tabular-nums">
+                  <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
                     {formatBytes(item.file.size)}
                   </span>
                 )}
@@ -444,7 +444,7 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
         <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
           <div className="flex items-center gap-4">
             <div className="flex flex-col gap-0.5">
-              <label className="flex items-center gap-2 text-sm text-deep/70 cursor-pointer hover:text-deep">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-deep">
                 <input
                   ref={fileInputRef}
                   type="file"

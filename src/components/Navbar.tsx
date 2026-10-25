@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import BrandLogo from "@/components/BrandLogo";
 import { useSession, signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { CircleUserRound, Hash, Images, LogIn, LogOut, Newspaper, BookOpen } from "lucide-react";
-import { Link } from "@/i18n/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { isAuthenticated } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -15,17 +16,17 @@ function Hamburger({ open }: { open: boolean }) {
 	return (
 		<div className="flex flex-col gap-1.5 cursor-pointer">
 			<span
-				className={`block h-0.5 w-6 rounded bg-white transition-all duration-300 ${
+				className={`block h-0.5 w-6 rounded bg-foreground transition-all duration-300 ${
 					open ? "translate-y-2 rotate-45" : ""
 				}`}
 			/>
 			<span
-				className={`block h-0.5 rounded bg-white transition-all duration-300 ${
+				className={`block h-0.5 rounded bg-foreground transition-all duration-300 ${
 					open ? "w-0 opacity-0" : "w-4"
 				}`}
 			/>
 			<span
-				className={`block h-0.5 w-6 rounded bg-white transition-all duration-300 ${
+				className={`block h-0.5 w-6 rounded bg-foreground transition-all duration-300 ${
 					open ? "-translate-y-2 -rotate-45" : ""
 				}`}
 			/>
@@ -35,6 +36,8 @@ function Hamburger({ open }: { open: boolean }) {
 
 export default function Navbar() {
 	const { status } = useSession();
+	const pathname = usePathname();
+	const hydrated = useHydrated();
 	const [open, setOpen] = useState(false);
 	const t = useTranslations("Navbar");
 
@@ -43,40 +46,32 @@ export default function Navbar() {
 	}
 
 	return (
-		<nav className="bg-deep text-white shadow-lg">
-			<div className="max-w-6xl mx-auto px-4">
-				<div className="relative flex h-16 items-center justify-between">
-					<div className="flex items-center gap-6">
+		<nav className="relative z-20 border-b border-border bg-background text-foreground">
+			<div className="site-container">
+				<div className="relative flex h-[var(--navbar-height)] items-center justify-between">
+					<div className="flex items-center gap-8 lg:gap-12">
 						<Link href="/" className="flex items-center gap-2" onClick={close}>
-							<Image
-								src="/images/sincere-bhakti-logo-light.png"
-								alt={t("logoAlt")}
-								title={t("logoAlt")}
-								width={77}
-								height={52}
-								priority
-								className="shrink-0"
-								style={{ width: 77, height: 52 }}
-							/>
+							<BrandLogo />
 						</Link>
 
-						<div className="hidden md:flex items-center gap-4">
-							<Link href="/posts" className="hover:text-gold-light transition-colors">
+						<div className="hidden lg:flex items-center gap-6">
+							<Link href="/posts" aria-current={pathname.startsWith("/posts") ? "page" : undefined} className="site-nav-link">
 								{t("posts")}
 							</Link>
-							<Link href="/blog" className="hover:text-gold-light transition-colors">
+							<Link href="/blog" aria-current={pathname.startsWith("/blog") ? "page" : undefined} className="site-nav-link">
 								{t("blog")}
 							</Link>
-							<Link href="/gallery" className="hover:text-gold-light transition-colors">
+							<Link href="/gallery" aria-current={pathname.startsWith("/gallery") ? "page" : undefined} className="site-nav-link">
 								{t("gallery")}
 							</Link>
-							<Link href="/channels" className="hover:text-gold-light transition-colors">
+							<Link href="/channels" aria-current={pathname.startsWith("/channels") ? "page" : undefined} className="site-nav-link">
 								{t("channels")}
 							</Link>
 							{isAuthenticated(status) && (
 								<Link
 									href="/profile"
-									className="hover:text-gold-light transition-colors"
+									aria-current={pathname.startsWith("/profile") ? "page" : undefined}
+									className="site-nav-link"
 								>
 									{t("profile")}
 								</Link>
@@ -85,7 +80,7 @@ export default function Navbar() {
 					</div>
 
 					{isAuthenticated(status) && (
-						<div className="pointer-events-none absolute inset-x-20 bottom-0 top-0 z-10 flex items-center justify-center md:hidden">
+						<div className="pointer-events-none absolute left-32 right-16 bottom-0 top-0 z-10 flex items-center justify-center lg:hidden">
 							<IdentitySwitcher mobileNav />
 						</div>
 					)}
@@ -93,16 +88,18 @@ export default function Navbar() {
 					<div className="flex items-center gap-1">
 						<Button
 							type="button"
-							variant="icon-light"
+							variant="icon"
 							size="icon-lg"
-							className="md:hidden"
+							className="lg:hidden"
 							onClick={() => setOpen(!open)}
+							disabled={!hydrated}
 							aria-label={t("toggleMenu")}
 							aria-expanded={open}
+							aria-controls="mobile-navigation"
 							icon={<Hamburger open={open} />}
 						/>
 
-						<div className="hidden md:flex items-center gap-4">
+						<div className="hidden lg:flex items-center gap-6">
 							<LanguageSwitcher />
 							{isAuthenticated(status) ? (
 								<>
@@ -112,7 +109,7 @@ export default function Navbar() {
 									</Button>
 								</>
 							) : (
-								<Button href="/login" variant="default" size="default">
+								<Button href="/login" variant="ghost" size="default">
 									{t("getIn")}
 								</Button>
 							)}
@@ -122,11 +119,13 @@ export default function Navbar() {
 			</div>
 
 			<div
-				className={`md:hidden transition-all duration-300 ease-in-out ${
-					open ? "max-h-[calc(100svh-4rem)] overflow-y-auto opacity-100" : "max-h-0 overflow-hidden opacity-0"
+				id="mobile-navigation"
+				inert={!open}
+				className={`lg:hidden transition-all duration-300 ease-in-out ${
+					open ? "max-h-[calc(100svh-var(--navbar-height))] overflow-y-auto opacity-100" : "max-h-0 overflow-hidden opacity-0"
 				}`}
 			>
-				<div className="flex flex-col gap-1 px-4 pb-4 pt-1 border-t border-white/10">
+				<div className="flex flex-col gap-1 px-4 pb-4 pt-1 border-t border-border">
 					<div className="px-4 py-2">
 						<LanguageSwitcher fullWidth />
 					</div>
@@ -189,13 +188,15 @@ function MobileLink({
 	icon: React.ReactNode;
 	children: React.ReactNode;
 }) {
+	const pathname = usePathname();
 	return (
 		<Link
 			href={href}
+			aria-current={pathname.startsWith(href) ? "page" : undefined}
 			onClick={onClick}
-			className="flex items-center gap-2 rounded-md px-4 py-2 text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+			className="flex min-h-11 items-center gap-2 rounded-md px-4 py-2 text-foreground transition-colors hover:bg-secondary hover:text-primary aria-[current=page]:bg-secondary aria-[current=page]:text-primary"
 		>
-			<span aria-hidden="true" className="text-gold-light/85">
+			<span aria-hidden="true" className="text-primary">
 				{icon}
 			</span>
 			{children}

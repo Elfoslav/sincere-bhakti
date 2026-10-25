@@ -7,7 +7,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 export default function BlogLayout({
   title,
   children,
-  containerClassName = "w-full max-w-3xl mx-auto px-4 py-8",
+  containerClassName = "reading-container page-space",
 }: {
   title: string;
   children: ReactNode;

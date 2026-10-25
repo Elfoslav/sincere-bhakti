@@ -122,7 +122,7 @@ export default function EditBlogModal({
               onDirtyChange={setIsDirty}
             />
           ) : failedId === post.id ? (
-            <p role="alert" className="pt-4 text-sm text-red-600">{t("bodyLoadFailed")}</p>
+            <p role="alert" className="pt-4 text-sm text-destructive">{t("bodyLoadFailed")}</p>
           ) : (
             <div aria-busy="true" className="space-y-3 py-4">
               <div className="h-8 w-2/3 animate-pulse rounded bg-deep/10" />

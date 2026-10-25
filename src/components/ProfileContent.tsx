@@ -1,5 +1,6 @@
 "use client";
 
+import FeedEmptyState from "@/components/FeedEmptyState";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
@@ -157,7 +158,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 
 	if (profileLoading) {
 		return (
-			<div className="w-full max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
+			<div className="reading-container page-space flex flex-col flex-1">
 				<div className="flex-1 space-y-4">
 					<Card variant="default" padding="lg" className="w-full text-center space-y-4">
 						<Skeleton className="w-20 h-20 rounded-full mx-auto" />
@@ -173,17 +174,14 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 
 	if (!profile) {
 		return (
-			<div className="flex-1 flex items-center justify-center">
+			<div className="auth-layout">
 				<div className="text-center max-w-md">
 					<div className="text-6xl mb-4">🔍🕊️</div>
-					<h1 className="text-2xl font-bold text-deep mb-2">{t("noProfileTitle")}</h1>
-					<p className="text-deep/60 mb-6">{t("noProfile")}</p>
-					<Link
-						href="/posts"
-						className="inline-block px-6 py-2.5 bg-gold hover:bg-gold-light active:bg-gold/80 text-white rounded-lg transition-colors font-medium"
-					>
+					<h1 className="type-title mb-3">{t("noProfileTitle")}</h1>
+					<p className="text-muted-foreground mb-6">{t("noProfile")}</p>
+					<Button href="/posts">
 						{t("backToPosts")}
-					</Link>
+					</Button>
 				</div>
 			</div>
 		);
@@ -193,12 +191,12 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 	const managedChannels = profile.managedChannels ?? [];
 
 	return (
-		<div className="w-full max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
+		<div className="reading-container page-space flex flex-col flex-1">
 			<Card variant="default" padding="lg" className="relative mb-8 text-center">
 				{isOwnProfile && (
 					<Button
 						href="/profile/settings"
-						className="absolute right-3 top-3 sm:right-4 sm:top-4 text-deep/40 hover:text-gold-light"
+						className="absolute right-3 top-3 sm:right-4 sm:top-4 text-muted-foreground hover:text-primary"
 						title={t("settings")}
 						aria-label={t("settings")}
 						icon={<Settings />}
@@ -206,7 +204,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 				)}
 				<ChannelAvatar name={profile.name} size="lg" className="mx-auto mb-4" />
 				<div className="flex items-center justify-center gap-2">
-					<h1 className="text-2xl font-bold text-deep">{profile.name}</h1>
+					<h1 className="type-title min-w-0">{profile.name}</h1>
 					{isOwnProfile && (
 						<>
 							<Dialog open={open} onOpenChange={setOpen}>
@@ -226,8 +224,8 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 									text={t("editNameTitle")}
 									subheading={common("renameCountInfo")}
 									subheadingRight={common("renameCount", { count: profile.renameCount, max: MAX_RENAME_COUNT })}
-									subheadingClassName="text-deep/50"
-									subheadingRightClassName="text-deep/50"
+									subheadingClassName="text-muted-foreground"
+									subheadingRightClassName="text-muted-foreground"
 								/>
 								<form
 									onSubmit={(e) => {
@@ -263,7 +261,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 						</>
 					)}
 				</div>
-				<p className="text-deep/50 text-sm mt-1">{t("joined", { date })}</p>
+				<p className="text-muted-foreground text-sm mt-1">{t("joined", { date })}</p>
 			</Card>
 
 			<section>
@@ -291,7 +289,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 										text={t("createChannelTitle")}
 										subheading={t("channelLimitModalInfo", { max: profile.channelLimit })}
 										subheadingRight={`${additionalChannelCount} / ${profile.channelLimit}`}
-										subheadingClassName="text-deep/50"
+										subheadingClassName="text-muted-foreground"
 									/>
 									<form
 										onSubmit={(e) => {
@@ -336,9 +334,7 @@ export default function ProfileContent({ authorId }: { authorId: string }) {
 					)}
 				</div>
 				{profile.channels.length === 0 ? (
-					<Card variant="ghost-muted" className="text-center py-8">
-						{t("noChannels")}
-					</Card>
+					<FeedEmptyState compact message={t("noChannels")} />
 				) : (
 					<div className="space-y-3">
 						{profile.channels.map((ch) => (
@@ -387,12 +383,12 @@ function ProfileChannelCard({
 						<div className="flex min-w-0 items-center gap-2">
 							<p className="truncate font-medium text-deep">{channel.name}</p>
 							{roleLabel && (
-								<span className="shrink-0 rounded-full bg-deep/5 px-2 py-0.5 text-xs font-medium text-deep/60">
+								<span className="shrink-0 rounded-full bg-deep/5 px-2 py-0.5 text-xs font-medium text-muted-foreground">
 									{roleLabel}
 								</span>
 							)}
 						</div>
-						<p className="mt-0.5 flex items-center gap-1 text-xs text-deep/50">
+						<p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
 							<FileText className="w-3 h-3" />
 							{postCountLabel}
 						</p>

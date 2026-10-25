@@ -22,14 +22,14 @@ export default function CategoryChips({ categories, onSelect, className = "" }: 
             key={category.id}
             type="button"
             onClick={() => onSelect(category)}
-            className="rounded-full bg-deep/5 px-2.5 py-0.5 text-xs font-semibold tracking-wide text-deep/70 hover:bg-gold-light/25 hover:text-deep"
+            className="rounded-full bg-deep/5 px-2.5 py-0.5 text-xs font-semibold tracking-wide text-muted-foreground hover:bg-gold-light/25 hover:text-deep"
           >
             {category.name}
           </button>
         ) : (
           <span
             key={category.id}
-            className="rounded-full bg-deep/5 px-2.5 py-0.5 text-xs font-semibold tracking-wide text-deep/70"
+            className="rounded-full bg-deep/5 px-2.5 py-0.5 text-xs font-semibold tracking-wide text-muted-foreground"
           >
             {category.name}
           </span>

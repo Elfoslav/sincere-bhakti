@@ -12,7 +12,7 @@ export type ChannelAvatarSize = keyof typeof SIZES;
 
 /**
  * Channel avatar with graceful fallbacks: the R2-hosted photo when present,
- * otherwise a gradient initial badge (or a Hash tile for list rows).
+ * otherwise a quiet initial badge (or a Hash tile for list rows).
  * Centralizes the avatar markup (and the intentional `<img>` rationale) that
  * was copy-pasted across cards, lists, and headers.
  */
@@ -49,7 +49,7 @@ export default function ChannelAvatar({
   return (
     <div
       className={cn(
-        "rounded-full bg-gradient-to-br from-gold-light to-saffron-dark flex items-center justify-center text-white font-bold shrink-0",
+        "rounded-full bg-secondary flex items-center justify-center text-primary font-medium shrink-0",
         sizes.frame,
         className,
       )}
