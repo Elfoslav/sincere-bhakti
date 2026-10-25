@@ -6,6 +6,7 @@ vi.mock("@/lib/csrf", () => ({
 }));
 vi.mock("@/lib/services/category", () => ({
   searchCategories: vi.fn(),
+  getFeedCategories: vi.fn(),
   resolveCategoryIds: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({
@@ -19,7 +20,7 @@ vi.mock("@/lib/prisma", () => ({
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 import { auth } from "@/lib/auth";
-import { searchCategories, resolveCategoryIds } from "@/lib/services/category";
+import { searchCategories, getFeedCategories, resolveCategoryIds } from "@/lib/services/category";
 import { prisma } from "@/lib/prisma";
 import { GET, POST } from "@/app/api/categories/route";
 
@@ -47,6 +48,24 @@ describe("GET /api/categories", () => {
     expect(res.status).toBe(200);
     expect(json.categories).toEqual([{ id: "1", name: "Holy Name", language: "en" }]);
     expect(searchCategories).toHaveBeenCalledWith({ search: "holy", limit: 10, language: "en" });
+  });
+
+  it("returns the feed's most-used categories when usedBy is set", async () => {
+    vi.mocked(getFeedCategories).mockResolvedValue([{ id: "1", name: "Kirtan", slug: "kirtan", language: "en" }]);
+
+    const res = await GET(mockRequest("http://localhost:3000/api/categories?usedBy=blog&limit=12&language=en"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.categories).toHaveLength(1);
+    expect(getFeedCategories).toHaveBeenCalledWith({ usedBy: "blog", limit: 12, language: "en" });
+    expect(searchCategories).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown usedBy value", async () => {
+    const res = await GET(mockRequest("http://localhost:3000/api/categories?usedBy=albums"));
+    expect(res.status).toBe(400);
+    expect(getFeedCategories).not.toHaveBeenCalled();
   });
 
   it("returns 400 for an invalid limit", async () => {

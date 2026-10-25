@@ -34,7 +34,7 @@ export default function FeedFilterBar({
 }) {
   const t = useTranslations("Categories");
   const locale = useLocale();
-  const categories = useFeedCategories(locale);
+  const categories = useFeedCategories(locale, basePath === "/blog" ? "blog" : "posts");
 
   return (
     <div role="search" className="mb-6 space-y-3">

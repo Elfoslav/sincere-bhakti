@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchCategories, resolveCategoryIds } from "@/lib/services/category";
+import { searchCategories, getFeedCategories, resolveCategoryIds } from "@/lib/services/category";
 import { categorySearchSchema, createCategorySchema } from "@/lib/validation";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { ERROR_UNAUTHORIZED, ERROR_TOO_MANY_REQUESTS, ERROR_EMAIL_NOT_VERIFIED } from "@/lib/error-messages";
@@ -21,10 +21,14 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
       language: searchParams.get("language") ?? undefined,
+      usedBy: searchParams.get("usedBy") ?? undefined,
     }, categorySearchSchema, "GET /api/categories");
     if (parsed.response) return parsed.response;
 
-    const categories = await searchCategories(parsed.data);
+    const { usedBy, ...rest } = parsed.data;
+    const categories = usedBy
+      ? await getFeedCategories({ usedBy, limit: parsed.data.limit, language: parsed.data.language })
+      : await searchCategories(rest);
     return NextResponse.json({ categories });
   } catch (error) {
     return serverError("GET /api/categories", error, "failed_to_fetch_categories");

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { deriveCategorySlug, normalizeCategoryName } from "@/lib/validation";
+import { deriveCategorySlug, normalizeCategoryName, type FeedCategorySource } from "@/lib/validation";
+import { publicVisibilityFilter } from "@/lib/services/feed-scope";
 import type { CategoryRef } from "@/types/category";
 import type { Prisma } from "@prisma/client";
 
@@ -45,6 +46,37 @@ export async function searchCategories(params: SearchCategoriesParams): Promise<
       ...(prefix ? { name: { startsWith: prefix } } : {}),
     },
     orderBy: { name: "asc" },
+    take: limit,
+    select: { id: true, name: true, slug: true, language: true },
+  });
+}
+
+export interface FeedCategoriesParams {
+  usedBy: FeedCategorySource;
+  limit: number;
+  language?: string;
+}
+
+/**
+ * Categories for the feed filter chips: only those with at least one publicly
+ * visible item in the given feed, most-used first (ties alphabetical). Using
+ * the relation count keeps empty categories out of the chip row, so a chip
+ * never leads to an empty page.
+ */
+export async function getFeedCategories(params: FeedCategoriesParams): Promise<CategoryRef[]> {
+  const { usedBy, limit, language } = params;
+  const visible = publicVisibilityFilter(new Date());
+  return prisma.category.findMany({
+    where: {
+      ...(language ? { language } : {}),
+      ...(usedBy === "posts"
+        ? { posts: { some: { post: visible } } }
+        : { blogPosts: { some: { blogPost: visible } } }),
+    },
+    orderBy: [
+      usedBy === "posts" ? { posts: { _count: "desc" } } : { blogPosts: { _count: "desc" } },
+      { name: "asc" },
+    ],
     take: limit,
     select: { id: true, name: true, slug: true, language: true },
   });

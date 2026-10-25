@@ -52,6 +52,8 @@ export const FEED_SEARCH_MAX_LENGTH = 100;
 export const FEED_SEARCH_MAX_TERMS = 5;
 // Category chips shown above the feeds (a browsable head of the taxonomy).
 export const FEED_CATEGORY_CHIPS_LIMIT = 12;
+export const FEED_CATEGORY_SOURCES = ["posts", "blog"] as const;
+export type FeedCategorySource = (typeof FEED_CATEGORY_SOURCES)[number];
 
 // Cuid-shaped entity ids (posts, blogs, drafts, R2 key namespaces): the same
 // charset everywhere, rejecting `/`, `..`, `?`, `#` that could escape a key
@@ -97,6 +99,9 @@ export const categorySearchSchema = z.object({
   limit: z.coerce.number().int().min(1).max(CATEGORY_SEARCH_MAX_LIMIT).default(CATEGORY_SEARCH_LIMIT),
   // Picker scope: categories only ever surface in their own language.
   language: z.enum(locales).optional(),
+  // Feed filter chips: only categories with publicly visible items in this
+  // feed, most used first. `search` is ignored when set.
+  usedBy: z.enum(FEED_CATEGORY_SOURCES).optional(),
 });
 
 export const createCategorySchema = z.object({

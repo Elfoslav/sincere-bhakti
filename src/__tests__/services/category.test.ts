@@ -25,6 +25,7 @@ import { prisma } from "@/lib/prisma";
 import {
   canonicalizeCategoryNames,
   searchCategories,
+  getFeedCategories,
   getCategoryBySlug,
   getCategoryByName,
   resolveCategoryIds,
@@ -42,6 +43,38 @@ describe("canonicalizeCategoryNames", () => {
 
   it("returns an empty list for empty input", () => {
     expect(canonicalizeCategoryNames([])).toEqual([]);
+  });
+});
+
+describe("getFeedCategories", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(prisma.category.findMany).mockResolvedValue([]);
+  });
+
+  it("returns posts categories with visible posts, most used first", async () => {
+    await getFeedCategories({ usedBy: "posts", limit: 12, language: "en" });
+
+    expect(prisma.category.findMany).toHaveBeenCalledWith({
+      where: {
+        language: "en",
+        posts: { some: { post: { isPublic: true, OR: [{ publishedAt: null }, { publishedAt: { lte: expect.any(Date) } }] } } },
+      },
+      orderBy: [{ posts: { _count: "desc" } }, { name: "asc" }],
+      take: 12,
+      select: { id: true, name: true, slug: true, language: true },
+    });
+  });
+
+  it("uses the blog relation for articles", async () => {
+    await getFeedCategories({ usedBy: "blog", limit: 5 });
+
+    expect(prisma.category.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { blogPosts: { some: { blogPost: expect.objectContaining({ isPublic: true }) } } },
+        orderBy: [{ blogPosts: { _count: "desc" } }, { name: "asc" }],
+      }),
+    );
   });
 });
 
