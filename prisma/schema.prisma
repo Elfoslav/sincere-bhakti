@@ -136,6 +136,8 @@ model Post {
   @@index([isPublic, publishedAt, createdAt])
   @@index([language, isPublic, createdAt])
   @@index([createdAt, id])
+  // Trigram index backs the feed's case-insensitive substring search (q).
+  @@index([content(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model RateLimit {
@@ -174,6 +176,9 @@ model BlogPost {
   @@index([isPublic, publishedAt, createdAt])
   @@index([language, isPublic, createdAt])
   @@index([createdAt, id])
+  // Trigram indexes back the feed's case-insensitive substring search (q).
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([excerpt(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 // Unified taxonomy for timeline posts and blog articles. Names are stored
