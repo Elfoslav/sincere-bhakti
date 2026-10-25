@@ -23,6 +23,12 @@ Use `background` for ivory canvas, `card` for interactive surfaces, `foreground`
 
 Existing `deep`, `gold`, `saffron`, `warm`, `sand`, and `tulsi` names are compatibility aliases of the semantic palette, not a second set of hex colors. New components should use semantic roles. Semantic roles are the only way to color a component; never hardcode a hex value.
 
+## Contrast
+
+Contrast is measured, not eyeballed. `src/__tests__/design-token-contrast.test.ts` reads the light palette from `globals.css` and enforces: body and muted text at least 4.5:1 on every surface (background, card, popover, muted, secondary), brass links/text (`primary`) at least 5:1 on all of them, button labels on their fills, field borders and the focus ring at 3:1, and card/divider borders at 1.6:1+ so surfaces read as distinct. Current values: `primary` `#7d5a1f` (5.7:1 on ivory), `primary-hover` `#5f4317`, `muted-foreground` `#565951` (6.5:1), `border` `#c7bea9` (1.7:1).
+
+The logo artwork's gold strokes are only ~2.4:1 on ivory, so `BrandLogo` applies a CSS `filter` (`LOGO_CONTRAST_FILTER`) that deepens them to the brand brass (~5.7:1). The mark is neither redrawn nor cropped. When changing a token, run the test; when adding a color, use a semantic role so it inherits the measured pairs.
+
 ## Typography
 
 Preserve the local Sincere Bhakti display font, including its Sanskrit/IAST glyphs. Use it for identity and headings; use Geist for body text, navigation, metadata, and controls. Do not synthesize bold display weights.
