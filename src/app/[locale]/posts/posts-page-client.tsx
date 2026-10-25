@@ -3,7 +3,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import SignInPrompt from "@/components/SignInPrompt";
 import { Card } from "@/components/ui/card";
 import PostCard from "@/components/PostCard";
 import CollapsibleComposer from "@/components/CollapsibleComposer";
@@ -18,6 +18,7 @@ import FeedEmptyState from "@/components/FeedEmptyState";
 import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
 import { matchesSearch } from "@/lib/feed-search";
 import type { Post } from "@/types/post";
+import PageHeader from "@/components/PageHeader";
 
 export default function PostsPageClient({
 	initialPublic,
@@ -89,11 +90,8 @@ export default function PostsPageClient({
 	}, [setMyPosts, setPosts]);
 
 	return (
-		<div className="w-full max-w-3xl mx-auto px-4 py-8">
-		<div className="text-center mb-8">
-			<h1 className="text-3xl font-bold text-deep">{t("title")}</h1>
-			<p className="text-deep/60 mt-1">{t("subtitle")}</p>
-		</div>
+		<div className="reading-container page-space">
+		<PageHeader title={t("title")} description={t("subtitle")} />
 
 		{category ? <CategoryFilterBanner name={category} href="/posts" /> : null}
 
@@ -110,15 +108,7 @@ export default function PostsPageClient({
 				{session ? (
 					<CollapsibleComposer onSuccess={handleCreateSuccess} />
 				) : (
-					<p className="text-center text-deep/50 py-8">
-						<Link
-							href="/login"
-							className="text-saffron hover:text-saffron-dark font-medium underline-offset-2 hover:underline"
-						>
-							{t("signIn")}
-						</Link>{" "}
-						{t("signInToPost")}
-					</p>
+					<SignInPrompt label={t("signIn")}>{t("signInToPost")}</SignInPrompt>
 				)}
 			</Card>
 
@@ -136,7 +126,7 @@ export default function PostsPageClient({
 
 					<TabsPanel value="public">
 						{loading ? (
-							<div className="space-y-4">
+							<div className="flex flex-col">
 								<PostCardSkeleton />
 								<PostCardSkeleton />
 								<PostCardSkeleton />
@@ -144,7 +134,7 @@ export default function PostsPageClient({
 						) : posts.length === 0 ? (
 							<FeedEmptyState search={search} message={t("emptyPublic")} />
 						) : (
-							<div className="space-y-4">
+							<div className="flex flex-col">
 								{posts.map((post) => (
 									<PostCard
 										key={post.id}
@@ -161,7 +151,7 @@ export default function PostsPageClient({
 						{hasMore && posts.length > 0 && (
 							<div ref={sentinelRef} className="flex justify-center py-8">
 								{loadingMore ? (
-									<p className="text-deep/50 text-sm">{t("loadingMore")}</p>
+									<p className="text-muted-foreground text-sm">{t("loadingMore")}</p>
 								) : (
 									<div className="w-6 h-6" />
 								)}
@@ -171,7 +161,7 @@ export default function PostsPageClient({
 
 					<TabsPanel value="my-public">
 						{!session ? null : myLoading ? (
-							<div className="space-y-4">
+							<div className="flex flex-col">
 								<PostCardSkeleton />
 								<PostCardSkeleton />
 								<PostCardSkeleton />
@@ -181,7 +171,7 @@ export default function PostsPageClient({
 								{myPublicPosts.length === 0 ? (
 									<FeedEmptyState compact search={search} message={t("emptyMyPublic")} />
 								) : (
-									<div className="space-y-4">
+									<div className="flex flex-col">
 									{myPublicPosts.map((post) => (
 										<PostCard
 											key={post.id}
@@ -197,7 +187,7 @@ export default function PostsPageClient({
 								{myHasMore && (
 									<div ref={mySentinelRef} className="flex justify-center py-8">
 										{myLoadingMore ? (
-											<p className="text-deep/50 text-sm">{t("loadingMore")}</p>
+											<p className="text-muted-foreground text-sm">{t("loadingMore")}</p>
 										) : (
 											<div className="w-6 h-6" />
 										)}
@@ -209,7 +199,7 @@ export default function PostsPageClient({
 
 					<TabsPanel value="my-private">
 						{!session ? null : myLoading ? (
-							<div className="space-y-4">
+							<div className="flex flex-col">
 								<PostCardSkeleton />
 								<PostCardSkeleton />
 								<PostCardSkeleton />
@@ -219,7 +209,7 @@ export default function PostsPageClient({
 								{myPrivatePosts.length === 0 ? (
 									<FeedEmptyState compact search={search} message={t("emptyMyPrivate")} />
 								) : (
-									<div className="space-y-4">
+									<div className="flex flex-col">
 									{myPrivatePosts.map((post) => (
 										<PostCard
 											key={post.id}
@@ -235,7 +225,7 @@ export default function PostsPageClient({
 								{myHasMore && (
 									<div ref={mySentinelRef} className="flex justify-center py-8">
 										{myLoadingMore ? (
-											<p className="text-deep/50 text-sm">{t("loadingMore")}</p>
+											<p className="text-muted-foreground text-sm">{t("loadingMore")}</p>
 										) : (
 											<div className="w-6 h-6" />
 										)}
@@ -248,7 +238,7 @@ export default function PostsPageClient({
 			) : (
 				<>
 					{loading ? (
-						<div className="space-y-4">
+						<div className="flex flex-col">
 							<PostCardSkeleton />
 							<PostCardSkeleton />
 							<PostCardSkeleton />
@@ -256,7 +246,7 @@ export default function PostsPageClient({
 					) : posts.length === 0 ? (
 						<FeedEmptyState search={search} message={t("emptyPublic")} />
 					) : (
-						<div className="space-y-4">
+						<div className="flex flex-col">
 							{posts.map((post) => (
 								<PostCard key={post.id} post={post} />
 							))}
@@ -266,7 +256,7 @@ export default function PostsPageClient({
 					{hasMore && posts.length > 0 && (
 						<div ref={sentinelRef} className="flex justify-center py-8">
 							{loadingMore ? (
-								<p className="text-deep/50 text-sm">{t("loadingMore")}</p>
+								<p className="text-muted-foreground text-sm">{t("loadingMore")}</p>
 							) : (
 								<div className="w-6 h-6" />
 							)}

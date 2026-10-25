@@ -49,8 +49,8 @@ export default function PostDetailClient({
 
   if (!displayedPost) {
     return (
-      <div className="w-full max-w-3xl mx-auto px-4 py-16 text-center">
-        <p className="text-deep/60 mb-4">{t("notFound")}</p>
+      <div className="reading-container page-space text-center">
+        <p className="text-muted-foreground mb-4">{t("notFound")}</p>
       </div>
     );
   }

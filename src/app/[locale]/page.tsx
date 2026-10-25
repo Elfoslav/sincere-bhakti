@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import Image from "next/image";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Image as ImageIcon, Users } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
 import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 import HomepageBlogSection from "@/components/HomepageBlogSection";
 
@@ -34,62 +36,38 @@ export default async function Home({ params }: Props) {
 	setRequestLocale(locale);
 	const t = await getTranslations("HomePage");
 
-	return (
-		<div className="min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center px-4 py-12">
-			<div className="max-w-4xl w-full">
-				<div className="flex flex-col items-center text-center mb-14">
-					<div className="relative mb-6">
-						<div
-							aria-hidden="true"
-							className="absolute -inset-4 rounded-full bg-[radial-gradient(circle,rgba(224,138,46,0.07)_0%,rgba(224,138,46,0.025)_45%,transparent_68%)]"
-						/>
-						<Image
-							src="/images/sincere-bhakti-logo.png"
-							alt={t("logoAlt")}
-							title={t("logoAlt")}
-							width={230}
-							height={158}
-							priority
-							className="relative"
-							style={{ width: 230, height: 158 }}
-						/>
-					</div>
-					<h1 className="text-4xl md:text-5xl font-medium text-deep-brass leading-tight mb-4 text-balance">
-						&ldquo;{t("subtitle")}&rdquo;
-					</h1>
-					<p className="text-lg text-deep/60 mb-8 max-w-xl">
-						{t("description")}
-					</p>
-					<div className="flex flex-wrap justify-center gap-4">
-						<Button href="/register" variant="default" size="hero">
-							{t("ctaJoin")}
-						</Button>
-						<Button href="/posts" variant="outline-deep" size="hero" className="text-deep-brass">
-							{t("ctaPosts")}
-						</Button>
-					</div>
-				</div>
+  const ip = getClientIp(await headers());
+  if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPosts, ip, RATE_LIMITS.readPosts.limit, RATE_LIMITS.readPosts.windowMs)) notFound();
 
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-					<Card variant="flat">
-						<Heart className="mb-3 text-deep-brass" size={28} aria-hidden="true" />
-						<h3 className="text-lg font-semibold text-deep-brass mb-2">{t("cardBhaktiTitle")}</h3>
-						<p className="text-sm text-deep/60">{t("cardBhaktiDesc")}</p>
-					</Card>
-					<Card variant="flat">
-						<ImageIcon className="mb-3 text-deep-brass" size={28} aria-hidden="true" />
-						<h3 className="text-lg font-semibold text-deep-brass mb-2">{t("cardMediaTitle")}</h3>
-						<p className="text-sm text-deep/60">{t("cardMediaDesc")}</p>
-					</Card>
-					<Card variant="flat">
-						<Users className="mb-3 text-deep-brass" size={28} aria-hidden="true" />
-						<h3 className="text-lg font-semibold text-deep-brass mb-2">{t("cardSangaTitle")}</h3>
-						<p className="text-sm text-deep/60">{t("cardSangaDesc")}</p>
-					</Card>
-				</div>
-
-				<HomepageBlogSection />
-			</div>
-		</div>
-	);
+  return (
+    <div>
+      <section className="home-hero" aria-labelledby="home-title">
+        <div className="home-hero-media">
+          <Image src="/images/vrindavan-dawn.jpg" alt="" fill sizes="100vw" preload />
+        </div>
+        <div className="site-container home-hero-content">
+          <div className="home-hero-copy reveal-in">
+            <h1 id="home-title" className="type-display">{t("logoAlt")}</h1>
+            <p className="font-heading home-hero-subtitle mt-4">{t("subtitle")}</p>
+            <p className="mt-5 max-w-lg text-base leading-relaxed text-foreground sm:text-lg">{t("heroDescription")}</p>
+            <div className="mt-8 flex flex-wrap items-center gap-4 sm:gap-6">
+              <Button href="/register" size="hero">{t("ctaJoin")}</Button>
+              <Button href="/posts" variant="link-foreground" size="hero" icon={<ArrowRight />} iconPosition="end">{t("ctaPosts")}</Button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div className="site-container">
+        <HomepageBlogSection />
+        <section className="home-values" aria-label={t("metaTitle")}>
+          {(["Bhakti", "Media", "Sanga"] as const).map((feature) => (
+            <div key={feature}>
+              <h2 className="font-heading text-2xl">{t(`card${feature}Title`)}</h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{t(`card${feature}Desc`)}</p>
+            </div>
+          ))}
+        </section>
+      </div>
+    </div>
+  );
 }

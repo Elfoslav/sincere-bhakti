@@ -11,6 +11,7 @@ import SearchInput from "@/components/SearchInput";
 import ChannelAvatar from "@/components/ChannelAvatar";
 import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
 import type { ChannelInfo } from "@/types/user";
+import PageHeader from "@/components/PageHeader";
 
 interface ChannelsResponse {
   items: ChannelInfo[];
@@ -78,8 +79,8 @@ export default function ChannelsPageClient() {
   }
 
 return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-8 flex flex-col flex-1">
-      <h1 className="text-2xl font-bold text-deep mb-6">{t("title")}</h1>
+    <div className="site-container page-space flex flex-col flex-1">
+      <PageHeader title={t("title")} />
 
       <SearchInput
         value={query}
@@ -100,13 +101,13 @@ return (
       ) : error ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
             <Hash className="w-12 h-12 text-deep/20 mx-auto mb-4" />
-            <p className="text-deep/50 text-lg mb-4">{t("loadError")}</p>
+            <p className="text-muted-foreground text-lg mb-4">{t("loadError")}</p>
             <Button variant="outline" onClick={loadChannels}>{t("retry")}</Button>
           </div>
       ) : channels.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
             <Hash className="w-12 h-12 text-deep/20 mx-auto mb-4" />
-            <p className="text-deep/50 text-lg">
+            <p className="text-muted-foreground text-lg">
               {search ? t("noChannelsQuery") : t("noChannels")}
             </p>
           </div>
@@ -126,7 +127,7 @@ return (
                 <ChannelAvatar name={ch.name} avatarUrl={ch.avatarUrl} size="md" fallback="hash" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-deep truncate">{ch.name}</p>
-                  <p className="text-xs text-deep/50 flex items-center gap-1 mt-0.5">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <FileText className="w-3 h-3" />
                     {t("postCount", { count: ch.postCount })}
                   </p>

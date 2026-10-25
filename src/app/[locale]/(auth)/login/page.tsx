@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { AUTH_EMAIL_PERSIST_KEY } from "@/lib/form-persist-keys";
 import { useFormPersist } from "@/lib/hooks/useFormPersist";
@@ -64,28 +65,30 @@ export default function LoginPage() {
   return (
     <div className="w-full max-w-md">
       <Card variant="elevated">
+        <title>{t("title")}</title>
         <div className="text-center mb-6">
-          <div className="text-4xl mb-2">🪷</div>
-          <h1 className="text-2xl font-bold text-deep">{t("title")}</h1>
-          <p className="text-deep/60 text-sm mt-1">{t("subtitle")}</p>
+          <div aria-hidden="true" className="text-4xl mb-2">🪷</div>
+          <h1 className="type-section text-foreground">{t("title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t("subtitle")}</p>
         </div>
 
         {justRegistered && (
-          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg p-3 mb-4 text-center">
+          <Alert variant="success" className="mb-4">
             {t("registeredVerify")}
-          </div>
+          </Alert>
         )}
 
         {justVerified && (
-          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg p-3 mb-4 text-center">
+          <Alert variant="success" className="mb-4">
             {t("verifiedSuccess")}
-          </div>
+          </Alert>
         )}
 
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-deep mb-1">{t("emailLabel")}</label>
+            <label htmlFor="login-email" className="block text-sm font-medium text-deep mb-1">{t("emailLabel")}</label>
             <Input
+              id="login-email"
               name="email"
               type="email"
               autoComplete="username"
@@ -96,8 +99,9 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-deep mb-1">{t("passwordLabel")}</label>
+            <label htmlFor="login-password" className="block text-sm font-medium text-deep mb-1">{t("passwordLabel")}</label>
             <Input
+              id="login-password"
               name="password"
               type="password"
               autoComplete="current-password"
@@ -111,14 +115,14 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}
+          {error && <Alert variant="destructive">{error}</Alert>}
 
           <Button type="submit" variant="default" className="w-full" disabled={loading}>
             {loading ? t("loading") : t("button")}
           </Button>
         </form>
 
-        <p className="text-center text-sm text-deep/60 mt-4">
+        <p className="text-center text-sm text-muted-foreground mt-4">
           {t("noAccount")}{" "}
           <Link href="/register" className="text-gold hover:underline font-medium">
             {t("registerLink")}

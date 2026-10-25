@@ -24,9 +24,9 @@ export default async function TermsPage({ params }: Props) {
 	const sections = t.raw("sections") as Section[];
 
 	return (
-		<div className="max-w-3xl mx-auto px-4 py-12">
-			<h1 className="text-3xl md:text-4xl font-bold text-deep mb-2">{t("title")}</h1>
-			<p className="text-sm text-deep/50 mb-8">{t("lastUpdated")}</p>
+		<div className="reading-container page-space">
+			<h1 className="type-title mb-3">{t("title")}</h1>
+			<p className="text-sm text-muted-foreground mb-8">{t("lastUpdated")}</p>
 			<p className="text-deep/80 leading-relaxed mb-10">{t("intro")}</p>
 
 			<div className="space-y-9">
@@ -34,12 +34,12 @@ export default async function TermsPage({ params }: Props) {
 					<section key={i}>
 						<h2 className="text-xl font-semibold text-deep mb-3">{section.heading}</h2>
 						{section.body && (
-							<p className="text-deep/70 leading-relaxed">{section.body}</p>
+							<p className="text-muted-foreground leading-relaxed">{section.body}</p>
 						)}
 						{section.items && (
 							<ul className="mt-3 space-y-2">
 								{section.items.map((item, j) => (
-									<li key={j} className="flex gap-3 text-deep/70">
+									<li key={j} className="flex gap-3 text-muted-foreground">
 										<span className="text-saffron mt-1.5 shrink-0 leading-none">✦</span>
 										<span className="leading-relaxed">{item}</span>
 									</li>

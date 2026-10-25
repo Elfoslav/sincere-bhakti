@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 
 export default function ForgotPasswordPage() {
@@ -47,22 +48,24 @@ export default function ForgotPasswordPage() {
   return (
     <div className="w-full max-w-md">
       <Card variant="elevated">
+        <title>{t("title")}</title>
         <div className="text-center mb-6">
-          <div className="text-4xl mb-2">🪷</div>
-          <h1 className="text-2xl font-bold text-deep">{t("title")}</h1>
-          <p className="text-deep/60 text-sm mt-1">{t("subtitle")}</p>
+          <div aria-hidden="true" className="text-4xl mb-2">🪷</div>
+          <h1 className="type-section text-foreground">{t("title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t("subtitle")}</p>
         </div>
 
         {sent ? (
-          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg p-4 mb-4 text-center">
+          <Alert variant="success" className="mb-4">
             {t("sent")}
-          </div>
+          </Alert>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-deep mb-1">{t("emailLabel")}</label>
+              <label htmlFor="forgot-password-email" className="block text-sm font-medium text-deep mb-1">{t("emailLabel")}</label>
               <Input
-                name="email"
+                id="forgot-password-email"
+              name="email"
                 type="email"
                 autoComplete="username"
                 required
@@ -72,7 +75,7 @@ export default function ForgotPasswordPage() {
               />
             </div>
 
-            {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}
+            {error && <Alert variant="destructive">{error}</Alert>}
 
             <Button
               type="submit"
@@ -85,7 +88,7 @@ export default function ForgotPasswordPage() {
           </form>
         )}
 
-        <p className="text-center text-sm text-deep/60 mt-4">
+        <p className="text-center text-sm text-muted-foreground mt-4">
           <Link href="/login" className="text-gold hover:underline font-medium">
             {t("backToLogin")}
           </Link>

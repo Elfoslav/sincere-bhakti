@@ -128,7 +128,7 @@ export default function ChannelSettingsClient({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8">
+    <div className="reading-container page-space flex flex-1 flex-col">
       <Breadcrumb
         items={[
           { label: channelsT("title"), href: "/channels" },
@@ -139,7 +139,7 @@ export default function ChannelSettingsClient({
       />
       <div className="mb-6">
         <Heading as="h1">{t("title")}</Heading>
-        <p className="mt-1 text-sm text-deep/50">{initialSettings.channel.name}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{initialSettings.channel.name}</p>
       </div>
 
       <ChannelMembersCard

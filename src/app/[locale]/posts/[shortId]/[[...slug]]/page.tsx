@@ -143,7 +143,7 @@ export default async function PostPage({
         />
         <PostLayout title={singlePostT("title")}>
           <div className="space-y-6">
-            <div className="bg-white dark:bg-deep-dark rounded-xl border border-stone/20 p-5">
+            <div className="bg-card text-card-foreground rounded-lg border border-border p-5">
               <div className="flex items-center gap-3 mb-4">
                 {post.channel.avatarUrl ? (
                   // Using <img> for R2-hosted avatars: small fixed-size thumbnails
@@ -151,12 +151,12 @@ export default async function PostPage({
                   <img src={post.channel.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-warm flex items-center justify-center">
-                    <span className="text-sm font-medium text-deep/60">{post.channel.name[0]}</span>
+                    <span className="text-sm font-medium text-muted-foreground">{post.channel.name[0]}</span>
                   </div>
                 )}
                 <div className="min-w-0">
                   <p className="font-semibold text-sm truncate">{post.channel.name}</p>
-                  <p className="text-xs text-deep/40">
+                  <p className="text-xs text-muted-foreground">
                     {localeFlags[post.language]} {languageName}
                   </p>
                 </div>
@@ -168,7 +168,7 @@ export default async function PostPage({
                 />
               )}
               {post.media.length > 0 && (
-                <p className="text-xs text-deep/40 mt-3">
+                <p className="text-xs text-muted-foreground mt-3">
                   {post.media.length} media item{post.media.length !== 1 ? "s" : ""}
                 </p>
               )}

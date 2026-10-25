@@ -40,7 +40,7 @@ export default function ChannelMembersCard({
         </div>
         <div className="min-w-0">
           <Heading as="h2" className="text-lg">{t("membersTitle")}</Heading>
-          <p className="text-sm text-deep/50">{t("membersSubtitle")}</p>
+          <p className="text-sm text-muted-foreground">{t("membersSubtitle")}</p>
         </div>
       </div>
 

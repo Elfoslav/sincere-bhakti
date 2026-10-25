@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import PostCard from "@/components/PostCard";
 import CollapsibleComposer from "@/components/CollapsibleComposer";
+import FeedEmptyState from "@/components/FeedEmptyState";
 import EditPostModal from "@/components/EditPostModal";
 import EditBlogModal from "@/components/EditBlogModal";
 import BlogCard from "@/components/BlogCard";
@@ -206,7 +207,7 @@ export default function ChannelPageClient({
   ) {
     if (loading) {
       return (
-        <div className="space-y-4">
+        <div className="flex flex-col">
           <PostCardSkeleton />
           <PostCardSkeleton />
           <PostCardSkeleton />
@@ -215,14 +216,12 @@ export default function ChannelPageClient({
     }
     if (posts.length === 0) {
       return (
-        <Card variant="ghost-muted" className="text-center py-8 text-deep/50">
-          {t(emptyKey)}
-        </Card>
+        <FeedEmptyState message={t(emptyKey)} />
       );
     }
     return (
       <div>
-        <div className="space-y-4">
+        <div className="flex flex-col">
           {posts.map((post) => (
             <PostCard
               key={post.id}
@@ -237,7 +236,7 @@ export default function ChannelPageClient({
         {hasMore && (
           <div ref={sentinelRef} className="flex justify-center py-8">
             {loadingMore ? (
-              <p className="text-deep/50 text-sm">{t("loadingMore")}</p>
+              <p className="text-muted-foreground text-sm">{t("loadingMore")}</p>
             ) : (
               <div className="w-6 h-6" />
             )}
@@ -248,7 +247,7 @@ export default function ChannelPageClient({
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-8">
+    <div className="reading-container page-space">
       <Breadcrumb
         items={[
           { label: channelsT("title"), href: "/channels" },
@@ -267,7 +266,7 @@ export default function ChannelPageClient({
         {canManageSettings && (
           <Button
             href={`/channels/${channel.slug}/settings`}
-            className="absolute right-3 top-3 text-deep/40 hover:text-gold-light sm:right-4 sm:top-4"
+            className="absolute right-3 top-3 text-muted-foreground hover:text-primary sm:right-4 sm:top-4"
             title={t("settings")}
             aria-label={t("settings")}
             icon={<Settings />}
@@ -275,7 +274,7 @@ export default function ChannelPageClient({
         )}
         <ChannelAvatar name={channel.name} size="lg" className="mx-auto mb-4" />
         <div className="flex items-center justify-center gap-2">
-          <h1 className="text-2xl font-bold text-deep">{channel.name}</h1>
+          <h1 className="type-title min-w-0">{channel.name}</h1>
           {isOwner && (
             channel.isPersonal ? (
               <Tooltip>
@@ -312,8 +311,8 @@ export default function ChannelPageClient({
                     text={t("editNameTitle")}
                     subheading={common("renameCountInfo")}
                     subheadingRight={common("renameCount", { count: channel.renameCount, max: MAX_RENAME_COUNT })}
-                    subheadingClassName="text-deep/50"
-                    subheadingRightClassName="text-deep/50"
+                    subheadingClassName="text-muted-foreground"
+                    subheadingRightClassName="text-muted-foreground"
                   />
                   <form
                     onSubmit={(e) => {
@@ -349,7 +348,7 @@ export default function ChannelPageClient({
             )
           )}
         </div>
-        <div className="mt-2 flex items-center justify-center gap-2 text-sm text-deep/50">
+        <div className="mt-2 flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <span>{t("channelLabel")}</span>
           <span aria-hidden="true" className="text-deep/25">·</span>
           <span>{t("postCount", { count: channel.postCount })}</span>
@@ -403,20 +402,19 @@ export default function ChannelPageClient({
           )}
         </div>
         {blogLoading ? (
-          <div className="space-y-4">
+          <div className="flex flex-col">
             <PostCardSkeleton />
             <PostCardSkeleton />
           </div>
         ) : blogPosts.length === 0 ? (
-          <Card variant="ghost-muted" className="text-center py-8 text-deep/50">
-            {tBlog("emptyPublic")}
-          </Card>
+          <FeedEmptyState message={tBlog("emptyPublic")} />
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col">
             {blogPosts.map((post) => (
               <BlogCard
                 key={post.id}
                 post={post}
+                variant="list"
                 currentUserId={session?.user?.id}
                 manageableChannelIds={manageableChannelIds}
                 onDelete={canAuthorChannel ? (id) => setBlogPosts((prev) => prev.filter((p) => p.id !== id)) : undefined}
@@ -428,7 +426,7 @@ export default function ChannelPageClient({
         {blogHasMore && blogPosts.length > 0 && (
           <div ref={blogSentinelRef} className="flex justify-center py-8">
             {blogLoadingMore ? (
-              <p className="text-deep/50 text-sm">{t("loadingMore")}</p>
+              <p className="text-muted-foreground text-sm">{t("loadingMore")}</p>
             ) : (
               <div className="w-6 h-6" />
             )}

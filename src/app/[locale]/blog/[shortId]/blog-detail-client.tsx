@@ -78,8 +78,8 @@ export default function BlogDetailClient({
 
   if (!displayedPost) {
     return (
-      <div className="w-full max-w-3xl mx-auto px-4 py-16 text-center">
-        <p className="text-deep/60 mb-4">{t("notFound")}</p>
+      <div className="reading-container page-space text-center">
+        <p className="text-muted-foreground mb-4">{t("notFound")}</p>
       </div>
     );
   }
@@ -92,33 +92,27 @@ export default function BlogDetailClient({
   const isScheduled = displayedPost.publishedAt ? new Date(displayedPost.publishedAt) > new Date() : false;
 
   return (
-    // Reading column: 48rem measure with 16px/1.5 body — same scale as the
-    // surrounding UI text, tight enough to scan, loose enough to breathe.
-    // Inner elements scale in em, so only these two change.
-    <BlogLayout title={displayedPost.title} containerClassName="w-full max-w-3xl mx-auto px-4 py-12">
-      {/* Bright reading surface: pure-white card over the gray page focuses
-      the article and keeps dark-navy text readable in every theme (the Card
-      stays bright while page chrome goes dark). Breadcrumb and latest posts
-      stay on the page background. */}
+    <BlogLayout title={displayedPost.title} containerClassName="reading-container page-space">
+      {/* Shared reading surface follows the active semantic palette. */}
       <Card variant="default" padding="lg">
       <p className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-saffron-dark">
         <Link href={`/blog/channel/${displayedPost.channel.slug}`} className="hover:text-gold">
           {displayedPost.channel.name}
         </Link>
       </p>
-      <h1 className="mt-4 text-center font-heading text-4xl font-bold leading-tight text-deep sm:text-5xl">
+      <h1 className="type-title mt-4 text-center">
         {displayedPost.title}
       </h1>
       {/* div, not p: BlogPostActions renders a div (invalid inside a
       paragraph and a hydration error). */}
-      <div className="mt-4 flex items-center justify-center gap-2 text-center text-sm text-deep/60">
+      <div className="mt-4 flex items-center justify-center gap-2 text-center text-sm text-muted-foreground">
         {date}
         {!displayedPost.isPublic ? (
-          <span className="rounded bg-deep/10 px-1.5 py-0.5 text-[11px] font-medium text-deep/70">
+          <span className="rounded bg-deep/10 px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
             {t("private")}
           </span>
         ) : isScheduled ? (
-          <span className="rounded bg-gold-light/20 px-1.5 py-0.5 text-[11px] font-medium text-gold-dark">
+          <span className="rounded bg-gold-light/20 px-1.5 py-0.5 text-xs font-medium text-primary">
             {t("scheduled")}
           </span>
         ) : null}
@@ -142,7 +136,7 @@ export default function BlogDetailClient({
           <img
             src={displayedPost.coverUrl}
             alt={displayedPost.title}
-            className="aspect-video w-full rounded-xl object-cover"
+            className="aspect-video w-full rounded-lg object-cover"
           />
         </figure>
       ) : null}
@@ -164,23 +158,23 @@ export default function BlogDetailClient({
       <hr className="my-10 border-deep/10" />
       {latestPosts.length > 0 ? (
         <section aria-label={t("latestPosts")}>
-          <h2 className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-deep/50">
+          <h2 className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
             {t("latestPosts")}
           </h2>
           <ol className="mt-6 divide-y divide-deep/10">
             {latestPosts.map((post, index) => (
               <li key={post.id} className="flex items-center gap-4 py-4">
-                <span aria-hidden className="shrink-0 font-heading text-2xl font-bold text-gold">
+                <span aria-hidden className="shrink-0 font-heading text-2xl text-gold">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <div className="min-w-0 flex-1">
                   <Link
                     href={getBlogUrl(post.shortId, post.slug)}
-                    className="font-heading text-xl font-bold text-deep hover:text-gold"
+                    className="font-heading text-xl text-deep hover:text-gold"
                   >
                     {post.title}
                   </Link>
-                  <p className="mt-0.5 truncate text-sm text-deep/60">
+                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
                     {formatBlogDate(post.publishedAt ?? post.createdAt, locale)}
                   </p>
                 </div>

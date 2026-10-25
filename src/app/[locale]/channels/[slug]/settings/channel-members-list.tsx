@@ -21,7 +21,7 @@ export default function ChannelMembersList({
         {t("currentMembers")}
       </div>
       {members.length === 0 ? (
-        <p className="rounded-lg bg-deep/5 px-3 py-2 text-sm text-deep/50">{t("noMembers")}</p>
+        <p className="rounded-lg bg-deep/5 px-3 py-2 text-sm text-muted-foreground">{t("noMembers")}</p>
       ) : (
         <div className="divide-y divide-sand overflow-hidden rounded-lg border border-sand">
           {members.map((member) => (
@@ -33,9 +33,9 @@ export default function ChannelMembersList({
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-deep">{member.name}</p>
-                <p className="truncate text-xs text-deep/50">{member.email}</p>
+                <p className="truncate text-xs text-muted-foreground">{member.email}</p>
               </div>
-              <span className="shrink-0 rounded-full bg-deep/5 px-2.5 py-1 text-xs font-medium text-deep/60">
+              <span className="shrink-0 rounded-full bg-deep/5 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                 {channelMemberRoleLabel(member.role, t)}
               </span>
             </button>

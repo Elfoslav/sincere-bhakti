@@ -18,7 +18,7 @@ export default function MyProfilePageClient() {
 
   if (status === "loading") {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
+      <div className="reading-container page-space space-y-4">
         <Skeleton className="h-48 w-full" />
       </div>
     );

@@ -48,22 +48,23 @@ export default function VerifyEmailPage() {
   return (
     <div className="w-full max-w-md">
       <Card variant="elevated">
+        <title>{t("title")}</title>
         <div className="text-center">
           {status === "loading" && (
             <>
-              <div className="text-4xl mb-4">🪷</div>
-              <h1 className="text-2xl font-bold text-deep">{t("title")}</h1>
-              <p className="text-deep/60 text-sm mt-2">{t("verifying")}</p>
+              <div aria-hidden="true" className="text-4xl mb-4">🪷</div>
+              <h1 className="type-section text-foreground">{t("title")}</h1>
+              <p className="text-muted-foreground text-sm mt-2">{t("verifying")}</p>
             </>
           )}
 
           {status === "success" && (
             <>
-              <div className="text-4xl mb-4">✅</div>
-              <h1 className="text-2xl font-bold text-deep">{t("success")}</h1>
+              <div aria-hidden="true" className="text-4xl mb-4">✅</div>
+              <h1 className="type-section text-foreground">{t("success")}</h1>
               {isAuthenticated(authStatus) ? (
                 <>
-                  <p className="text-deep/60 text-sm mt-2">{t("successAuthenticated")}</p>
+                  <p className="text-muted-foreground text-sm mt-2">{t("successAuthenticated")}</p>
                   <Button
                     variant="default"
                     className="w-full mt-6"
@@ -74,7 +75,7 @@ export default function VerifyEmailPage() {
                 </>
               ) : (
                 <>
-                  <p className="text-deep/60 text-sm mt-2">{t("successDesc")}</p>
+                  <p className="text-muted-foreground text-sm mt-2">{t("successDesc")}</p>
                   <Button
                     variant="default"
                     className="w-full mt-6"
@@ -89,9 +90,9 @@ export default function VerifyEmailPage() {
 
           {status === "error" && (
             <>
-              <div className="text-4xl mb-4">❌</div>
-              <h1 className="text-2xl font-bold text-deep">{t("error")}</h1>
-              <p className="text-deep/60 text-sm mt-2">{t("invalidToken")}</p>
+              <div aria-hidden="true" className="text-4xl mb-4">❌</div>
+              <h1 className="type-section text-foreground">{t("error")}</h1>
+              <p className="text-muted-foreground text-sm mt-2">{t("invalidToken")}</p>
               {isAuthenticated(authStatus) ? (
                 <Link
                   href="/"

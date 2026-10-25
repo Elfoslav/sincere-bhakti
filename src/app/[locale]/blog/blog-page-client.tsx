@@ -3,7 +3,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import SignInPrompt from "@/components/SignInPrompt";
 import { Card } from "@/components/ui/card";
 import BlogCard from "@/components/BlogCard";
 import BlogForm from "@/components/BlogForm";
@@ -18,6 +18,7 @@ import FeedEmptyState from "@/components/FeedEmptyState";
 import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
 import { matchesSearch } from "@/lib/feed-search";
 import type { BlogPost } from "@/types/blog";
+import PageHeader from "@/components/PageHeader";
 
 export default function BlogPageClient({
   initialPublic,
@@ -129,7 +130,7 @@ export default function BlogPageClient({
   ) {
     if (isLoading) {
       return (
-        <div className="space-y-4">
+        <div className="flex flex-col">
           <PostCardSkeleton />
           <PostCardSkeleton />
           <PostCardSkeleton />
@@ -140,11 +141,12 @@ export default function BlogPageClient({
       return <FeedEmptyState search={search} message={t(emptyKey)} />;
     }
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col">
         {list.map((post) => (
           <BlogCard
             key={post.id}
             post={post}
+            variant="list"
             currentUserId={session?.user?.id}
             manageableChannelIds={manageableChannelIds}
             onDelete={session ? handleDelete : undefined}
@@ -154,7 +156,7 @@ export default function BlogPageClient({
         {more && list.length > 0 && (
           <div ref={ref} className="flex justify-center py-8">
             {isLoadingMore ? (
-              <p className="text-deep/50 text-sm">{t("loadingMore")}</p>
+              <p className="text-muted-foreground text-sm">{t("loadingMore")}</p>
             ) : (
               <div className="w-6 h-6" />
             )}
@@ -165,11 +167,8 @@ export default function BlogPageClient({
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-8">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-deep">{t("title")}</h1>
-        <p className="text-deep/60 mt-1">{t("subtitle")}</p>
-      </div>
+    <div className="reading-container page-space">
+      <PageHeader title={t("title")} description={t("subtitle")} />
 
       {category ? <CategoryFilterBanner name={category} href="/blog" /> : null}
       {channelName ? <ChannelFilterBanner name={channelName} href="/blog" /> : null}
@@ -187,15 +186,7 @@ export default function BlogPageClient({
         {session ? (
           <BlogForm mode="create" onSuccess={handleCreateSuccess} postingChannel={postingChannel} />
         ) : (
-          <p className="text-center text-deep/50 py-8">
-            <Link
-              href="/login"
-              className="text-saffron hover:text-saffron-dark font-medium underline-offset-2 hover:underline"
-            >
-              {t("signIn")}
-            </Link>{" "}
-            {t("signInToPost")}
-          </p>
+          <SignInPrompt label={t("signIn")}>{t("signInToPost")}</SignInPrompt>
         )}
       </Card>
 

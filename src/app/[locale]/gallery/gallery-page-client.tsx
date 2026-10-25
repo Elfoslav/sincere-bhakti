@@ -1,9 +1,10 @@
 "use client";
 
+import FeedEmptyState from "@/components/FeedEmptyState";
 import { useMemo, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import SignInPrompt from "@/components/SignInPrompt";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import AlbumCard from "@/components/AlbumCard";
@@ -13,6 +14,7 @@ import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfiniteAlbums } from "@/lib/hooks/useInfiniteAlbums";
 import { useIdentity } from "@/components/IdentityProvider";
 import type { Album } from "@/types/album";
+import PageHeader from "@/components/PageHeader";
 
 export default function GalleryPageClient({
   initialPublic,
@@ -104,14 +106,14 @@ export default function GalleryPageClient({
   ) {
     if (isLoading) {
       return (
-        <div className="space-y-4">
+        <div className="flex flex-col">
           {[0, 1, 2].map((i) => <PostCardSkeleton key={i} />)}
         </div>
       );
     }
     return (
-      <div className="space-y-4">
-        {items.length === 0 && <Card><p className="text-deep/60 text-sm">{t(emptyKey)}</p></Card>}
+      <div className="flex flex-col">
+        {items.length === 0 && <FeedEmptyState message={t(emptyKey)} />}
         {items.map((album) => (
           <AlbumCard
             key={album.id}
@@ -129,22 +131,16 @@ export default function GalleryPageClient({
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-heading text-3xl font-bold text-deep">{channelName ?? t("title")}</h1>
-        <p className="mt-1 text-deep/60">{t("subtitle")}</p>
-      </div>
+    <div className="reading-container page-space">
+      <PageHeader title={channelName ?? t("title")} description={t("subtitle")} />
 
       {session ? (
-        <Card>
+        <Card padding="lg" className="mb-6">
           <AlbumForm mode="create" onSuccess={handleCreateSuccess} postingChannel={postingChannel} />
         </Card>
       ) : (
-        <Card>
-          <p className="text-sm text-deep/60">
-            <Link href="/login" className="text-gold font-medium hover:underline">{t("signIn")}</Link>{" "}
-            {t("signInToPost")}
-          </p>
+        <Card padding="lg" className="mb-6">
+          <SignInPrompt label={t("signIn")}>{t("signInToPost")}</SignInPrompt>
         </Card>
       )}
 

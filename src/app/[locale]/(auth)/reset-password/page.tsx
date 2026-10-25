@@ -6,6 +6,7 @@ import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { PASSWORD_MIN_LENGTH } from "@/lib/validation";
 
@@ -59,10 +60,11 @@ export default function ResetPasswordPage() {
     return (
       <div className="w-full max-w-md">
         <Card variant="elevated">
+        <title>{t("title")}</title>
           <div className="text-center">
-            <div className="text-4xl mb-4">❌</div>
-            <h1 className="text-2xl font-bold text-deep">{t("title")}</h1>
-            <p className="text-deep/60 text-sm mt-2">{t("invalidToken")}</p>
+            <div aria-hidden="true" className="text-4xl mb-4">❌</div>
+            <h1 className="type-section text-foreground">{t("title")}</h1>
+            <p className="text-muted-foreground text-sm mt-2">{t("invalidToken")}</p>
           </div>
         </Card>
       </div>
@@ -73,10 +75,11 @@ export default function ResetPasswordPage() {
     return (
       <div className="w-full max-w-md">
         <Card variant="elevated">
+        <title>{t("title")}</title>
           <div className="text-center">
-            <div className="text-4xl mb-4">✅</div>
-            <h1 className="text-2xl font-bold text-deep">{t("success")}</h1>
-            <p className="text-deep/60 text-sm mt-2">{t("successDesc")}</p>
+            <div aria-hidden="true" className="text-4xl mb-4">✅</div>
+            <h1 className="type-section text-foreground">{t("success")}</h1>
+            <p className="text-muted-foreground text-sm mt-2">{t("successDesc")}</p>
             <Button
               variant="default"
               className="w-full mt-6"
@@ -93,16 +96,18 @@ export default function ResetPasswordPage() {
   return (
     <div className="w-full max-w-md">
       <Card variant="elevated">
+        <title>{t("title")}</title>
         <div className="text-center mb-6">
-          <div className="text-4xl mb-2">🪷</div>
-          <h1 className="text-2xl font-bold text-deep">{t("title")}</h1>
-          <p className="text-deep/60 text-sm mt-1">{t("subtitle")}</p>
+          <div aria-hidden="true" className="text-4xl mb-2">🪷</div>
+          <h1 className="type-section text-foreground">{t("title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t("subtitle")}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-deep mb-1">{t("passwordLabel")}</label>
+            <label htmlFor="reset-password-password" className="block text-sm font-medium text-deep mb-1">{t("passwordLabel")}</label>
             <Input
+              id="reset-password-password"
               name="password"
               type="password"
               autoComplete="new-password"
@@ -114,7 +119,7 @@ export default function ResetPasswordPage() {
             />
           </div>
 
-          {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}
+          {error && <Alert variant="destructive">{error}</Alert>}
 
           <Button
             type="submit"

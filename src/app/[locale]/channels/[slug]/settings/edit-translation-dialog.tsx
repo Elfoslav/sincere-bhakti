@@ -55,15 +55,15 @@ export default function EditTranslationDialog({
           text={isEditing ? t("editTranslation") : t("addTranslation")}
           subheading={isEditing ? common("renameCountInfo") : undefined}
           subheadingRight={isEditing ? common("renameCount", { count: renameCount, max: MAX_RENAME_COUNT }) : undefined}
-          subheadingClassName="text-deep/50"
-          subheadingRightClassName="text-deep/50"
+          subheadingClassName="text-muted-foreground"
+          subheadingRightClassName="text-muted-foreground"
         />
 
         <form id="translation-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="translation-language" className="text-sm font-medium text-deep">{t("languageLabel")}</label>
             {isEditing ? (
-              <div className="flex h-10 items-center gap-2 rounded-lg border border-input bg-muted px-3 text-sm text-deep/60">
+              <div className="flex h-10 items-center gap-2 rounded-lg border border-input bg-muted px-3 text-sm text-muted-foreground">
                 <span>{localeFlags[translation!.language] ?? ""}</span>
                 <span>{translation!.language.toUpperCase()}</span>
               </div>

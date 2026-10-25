@@ -25,33 +25,33 @@ export default async function KrishnaChaitanyaMandirPrivacyPage({ params }: Prop
 	const ip = getClientIp(await headers());
 	if (!await checkRateLimit(RATE_LIMIT_PREFIX.readPrivacy, ip, RATE_LIMITS.readPrivacy.limit, RATE_LIMITS.readPrivacy.windowMs)) {
 		const t = await getTranslations("PrivacyPolicy");
-		return <p className="mx-auto max-w-3xl px-4 py-12 text-deep/70">{t("rateLimited")}</p>;
+		return <p className="reading-container page-space text-muted-foreground">{t("rateLimited")}</p>;
 	}
 
 	const t = await getTranslations("PrivacyPolicy");
 	const policy = krishnaChaitanyaMandirPrivacy;
 
 	return (
-		<article className="mx-auto max-w-3xl px-4 py-12">
+		<article className="reading-container page-space">
 			<header className="mb-10">
-				<h1 className="mb-2 text-3xl font-bold text-deep md:text-4xl">{policy.title}</h1>
+				<h1 className="type-title mb-3">{policy.title}</h1>
 				<p className="text-xl font-semibold text-deep">{policy.appName}</p>
-				<p className="mt-2 text-sm text-deep/50">{t("lastUpdated", { date: policy.lastUpdated })}</p>
+				<p className="mt-2 text-sm text-muted-foreground">{t("lastUpdated", { date: policy.lastUpdated })}</p>
 			</header>
 
 			<div className="space-y-9">
 				<section className="space-y-3">
 					<h2 className="text-xl font-semibold text-deep">1. Introduction</h2>
-					{policy.intro.map((paragraph) => <p className="leading-relaxed text-deep/70" key={paragraph}>{paragraph}</p>)}
+					{policy.intro.map((paragraph) => <p className="leading-relaxed text-muted-foreground" key={paragraph}>{paragraph}</p>)}
 				</section>
 
 				{policy.sections.map((section) => (
 					<section className="space-y-3" key={section.heading}>
 						<h2 className="text-xl font-semibold text-deep">{section.heading}</h2>
-						{section.paragraphs?.map((paragraph) => <p className="leading-relaxed text-deep/70" key={paragraph}>{paragraph}</p>)}
+						{section.paragraphs?.map((paragraph) => <p className="leading-relaxed text-muted-foreground" key={paragraph}>{paragraph}</p>)}
 						{section.items && (
 							<ul className="space-y-2">
-								{section.items.map((item) => <li className="flex gap-3 leading-relaxed text-deep/70" key={item}><span className="mt-1.5 shrink-0 leading-none text-saffron">✦</span><span>{item}</span></li>)}
+								{section.items.map((item) => <li className="flex gap-3 leading-relaxed text-muted-foreground" key={item}><span className="mt-1.5 shrink-0 leading-none text-saffron">✦</span><span>{item}</span></li>)}
 							</ul>
 						)}
 					</section>

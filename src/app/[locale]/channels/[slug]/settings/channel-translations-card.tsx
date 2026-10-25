@@ -132,14 +132,14 @@ export default function ChannelTranslationsCard({
           </div>
           <div className="min-w-0 flex-1">
             <Heading as="h2" className="text-lg">{t("translationsTitle")}</Heading>
-            <p className="text-sm text-deep/50">{t("translationsSubtitle")}</p>
+            <p className="text-sm text-muted-foreground">{t("translationsSubtitle")}</p>
             {!isPersonal && Object.keys(localeFlags).length > 0 && (
-              <p className="mt-1 text-xs text-deep/40">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {common("renameCountInfo")}
               </p>
             )}
             {isPersonal && (
-              <p className="mt-1 text-xs text-deep/40">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {t("personalTranslationsNote")}
               </p>
             )}
@@ -155,7 +155,7 @@ export default function ChannelTranslationsCard({
         </div>
 
         {translations.length === 0 && (
-          <p className="py-4 text-sm text-deep/50">{t("noTranslations")}</p>
+          <p className="py-4 text-sm text-muted-foreground">{t("noTranslations")}</p>
         )}
 
         {translations.length > 0 && (
@@ -165,9 +165,9 @@ export default function ChannelTranslationsCard({
                 <span className="text-lg">{localeFlags[tr.language] ?? tr.language}</span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-deep">{tr.name}</p>
-                  <p className="text-xs text-deep/40">/{tr.slug}</p>
+                  <p className="text-xs text-muted-foreground">/{tr.slug}</p>
                   {!isPersonal && (
-                    <p className="mt-0.5 text-xs text-deep/40">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       {common("renameCount", { count: tr.renameCount, max: MAX_RENAME_COUNT })}
                     </p>
                   )}

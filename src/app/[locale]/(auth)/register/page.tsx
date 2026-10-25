@@ -6,17 +6,18 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { AUTH_EMAIL_PERSIST_KEY } from "@/lib/form-persist-keys";
-import { PASSWORD_MIN_LENGTH } from "@/lib/validation";
+import { NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/validation";
 import { useFormPersist } from "@/lib/hooks/useFormPersist";
 
 function validateName(val: string, t: (key: string, vars?: Record<string, number>) => string): string | null {
   const trimmed = val.trim();
   if (!trimmed) return t("nameRequired");
-  if (trimmed.length > 50) return t("nameTooLong", { max: 50 });
+  if (trimmed.length > NAME_MAX_LENGTH) return t("nameTooLong", { max: NAME_MAX_LENGTH });
   return null;
 }
 
@@ -128,7 +129,7 @@ export default function RegisterPage() {
         } else if (res.status === 400) {
           const data = await res.json().catch(() => ({}));
           if (data.error === "validation_error:name:too_big") {
-            setErrors((prev) => ({ ...prev, name: t("nameTooLong", { max: 50 }) }));
+            setErrors((prev) => ({ ...prev, name: t("nameTooLong", { max: NAME_MAX_LENGTH }) }));
           } else if (data.error === "validation_error:name:too_small") {
             setErrors((prev) => ({ ...prev, name: t("nameRequired") }));
           } else if (data.error === "validation_error:email:invalid_string") {
@@ -172,17 +173,19 @@ export default function RegisterPage() {
   return (
     <div className="w-full max-w-md">
       <Card variant="elevated">
+        <title>{t("title")}</title>
         <div className="text-center mb-6">
-          <div className="text-4xl mb-2">🪷</div>
-          <h1 className="text-2xl font-bold text-deep">{t("title")}</h1>
-          <p className="text-deep/60 text-sm mt-1">{t("subtitle")}</p>
+          <div aria-hidden="true" className="text-4xl mb-2">🪷</div>
+          <h1 className="type-section text-foreground">{t("title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t("subtitle")}</p>
         </div>
 
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
-            <label className="block text-sm font-medium text-deep mb-1">{t("nameLabel")}</label>
-            <p className="text-xs text-deep/50 mb-1.5">{t("nameHint")}</p>
+            <label htmlFor="register-name" className="block text-sm font-medium text-deep mb-1">{t("nameLabel")}</label>
+            <p className="text-xs text-muted-foreground mb-1.5">{t("nameHint")}</p>
             <Input
+              id="register-name"
               name="name"
               type="text"
               autoComplete="name"
@@ -190,13 +193,14 @@ export default function RegisterPage() {
               placeholder={t("namePlaceholder")}
               onBlur={handleBlur("name")}
               onChange={handleChange("name")}
-              maxLength={50}
+              maxLength={NAME_MAX_LENGTH}
             />
-            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+            {errors.name && <p className="text-destructive text-xs mt-1">{errors.name}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-deep mb-1">{t("emailLabel")}</label>
+            <label htmlFor="register-email" className="block text-sm font-medium text-deep mb-1">{t("emailLabel")}</label>
             <Input
+              id="register-email"
               name="email"
               type="email"
               autoComplete="username"
@@ -205,11 +209,12 @@ export default function RegisterPage() {
               onBlur={handleBlur("email")}
               onChange={handleChange("email")}
             />
-            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+            {errors.email && <p className="text-destructive text-xs mt-1">{errors.email}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-deep mb-1">{t("passwordLabel")}</label>
+            <label htmlFor="register-password" className="block text-sm font-medium text-deep mb-1">{t("passwordLabel")}</label>
             <Input
+              id="register-password"
               name="password"
               type="password"
               autoComplete="new-password"
@@ -219,7 +224,7 @@ export default function RegisterPage() {
               onBlur={handleBlur("password")}
               onChange={() => errors.password && setErrors((prev) => ({ ...prev, password: null }))}
             />
-            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+            {errors.password && <p className="text-destructive text-xs mt-1">{errors.password}</p>}
           </div>
 
           <label className="flex items-start gap-2 cursor-pointer">
@@ -229,7 +234,7 @@ export default function RegisterPage() {
               onChange={(e) => { setTermsAgreed(e.target.checked); if (errors.terms) setErrors((prev) => ({ ...prev, terms: null })); }}
               className="mt-0.5 h-4 w-4 rounded border-deep/30 text-gold focus:ring-gold"
             />
-            <span className="text-sm text-deep/70">
+            <span className="text-sm text-muted-foreground">
               {t.rich("termsAgreement", {
                 link: (chunks) => (
                   <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-gold hover:underline font-medium">
@@ -239,9 +244,9 @@ export default function RegisterPage() {
               })}
             </span>
           </label>
-          {errors.terms && <p className="text-red-500 text-xs -mt-2">{errors.terms}</p>}
+          {errors.terms && <p className="text-destructive text-xs -mt-2">{errors.terms}</p>}
 
-          {serverError && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{serverError}</p>}
+          {serverError && <Alert variant="destructive">{serverError}</Alert>}
 
           <Button
             type="submit"
@@ -254,7 +259,7 @@ export default function RegisterPage() {
           </Button>
         </form>
 
-        <p className="text-center text-sm text-deep/60 mt-4">
+        <p className="text-center text-sm text-muted-foreground mt-4">
           {t("hasAccount")}{" "}
           <Link href="/login" className="text-gold hover:underline font-medium">
             {t("loginLink")}

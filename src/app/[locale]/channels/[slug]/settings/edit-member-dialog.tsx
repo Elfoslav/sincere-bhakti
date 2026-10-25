@@ -50,7 +50,7 @@ export default function EditMemberDialog({
           className="gap-1"
           text={t("editMemberTitle")}
           subheading={member?.name}
-          subheadingClassName="text-deep/50"
+          subheadingClassName="text-muted-foreground"
         />
         {member && (
           <>

@@ -108,7 +108,7 @@ export default function SettingsPageClient() {
 
   if (status === "loading") {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
+      <div className="reading-container page-space space-y-4">
         <Skeleton className="h-48 w-full" />
       </div>
     );
@@ -117,7 +117,7 @@ export default function SettingsPageClient() {
   if (!session?.user?.id) return null;
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
+    <div className="reading-container page-space flex flex-col flex-1">
       <Breadcrumb
         items={[
           { label: profileT("title"), href: "/profile" },
@@ -129,7 +129,7 @@ export default function SettingsPageClient() {
       <Card variant="default" padding="lg" className="space-y-6">
         <div className="space-y-2">
           <Heading as="h1">{t("title")}</Heading>
-          <p className="text-sm text-deep/60">{t("description")}</p>
+          <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
 
         {success && (

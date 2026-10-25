@@ -2,9 +2,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SettingsLoading() {
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-8 flex flex-col flex-1">
+    <div className="reading-container page-space flex flex-col flex-1">
       <Skeleton className="h-4 w-40 mb-6" />
-      <div className="space-y-6 rounded-2xl border border-sand bg-white p-6">
+      <div className="space-y-6 rounded-lg border border-sand bg-card p-6">
         <div className="space-y-2">
           <Skeleton className="h-7 w-28" />
           <Skeleton className="h-4 w-full max-w-md" />

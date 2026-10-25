@@ -1,408 +1,120 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Pencil, Trash2, Star } from "lucide-react";
-
-import { Alert } from "@/components/ui/alert";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { useTranslations } from "next-intl";
+import BrandLogo from "@/components/BrandLogo";
+import { ArrowRight, Pencil } from "lucide-react";
+import { DESIGN_COLOR_TOKENS, DESIGN_SPACING_STEPS } from "@/lib/design-system";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Heading } from "@/components/ui/heading";
-import { InfoBox } from "@/components/ui/info-box";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
-import { TabsPanel, TabsRoot, TabsList, TabsTab } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
+import { Alert } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function VariantGroup({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <div className="flex flex-wrap items-center gap-3">{children}</div>
-    </div>
-  );
-}
-
-const brandColors = [
-  { name: "deep", hex: "#1a1a2e", text: "white" },
-  { name: "gold", hex: "#d4a843", text: "white" },
-  { name: "gold-light", hex: "#e8c36a", text: "deep" },
-  { name: "saffron", hex: "#e08a2e", text: "white" },
-  { name: "saffron-dark", hex: "#c87427", text: "white" },
-  { name: "brass", hex: "#b8862b", text: "white" },
-  { name: "warm", hex: "#f5f7fa", text: "deep" },
-  { name: "sand", hex: "#e8dcc8", text: "deep" },
-  { name: "tulsi", hex: "#2e6b4f", text: "white" },
-];
-
-const semanticColors = [
-  { name: "background", hex: "#f5f7fa", text: "deep" },
-  { name: "foreground", hex: "#1a1a2e", text: "white" },
-  { name: "card", hex: "#ffffff", text: "deep" },
-  { name: "primary", hex: "#e08a2e", text: "white" },
-  { name: "secondary", hex: "#e8dcc8", text: "deep" },
-  { name: "muted", hex: "#eaeef4", text: "deep" },
-  { name: "accent", hex: "#d4a843", text: "deep" },
-  { name: "destructive", hex: "#e74c3c", text: "white" },
-  { name: "border", hex: "#e8dcc8", text: "deep" },
-  { name: "ring", hex: "#d4a843", text: "deep" },
-];
-
-function ColorSwatch({ name, hex, text }: { name: string; hex: string; text: string }) {
-  return (
-    <div className="flex w-36 flex-col overflow-hidden rounded-xl border border-sand shadow-sm">
-      <div
-        className="flex h-20 items-end p-2"
-        style={{ backgroundColor: hex }}
-      >
-        <span className="text-[10px] font-semibold" style={{ color: text }}>
-          {hex}
-        </span>
-      </div>
-      <div className="bg-white px-2 py-1.5">
-        <p className="text-xs font-medium text-deep">--{name}</p>
-        <p className="text-[10px] text-deep/50">var(--{name})</p>
-      </div>
-    </div>
-  );
-}
-
-function ColorsSection() {
-  return (
-    <div className="flex flex-col gap-6">
-      <Section title="Brand palette">
-        <div className="flex flex-wrap gap-3">
-          {brandColors.map((c) => (
-            <ColorSwatch key={c.name} {...c} />
-          ))}
-        </div>
-      </Section>
-      <Section title="Semantic tokens">
-        <div className="flex flex-wrap gap-3">
-          {semanticColors.map((c) => (
-            <ColorSwatch key={c.name} {...c} />
-          ))}
-        </div>
-      </Section>
-    </div>
-  );
-}
-
-function TypographySection() {
-  return (
-    <div className="flex flex-col gap-6">
-      <Section title="Heading (display serif — Sincere Bhakti)">
-        <div className="flex flex-col gap-3 rounded-xl border border-sand bg-white p-5">
-          <Heading as="h1">Heading 1 — text-2xl font-bold</Heading>
-          <Heading as="h2">Heading 2 — text-xl font-semibold</Heading>
-          <Heading as="h3">Heading 3 — text-lg font-medium</Heading>
-        </div>
-      </Section>
-      <Section title="Body (Geist Sans)">
-        <div className="flex flex-col gap-2 rounded-xl border border-sand bg-white p-5">
-          <p className="text-base">Base body text — 16px, regular weight.</p>
-          <p className="text-sm">Small body text — 14px, used for supporting copy.</p>
-          <p className="text-xs text-deep/50">Caption / metadata — 12px, muted.</p>
-          <p className="text-sm font-medium">Label — 14px semibold, used on form fields.</p>
-        </div>
-      </Section>
-    </div>
-  );
-}
-
-function ButtonsSection() {
-  return (
-    <Section title="Button">
-      <VariantGroup label="Variants">
-        <Button variant="default">Default</Button>
-        <Button variant="outline">Outline</Button>
-        <Button variant="outline-deep">Outline deep</Button>
-        <Button variant="secondary">Secondary</Button>
-        <Button variant="ghost">Ghost</Button>
-        <Button variant="destructive">Destructive</Button>
-        <Button variant="link">Link</Button>
-      </VariantGroup>
-      <VariantGroup label="Sizes">
-        <Button size="xs">Extra small</Button>
-        <Button size="sm">Small</Button>
-        <Button size="default">Default</Button>
-        <Button size="lg">Large</Button>
-        <Button size="xl">Extra large</Button>
-      </VariantGroup>
-      <VariantGroup label="With icon">
-        <Button icon={<Mail />}>Start icon</Button>
-        <Button icon={<Mail />} iconPosition="end">
-          End icon
-        </Button>
-        <Button variant="icon" icon={<Pencil />} aria-label="Edit" />
-        <Button variant="icon-destructive" icon={<Trash2 />} aria-label="Delete" />
-        <Button variant="icon" size="icon-sm" icon={<Star />} aria-label="Star" />
-      </VariantGroup>
-      <VariantGroup label="States">
-        <Button disabled>Disabled</Button>
-        <Button variant="outline" disabled>
-          Disabled outline
-        </Button>
-      </VariantGroup>
-    </Section>
-  );
-}
-
-function CardsSection() {
-  return (
-    <Section title="Card">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Card variant="default">
-          <p className="font-medium">Default</p>
-          <p className="text-sm text-deep/60">Default padding (md).</p>
-        </Card>
-        <Card variant="elevated">
-          <p className="font-medium">Elevated</p>
-          <p className="text-sm text-deep/60">Larger shadow, xl padding.</p>
-        </Card>
-        <Card variant="flat">
-          <p className="font-medium">Flat</p>
-          <p className="text-sm text-deep/60">No shadow, lg padding.</p>
-        </Card>
-        <Card variant="hover" padding="lg">
-          <p className="font-medium">Hover</p>
-          <p className="text-sm text-deep/60">Tints on hover.</p>
-        </Card>
-      </div>
-    </Section>
-  );
-}
-
-function FeedbackSection() {
-  return (
-    <Section title="Feedback">
-      <VariantGroup label="InfoBox">
-        <div className="w-full max-w-xl">
-          <InfoBox variant="info">Informational message explaining something.</InfoBox>
-        </div>
-        <div className="w-full max-w-xl">
-          <InfoBox variant="warning">A warning the user should pay attention to.</InfoBox>
-        </div>
-        <div className="w-full max-w-xl">
-          <InfoBox variant="error">Something went wrong and needs attention.</InfoBox>
-        </div>
-        <div className="w-full max-w-xl">
-          <InfoBox variant="success">The action completed successfully.</InfoBox>
-        </div>
-        <div className="w-full max-w-xl">
-          <InfoBox
-            variant="info"
-            title="With title and action"
-            action={
-              <Button href="/design-system" variant="outline" size="sm">
-                Go somewhere
-              </Button>
-            }
-          >
-            A closable, titled infobox with a call to action.
-          </InfoBox>
-        </div>
-      </VariantGroup>
-      <VariantGroup label="Alert">
-        <div className="w-full max-w-xl">
-          <Alert variant="info">Info alert with lucide icon.</Alert>
-        </div>
-        <div className="w-full max-w-xl">
-          <Alert variant="success">Success alert.</Alert>
-        </div>
-        <div className="w-full max-w-xl">
-          <Alert variant="destructive">Destructive alert.</Alert>
-        </div>
-      </VariantGroup>
-    </Section>
-  );
-}
-
-function FormsSection() {
-  const [withError, setWithError] = useState(false);
+export default function DesignSystemHarness() {
+  const t = useTranslations("DesignSystem");
+  const home = useTranslations("HomePage");
   const [checked, setChecked] = useState(false);
 
   return (
-    <Section title="Forms">
-      <VariantGroup label="Input">
-        <div className="w-full max-w-md">
-          <Input placeholder="Placeholder" aria-label="Input" />
-        </div>
-        <div className="w-full max-w-md">
-          <Input defaultValue="Filled value" aria-label="Filled input" />
-        </div>
-        <div className="w-full max-w-md">
-          <Input
-            maxLength={30}
-            minLengthHint={8}
-            defaultValue="sh"
-            aria-label="Input with counter"
-          />
-        </div>
-        <div className="w-full max-w-md">
-          <Input errorMessage="This field is required" aria-label="Invalid input" />
-        </div>
-        <div className="w-full max-w-md">
-          <Input disabled placeholder="Disabled" aria-label="Disabled input" />
-        </div>
-      </VariantGroup>
-      <VariantGroup label="Textarea">
-        <div className="w-full max-w-md">
-          <Textarea rows={4} placeholder="Write something…" aria-label="Textarea" />
-        </div>
-      </VariantGroup>
-      <VariantGroup label="Post composer — desktop (md+)">
-        <div className="w-full max-w-2xl rounded-2xl border border-sand bg-white p-4 shadow-sm">
-          <Textarea
-            size="compose"
-            autoResize
-            placeholder="Write a post… auto-grows as you type."
-            aria-label="Post composer desktop"
-            defaultValue="The compose variant starts tall (min-h-40 on desktop) and grows with the content."
-          />
-        </div>
-      </VariantGroup>
-      <VariantGroup label="Post composer — mobile">
-        <div className="w-full max-w-[22rem] rounded-2xl border border-sand bg-white p-3 shadow-sm">
-          <Textarea
-            size="compose"
-            autoResize
-            placeholder="Write a post…"
-            aria-label="Post composer mobile"
-            defaultValue="On mobile it is more compact (min-h-28) and uses 16px text so iOS never auto-zooms."
-          />
-        </div>
-      </VariantGroup>
-      <VariantGroup label="Switch">
-        <button
-          type="button"
-          onClick={() => setChecked((c) => !c)}
-          className="flex items-center gap-3"
-        >
-          <Switch checked={checked} onCheckedChange={setChecked} />
-          <span className="text-sm">Toggle: {checked ? "on" : "off"}</span>
-        </button>
-        <Switch checked={false} disabled aria-label="Disabled switch" />
-      </VariantGroup>
-      <VariantGroup label="Skeleton">
-        <div className="flex w-full max-w-sm flex-col gap-2 rounded-xl border border-sand bg-white p-4">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="h-4 w-full" />
-        </div>
-      </VariantGroup>
-      <button type="button" onClick={() => setWithError((e) => !e)} className="text-xs underline">
-        {withError ? "Clear" : "Show"} controlled error
-      </button>
-    </Section>
-  );
-}
-
-function NavigationSection() {
-  return (
-    <Section title="Navigation & overlays">
-      <VariantGroup label="Breadcrumb">
-        <Breadcrumb
-          items={[
-            { label: "Home", href: "/" },
-            { label: "Channels", href: "/channels" },
-            { label: "Current page" },
-          ]}
-        />
-      </VariantGroup>
-      <VariantGroup label="Tooltip">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button variant="icon" icon={<Pencil />} aria-label="Edit" />
-              }
-            >
-              <span className="sr-only">Edit</span>
-            </TooltipTrigger>
-            <TooltipContent>Edit this item</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </VariantGroup>
-      <VariantGroup label="Dialog">
-        <Dialog>
-          <DialogTrigger
-            render={<Button variant="outline">Open dialog</Button>}
-          />
-          <DialogContent>
-            <DialogHeader
-              text="Dialog title"
-              subheading="Supporting description for the dialog content."
-            />
-            <p className="text-sm text-deep/70">
-              Dialog body content goes here. Use DialogHeader for the standard
-              title + description layout.
-            </p>
-            <DialogFooter>
-              <Button variant="outline">Cancel</Button>
-              <Button>Confirm</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </VariantGroup>
-    </Section>
-  );
-}
-
-const TABS = [
-  { value: "colors", label: "Colors", content: <ColorsSection /> },
-  { value: "typography", label: "Typography", content: <TypographySection /> },
-  { value: "components", label: "Components", content: (
-    <div className="flex flex-col gap-10">
-      <ButtonsSection />
-      <CardsSection />
-      <FeedbackSection />
-      <FormsSection />
-      <NavigationSection />
-    </div>
-  )},
-] as const;
-
-export default function DesignSystemHarness() {
-  return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8">
-      <header className="flex flex-col gap-1">
-        <h1 className="font-heading text-2xl font-bold text-deep">Design System</h1>
-        <p className="text-sm text-deep/60">
-          Living gallery of the shared UI kit — dev-only, not indexed.
-        </p>
+    <div className="site-container section-space flex flex-col gap-12">
+      <header className="flex flex-col gap-4">
+        <BrandLogo size="display" />
+        <h1 className="type-title">{t("title")}</h1>
+        <p className="max-w-2xl text-muted-foreground leading-relaxed">{t("description")}</p>
       </header>
-      <TabsRoot defaultValue="colors">
+      <TabsRoot defaultValue="foundations">
         <TabsList>
-          {TABS.map((t) => (
-            <TabsTab key={t.value} value={t.value}>
-              {t.label}
-            </TabsTab>
-          ))}
+          <TabsTab value="foundations">{t("foundations")}</TabsTab>
+          <TabsTab value="components">{t("components")}</TabsTab>
         </TabsList>
-        {TABS.map((t) => (
-          <TabsPanel key={t.value} value={t.value}>
-            {t.content}
-          </TabsPanel>
-        ))}
+        <TabsPanel value="foundations" className="flex flex-col gap-12 pt-6">
+          <section className="flex flex-col gap-5">
+            <h2 className="type-section">{t("palette")}</h2>
+            <p className="text-muted-foreground">{t("paletteDescription")}</p>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              {DESIGN_COLOR_TOKENS.map((token) => (
+                <div key={token} className="overflow-hidden rounded-lg border border-border bg-card">
+                  <div className="h-20 border-b border-border" style={{ backgroundColor: `var(--${token})` }} />
+                  <code className="block px-3 py-3 text-xs">--{token}</code>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="flex flex-col gap-5">
+            <h2 className="type-section">{t("typography")}</h2>
+            <p className="text-muted-foreground">{t("typographyDescription")}</p>
+            <div className="flex flex-col gap-5 border-y border-border py-8">
+              <p className="font-heading type-display">{home("logoAlt")}</p>
+              <p className="font-heading type-title">{home("subtitle")}</p>
+              <p className="font-heading type-section">{home("cardBhaktiTitle")}</p>
+              <p className="max-w-xl text-base leading-relaxed">{home("description")}</p>
+              <p className="text-sm text-muted-foreground">{t("caption")}</p>
+            </div>
+          </section>
+          <section className="flex flex-col gap-5">
+            <h2 className="type-section">{t("spacing")}</h2>
+            <p className="text-muted-foreground">{t("spacingDescription")}</p>
+            {DESIGN_SPACING_STEPS.map((step) => (
+              <div key={step} className="flex items-center gap-4">
+                <code className="w-12 text-xs">{step * 4}px</code>
+                <div className="h-3 rounded-sm bg-primary" style={{ width: `calc(var(--spacing) * ${step})` }} />
+              </div>
+            ))}
+          </section>
+          <section className="flex flex-col gap-4">
+            <h2 className="type-section">{t("principles")}</h2>
+            <p className="max-w-2xl text-muted-foreground leading-relaxed">{t("principlesDescription")}</p>
+          </section>
+        </TabsPanel>
+        <TabsPanel value="components" className="flex flex-col gap-12 pt-6">
+          <section className="flex flex-col gap-5">
+            <h2 className="type-section">{t("actions")}</h2>
+            <div className="flex flex-wrap items-center gap-4">
+              <Button>{t("primary")}</Button>
+              <Button variant="outline">{t("secondary")}</Button>
+              <Button variant="ghost">{t("quiet")}</Button>
+              <Button variant="destructive">{t("delete")}</Button>
+              <Button disabled>{t("disabled")}</Button>
+              <Button variant="link" icon={<ArrowRight />} iconPosition="end">{t("readMore")}</Button>
+              <Button icon={<Pencil />} aria-label={t("edit")} />
+            </div>
+          </section>
+          <section className="flex flex-col gap-5">
+            <h2 className="type-section">{t("surfaces")}</h2>
+            <div className="grid gap-6 sm:grid-cols-3">
+              <Card><h3 className="text-xl">{t("surface")}</h3><p className="mt-3 text-sm text-muted-foreground">{t("surfaceDescription")}</p></Card>
+              <Card variant="elevated"><h3 className="text-xl">{t("elevated")}</h3><p className="mt-3 text-sm text-muted-foreground">{t("elevatedDescription")}</p></Card>
+              <Card variant="editorial" className="py-5"><h3 className="text-xl">{t("editorial")}</h3><p className="mt-3 text-sm text-muted-foreground">{t("editorialDescription")}</p></Card>
+            </div>
+          </section>
+          <section className="flex max-w-xl flex-col gap-5">
+            <h2 className="type-section">{t("forms")}</h2>
+            <label className="flex flex-col gap-2 text-sm">{t("name")}<Input placeholder={t("placeholder")} /></label>
+            <label className="flex flex-col gap-2 text-sm">{t("invalid")}<Input aria-invalid errorMessage={t("required")} /></label>
+            <label className="flex flex-col gap-2 text-sm">{t("disabled")}<Input disabled placeholder={t("placeholder")} /></label>
+            <label className="flex flex-col gap-2 text-sm">{t("reflection")}<Textarea placeholder={t("placeholder")} /></label>
+            <div className="flex items-center gap-3"><Switch id="design-switch" checked={checked} onCheckedChange={setChecked} /><label htmlFor="design-switch" className="text-sm">{t("public")}</label></div>
+          </section>
+          <section className="flex max-w-xl flex-col gap-5">
+            <h2 className="type-section">{t("feedback")}</h2>
+            <Alert variant="success">{t("success")}</Alert>
+            <Alert variant="destructive">{t("error")}</Alert>
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-72 max-w-full" />
+          </section>
+          <Dialog>
+            <DialogTrigger render={<Button variant="outline">{t("openDialog")}</Button>} />
+            <DialogContent>
+              <DialogHeader text={t("dialogTitle")} subheading={t("dialogDescription")} />
+              <DialogFooter><Button>{t("primary")}</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </TabsPanel>
       </TabsRoot>
     </div>
   );
