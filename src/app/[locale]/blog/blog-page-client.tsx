@@ -16,6 +16,7 @@ import CategoryFilterBanner, { ChannelFilterBanner } from "@/components/Category
 import FeedFilterBar from "@/components/FeedFilterBar";
 import FeedEmptyState from "@/components/FeedEmptyState";
 import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
+import { matchesSearch } from "@/lib/feed-search";
 import type { BlogPost } from "@/types/blog";
 
 export default function BlogPageClient({
@@ -78,7 +79,10 @@ export default function BlogPageClient({
     // Private drafts save repeatedly into the same article: upsert so
     // continued saves update the row instead of prepending duplicates. A
     // draft that just went public also appears in the public feed.
-    setMyPosts((prev) => (prev.some((p) => p.id === post.id) ? prev.map((p) => (p.id === post.id ? post : p)) : [post, ...prev]));
+    // A filtered feed only shows matching posts: don't prepend a fresh
+    // article that doesn't match the active search.
+    const matches = matchesSearch(search, post.title, post.excerpt);
+    setMyPosts((prev) => (prev.some((p) => p.id === post.id) ? prev.map((p) => (p.id === post.id ? post : p)) : matches ? [post, ...prev] : prev));
     // A filtered feed only shows matching posts: don't prepend a fresh
     // post that doesn't carry the active category or channel.
     if (
@@ -199,10 +203,10 @@ export default function BlogPageClient({
           <TabsList>
             <TabsTab value="public">{t("publicTab")}</TabsTab>
             <TabsTab value="my-public">
-              {t("myPublicTab")} ({myPublicPosts.length})
+              {t("myPublicTab")}{!search && ` (${myPublicPosts.length})`}
             </TabsTab>
             <TabsTab value="my-private">
-              {t("myPrivateTab")} ({myPrivatePosts.length})
+              {t("myPrivateTab")}{!search && ` (${myPrivatePosts.length})`}
             </TabsTab>
           </TabsList>
 

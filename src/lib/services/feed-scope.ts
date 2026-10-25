@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { isChannelEditor } from "@/lib/services/channel";
 import { CHANNEL_AUTHOR_ROLES } from "@/lib/channel-roles";
 import { NotFoundError, UnauthorizedError } from "@/lib/services/errors";
-import { FEED_SEARCH_MAX_TERMS } from "@/lib/validation";
+import { splitSearchTerms } from "@/lib/feed-search";
 import type { Prisma } from "@prisma/client";
 
 // Timeline posts, blog articles, and albums filter the same
@@ -105,7 +105,7 @@ export function buildFeedSearchWhere(
   query: string | undefined,
   fieldFilters: (term: string) => FeedScopeWhere[],
 ): FeedScopeWhere | undefined {
-  const terms = (query ?? "").split(/\s+/).filter(Boolean).slice(0, FEED_SEARCH_MAX_TERMS);
+  const terms = splitSearchTerms(query);
   if (terms.length === 0) return undefined;
   return { AND: terms.map((term) => ({ OR: fieldFilters(term) })) };
 }

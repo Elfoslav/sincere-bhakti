@@ -16,6 +16,7 @@ import CategoryFilterBanner from "@/components/CategoryFilterBanner";
 import FeedFilterBar from "@/components/FeedFilterBar";
 import FeedEmptyState from "@/components/FeedEmptyState";
 import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
+import { matchesSearch } from "@/lib/feed-search";
 import type { Post } from "@/types/post";
 
 export default function PostsPageClient({
@@ -59,8 +60,10 @@ export default function PostsPageClient({
 	function handleCreateSuccess(post: Post) {
 		setMyPosts((prev) => [post, ...prev]);
 		// A filtered feed only shows matching posts: don't prepend a fresh
-		// post that doesn't carry the active category.
-		if (post.isPublic && (!category || post.categories.some((c) => c.name === category))) {
+		// post that doesn't carry the active category or match the search.
+		const matches = matchesSearch(search, post.content);
+		if (matches) setMyPosts((prev) => [post, ...prev]);
+		if (matches && post.isPublic && (!category || post.categories.some((c) => c.name === category))) {
 			setPosts((prev) => [post, ...prev]);
 		}
 	}
@@ -125,10 +128,10 @@ export default function PostsPageClient({
 					<TabsList>
 						<TabsTab value="public">{t("publicTab")}</TabsTab>
 						<TabsTab value="my-public">
-							{t("myPublicTab")} ({myPublicPosts.length})
+							{t("myPublicTab")}{!search && ` (${myPublicPosts.length})`}
 						</TabsTab>
 						<TabsTab value="my-private">
-							{t("myPrivateTab")} ({myPrivatePosts.length})
+							{t("myPrivateTab")}{!search && ` (${myPrivatePosts.length})`}
 						</TabsTab>
 					</TabsList>
 
