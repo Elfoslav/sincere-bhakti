@@ -354,7 +354,9 @@
 		"categoryMetaDescription": "Blogové články v kategórii {name}.",
 		"channelMetaTitle": "Články z kanála {name} — Sincere Bhakti",
 		"channelMetaDescription": "Blogové články z kanála {name}.",
-		"searchPlaceholder": "Hľadať v článkoch…"
+		"searchPlaceholder": "Hľadať v článkoch…",
+		"readingTime": "{minutes} min čítania",
+		"moreArticles": "Čítať ďalej"
 	},
 	"Categories": {
 		"searchPlaceholder": "Hľadať alebo vytvoriť kategórie...",

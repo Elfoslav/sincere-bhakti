@@ -354,7 +354,9 @@
 		"categoryMetaDescription": "Blog articles filed under {name}.",
 		"channelMetaTitle": "Articles from {name} — Sincere Bhakti",
 		"channelMetaDescription": "Blog articles from the {name} channel.",
-		"searchPlaceholder": "Search articles…"
+		"searchPlaceholder": "Search articles…",
+		"readingTime": "{minutes} min read",
+		"moreArticles": "Keep reading"
 	},
 	"Categories": {
 		"searchPlaceholder": "Search or create categories...",

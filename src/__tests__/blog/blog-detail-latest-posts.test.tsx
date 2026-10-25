@@ -90,7 +90,7 @@ describe("BlogDetailClient editorial layout", () => {
 
   it("renders no latest section when there are no other articles", () => {
     render(<BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />);
-    expect(screen.queryByText("latestPosts")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "latestPosts" })).not.toBeInTheDocument();
   });
 
   it("renders latest articles as a numbered list", () => {
@@ -101,7 +101,8 @@ describe("BlogDetailClient editorial layout", () => {
         latestPosts={[makePost("a", "Alpha"), makePost("b", "Beta"), makePost("c", "Gamma")]}
       />,
     );
-    const section = screen.getByText("latestPosts").closest("section")!;
+    const section = screen.getByRole("region", { name: "latestPosts" });
+    expect(within(section).getByRole("heading", { name: "moreArticles" })).toBeInTheDocument();
     const items = within(section).getAllByRole("listitem");
     expect(items).toHaveLength(3);
     expect(items[0]).toHaveTextContent("01");
@@ -113,7 +114,25 @@ describe("BlogDetailClient editorial layout", () => {
     expect(container.querySelector("section div.grid")).toBeNull();
   });
 
-  it("uses the long-form measure with 16px/1.5 body text", () => {
+  it("shows the reading time estimate in the byline", () => {
+    const words = Array.from({ length: 450 }, (_, i) => `w${i}`).join(" ");
+    render(<BlogDetailClient post={mainPost} contentHtml={`<p>${words}</p>`} latestPosts={[]} />);
+    expect(screen.getByText("readingTime")).toBeInTheDocument();
+  });
+
+  it("omits the reading time when there is no body", () => {
+    render(<BlogDetailClient post={mainPost} contentHtml="" latestPosts={[]} />);
+    expect(screen.queryByText("readingTime")).not.toBeInTheDocument();
+  });
+
+  it("renders the title and byline inside the article with a reading-progress bar", () => {
+    const { container } = render(<BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />);
+    const article = container.querySelector("article")!;
+    expect(article.querySelector("header h1")).toHaveTextContent("Main Article");
+    expect(container.querySelector("[aria-hidden='true'].fixed")).not.toBeNull();
+  });
+
+  it("uses a comfortable long-form measure and type scale", () => {
     const { container } = render(
       <BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />,
     );
@@ -121,14 +140,16 @@ describe("BlogDetailClient editorial layout", () => {
     const column = container.firstElementChild!;
     expect(column.className.split(/\s+/)).toContain("reading-container");
     expect(column.className.split(/\s+/)).not.toContain("max-w-2xl");
-    // 16px/1.5 body, same scale as surrounding UI text; dek stays above it.
+    // 18px body on the roomy article rhythm, constrained to a ~42rem measure;
+    // the dek (excerpt) stays above it in the display font.
     const body = container.querySelector("article .rich-text")!;
-    expect(body.className.split(/\s+/)).toContain("text-base");
-    expect(body.className.split(/\s+/)).toContain("leading-normal");
+    const classes = body.className.split(/\s+/);
+    expect(classes).toContain("rich-text-article");
+    expect(classes).toContain("text-lg");
+    expect(classes).toContain("max-w-[42rem]");
     expect(screen.getByText("Excerpt Main Article").className.split(/\s+/)).toContain("text-xl");
-    // Bright reading surface behind the article.
-    const card = body.closest("div.bg-card");
-    expect(card).not.toBeNull();
+    // An open editorial page, not a boxed card.
+    expect(body.closest("div.bg-card")).toBeNull();
   });
 
   it("never nests a div inside a paragraph (hydration-safe)", () => {

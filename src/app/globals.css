@@ -133,6 +133,45 @@
   margin: 1.25em 0;
   border-color: var(--color-sand);
 }
+/* Long-form reading surface (blog detail): a roomier rhythm than feed
+   excerpts, display-font subheadings, a brass-ruled pull quote and a lotus
+   divider. Colors and fonts come from tokens only. */
+.rich-text-article {
+  line-height: 1.8;
+}
+.rich-text-article p,
+.rich-text-article ul,
+.rich-text-article ol {
+  margin: 1.1em 0;
+}
+.rich-text-article h1,
+.rich-text-article h2,
+.rich-text-article h3 {
+  font-family: var(--font-heading);
+  margin: 1.8em 0 0.6em;
+  line-height: 1.2;
+}
+.rich-text-article blockquote {
+  margin: 1.6em 0;
+  padding: 0.25em 0 0.25em 1.25em;
+  border-left: 3px solid var(--primary);
+  font-family: var(--font-heading);
+  font-size: 1.2em;
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--foreground);
+}
+.rich-text-article img,
+.rich-text-article video,
+.rich-text-article iframe {
+  max-width: 100%;
+  border-radius: 0.5rem;
+}
+.rich-text-article hr {
+  margin: 2.5em auto;
+  width: 4rem;
+  border-top: 2px solid var(--primary);
+}
 .rich-text.tiptap {
   min-height: 12rem;
 }

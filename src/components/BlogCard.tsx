@@ -3,8 +3,9 @@
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { getBlogUrl } from "@/lib/blog-url";
-import { formatBlogDate } from "@/lib/blog";
+import { estimateReadingMinutes, formatBlogDate } from "@/lib/blog";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import BlogExcerpt from "@/components/BlogExcerpt";
 import ChannelAvatar from "@/components/ChannelAvatar";
 import CategoryChips from "@/components/CategoryChips";
@@ -35,23 +36,32 @@ export default function BlogCard({
   const t = useTranslations("BlogPage");
   const date = formatBlogDate(post.publishedAt ?? post.createdAt, locale);
   const isScheduled = post.publishedAt ? new Date(post.publishedAt) > new Date() : false;
+  const readingMinutes = estimateReadingMinutes(post.contentHtml);
+  // The cover sits above the title in the home grid and for the lead article
+  // of a list; other list rows keep a small thumbnail beside the text.
+  const coverOnTop = variant === "editorial" || (variant === "list" && featured);
 
   return (
     <Card
       variant={variant === "default" ? "default" : "editorial"}
       className={variant === "editorial" ? "flex h-full flex-col pb-6" : variant === "list" ? "py-7" : undefined}
     >
-      {variant === "editorial" && post.coverUrl ? (
+      {coverOnTop && post.coverUrl ? (
         <Link href={getBlogUrl(post.shortId, post.slug)} className="media-zoom mb-5 block overflow-hidden rounded-lg">
           {/* eslint-disable-next-line @next/next/no-img-element -- user-hosted article cover */}
-          <img src={post.coverUrl} alt="" className={featured ? "aspect-[8/5] w-full object-cover" : "aspect-[3/1] w-full object-cover"} loading="lazy" />
+          <img
+            src={post.coverUrl}
+            alt=""
+            className={cn("w-full object-cover", variant === "list" ? "aspect-[2/1]" : featured ? "aspect-[8/5]" : "aspect-[3/1]")}
+            loading="lazy"
+          />
         </Link>
       ) : null}
       {/* Title row — actions sit tight to the title on the right so they are
           always discoverable but don't compete with the cover. When there is
           a cover, the thumb lives in the body row below — no overlap. */}
       <div className="flex items-start justify-between gap-3">
-        <Link href={getBlogUrl(post.shortId, post.slug)} className="min-w-0 flex-1 text-deep hover:text-gold transition-colors">
+        <Link href={getBlogUrl(post.shortId, post.slug)} className="min-w-0 flex-1 text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline">
           <h3 className={featured ? "font-heading text-3xl leading-tight line-clamp-3 sm:text-4xl" : "font-heading text-xl leading-tight line-clamp-2 sm:text-2xl"}>
             {post.title}
           </h3>
@@ -85,6 +95,14 @@ export default function BlogCard({
                 ·
               </span>
               <span className="shrink-0 whitespace-nowrap">{date}</span>
+              {readingMinutes > 0 ? (
+                <>
+                  <span className="shrink-0 text-deep/30" aria-hidden>
+                    ·
+                  </span>
+                  <span className="shrink-0 whitespace-nowrap">{t("readingTime", { minutes: readingMinutes })}</span>
+                </>
+              ) : null}
             </span>
             {!post.isPublic ? (
               <span className="shrink-0 rounded-full bg-deep/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-muted-foreground">
@@ -110,16 +128,16 @@ export default function BlogCard({
           />
         </div>
 
-        {variant !== "editorial" && post.coverUrl ? (
+        {!coverOnTop && post.coverUrl ? (
           <Link
             href={getBlogUrl(post.shortId, post.slug)}
-            className="block shrink-0 overflow-hidden rounded-lg"
+            className="media-zoom block shrink-0 overflow-hidden rounded-lg"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={post.coverUrl}
               alt=""
-              className="h-20 w-20 object-cover sm:h-28 sm:w-28"
+              className="h-24 w-24 object-cover sm:h-28 sm:w-40"
               loading="lazy"
             />
           </Link>

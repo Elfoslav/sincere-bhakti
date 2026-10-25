@@ -169,3 +169,24 @@ export function isBlogDraftDirty(current: BlogDraftSnapshot, saved: BlogDraftSna
   if (current.publishedAt !== saved.publishedAt) return true;
   return false;
 }
+
+/** Average adult silent-reading speed used for the "N min read" estimate. */
+export const READING_WORDS_PER_MINUTE = 200;
+
+/**
+ * Estimated reading time in whole minutes (at least 1) from an article's
+ * rendered HTML. Tags and entities are dropped before counting words; returns
+ * 0 when there is nothing to read so callers can hide the label.
+ */
+export function estimateReadingMinutes(
+  html: string | null | undefined,
+  wordsPerMinute: number = READING_WORDS_PER_MINUTE,
+): number {
+  if (!html) return 0;
+  const text = html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&[a-z0-9#]+;/gi, " ");
+  const words = text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+  return words === 0 ? 0 : Math.max(1, Math.ceil(words / wordsPerMinute));
+}

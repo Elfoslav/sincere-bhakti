@@ -10,10 +10,12 @@ import BlogLayout from "@/components/BlogLayout";
 import BlogPostActions from "@/components/BlogPostActions";
 import CategoryChips from "@/components/CategoryChips";
 import EditBlogModal from "@/components/EditBlogModal";
-import { Card } from "@/components/ui/card";
+import ChannelAvatar from "@/components/ChannelAvatar";
+import OrnamentDivider from "@/components/OrnamentDivider";
+import ReadingProgress from "@/components/ReadingProgress";
 import { useIdentity } from "@/components/IdentityProvider";
 import { getBlogUrl } from "@/lib/blog-url";
-import { formatBlogDate } from "@/lib/blog";
+import { estimateReadingMinutes, formatBlogDate } from "@/lib/blog";
 import type { BlogPost } from "@/types/blog";
 
 export default function BlogDetailClient({
@@ -91,86 +93,93 @@ export default function BlogDetailClient({
   const date = formatBlogDate(displayedPost.publishedAt ?? displayedPost.createdAt, locale);
   const isScheduled = displayedPost.publishedAt ? new Date(displayedPost.publishedAt) > new Date() : false;
 
+  const readingMinutes = estimateReadingMinutes(html);
+
   return (
     <BlogLayout title={displayedPost.title} containerClassName="reading-container page-space">
-      {/* Shared reading surface follows the active semantic palette. */}
-      <Card variant="default" padding="lg">
-      <p className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-saffron-dark">
-        <Link href={`/blog/channel/${displayedPost.channel.slug}`} className="hover:text-gold">
-          {displayedPost.channel.name}
-        </Link>
-      </p>
-      <h1 className="type-title mt-4 text-center">
-        {displayedPost.title}
-      </h1>
-      {/* div, not p: BlogPostActions renders a div (invalid inside a
-      paragraph and a hydration error). */}
-      <div className="mt-4 flex items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-        {date}
-        {!displayedPost.isPublic ? (
-          <span className="rounded bg-deep/10 px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
-            {t("private")}
-          </span>
-        ) : isScheduled ? (
-          <span className="rounded bg-gold-light/20 px-1.5 py-0.5 text-xs font-medium text-primary">
-            {t("scheduled")}
-          </span>
-        ) : null}
-        <BlogPostActions
-          post={displayedPost}
-          currentUserId={session?.user?.id}
-          manageableChannelIds={manageableChannelIds}
-          onDelete={handleDelete}
-          onEdit={() => displayedPost && handleEdit(displayedPost.id)}
-        />
-      </div>
-      <hr className="mx-auto my-8 w-16 border-t-2 border-gold" />
-      {displayedPost.excerpt ? (
-        <p className="text-center font-heading text-xl italic leading-relaxed text-deep/80">
-          {displayedPost.excerpt}
-        </p>
-      ) : null}
-      {displayedPost.coverUrl ? (
-        <figure className="mt-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={displayedPost.coverUrl}
-            alt={displayedPost.title}
-            className="aspect-video w-full rounded-lg object-cover"
-          />
-        </figure>
-      ) : null}
+      <ReadingProgress />
       <article>
+        <header className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">
+            <Link href={`/blog/channel/${displayedPost.channel.slug}`} className="hover:underline underline-offset-4">
+              {displayedPost.channel.name}
+            </Link>
+          </p>
+          <h1 className="type-title mt-4 text-balance">{displayedPost.title}</h1>
+          {/* div, not p: BlogPostActions renders a div (invalid inside a
+          paragraph and a hydration error). */}
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+            <ChannelAvatar name={displayedPost.channel.name} size="xs" ariaHidden />
+            <span>{date}</span>
+            {readingMinutes > 0 ? (
+              <>
+                <span aria-hidden>·</span>
+                <span>{t("readingTime", { minutes: readingMinutes })}</span>
+              </>
+            ) : null}
+            {!displayedPost.isPublic ? (
+              <span className="rounded bg-deep/10 px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                {t("private")}
+              </span>
+            ) : isScheduled ? (
+              <span className="rounded bg-gold-light/20 px-1.5 py-0.5 text-xs font-medium text-primary">
+                {t("scheduled")}
+              </span>
+            ) : null}
+            <BlogPostActions
+              post={displayedPost}
+              currentUserId={session?.user?.id}
+              manageableChannelIds={manageableChannelIds}
+              onDelete={handleDelete}
+              onEdit={() => displayedPost && handleEdit(displayedPost.id)}
+            />
+          </div>
+          <OrnamentDivider className="mt-8" />
+          {displayedPost.excerpt ? (
+            <p className="mx-auto mt-8 max-w-[38rem] text-pretty font-heading text-xl italic leading-relaxed text-foreground sm:text-2xl">
+              {displayedPost.excerpt}
+            </p>
+          ) : null}
+        </header>
+        {displayedPost.coverUrl ? (
+          <figure className="mt-10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={displayedPost.coverUrl}
+              alt={displayedPost.title}
+              className="aspect-video w-full rounded-lg object-cover"
+            />
+          </figure>
+        ) : null}
         {html ? (
           <div
-            className="rich-text mt-8 text-base leading-normal"
+            className="rich-text rich-text-article mx-auto mt-10 max-w-[42rem] text-lg"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : null}
-      {isBlogPubliclyVisible(displayedPost) && <BlogAnalytics key={displayedPost.id} postId={displayedPost.id} />}
+        {isBlogPubliclyVisible(displayedPost) && <BlogAnalytics key={displayedPost.id} postId={displayedPost.id} />}
+        <footer className="mt-12">
+          <OrnamentDivider />
+          <CategoryChips
+            categories={displayedPost.categories}
+            onSelect={(category) => router.push(`/blog/category/${category.slug}`)}
+            className="mt-6 justify-center"
+          />
+        </footer>
       </article>
-      <CategoryChips
-        categories={displayedPost.categories}
-        onSelect={(category) => router.push(`/blog/category/${category.slug}`)}
-        className="mt-8 justify-center"
-      />
-      </Card>
-      <hr className="my-10 border-deep/10" />
       {latestPosts.length > 0 ? (
-        <section aria-label={t("latestPosts")}>
-          <h2 className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-            {t("latestPosts")}
-          </h2>
-          <ol className="mt-6 divide-y divide-deep/10">
+        <section aria-label={t("latestPosts")} className="mt-16 border-t border-border pt-10">
+          <h2 className="text-center font-heading text-2xl text-foreground">{t("moreArticles")}</h2>
+          <ol className="mt-6 divide-y divide-border">
             {latestPosts.map((post, index) => (
-              <li key={post.id} className="flex items-center gap-4 py-4">
-                <span aria-hidden className="shrink-0 font-heading text-2xl text-gold">
+              <li key={post.id} className="flex items-center gap-4 py-5">
+                <span aria-hidden className="shrink-0 font-heading text-2xl text-primary">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <div className="min-w-0 flex-1">
                   <Link
                     href={getBlogUrl(post.shortId, post.slug)}
-                    className="font-heading text-xl text-deep hover:text-gold"
+                    className="font-heading text-xl text-foreground hover:text-primary"
                   >
                     {post.title}
                   </Link>

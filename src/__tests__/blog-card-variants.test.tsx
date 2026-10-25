@@ -31,11 +31,27 @@ describe("BlogCard variants", () => {
     expect(root).toHaveClass("border-b", "rounded-none", "py-7");
     // The small thumbnail stays beside the text instead of a full-width cover.
     expect(screen.getByRole("heading", { name: "A title" })).toBeInTheDocument();
-    expect(container.querySelector("img")).toHaveClass("h-20");
+    expect(container.querySelector("img")).toHaveClass("h-24");
   });
 
   it("keeps the cover-on-top layout for the editorial variant", () => {
     const { container } = render(<BlogCard post={post} variant="editorial" />);
     expect(container.querySelector("img")).toHaveClass("w-full");
+  });
+
+  it("puts the cover on top for the featured list row", () => {
+    const { container } = render(<BlogCard post={post} variant="list" featured />);
+    expect(container.querySelector("img")).toHaveClass("aspect-[2/1]", "w-full");
+  });
+
+  it("shows the reading time in the byline when the article has a body", () => {
+    const words = Array.from({ length: 450 }, (_, i) => `w${i}`).join(" ");
+    render(<BlogCard post={{ ...post, contentHtml: `<p>${words}</p>` }} variant="list" />);
+    expect(screen.getByText("readingTime")).toBeInTheDocument();
+  });
+
+  it("hides the reading time without a body", () => {
+    render(<BlogCard post={{ ...post, contentHtml: null }} variant="list" />);
+    expect(screen.queryByText("readingTime")).not.toBeInTheDocument();
   });
 });

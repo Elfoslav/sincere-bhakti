@@ -127,6 +127,7 @@ export default function BlogPageClient({
     more: boolean,
     ref: (node: HTMLDivElement | null) => void,
     emptyKey: string,
+    featureFirst = false,
   ) {
     if (isLoading) {
       return (
@@ -142,11 +143,12 @@ export default function BlogPageClient({
     }
     return (
       <div className="flex flex-col">
-        {list.map((post) => (
+        {list.map((post, index) => (
           <BlogCard
             key={post.id}
             post={post}
             variant="list"
+            featured={featureFirst && index === 0 && !search}
             currentUserId={session?.user?.id}
             manageableChannelIds={manageableChannelIds}
             onDelete={session ? handleDelete : undefined}
@@ -203,7 +205,7 @@ export default function BlogPageClient({
           </TabsList>
 
           <TabsPanel value="public">
-            {renderList(posts, loading, loadingMore, hasMore, sentinelRef, "emptyPublic")}
+            {renderList(posts, loading, loadingMore, hasMore, sentinelRef, "emptyPublic", true)}
           </TabsPanel>
 
           <TabsPanel value="my-public">
@@ -215,7 +217,7 @@ export default function BlogPageClient({
           </TabsPanel>
         </TabsRoot>
       ) : (
-        renderList(posts, loading, loadingMore, hasMore, sentinelRef, "emptyPublic")
+        renderList(posts, loading, loadingMore, hasMore, sentinelRef, "emptyPublic", true)
       )}
 
       <EditBlogModal
