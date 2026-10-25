@@ -531,7 +531,8 @@
 		"tooManyRequests": "Robíš to príliš rýchlo. Počkaj prosím chvíľu a skús to znova.",
 		"renameCountInfo": "Počet premenovaní je obmedzený:",
 		"renameCount": "{count} / {max}",
-		"renameLimitReached": "Limit premenovaní tohto kanála bol dosiahnutý."
+		"renameLimitReached": "Limit premenovaní tohto kanála bol dosiahnutý.",
+		"skipToContent": "Preskočiť na hlavný obsah"
 	},
 	"PrivacyPolicy": {
 		"metaTitle": "Zásady ochrany osobných údajov — Krishna Chaitanya Mandir",

@@ -20,3 +20,19 @@ it("provides the same navigation, content landmark, and legal footer for its chi
   expect(screen.getByRole("link", { name: "terms" })).toHaveAttribute("href", "/terms");
   expect(screen.getByRole("link", { name: "privacy" }).closest("footer")).not.toBeNull();
 });
+
+it("offers a skip link as the first tab stop that targets the focusable main landmark", async () => {
+  const { container } = render(await SiteLayout({ locale: "en", children: <p>Page content</p> }));
+  const skip = screen.getByRole("link", { name: "skipToContent" });
+  expect(skip).toHaveAttribute("href", "#main-content");
+  expect(container.querySelector("a, button, [tabindex]")).toBe(skip);
+  const main = screen.getByRole("main");
+  expect(main).toHaveAttribute("id", "main-content");
+  expect(main).toHaveAttribute("tabindex", "-1");
+});
+
+it("underlines footer links so they do not rely on color alone", async () => {
+  render(await SiteLayout({ locale: "en", children: null }));
+  expect(screen.getByRole("link", { name: "terms" }).className).toContain("underline");
+  expect(screen.getByRole("link", { name: "privacy" }).className).toContain("underline");
+});
