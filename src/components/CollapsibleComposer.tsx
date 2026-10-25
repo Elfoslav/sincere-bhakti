@@ -19,16 +19,14 @@ export default function CollapsibleComposer({
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const hasToggled = useRef(false);
+  const previousOpen = useRef(open);
 
   // Move focus with the visible control: into the textarea on expand, back to
-  // the prompt on collapse. Skipped on first render so the page load doesn't
-  // steal focus.
+  // the prompt on collapse. Only acts on an actual change of `open`, so neither
+  // the first render nor StrictMode's repeated effect run steals focus.
   useEffect(() => {
-    if (!hasToggled.current) {
-      hasToggled.current = true;
-      return;
-    }
+    if (previousOpen.current === open) return;
+    previousOpen.current = open;
     if (open) panelRef.current?.querySelector("textarea")?.focus();
     else triggerRef.current?.focus();
   }, [open]);

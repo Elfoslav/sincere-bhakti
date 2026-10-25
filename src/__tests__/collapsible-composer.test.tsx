@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -53,5 +54,14 @@ describe("CollapsibleComposer", () => {
     act(() => formProps.current!.onSuccess(post));
     expect(onSuccess).toHaveBeenCalledWith(post);
     expect(screen.getByRole("button", { name: "composePlaceholder" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("does not focus the prompt on page load even when effects run twice (StrictMode)", () => {
+    render(
+      <StrictMode>
+        <CollapsibleComposer onSuccess={() => {}} />
+      </StrictMode>,
+    );
+    expect(screen.getByRole("button", { name: "composePlaceholder" })).not.toHaveFocus();
   });
 });
