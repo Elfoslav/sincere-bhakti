@@ -28,7 +28,7 @@ describe("BlogLayout", () => {
       </BlogLayout>,
     );
 
-    const nav = screen.getByRole("navigation", { name: "Breadcrumb" });
+    const nav = screen.getByRole("navigation", { name: "breadcrumb" });
     expect(nav).toHaveTextContent("Blog");
     expect(nav).toHaveTextContent("My Article");
     expect(screen.getByRole("link", { name: "Blog" })).toHaveAttribute("href", "/blog");

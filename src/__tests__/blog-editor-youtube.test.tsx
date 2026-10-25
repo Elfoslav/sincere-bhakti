@@ -3,8 +3,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 vi.mock("@/i18n/navigation", () => ({ Link: () => null }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.spyOn(console, "error").mockImplementation(() => {});
 import { toast } from "sonner";
 import BlogEditor from "@/components/BlogEditor";
+
+// ProseMirror scrolls the inserted block into view. jsdom has no layout engine.
+Object.defineProperty(Range.prototype, "getClientRects", { configurable: true, value: () => [] });
+Object.defineProperty(Range.prototype, "getBoundingClientRect", { configurable: true, value: () => new DOMRect() });
 it("validates, inserts, persists and reopens a YouTube block", async () => {
   const onChange = vi.fn();
   const { unmount } = render(<BlogEditor initialContent="Existing article text" onChange={onChange} />);

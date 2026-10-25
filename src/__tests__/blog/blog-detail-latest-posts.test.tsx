@@ -58,7 +58,7 @@ describe("BlogDetailClient editorial layout", () => {
     const { container } = render(
       <BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />,
     );
-    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "breadcrumb" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Main Article" })).toBeInTheDocument();
     expect(screen.getByText("Excerpt Main Article")).toBeInTheDocument();
     expect(container.querySelector("figure")).not.toBeInTheDocument();
@@ -117,9 +117,9 @@ describe("BlogDetailClient editorial layout", () => {
     const { container } = render(
       <BlogDetailClient post={mainPost} contentHtml="<p>body</p>" latestPosts={[]} />,
     );
-    // 48rem reading column (roomier than the old 42rem).
+    // The shared reading measure stays consistent with feeds and detail pages.
     const column = container.firstElementChild!;
-    expect(column.className.split(/\s+/)).toContain("max-w-3xl");
+    expect(column.className.split(/\s+/)).toContain("reading-container");
     expect(column.className.split(/\s+/)).not.toContain("max-w-2xl");
     // 16px/1.5 body, same scale as surrounding UI text; dek stays above it.
     const body = container.querySelector("article .rich-text")!;
@@ -127,7 +127,7 @@ describe("BlogDetailClient editorial layout", () => {
     expect(body.className.split(/\s+/)).toContain("leading-normal");
     expect(screen.getByText("Excerpt Main Article").className.split(/\s+/)).toContain("text-xl");
     // Bright reading surface behind the article.
-    const card = body.closest("div.bg-white");
+    const card = body.closest("div.bg-card");
     expect(card).not.toBeNull();
   });
 

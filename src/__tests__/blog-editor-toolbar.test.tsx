@@ -55,7 +55,7 @@ describe("BlogEditor toolbar", () => {
     expect(classes()).toContain("top-0");
     expect(classes()).toContain("z-10");
     // Opaque, or scrolled body text would show through underneath.
-    expect(classes()).toContain("bg-white");
+    expect(classes()).toContain("bg-card");
     // At rest the top follows the box radius.
     expect(classes()).toContain("rounded-t-lg");
 

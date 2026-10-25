@@ -9,20 +9,20 @@ import { cn } from "@/lib/utils";
 
 // The Button component renders cn(buttonVariants(...)) — cn runs tailwind-merge,
 // which keeps the LAST conflicting class. These tests guard the declaration
-// order in the cva config: size radii must not override pill variants.
+// order in the cva config: size radii must not override action variants.
 function mergedClasses(opts: Parameters<typeof buttonVariants>[0]): string {
   return cn(buttonVariants(opts));
 }
 
-describe("buttonVariants rounded styles", () => {
-  const pillVariants = ["default", "outline-deep", "outline", "destructive", "secondary", "ghost"] as const;
+describe("buttonVariants shared geometry", () => {
+  const actionVariants = ["default", "outline-deep", "outline", "destructive", "secondary", "ghost"] as const;
   const sizesWithOwnRadius = ["xs", "sm", "icon-xs", "icon-sm"] as const;
   const sizesWithoutRadius = ["default", "lg", "xl", "xxl", "hero", "icon", "icon-lg"] as const;
 
-  it.each(pillVariants)("variant %s stays a pill at every size", (variant) => {
+  it.each(actionVariants)("variant %s keeps shared corners at every size", (variant) => {
     for (const size of [...sizesWithOwnRadius, ...sizesWithoutRadius]) {
       const classes = mergedClasses({ variant, size });
-      expect(classes, `${variant}/${size}`).toContain("rounded-full");
+      expect(classes, `${variant}/${size}`).toContain("rounded-lg");
       expect(classes, `${variant}/${size}`).not.toMatch(/rounded-\[min/);
     }
   });
@@ -49,14 +49,14 @@ describe("buttonVariants rounded styles", () => {
   it("destructive variant is a solid button, not a tinted label", () => {
     const classes = mergedClasses({ variant: "destructive", size: "default" });
     expect(classes).toContain("bg-destructive");
-    expect(classes).toContain("text-white");
+    expect(classes).toContain("text-destructive-foreground");
     expect(classes).not.toContain("bg-destructive/10");
     expect(classes).not.toContain("bg-destructive/20");
   });
 
   it("default variant avoids glossy gradient borders", () => {
     const classes = mergedClasses({ variant: "default", size: "default" });
-    expect(classes).toContain("bg-saffron");
+    expect(classes).toContain("bg-primary");
     expect(classes).toContain("bg-clip-padding");
     expect(classes).not.toContain("bg-gradient-to-b");
     expect(classes).not.toContain("bg-clip-border");
@@ -69,7 +69,7 @@ describe("buttonVariants rounded styles", () => {
     expect(classes).toContain("aria-disabled:focus-visible:ring-0");
   });
 
-  it("non-pill variants fall back to the base radius at default size", () => {
+  it("quiet variants fall back to the base radius at default size", () => {
     const classes = mergedClasses({ variant: "link", size: "default" });
     expect(classes).toContain("rounded-lg");
     expect(classes).not.toContain("rounded-full");
