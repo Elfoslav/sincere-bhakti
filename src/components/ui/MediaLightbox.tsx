@@ -114,7 +114,7 @@ export default function MediaLightbox({
 			<div onClick={(e) => e.stopPropagation()}>
 				<LoadableMedia
 					key={currentIndex}
-					className="bg-[conic-gradient(#e5e5e5_25%,#f5f5f5_0_50%,#e5e5e5_0_75%,#f5f5f5_0)] bg-[length:24px_24px] rounded overflow-hidden data-[status=loading]:min-h-[40vh] data-[status=loading]:min-w-[min(90vw,24rem)] data-[status=error]:min-w-[min(90vw,24rem)]"
+					className="bg-[conic-gradient(var(--muted)_25%,var(--card)_0_50%,var(--muted)_0_75%,var(--card)_0)] bg-[length:24px_24px] rounded overflow-hidden data-[status=loading]:min-h-[40vh] data-[status=loading]:min-w-[min(90vw,24rem)] data-[status=error]:min-w-[min(90vw,24rem)]"
 				>
 					{({ ref, onLoad, onError }) => (
 						// Using <img> for lightbox full-size display: user-uploaded images already

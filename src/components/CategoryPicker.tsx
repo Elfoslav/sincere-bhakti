@@ -10,6 +10,7 @@ import {
   CATEGORY_SEARCH_LIMIT,
   normalizeCategoryName,
 } from "@/lib/validation";
+import { inputClassName } from "@/components/ui/input";
 import type { CategoryRef } from "@/types/category";
 
 interface CategoryPickerProps {
@@ -148,14 +149,14 @@ export default function CategoryPicker({ value, onChange, max = CATEGORIES_MAX_P
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
-        className="w-full rounded-md border border-deep/15 bg-white px-3 py-2 text-sm text-deep placeholder:text-deep/40 focus:border-gold focus:outline-none"
+        className={inputClassName}
       />
       {full && <p className="mt-1 text-xs text-deep/50">{t("maxReached", { max })}</p>}
       {open && (options.length > 0 || canCreate) && (
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-deep/15 bg-white py-1 shadow-lg"
+          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-border bg-popover py-1 shadow-lg"
         >
           {options.map((option, i) => (
             <li
