@@ -15,8 +15,7 @@ import { useIdentity } from "@/components/IdentityProvider";
 import CategoryFilterBanner, { ChannelFilterBanner } from "@/components/CategoryFilterBanner";
 import FeedFilterBar from "@/components/FeedFilterBar";
 import FeedEmptyState from "@/components/FeedEmptyState";
-import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
-import { SEARCH_DEBOUNCE_MS } from "@/lib/validation";
+import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
 import type { BlogPost } from "@/types/blog";
 
 export default function BlogPageClient({
@@ -36,8 +35,7 @@ export default function BlogPageClient({
   const t = useTranslations("BlogPage");
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const effectiveChannelId = channelId ?? undefined;
-  const [searchInput, setSearchInput] = useState("");
-  const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
+  const { searchInput, setSearchInput, search } = useFeedSearch();
   const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef } = useInfiniteBlogPosts({
     scope: "public",
     channelId: effectiveChannelId,

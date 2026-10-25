@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import SearchInput from "@/components/SearchInput";
 import ChannelAvatar from "@/components/ChannelAvatar";
-import { SEARCH_DEBOUNCE_MS } from "@/lib/validation";
+import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
 import type { ChannelInfo } from "@/types/user";
 
 interface ChannelsResponse {
@@ -25,9 +25,7 @@ export default function ChannelsPageClient() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const [search, setSearch] = useState("");
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const { searchInput: query, setSearchInput: setQuery, search } = useFeedSearch();
   // Guards against out-of-order responses: rapid search input or a locale change
   // can leave multiple fetches in flight, and the last one to resolve must not
   // overwrite the newest request's results. Every load captures an id and only
@@ -67,14 +65,6 @@ export default function ChannelsPageClient() {
     loadChannels();
   }, [loadChannels]);
 
-  function handleSearchChange(value: string) {
-    setQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setSearch(value.trim());
-    }, SEARCH_DEBOUNCE_MS);
-  }
-
   async function handleLoadMore() {
     if (!cursor || loadingMore) return;
     const requestId = ++requestIdRef.current;
@@ -93,7 +83,7 @@ return (
 
       <SearchInput
         value={query}
-        onChange={handleSearchChange}
+        onChange={setQuery}
         placeholder={t("searchPlaceholder")}
         loading={loading}
         className="mb-6"

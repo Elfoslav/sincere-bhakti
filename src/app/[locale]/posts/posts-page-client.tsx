@@ -15,8 +15,7 @@ import { useIdentity } from "@/components/IdentityProvider";
 import CategoryFilterBanner from "@/components/CategoryFilterBanner";
 import FeedFilterBar from "@/components/FeedFilterBar";
 import FeedEmptyState from "@/components/FeedEmptyState";
-import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
-import { SEARCH_DEBOUNCE_MS } from "@/lib/validation";
+import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
 import type { Post } from "@/types/post";
 
 export default function PostsPageClient({
@@ -31,8 +30,7 @@ export default function PostsPageClient({
 	const locale = useLocale();
 	const t = useTranslations("PostsPage");
 	const [editingPost, setEditingPost] = useState<Post | null>(null);
-	const [searchInput, setSearchInput] = useState("");
-	const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
+	const { searchInput, setSearchInput, search } = useFeedSearch();
 	const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef } = useInfinitePosts({
 		scope: "public",
 		language: locale,
