@@ -509,6 +509,10 @@
 		"next": "Ďalší obrázok",
 		"imageAlt": "Obrázok {current} z {total}"
 	},
+	"MediaStatus": {
+		"unavailable": "Toto médium sa nepodarilo načítať.",
+		"retry": "Skúsiť znova"
+	},
 	"Common": {
 		"cancel": "Zrušiť",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",

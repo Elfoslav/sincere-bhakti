@@ -12,6 +12,7 @@ import ChannelAvatar from "@/components/ChannelAvatar";
 import AlbumActions from "@/components/AlbumActions";
 import AlbumForm from "@/components/AlbumForm";
 import MediaLightbox from "@/components/ui/MediaLightbox";
+import { LoadableMedia } from "@/components/ui/loadable-media";
 import { useIdentity } from "@/components/IdentityProvider";
 import type { Album } from "@/types/album";
 
@@ -75,13 +76,18 @@ export default function AlbumDetailClient({ album: initial }: { album: Album }) 
       {videos.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {videos.map((v) => (
-            <video
-              key={v.url}
-              src={v.url}
-              controls
-              preload="metadata"
-              className="w-full rounded-lg bg-black"
-            />
+            <LoadableMedia key={v.url} className="overflow-hidden rounded-lg bg-black">
+              {({ onLoad, onError }) => (
+                <video
+                  src={v.url}
+                  controls
+                  preload="metadata"
+                  className="w-full"
+                  onLoadedMetadata={onLoad}
+                  onError={onError}
+                />
+              )}
+            </LoadableMedia>
           ))}
         </div>
       )}
@@ -91,21 +97,30 @@ export default function AlbumDetailClient({ album: initial }: { album: Album }) 
           {images.map((img) => {
             const globalIndex = album.items.findIndex((i) => i.url === img.url);
             return (
-              <button
+              <LoadableMedia
                 key={img.url}
-                onClick={() => openLightbox(globalIndex)}
-                className="relative h-48 sm:h-56 overflow-hidden rounded-lg bg-deep/5 cursor-pointer border-0 p-0"
-                aria-label={t("openImage")}
+                className="h-48 sm:h-56 overflow-hidden rounded-lg bg-deep/5"
               >
-                <Image
-                  src={img.url}
-                  alt=""
-                  fill
-                  sizes="(max-width: 640px) 50vw, 33vw"
-                  className="object-cover"
-                  unoptimized
-                />
-              </button>
+                {({ ref, onLoad, onError }) => (
+                  <button
+                    onClick={() => openLightbox(globalIndex)}
+                    className="relative h-full w-full cursor-pointer overflow-hidden border-0 p-0"
+                    aria-label={t("openImage")}
+                  >
+                    <Image
+                      ref={ref}
+                      onLoad={onLoad}
+                      onError={onError}
+                      src={img.url}
+                      alt=""
+                      fill
+                      sizes="(max-width: 640px) 50vw, 33vw"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </button>
+                )}
+              </LoadableMedia>
             );
           })}
         </div>

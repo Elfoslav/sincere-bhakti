@@ -509,6 +509,10 @@
 		"next": "Next image",
 		"imageAlt": "Image {current} of {total}"
 	},
+	"MediaStatus": {
+		"unavailable": "This media couldn't be loaded.",
+		"retry": "Retry"
+	},
 	"Common": {
 		"cancel": "Cancel",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",

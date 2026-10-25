@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import MediaLightbox from "@/components/ui/MediaLightbox";
+import { LoadableMedia } from "@/components/ui/loadable-media";
 
 const MAX_VISIBLE = 4;
 
@@ -40,55 +41,70 @@ export default function ImageGallery({
           const isLastOverflow = i === MAX_VISIBLE - 1 && overflowCount > 0;
           const dims = img.width && img.height ? { width: img.width, height: img.height } : null;
           return (
-            <button
+            <LoadableMedia
               key={img.url}
-              onClick={() => setLightboxIndex(i)}
-              className={`relative p-0 border-0 cursor-pointer overflow-hidden bg-deep/5 ${cellClass(i)}`}
+              className={`overflow-hidden bg-deep/5 ${cellClass(i)}`}
               style={single ? undefined : { height: 200 }}
-              aria-label={t("openImage")}
             >
-              {single && dims ? (
-                // Single image with known dimensions: responsive, intrinsic
-                // aspect capped at 440px tall. next/image serves a right-sized
-                // AVIF/WebP and lazy-loads by default.
-                <Image
-                  src={img.url}
-                  alt=""
-                  width={dims.width}
-                  height={dims.height}
-                  sizes="(max-width: 768px) 100vw, 640px"
-                  className="w-full object-cover"
-                  style={{ width: "100%", height: "auto", maxHeight: 440 }}
-                  unoptimized
-                />
-              ) : dims || !single ? (
-                // Grid cell (fixed-height container) — fill + cover.
-                <Image
-                  src={img.url}
-                  alt=""
-                  fill
-                  sizes="(max-width: 768px) 50vw, 320px"
-                  className="object-cover"
-                  unoptimized
-                />
-              ) : (
-                // Legacy single image without stored dimensions: plain lazy img.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={img.url}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full object-cover"
-                  style={{ maxHeight: 440 }}
-                />
+              {({ ref, onLoad, onError }) => (
+                <button
+                  onClick={() => setLightboxIndex(i)}
+                  className="relative block h-full w-full cursor-pointer overflow-hidden border-0 p-0"
+                  aria-label={t("openImage")}
+                >
+                  {single && dims ? (
+                    // Single image with known dimensions: responsive, intrinsic
+                    // aspect capped at 440px tall. next/image serves a right-sized
+                    // AVIF/WebP and lazy-loads by default.
+                    <Image
+                      ref={ref}
+                      onLoad={onLoad}
+                      onError={onError}
+                      src={img.url}
+                      alt=""
+                      width={dims.width}
+                      height={dims.height}
+                      sizes="(max-width: 768px) 100vw, 640px"
+                      className="w-full object-cover"
+                      style={{ width: "100%", height: "auto", maxHeight: 440 }}
+                      unoptimized
+                    />
+                  ) : dims || !single ? (
+                    // Grid cell (fixed-height container) — fill + cover.
+                    <Image
+                      ref={ref}
+                      onLoad={onLoad}
+                      onError={onError}
+                      src={img.url}
+                      alt=""
+                      fill
+                      sizes="(max-width: 768px) 50vw, 320px"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    // Legacy single image without stored dimensions: plain lazy img.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      ref={ref}
+                      onLoad={onLoad}
+                      onError={onError}
+                      src={img.url}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full object-cover"
+                      style={{ maxHeight: 440 }}
+                    />
+                  )}
+                  {isLastOverflow && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <span className="text-white text-2xl font-bold">+{overflowCount}</span>
+                    </div>
+                  )}
+                </button>
               )}
-              {isLastOverflow && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <span className="text-white text-2xl font-bold">+{overflowCount}</span>
-                </div>
-              )}
-            </button>
+            </LoadableMedia>
           );
         })}
       </div>

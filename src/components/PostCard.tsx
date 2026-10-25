@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import ImageGallery from "@/components/ImageGallery";
+import { LoadableMedia } from "@/components/ui/loadable-media";
 import type { Post } from "@/types/post";
 
 export default function PostCard({
@@ -198,12 +199,17 @@ export default function PostCard({
           ) : m.type === "video" ? (
             /* preload="none": without it every video in the feed fetches
                metadata/initial segments on page load. */
-            <video
-              src={m.url}
-              controls
-              preload="none"
-              className="w-full max-h-96 object-contain"
-            />
+            <LoadableMedia showLoading={false}>
+              {({ onError }) => (
+                <video
+                  src={m.url}
+                  controls
+                  preload="none"
+                  className="w-full max-h-96 object-contain"
+                  onError={onError}
+                />
+              )}
+            </LoadableMedia>
           ) : (
             <a
               href={m.url}
