@@ -30,6 +30,7 @@
 		"manage": "Spravovať kanály"
 	},
 	"HomePage": {
+		"heroDescription": "Posvätný priestor pre oddaných gauḍíjskeho vaišnavizmu.",
 		"logoAlt": "Sincere Bhakti",
 		"metaTitle": "Sincere Bhakti",
 		"metaDescription": "Posvätný priestor pre oddaných gaudíja-vaišnavizmu. Zdieľaj realizácie, kírtany a postrehy so saṅgou.",
@@ -269,7 +270,6 @@
 		"reads": "{count, plural, one {# prečítanie} few {# prečítania} other {# prečítaní}}",
 		"uniqueVisitors": "{count, plural, one {# unikátny denný návštevník} few {# unikátni denní návštevníci} other {# unikátnych denných návštevníkov}}",
 		"analyticsExplanation": "Prečítanie: aspoň 30 sekúnd zobrazenia a dosiahnutie konca článku. Unikátni návštevníci sa odhadujú za každý deň UTC a sčítavajú sa naprieč dňami.",
-
 		"title": "Blog",
 		"subtitle": "Dlhšie články z kanálov",
 		"metaTitle": "Blog — Sincere Bhakti",
@@ -519,6 +519,7 @@
 		"retry": "Skúsiť znova"
 	},
 	"Common": {
+		"breadcrumb": "Drobčeková navigácia",
 		"clearSearch": "Vymazať vyhľadávanie",
 		"cancel": "Zrušiť",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
@@ -637,5 +638,48 @@
 			"buttonText": "Obnoviť heslo",
 			"footer": "Ak si o obnovenie hesla nežiadal/a, tento e-mail môžeš ignorovať. Tvoje heslo zostane nezmenené."
 		}
+	},
+	"DesignSystem": {
+		"title": "Dizajnový systém",
+		"description": "Pokojný priestor pre oddanosť. Zdieľané základy a komponenty pre celé Sincere Bhakti.",
+		"foundations": "Základy",
+		"components": "Komponenty",
+		"palette": "Farebná paleta",
+		"paletteDescription": "Teplá slonová kosť, tmavý atrament a striedma mosadz. Vzorky používajú skutočné CSS tokeny.",
+		"typography": "Typografia",
+		"typographyDescription": "Písmo Sincere Bhakti pre duchovné nadpisy. Geist pre čitateľný text a ovládacie prvky.",
+		"caption": "Doplňujúci text zostáva čitateľný a užitočný.",
+		"spacing": "Rozostupy a rytmus",
+		"spacingDescription": "Základná jednotka 4 px. Vzdušné sekcie, príjemná šírka textu a jednotné okraje.",
+		"principles": "Princípy dizajnu",
+		"principlesDescription": "Zachovajte pôvodné logo. Duchovný charakter vyjadrujú autentické obrazy a obsah. Uprednostnite voľný priestor a oddeľovače. Používajte striedme animácie, viditeľné zameranie klávesnicou a podporu obmedzeného pohybu.",
+		"actions": "Akcie a stavy",
+		"primary": "Hlavná akcia",
+		"secondary": "Vedľajšia akcia",
+		"quiet": "Nenápadná akcia",
+		"delete": "Vymazať",
+		"disabled": "Neaktívne",
+		"readMore": "Čítať ďalej",
+		"edit": "Upraviť",
+		"surfaces": "Povrchy",
+		"surface": "Základný povrch",
+		"surfaceDescription": "Pre formuláre a súvisiaci interaktívny obsah.",
+		"elevated": "Vyvýšený povrch",
+		"elevatedDescription": "Jemný tieň vyhraďte dôležitým plávajúcim prvkom.",
+		"editorial": "Čitateľský záznam",
+		"editorialDescription": "Otvorené rozloženie s jednoduchým oddeľovačom.",
+		"forms": "Formulárové prvky",
+		"name": "Meno",
+		"placeholder": "Napíšte niečo…",
+		"invalid": "Neplatný vstup",
+		"required": "Toto pole je povinné.",
+		"reflection": "Zamyslenie",
+		"public": "Verejné",
+		"feedback": "Spätná väzba a načítavanie",
+		"success": "Zmeny boli uložené.",
+		"error": "Niečo sa pokazilo. Skúste to znova.",
+		"openDialog": "Otvoriť dialóg",
+		"dialogTitle": "Chvíľa sústredenia",
+		"dialogDescription": "Zdieľané nadpisy, jasné akcie a prístupné ovládanie klávesnicou."
 	}
 }

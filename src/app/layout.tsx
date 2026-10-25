@@ -35,7 +35,7 @@ const headingFont = localFont({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#1a1a2e",
+  themeColor: "#f7f4ec",
 };
 
 export const metadata: Metadata = {

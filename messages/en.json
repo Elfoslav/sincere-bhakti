@@ -30,6 +30,7 @@
 		"manage": "Manage channels"
 	},
 	"HomePage": {
+		"heroDescription": "A sacred space for devotees of Gauḍīya Vaiṣṇavism.",
 		"logoAlt": "Sincere Bhakti",
 		"metaTitle": "Sincere Bhakti",
 		"metaDescription": "A sacred space for devotees of Gauḍīya Vaiṣṇavism. Share devotional realizations, kirtans, and insights with the saṅga.",
@@ -269,7 +270,6 @@
 		"reads": "{count, plural, one {# read} other {# reads}}",
 		"uniqueVisitors": "{count, plural, one {# unique daily visitor} other {# unique daily visitors}}",
 		"analyticsExplanation": "Reads: at least 30 seconds visible and the end of the article reached. Unique visitors are estimated per UTC day and summed across days.",
-
 		"title": "Blog",
 		"subtitle": "Long-form articles from the channels",
 		"metaTitle": "Blog — Sincere Bhakti",
@@ -519,6 +519,7 @@
 		"retry": "Retry"
 	},
 	"Common": {
+		"breadcrumb": "Breadcrumb",
 		"clearSearch": "Clear search",
 		"cancel": "Cancel",
 		"footerLine1": "© {year} 🪷 Sincere Bhakti",
@@ -637,5 +638,48 @@
 			"buttonText": "Reset password",
 			"footer": "If you did not request a password reset, you can ignore this email. Your password will remain unchanged."
 		}
+	},
+	"DesignSystem": {
+		"title": "Design system",
+		"description": "A quiet devotional journal. Shared foundations and components for every Sincere Bhakti experience.",
+		"foundations": "Foundations",
+		"components": "Components",
+		"palette": "Color palette",
+		"paletteDescription": "Warm ivory, deep ink, and restrained brass. Every swatch reads the actual CSS token.",
+		"typography": "Typography",
+		"typographyDescription": "Sincere Bhakti serif for devotional headings. Geist for clear, readable text and controls.",
+		"caption": "Small supporting text stays readable and purposeful.",
+		"spacing": "Spacing & rhythm",
+		"spacingDescription": "A 4px base scale. Generous section spacing, comfortable reading widths, and consistent gutters.",
+		"principles": "Design principles",
+		"principlesDescription": "Keep the original logo intact. Let authentic imagery and content carry the spiritual character. Prefer whitespace and dividers to boxes. Use restrained motion, visible keyboard focus, and reduced-motion support.",
+		"actions": "Actions & states",
+		"primary": "Primary action",
+		"secondary": "Secondary action",
+		"quiet": "Quiet action",
+		"delete": "Delete",
+		"disabled": "Disabled",
+		"readMore": "Read more",
+		"edit": "Edit",
+		"surfaces": "Surfaces",
+		"surface": "Default surface",
+		"surfaceDescription": "For forms and grouped interactive content.",
+		"elevated": "Elevated surface",
+		"elevatedDescription": "Reserve subtle elevation for important floating surfaces.",
+		"editorial": "Editorial entry",
+		"editorialDescription": "Open reading layouts with a simple divider.",
+		"forms": "Form controls",
+		"name": "Name",
+		"placeholder": "Write something…",
+		"invalid": "Invalid input",
+		"required": "This field is required.",
+		"reflection": "Reflection",
+		"public": "Public",
+		"feedback": "Feedback & loading",
+		"success": "Your changes have been saved.",
+		"error": "Something went wrong. Please try again.",
+		"openDialog": "Open dialog",
+		"dialogTitle": "A moment of focus",
+		"dialogDescription": "Shared headings, clear actions, and accessible keyboard interaction."
 	}
 }
