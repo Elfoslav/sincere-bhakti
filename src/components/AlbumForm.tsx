@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { GripVertical, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import UploadSizeMeter from "@/components/UploadSizeMeter";
 import { BYTES_PER_MB, formatBytes } from "@/lib/format";
 import { genId } from "@/lib/id";
 import { getImageDimensions } from "@/lib/client-media";
@@ -455,22 +456,7 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
                 <span className="text-xl">📎</span>
                 {mediaItems.length > 0 ? `${t("attachMedia")} (${mediaItems.length})` : t("attachMedia")}
               </label>
-              {totalUploadSize > 0 && (
-                <>
-                  <span className="text-[11px] text-deep/40 ml-8 tabular-nums">
-                    {formatBytes(totalUploadSize)} / {formatBytes(MAX_GALLERY_BATCH_SIZE_BYTES)}
-                  </span>
-                  <div className="ml-8 w-28 h-1.5 rounded-full bg-deep/10 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-300"
-                      style={{
-                        width: `${Math.min((totalUploadSize / MAX_GALLERY_BATCH_SIZE_BYTES) * 100, 100)}%`,
-                        backgroundColor: totalUploadSize > MAX_GALLERY_BATCH_SIZE_BYTES * 0.9 ? "#ef4444" : "#db8637",
-                      }}
-                    />
-                  </div>
-                </>
-              )}
+              <UploadSizeMeter used={totalUploadSize} max={MAX_GALLERY_BATCH_SIZE_BYTES} className="ml-8" />
             </div>
 
             <label className="flex items-center gap-3 cursor-pointer">
