@@ -8,7 +8,7 @@ const feed = vi.hoisted(() => ({
   setPosts: [] as ReturnType<typeof vi.fn>[],
 }));
 
-vi.mock("next-auth/react", () => ({ useSession: () => ({ data: feed.session }) }));
+vi.mock("next-auth/react", () => ({ useSession: () => ({ data: feed.session, status: feed.session ? "authenticated" : "unauthenticated" }) }));
 vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useTranslations: () => (key: string) => key,
@@ -25,7 +25,7 @@ vi.mock("@/lib/hooks/useInfinitePosts", () => ({
 }));
 vi.mock("@/lib/hooks/useFeedCategories", () => ({ useFeedCategories: () => [] }));
 vi.mock("@/components/PostCard", () => ({ default: () => null }));
-vi.mock("@/components/CollapsibleComposer", () => ({
+vi.mock("@/components/ContentCreationDialog", () => ({
   default: ({ onSuccess }: { onSuccess: (post: unknown) => void }) => {
     feed.onCreate = onSuccess;
     return null;
@@ -39,6 +39,7 @@ import PostsPageClient from "@/app/[locale]/posts/posts-page-client";
 
 describe("PostsPageClient search", () => {
   beforeEach(() => {
+    window.history.replaceState({}, "", "/");
     vi.useFakeTimers();
     feed.calls.length = 0;
     feed.setPosts.length = 0;

@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 vi.mock("next-intl", () => ({
   useLocale: vi.fn(() => "en"),
+  useTranslations: () => (key: string) => key,
 }));
 
 const replace = vi.fn();
@@ -43,6 +44,22 @@ function getDropdown(container: HTMLElement): HTMLElement | null {
 }
 
 describe("LanguageSwitcher", () => {
+  it("dismisses with Escape and restores trigger focus", () => {
+    render(<LanguageSwitcher />);
+    const trigger = screen.getByRole("button");
+    fireEvent.click(trigger);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+  it("moves through language options with arrow keys", () => {
+    render(<LanguageSwitcher />);
+    fireEvent.click(screen.getByRole("button"));
+    fireEvent.keyDown(document, { key: "ArrowDown" });
+    expect(screen.getByRole("menuitemradio", { name: /English/ })).toHaveFocus();
+    fireEvent.keyDown(document, { key: "ArrowDown" });
+    expect(screen.getByRole("menuitemradio", { name: /Čeština/ })).toHaveFocus();
+  });
   it("positions the dropdown under the button on first open", () => {
     mockRect();
     const { container } = render(<LanguageSwitcher />);
@@ -77,7 +94,7 @@ describe("LanguageSwitcher", () => {
     render(<LanguageSwitcher />);
 
     fireEvent.click(screen.getByRole("button"));
-    fireEvent.click(screen.getByRole("button", { name: /CS/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Čeština/ }));
 
     expect(replace).toHaveBeenCalledWith("/posts", { locale: "cs" });
   });

@@ -1,21 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useLocale } from "next-intl";
+import { useState, useRef, useEffect, useCallback, useId } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { persistExplicitLocale } from "@/lib/locale-choice";
-import type { Locale } from "@/i18n/routing";
+import { locales, localeFlags, localeNames, type Locale } from "@/i18n/routing";
 
-const locales = [
-  { code: "en", label: "EN", flag: "🇬🇧" },
-  { code: "cs", label: "CS", flag: "🇨🇿" },
-  { code: "sk", label: "SK", flag: "🇸🇰" },
-] as const;
 
 export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: boolean }) {
-  const locale = useLocale();
+  const locale = useLocale() as Locale;
+  const t = useTranslations("Common");
+  const menuId = useId();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -70,10 +67,27 @@ export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: bo
     // Freeze auto-detection from now on: the proxy resolves unprefixed URLs
     // from this cookie instead of the Accept-Language header.
     persistExplicitLocale(next);
-    router.replace(pathname, { locale: next });
+    router.replace(`${pathname}${window.location.search}${window.location.hash}`, { locale: next });
   }
 
-  const current = locales.find((l) => l.code === locale) ?? locales[0];
+  const current = locales.includes(locale) ? locale : locales[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); setOpen(false); btnRef.current?.focus(); }
+      if (event.key === "Tab") setOpen(false);
+      if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+        event.preventDefault();
+        const options = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+        const index = options.indexOf(document.activeElement as HTMLButtonElement);
+        const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1 : event.key === "ArrowDown" ? (index + 1) % options.length : (index - 1 + options.length) % options.length;
+        options[next]?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   return (
     <>
@@ -81,15 +95,18 @@ export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: bo
         ref={btnRef}
         onClick={toggle}
         aria-expanded={open}
-        aria-label={current.label}
+        aria-label={t("language")}
+        aria-haspopup="menu"
+        aria-controls={open ? menuId : undefined}
+        onKeyDown={(event) => { if (["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); measure(); setOpen(true); requestAnimationFrame(() => menuRef.current?.querySelector<HTMLButtonElement>("button")?.focus()); } }}
         className={cn(
           "flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-md border border-transparent hover:border-border min-h-10",
           fullWidth && "w-full justify-between",
         )}
       >
         <span className="flex items-center gap-2">
-          <span className="text-base leading-none">{current.flag}</span>
-          <span className="text-xs font-medium uppercase">{current.label}</span>
+          <span className="text-base leading-none">{localeFlags[current]}</span>
+          <span className="text-sm font-medium">{localeNames[current]}</span>
         </span>
         <ChevronDown
           className={`w-3 h-3 transition-transform duration-200 ${
@@ -100,23 +117,28 @@ export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: bo
 
       {open && (
         <div
+          id={menuId}
+          role="menu"
+          aria-label={t("language")}
           ref={menuRef}
           style={{ top: pos.top, left: pos.left, minWidth: pos.width }}
           className="fixed z-50 bg-popover rounded-lg shadow-lg border border-sand overflow-hidden"
         >
-          {locales.map((l) => (
+          {locales.map((code) => (
             <button
-              key={l.code}
-              onClick={() => switchLocale(l.code)}
+              key={code}
+              role="menuitemradio"
+              aria-checked={locale === code}
+              onClick={() => { switchLocale(code); btnRef.current?.focus(); }}
               className={`flex items-center gap-2 w-full px-3 py-2.5 text-sm text-left transition-colors ${
-                locale === l.code
+                locale === code
                   ? "bg-secondary text-primary font-medium cursor-default"
                   : "text-deep hover:bg-sand/30"
               }`}
             >
-              <span className="text-base leading-none">{l.flag}</span>
-              <span>{l.label}</span>
-              {locale === l.code && (
+              <span className="text-base leading-none">{localeFlags[code]}</span>
+              <span>{localeNames[code]}</span>
+              {locale === code && (
                 <span className="ml-auto text-gold">✓</span>
               )}
             </button>

@@ -3,10 +3,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { Album } from "@/types/album";
 
 const feed = vi.hoisted(() => ({ mine: [] as Album[], sentinel: vi.fn(), hasMore: true }));
-vi.mock("next-auth/react", () => ({ useSession: () => ({ data: { user: { id: "owner" } } }) }));
+vi.mock("next-auth/react", () => ({ useSession: () => ({ status: "authenticated", data: { user: { id: "owner" } } }) }));
 vi.mock("next-intl", () => ({ useLocale: () => "en", useTranslations: () => (key: string) => key }));
 vi.mock("@/components/IdentityProvider", () => ({ useIdentity: () => ({ activeChannelId: "channel-1", identities: [] }) }));
-vi.mock("@/i18n/navigation", () => ({ Link: () => null }));
+vi.mock("@/i18n/navigation", () => ({ usePathname: () => "/posts", Link: () => null }));
 vi.mock("@/components/AlbumForm", () => ({ default: () => null }));
 vi.mock("@/components/AlbumCard", () => ({ default: ({ album }: { album: Album }) => <p>{album.title}</p> }));
 vi.mock("@/lib/hooks/useInfiniteAlbums", () => ({ useInfiniteAlbums: (params: { scope?: string }) => ({

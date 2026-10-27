@@ -27,6 +27,7 @@ export async function mockAuthenticatedApp(page: Page) {
           name: TEST_USER.name,
           email: TEST_USER.email,
           channelId: TEST_CHANNEL.id,
+          emailVerifiedAt: "2026-01-01T00:00:00Z",
         },
         expires: "2099-01-01T00:00:00.000Z",
       }),

@@ -1,24 +1,24 @@
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
+import { isAuthenticated } from "@/lib/session";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
-import SignInPrompt from "@/components/SignInPrompt";
-import { Card } from "@/components/ui/card";
+import ArticleFeedLayout from "@/components/ArticleFeedLayout";
 import BlogCard from "@/components/BlogCard";
-import BlogForm from "@/components/BlogForm";
+import ContentCreateAction from "@/components/ContentCreateAction";
+import ContentCreationDialog from "@/components/ContentCreationDialog";
 import EditBlogModal from "@/components/EditBlogModal";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfiniteBlogPosts } from "@/lib/hooks/useInfiniteBlogPosts";
 import { useIdentity } from "@/components/IdentityProvider";
-import CategoryFilterBanner, { ChannelFilterBanner } from "@/components/CategoryFilterBanner";
-import FeedFilterBar from "@/components/FeedFilterBar";
+import FeedPaginationError from "@/components/FeedPaginationError";
 import FeedEmptyState from "@/components/FeedEmptyState";
 import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
+import { isBlogPubliclyVisible } from "@/lib/blog";
 import { matchesSearch } from "@/lib/feed-search";
 import type { BlogPost } from "@/types/blog";
-import PageHeader from "@/components/PageHeader";
 
 export default function BlogPageClient({
   initialPublic,
@@ -31,14 +31,16 @@ export default function BlogPageClient({
   channelName?: string;
   category?: string;
 }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const authenticated = isAuthenticated(status);
   const { activeChannelId, identities } = useIdentity();
   const locale = useLocale();
   const t = useTranslations("BlogPage");
+  const [composerOpen, setComposerOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const effectiveChannelId = channelId ?? undefined;
   const { searchInput, setSearchInput, search } = useFeedSearch();
-  const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef } = useInfiniteBlogPosts({
+  const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef, error, retry, loadMoreError, retryLoadMore } = useInfiniteBlogPosts({
     scope: "public",
     channelId: effectiveChannelId,
     language: locale,
@@ -53,9 +55,13 @@ export default function BlogPageClient({
     loadingMore: myLoadingMore,
     hasMore: myHasMore,
     sentinelRef: mySentinelRef,
+    error: myError,
+    retry: myRetry,
+    loadMoreError: myLoadMoreError,
+    retryLoadMore: myRetryLoadMore,
   } = useInfiniteBlogPosts({
     channelId: effectiveChannelId ?? activeChannelId ?? undefined,
-    disabled: !session || !(effectiveChannelId ?? activeChannelId),
+    disabled: !authenticated || !(effectiveChannelId ?? activeChannelId),
     language: locale,
     search,
   });
@@ -88,12 +94,12 @@ export default function BlogPageClient({
     // post that doesn't carry the active category or channel.
     if (
       matches &&
-      post.isPublic &&
+      isBlogPubliclyVisible(post) &&
       (!category || post.categories.some((c) => c.name === category)) &&
       (!effectiveChannelId || post.channel.id === effectiveChannelId)
     ) {
       setPosts((prev) => (prev.some((p) => p.id === post.id) ? prev.map((p) => (p.id === post.id ? post : p)) : [post, ...prev]));
-    } else if (!post.isPublic) {
+    } else if (!isBlogPubliclyVisible(post)) {
       setPosts((prev) => prev.filter((p) => p.id !== post.id));
     }
   }
@@ -111,7 +117,7 @@ export default function BlogPageClient({
   const handleEditSuccess = useCallback((updatedPost: BlogPost, exit: boolean) => {
     setMyPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
     setPosts((prev) => {
-      if (updatedPost.isPublic) {
+      if (isBlogPubliclyVisible(updatedPost)) {
         return prev.map((p) => (p.id === updatedPost.id ? updatedPost : p));
       }
       return prev.filter((p) => p.id !== updatedPost.id);
@@ -127,34 +133,37 @@ export default function BlogPageClient({
     more: boolean,
     ref: (node: HTMLDivElement | null) => void,
     emptyKey: string,
-    featureFirst = false,
+    failed = false,
+    recover?: () => void,
+    moreFailed = false,
+    recoverMore?: () => void,
   ) {
     if (isLoading) {
       return (
         <div className="flex flex-col">
-          <PostCardSkeleton />
-          <PostCardSkeleton />
-          <PostCardSkeleton />
+          <PostCardSkeleton variant="article" />
+          <PostCardSkeleton variant="article" />
+          <PostCardSkeleton variant="article" />
         </div>
       );
     }
     if (list.length === 0) {
-      return <FeedEmptyState search={search} message={t(emptyKey)} />;
+      return <FeedEmptyState search={search} message={t(emptyKey)} error={failed} onRetry={recover} />;
     }
     return (
       <div className="flex flex-col">
-        {list.map((post, index) => (
+        {list.map((post) => (
           <BlogCard
             key={post.id}
             post={post}
             variant="list"
-            featured={featureFirst && index === 0 && !search}
             currentUserId={session?.user?.id}
             manageableChannelIds={manageableChannelIds}
-            onDelete={session ? handleDelete : undefined}
-            onEdit={session ? handleEdit : undefined}
+            onDelete={authenticated ? handleDelete : undefined}
+            onEdit={authenticated ? handleEdit : undefined}
           />
         ))}
+        <FeedPaginationError error={moreFailed} retry={recoverMore} />
         {more && list.length > 0 && (
           <div ref={ref} className="flex justify-center py-8">
             {isLoadingMore ? (
@@ -169,30 +178,10 @@ export default function BlogPageClient({
   }
 
   return (
-    <div className="reading-container page-space">
-      <PageHeader title={t("title")} description={t("subtitle")} />
-
-      {category ? <CategoryFilterBanner name={category} href="/blog" /> : null}
-      {channelName ? <ChannelFilterBanner name={channelName} href="/blog" /> : null}
-
-      <FeedFilterBar
-        search={searchInput}
-        onSearchChange={setSearchInput}
-        searchPlaceholder={t("searchPlaceholder")}
-        basePath="/blog"
-        activeCategory={category}
-        loading={Boolean(search) && loading}
-      />
-
-      <Card variant="default" padding="lg" className="mb-6">
-        {session ? (
-          <BlogForm mode="create" onSuccess={handleCreateSuccess} postingChannel={postingChannel} />
-        ) : (
-          <SignInPrompt label={t("signIn")}>{t("signInToPost")}</SignInPrompt>
-        )}
-      </Card>
-
-      {session ? (
+    <ArticleFeedLayout search={searchInput} onSearchChange={setSearchInput} loading={Boolean(search) && loading} category={category} channelName={channelName} authenticated={authenticated}
+      action={<ContentCreateAction kind="article" authenticated={authenticated} onClick={() => setComposerOpen(true)} />}>
+      <ContentCreationDialog kind="article" open={composerOpen} onOpenChange={setComposerOpen} onSuccess={handleCreateSuccess} postingChannel={postingChannel} />
+      {authenticated ? (
         <TabsRoot defaultValue="public">
           <TabsList>
             <TabsTab value="public">{t("publicTab")}</TabsTab>
@@ -205,19 +194,19 @@ export default function BlogPageClient({
           </TabsList>
 
           <TabsPanel value="public">
-            {renderList(posts, loading, loadingMore, hasMore, sentinelRef, "emptyPublic", true)}
+            {renderList(posts, loading, loadingMore, hasMore, sentinelRef, "emptyPublic", error, retry, loadMoreError, retryLoadMore)}
           </TabsPanel>
 
           <TabsPanel value="my-public">
-            {renderList(myPublicPosts, myLoading, myLoadingMore, myHasMore, mySentinelRef, "emptyMyPublic")}
+            {renderList(myPublicPosts, myLoading, myLoadingMore, myHasMore, mySentinelRef, "emptyMyPublic", myError, myRetry, myLoadMoreError, myRetryLoadMore)}
           </TabsPanel>
 
           <TabsPanel value="my-private">
-            {renderList(myPrivatePosts, myLoading, myLoadingMore, myHasMore, mySentinelRef, "emptyMyPrivate")}
+            {renderList(myPrivatePosts, myLoading, myLoadingMore, myHasMore, mySentinelRef, "emptyMyPrivate", myError, myRetry, myLoadMoreError, myRetryLoadMore)}
           </TabsPanel>
         </TabsRoot>
       ) : (
-        renderList(posts, loading, loadingMore, hasMore, sentinelRef, "emptyPublic", true)
+        renderList(posts, loading, loadingMore, hasMore, sentinelRef, "emptyPublic", error, retry, loadMoreError, retryLoadMore)
       )}
 
       <EditBlogModal
@@ -226,6 +215,6 @@ export default function BlogPageClient({
         onOpenChange={(open) => { if (!open) setEditingPost(null); }}
         onSuccess={handleEditSuccess}
       />
-    </div>
+    </ArticleFeedLayout>
   );
 }

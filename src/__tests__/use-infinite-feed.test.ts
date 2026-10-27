@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { useInfiniteFeed } from "@/lib/hooks/useInfiniteFeed";
 
 const item = (id: string) => ({ id }) as { id: string };
@@ -11,6 +11,31 @@ class MockIntersectionObserver {
 }
 
 describe("useInfiniteFeed", () => {
+  it("reports a failed first page and retries the current query", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false } as Response).mockResolvedValueOnce({ ok: true, json: async () => ({ posts: [item("recovered")], hasMore: false }) } as Response);
+    const { result } = renderHook(() => useInfiniteFeed("/api/posts", { search: "krishna" }));
+    await waitFor(() => expect(result.current.error).toBe(true));
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.posts).toEqual([item("recovered")]));
+    expect(result.current.error).toBe(false);
+    expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining("q=krishna"));
+  });
+  it("keeps a successful empty result distinct from an error", async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({ posts: [], hasMore: false }) } as Response);
+    const { result } = renderHook(() => useInfiniteFeed("/api/posts"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe(false);
+  });
+  it("retains loaded rows when the next page fails and recovers in place", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false } as Response).mockResolvedValueOnce({ ok: true, json: async () => ({ posts: [item("b")], hasMore: false }) } as Response);
+    const { result } = renderHook(() => useInfiniteFeed("/api/posts", { initialData: { posts: [item("a")], hasMore: true } }));
+    await act(async () => { await result.current.retryLoadMore(); });
+    expect(result.current.loadMoreError).toBe(true);
+    expect(result.current.posts).toEqual([item("a")]);
+    await act(async () => { await result.current.retryLoadMore(); });
+    expect(result.current.loadMoreError).toBe(false);
+    expect(result.current.posts).toEqual([item("a"), item("b")]);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     globalThis.IntersectionObserver = MockIntersectionObserver as any;

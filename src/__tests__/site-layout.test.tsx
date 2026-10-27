@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import type { ComponentProps, ReactNode } from "react";
 
 vi.mock("next-intl", () => ({ NextIntlClientProvider: ({ children }: { children: ReactNode }) => children }));
-vi.mock("next-intl/server", () => ({ getMessages: async () => ({}), getTranslations: async () => (key: string) => key, setRequestLocale: vi.fn() }));
+vi.mock("next-intl/server", () => ({ getMessages: async () => ({}), getTranslations: async () => Object.assign((key: string) => key, { rich: (key: string, values: { lotus: () => ReactNode }) => <>{key}{values.lotus()}</> }), setRequestLocale: vi.fn() }));
 vi.mock("@/components/Navbar", () => ({ default: () => <nav aria-label="Site navigation" /> }));
 vi.mock("@/components/LangSetter", () => ({ default: () => null }));
 vi.mock("sonner", () => ({ Toaster: () => null }));

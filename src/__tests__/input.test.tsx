@@ -1,9 +1,21 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
+vi.mock("@/i18n/navigation", () => ({ Link: () => null }));
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { Input } from "@/components/ui/input";
 
 describe("Input error association", () => {
+  it("reveals a password without changing its value or submitting", () => {
+    const submit = vi.fn();
+    render(<form onSubmit={submit}><Input aria-label="Password" type="password" defaultValue="secret value" revealPassword /></form>);
+    fireEvent.click(screen.getByRole("button", { name: "showPassword" }));
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "text");
+    expect(screen.getByLabelText("Password")).toHaveValue("secret value");
+    fireEvent.click(screen.getByRole("button", { name: "hidePassword" }));
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
+    expect(submit).not.toHaveBeenCalled();
+  });
   it("links the error message to the field and marks it invalid", () => {
     render(<Input aria-label="Name" errorMessage="Required" />);
     const input = screen.getByRole("textbox", { name: "Name" });

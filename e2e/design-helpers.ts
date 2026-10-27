@@ -1,6 +1,6 @@
-import { test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
-/** Capture app errors while reporting the existing development analytics issue. */
+/** Capture unexpected app errors without suppressing analytics or hydration failures. */
 export function observeDesignErrors(page: Page, { expectedDocument404 = false } = {}): string[] {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -8,10 +8,6 @@ export function observeDesignErrors(page: Page, { expectedDocument404 = false } 
     if (message.type() !== "error") return;
     const text = message.text();
     if (expectedDocument404 && message.location().url === page.url() && text === "Failed to load resource: the server responded with a status of 404 (Not Found)") return;
-    if (text.includes("https://va.vercel-scripts.com/v1/script.debug.js") && text.includes("Content Security Policy")) {
-      test.info().annotations.push({ type: "known-console-error", description: text });
-      return;
-    }
     errors.push(text);
   });
   return errors;

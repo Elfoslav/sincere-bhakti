@@ -121,13 +121,14 @@ export function selectLatestBlogPosts<T extends { id: string }>(
 export function formatBlogDate(
   value: Date | string | null | undefined,
   locale: string,
+  compact = false,
 ): string {
   if (!value) return "";
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleDateString(locale === "en" ? "en-US" : locale, {
     year: "numeric",
-    month: "long",
+    month: compact ? "short" : "long",
     day: "numeric",
   });
 }
@@ -147,6 +148,7 @@ export interface BlogDraftSnapshot {
   categories: string[];
   isPublic: boolean;
   publishedAt: string;
+  publishInTimeline?: boolean;
 }
 
 /**
@@ -167,6 +169,7 @@ export function isBlogDraftDirty(current: BlogDraftSnapshot, saved: BlogDraftSna
   if (current.categories.join("\0") !== saved.categories.join("\0")) return true;
   if (current.isPublic !== saved.isPublic) return true;
   if (current.publishedAt !== saved.publishedAt) return true;
+  if (Boolean(current.publishInTimeline) !== Boolean(saved.publishInTimeline)) return true;
   return false;
 }
 

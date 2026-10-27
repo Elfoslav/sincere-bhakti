@@ -1,5 +1,7 @@
 "use client";
 
+import LotusIcon from "@/components/ui/lotus-icon";
+
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -52,7 +54,7 @@ export default function VerifyEmailPage() {
         <div className="text-center">
           {status === "loading" && (
             <>
-              <div aria-hidden="true" className="text-4xl mb-4">🪷</div>
+              <LotusIcon className="mx-auto mb-4 block size-10" />
               <h1 className="type-section text-foreground">{t("title")}</h1>
               <p className="text-muted-foreground text-sm mt-2">{t("verifying")}</p>
             </>

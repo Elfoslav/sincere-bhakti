@@ -2,15 +2,9 @@
 
 import { useRef, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogHeader,
-  dialogActionButtonClassName,
-} from "@/components/ui/dialog";
+import ContentComposer from "@/components/ContentComposer";
+import ContentFormActions from "@/components/ContentFormActions";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import PostForm, { type PostFormHandle } from "@/components/PostForm";
 import PostCard from "@/components/PostCard";
 import type { Post, MediaType } from "@/types/post";
@@ -31,27 +25,13 @@ export default function EditPostModal({
   onSuccess: (post: Post) => void;
 }) {
   const t = useTranslations("EditPost");
-  const postT = useTranslations("PostsPage");
   const formRef = useRef<PostFormHandle>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [previewValues, setPreviewValues] = useState<{
     content: string;
     isPublic: boolean;
     mediaPreviews: { url: string; type: string; width: number | null; height: number | null }[];
     categories: string[];
   } | null>(null);
-
-  const handleSuccess = useCallback(
-    (updatedPost: Post) => {
-      onSuccess(updatedPost);
-      onOpenChange(false);
-    },
-    [onSuccess, onOpenChange],
-  );
-
-  const handleSubmittingChange = useCallback((s: boolean) => {
-    setSubmitting(s);
-  }, []);
 
   const handleTabChange = useCallback(
     (tab: string | null) => {
@@ -91,19 +71,8 @@ export default function EditPostModal({
     : post;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader
-          text={(
-            <>
-              {t("title")}
-              <span className="ml-2 text-base" title={post.language}>
-                {localeFlags[post.language] || post.language}
-              </span>
-            </>
-          )}
-        />
-
+    <ContentComposer open={open} onOpenChange={onOpenChange} title={<>{t("title")} <span className="ml-2 text-base" title={post.language}>{localeFlags[post.language] || post.language}</span></>}>
+      {({ complete, requestClose, busy: submitting, formState }) => (
         <TabsRoot defaultValue="edit" onValueChange={handleTabChange}>
           <TabsList>
             <TabsTab value="edit">{t("editTab")}</TabsTab>
@@ -120,9 +89,9 @@ export default function EditPostModal({
               initialIsPublic={post.isPublic}
               initialMedia={post.media}
               initialCategories={post.categories.map((c) => c.name)}
-              onSuccess={handleSuccess}
-              onCancel={() => onOpenChange(false)}
-              onSubmittingChange={handleSubmittingChange}
+              onSuccess={(updated) => { onSuccess(updated); complete(); }}
+              onCancel={requestClose}
+              {...formState}
             />
           </TabsPanel>
 
@@ -133,17 +102,10 @@ export default function EditPostModal({
               hideEdit
             />
 
-            <DialogActions className="mt-4 border-t border-sand pt-4">
-              <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={() => onOpenChange(false)} disabled={submitting}>
-                {postT("cancel")}
-              </Button>
-              <Button type="submit" form={FORM_ID} variant="default" className={dialogActionButtonClassName} disabled={submitting}>
-                {submitting ? postT("posting") : postT("saveButton")}
-              </Button>
-            </DialogActions>
+            <ContentFormActions mode="edit" isPublic={previewPost.isPublic} busy={submitting} disabled={submitting} onCancel={requestClose} formId={FORM_ID} />
           </TabsPanel>
         </TabsRoot>
-      </DialogContent>
-    </Dialog>
+      )}
+    </ContentComposer>
   );
 }

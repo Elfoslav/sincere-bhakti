@@ -1,3 +1,4 @@
+import { CHANNEL_DIRECTORY_SORTS } from "@/lib/channel-directory";
 import { ANALYTICS_RESOURCE_TYPES, ANALYTICS_EVENTS } from "@/lib/analytics";
 import { z } from "zod";
 import { locales } from "@/i18n/routing";
@@ -696,3 +697,5 @@ export const analyticsEventSchema = analyticsResourceSchema.extend({
   event: z.enum(ANALYTICS_EVENTS),
   visitId: z.string().trim().uuid(),
 });
+
+export const channelDirectorySortSchema = z.enum(CHANNEL_DIRECTORY_SORTS);

@@ -3,6 +3,8 @@ import { defineRouting } from "next-intl/routing";
 export const locales = ["en", "cs", "sk"] as const;
 export type Locale = (typeof locales)[number];
 
+export const localeNames: Record<Locale, string> = { en: "English", cs: "Čeština", sk: "Slovenčina" };
+
 export const localeFlags: Record<string, string> = {
   en: "🇬🇧",
   cs: "🇨🇿",

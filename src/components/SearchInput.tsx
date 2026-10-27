@@ -30,26 +30,27 @@ export default function SearchInput({
         type="text"
         role="searchbox"
         aria-label={placeholder}
+        aria-busy={loading}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "h-11 w-full rounded-lg border border-input bg-card pl-10 pr-10",
-          "text-sm text-foreground",
+          "h-11 w-full rounded-lg border border-input bg-card pl-10",
+          value && loading ? "pr-16" : "pr-10",
+          "text-base md:text-sm text-foreground",
           "transition-all duration-200 outline-none",
           "focus-visible:border-gold focus-visible:ring-1 focus-visible:ring-gold",
           "disabled:pointer-events-none disabled:opacity-50",
         )}
       />
-      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-        {loading ? (
-          <Loader2 className="w-4 h-4 text-muted-foreground/40 animate-spin" />
-        ) : value ? (
+      <div className="absolute inset-y-0 right-0 flex items-center pr-1">
+        {loading && <Loader2 className="size-4 text-muted-foreground animate-spin" aria-hidden="true" />}
+        {value ? (
           <Button
             type="button"
             onClick={() => onChange("")}
             variant="icon-destructive"
-            size="icon-xs"
+            size="icon-lg"
             className="text-muted-foreground/40"
             aria-label={t("clearSearch")}
             icon={<X />}

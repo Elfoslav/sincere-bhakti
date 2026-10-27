@@ -7,10 +7,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { formatDisplayDate } from "@/lib/format";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import ChannelAvatar from "@/components/ChannelAvatar";
 import AlbumActions from "@/components/AlbumActions";
-import AlbumForm from "@/components/AlbumForm";
+import EditAlbumModal from "@/components/EditAlbumModal";
 import MediaLightbox from "@/components/ui/MediaLightbox";
 import { LoadableMedia } from "@/components/ui/loadable-media";
 import { useIdentity } from "@/components/IdentityProvider";
@@ -136,24 +135,7 @@ export default function AlbumDetailClient({ album: initial }: { album: Album }) 
         />
       )}
 
-      <Dialog open={editing} onOpenChange={setEditing}>
-        <DialogContent className="max-h-[90svh] overflow-y-auto">
-          <DialogHeader text={t("editTitle")} subheading={t("editHint")} />
-          <AlbumForm
-            mode="edit"
-            albumId={album.id}
-            initialTitle={album.title}
-            initialDescription={album.description ?? ""}
-            initialIsPublic={album.isPublic}
-            initialMedia={album.items}
-            onSuccess={(updated) => {
-              setAlbum(updated);
-              setEditing(false);
-            }}
-            onCancel={() => setEditing(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      <EditAlbumModal album={album} open={editing} onOpenChange={setEditing} onSuccess={setAlbum} />
     </div>
   );
 }

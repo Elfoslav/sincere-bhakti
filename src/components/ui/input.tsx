@@ -1,6 +1,9 @@
 import * as React from "react"
 import { Input as InputPrimitive } from "@base-ui/react/input"
 
+import { Eye, EyeOff } from "lucide-react"
+import { useTranslations } from "next-intl"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 /** Shared text-field look; reused by controls that need their own element (e.g. comboboxes). */
@@ -11,10 +14,18 @@ interface InputProps extends React.ComponentProps<"input"> {
   errorMessage?: string;
   maxLength?: number;
   minLengthHint?: number;
+  revealPassword?: boolean;
 }
 
-function Input({ className, type, errorMessage, maxLength, minLengthHint, onChange, defaultValue, minLength, ...props }: InputProps) {
+function PasswordVisibilityToggle({ revealed, onToggle }: { revealed: boolean; onToggle: () => void }) {
+  const t = useTranslations("Common");
+  return <Button type="button" variant="icon" size="icon-lg" className="absolute right-1 top-0.5" aria-label={t(revealed ? "hidePassword" : "showPassword")} aria-pressed={revealed} onClick={onToggle} icon={revealed ? <EyeOff /> : <Eye />} />;
+}
+
+function Input({ className, type, errorMessage, maxLength, minLengthHint, onChange, defaultValue, minLength, revealPassword = false, ...props }: InputProps) {
   const errorId = React.useId();
+  const [revealed, setRevealed] = React.useState(false);
+  const canReveal = type === "password" && revealPassword;
   const [internalValue, setInternalValue] = React.useState(
     defaultValue?.toString() ?? ""
   );
@@ -33,10 +44,11 @@ function Input({ className, type, errorMessage, maxLength, minLengthHint, onChan
 
   return (
     <div>
+      <div className="relative">
       <InputPrimitive
-        type={type}
+        type={canReveal && revealed ? "text" : type}
         data-slot="input"
-        className={cn(inputClassName, className)}
+        className={cn(inputClassName, canReveal && "pr-12", className)}
         maxLength={maxLength}
         minLength={minLength}
         defaultValue={defaultValue}
@@ -47,6 +59,10 @@ function Input({ className, type, errorMessage, maxLength, minLengthHint, onChan
           [props["aria-describedby"], errorMessage ? errorId : undefined].filter(Boolean).join(" ") || undefined
         }
       />
+      {canReveal && (
+        <PasswordVisibilityToggle revealed={revealed} onToggle={() => setRevealed((value) => !value)} />
+      )}
+      </div>
       {maxLength !== undefined && (
         <p className={cn("text-xs mt-1 tabular-nums", isBelowMin ? "text-primary" : "text-muted-foreground")}>
           {currentLength} / {maxLength}

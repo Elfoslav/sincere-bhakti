@@ -181,7 +181,7 @@ describe("BlogForm private draft", () => {
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(privateBlog, false));
 
     // Only the saved notification, form stays filled for continued writing.
-    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("saved");
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("privateNotice", expect.objectContaining({ action: expect.any(Object) }));
     expect(screen.getByPlaceholderText("titlePlaceholder")).toHaveValue("My Draft");
     const mounts = (globalThis as any).__editorMounts as (string | undefined)[];
     expect(mounts.length).toBe(1);
@@ -215,7 +215,7 @@ describe("BlogForm private draft", () => {
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(privateBlog, true));
 
-    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("saved");
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("privateNotice", expect.objectContaining({ action: expect.any(Object) }));
     expect(screen.getByPlaceholderText("titlePlaceholder")).toHaveValue("");
     await waitFor(() => {
       const mounts = (globalThis as any).__editorMounts as (string | undefined)[];

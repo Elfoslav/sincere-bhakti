@@ -22,7 +22,7 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/i18n/navigation", () => ({
-  Link: ({ href, children, ...props }: any) => (
+  usePathname: () => "/posts", Link: ({ href, children, ...props }: any) => (
     <a href={typeof href === "string" ? href : "#"} {...props}>{children}</a>
   ),
   useRouter: vi.fn(() => ({ replace: vi.fn() })),

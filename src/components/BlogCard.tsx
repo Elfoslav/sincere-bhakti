@@ -1,29 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { getBlogUrl } from "@/lib/blog-url";
 import { estimateReadingMinutes, formatBlogDate } from "@/lib/blog";
+import { getSettledMediaStatus } from "@/components/ui/loadable-media";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import BlogExcerpt from "@/components/BlogExcerpt";
-import ChannelAvatar from "@/components/ChannelAvatar";
 import CategoryChips from "@/components/CategoryChips";
 import BlogPostActions from "@/components/BlogPostActions";
 import type { BlogPost } from "@/types/blog";
 
-export default function BlogCard({
-  post,
-  currentUserId,
-  manageableChannelIds,
-  onDelete,
-  onEdit,
-  variant = "default",
-  featured = false,
-}: {
+export default function BlogCard({ post, currentUserId, manageableChannelIds, onDelete, onEdit, variant = "default", featured = false }: {
   post: BlogPost;
-  // default: boxed card; editorial: cover-on-top grid tile (home); list: divider row
-  // with a small thumbnail, matching the timeline's PostCard rows.
   variant?: "default" | "editorial" | "list";
   featured?: boolean;
   currentUserId?: string;
@@ -34,114 +25,43 @@ export default function BlogCard({
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("BlogPage");
-  const date = formatBlogDate(post.publishedAt ?? post.createdAt, locale);
+  const list = variant === "list";
+  const date = formatBlogDate(post.publishedAt ?? post.createdAt, locale, true);
   const isScheduled = post.publishedAt ? new Date(post.publishedAt) > new Date() : false;
   const readingMinutes = estimateReadingMinutes(post.contentHtml);
-  // The cover sits above the title in the home grid and for the lead article
-  // of a list; other list rows keep a small thumbnail beside the text.
-  const coverOnTop = variant === "editorial" || (variant === "list" && featured);
+  const [failedCover, setFailedCover] = useState<string | null>(null);
+  const cover = post.coverUrl && post.coverUrl !== failedCover ? post.coverUrl : null;
+  const Title = list ? "h2" : "h3";
 
   return (
-    <Card
-      variant={variant === "default" ? "default" : "editorial"}
-      className={variant === "editorial" ? "flex h-full flex-col pb-6" : variant === "list" ? "py-7" : undefined}
-    >
-      {coverOnTop && post.coverUrl ? (
-        <Link href={getBlogUrl(post.shortId, post.slug)} className="media-zoom mb-5 block overflow-hidden rounded-lg">
-          {/* eslint-disable-next-line @next/next/no-img-element -- user-hosted article cover */}
-          <img
-            src={post.coverUrl}
-            alt=""
-            className={cn("w-full object-cover", variant === "list" ? "aspect-[2/1]" : featured ? "aspect-[8/5]" : "aspect-[3/1]")}
-            loading="lazy"
-          />
+    <Card data-has-cover={Boolean(cover)} variant={variant === "default" ? "default" : "editorial"} className={cn(list ? "article-row" : variant === "editorial" ? "flex h-full flex-col pb-6" : undefined)}>
+      {cover && (
+        <Link href={getBlogUrl(post.shortId, post.slug)} aria-label={post.title} className={list ? "article-row-media media-zoom" : "media-zoom mb-5 block overflow-hidden rounded-lg"}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- user-provided covers may be hosted outside the image optimizer allowlist */}
+          <img src={cover} alt="" loading="lazy" className={list ? "" : "aspect-[8/5] w-full object-cover"}
+            onError={() => setFailedCover(cover)}
+            ref={(image) => { if (image && getSettledMediaStatus(image) === "error") setFailedCover(cover); }} />
         </Link>
-      ) : null}
-      {/* Title row — actions sit tight to the title on the right so they are
-          always discoverable but don't compete with the cover. When there is
-          a cover, the thumb lives in the body row below — no overlap. */}
-      <div className="flex items-start justify-between gap-3">
-        <Link href={getBlogUrl(post.shortId, post.slug)} className="min-w-0 flex-1 text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline">
-          <h3 className={featured ? "font-heading text-3xl leading-tight line-clamp-3 sm:text-4xl" : "font-heading text-xl leading-tight line-clamp-2 sm:text-2xl"}>
-            {post.title}
-          </h3>
-        </Link>
-        <div className="shrink-0 -mr-1 -mt-1">
-          <BlogPostActions
-            post={post}
-            currentUserId={currentUserId}
-            manageableChannelIds={manageableChannelIds}
-            onDelete={onDelete}
-            onEdit={onEdit}
-          />
-        </div>
-      </div>
-
-      {/* Body row — excerpt + byline on left, cover thumb on right.
-          Thumb is below the title-actions row, so actions and image never
-          fight for the same corner. */}
-      <div className="mt-2 flex gap-4 items-start">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 min-w-0 flex-wrap">
-            <ChannelAvatar name={post.channel.name} size="xs" ariaHidden className="shrink-0" />
-            <span className="flex min-w-0 flex-1 items-center gap-x-1.5 gap-y-0.5 flex-wrap text-xs text-muted-foreground">
-              <Link
-                href={`/blog/channel/${post.channel.slug}`}
-                className="min-w-0 max-w-full truncate font-medium text-muted-foreground hover:text-gold transition-colors"
-              >
-                {post.channel.name}
-              </Link>
-              <span className="shrink-0 text-deep/30" aria-hidden>
-                ·
-              </span>
-              <span className="shrink-0 whitespace-nowrap">{date}</span>
-              {readingMinutes > 0 ? (
-                <>
-                  <span className="shrink-0 text-deep/30" aria-hidden>
-                    ·
-                  </span>
-                  <span className="shrink-0 whitespace-nowrap">{t("readingTime", { minutes: readingMinutes })}</span>
-                </>
-              ) : null}
-            </span>
-            {!post.isPublic ? (
-              <span className="shrink-0 rounded-full bg-deep/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-muted-foreground">
-                {t("private")}
-              </span>
-            ) : isScheduled ? (
-              <span className="shrink-0 rounded-full bg-gold-light/25 px-2 py-0.5 text-xs font-semibold tracking-wide text-primary">
-                {t("scheduled")}
-              </span>
-            ) : null}
-          </div>
-
-          <BlogExcerpt
-            post={post}
-            className="mt-2 text-sm leading-relaxed text-muted-foreground"
-            clampClassName="line-clamp-2"
-          />
-
-          <CategoryChips
-            categories={post.categories}
-            onSelect={(category) => router.push(`/blog/category/${category.slug}`)}
-            className="mt-2"
-          />
-        </div>
-
-        {!coverOnTop && post.coverUrl ? (
-          <Link
-            href={getBlogUrl(post.shortId, post.slug)}
-            className="media-zoom block shrink-0 overflow-hidden rounded-lg"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={post.coverUrl}
-              alt=""
-              className="h-24 w-24 object-cover sm:h-28 sm:w-40"
-              loading="lazy"
-            />
+      )}
+      <div className={list ? "article-row-copy" : undefined}>
+        <div className="flex items-start justify-between gap-3">
+          <Link href={getBlogUrl(post.shortId, post.slug)} className="min-w-0 flex-1 text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline">
+            <Title className={list ? "article-row-title line-clamp-2" : featured ? "font-heading text-3xl leading-tight line-clamp-3 sm:text-4xl" : "font-heading text-xl leading-tight line-clamp-2 sm:text-2xl"}>{post.title}</Title>
           </Link>
-        ) : null}
+          <BlogPostActions post={post} currentUserId={currentUserId} manageableChannelIds={manageableChannelIds} onDelete={onDelete} onEdit={onEdit} />
+        </div>
+        <BlogExcerpt post={post} plain={list} className={list ? "article-row-excerpt" : "mt-3 text-sm leading-relaxed text-muted-foreground"} clampClassName={list ? "line-clamp-3" : "line-clamp-2"} />
+        <div className={list ? "article-row-byline" : "mt-3 flex flex-col gap-1"}>
+          <Link href={`/blog/channel/${post.channel.slug}`} className={cn("truncate hover:text-primary", list ? "article-row-author" : "text-sm text-muted-foreground")}>
+            {t("byAuthor", { author: post.channel.name })}
+          </Link>
+          <div className={list ? "article-row-meta" : "flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"}>
+            <time dateTime={post.publishedAt ?? post.createdAt}>{date}</time>
+            {readingMinutes > 0 && <><span aria-hidden="true">·</span><span>{t("readingTime", { minutes: readingMinutes })}</span></>}
+            {(!post.isPublic || isScheduled) && <span className="article-status rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary">{t(!post.isPublic ? "private" : "scheduled")}</span>}
+          </div>
+        </div>
+        {!list && <CategoryChips categories={post.categories} onSelect={(category) => router.push(`/blog/category/${category.slug}`)} className="mt-2" />}
       </div>
     </Card>
   );

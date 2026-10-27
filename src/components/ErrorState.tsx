@@ -1,5 +1,7 @@
 "use client";
 
+import LotusIcon from "@/components/ui/lotus-icon";
+
 import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -25,7 +27,7 @@ export default function ErrorState({
   return (
     <div className="auth-layout">
       <div className="text-center">
-        <div className="text-6xl mb-4">🪷</div>
+        <LotusIcon className="mx-auto mb-4 block size-14" />
         <h1 className="type-title mb-3">
           {t("somethingWentWrong")}
         </h1>

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { formatBlogDate } from "@/lib/blog";
 
 describe("formatBlogDate", () => {
+  it("uses short month names for feed metadata", () => { expect(formatBlogDate(new Date(2026, 8, 11), "en", true)).toBe("Sep 11, 2026"); });
   it("formats a Date with the locale month name", () => {
     expect(formatBlogDate(new Date(2026, 8, 11), "en")).toBe("September 11, 2026");
   });

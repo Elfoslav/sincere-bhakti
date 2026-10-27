@@ -1,5 +1,12 @@
 "use client";
 
+import { useObjectUrlCleanup } from "@/lib/hooks/useObjectUrlCleanup";
+import { useContentSavedToast } from "@/lib/hooks/useContentSavedToast";
+import ContentPublishingContext from "@/components/ContentPublishingContext";
+import ContentFormActions from "@/components/ContentFormActions";
+import AttachmentPicker from "@/components/AttachmentPicker";
+import type { ComposerFormState, PostingChannel } from "@/types/content-composer";
+
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
@@ -9,13 +16,14 @@ import { Lock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import ContentVisibilityControl from "@/components/ContentVisibilityControl";
 import { Switch } from "@/components/ui/switch";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { buildTimelinePostBody, parseDateTimeLocalValue, toDateTimeLocalValue, isBlogDraftDirty, type BlogDraftSnapshot } from "@/lib/blog";
 import { hasRichTextContent } from "@/lib/rich-text";
 import { getImageDimensions } from "@/lib/client-media";
-import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
+import { usePendingMediaUploads } from "@/lib/hooks/usePendingMediaUploads";
 import { useIdentity } from "@/components/IdentityProvider";
 import CategoryPicker from "@/components/CategoryPicker";
 import { BLOG_TITLE_MAX_LENGTH, BLOG_SLUG_MAX_LENGTH, BLOG_EXCERPT_MAX_LENGTH, MAX_IMAGE_SIZE_BYTES, maxUploadSizeForContentType, getImageAcceptString, deriveBlogSlug } from "@/lib/validation";
@@ -26,7 +34,7 @@ import type { BlogPost } from "@/types/blog";
 // the initial bundle.
 const BlogEditor = dynamic(() => import("@/components/BlogEditor"), { ssr: false });
 
-export interface BlogFormProps {
+export interface BlogFormProps extends ComposerFormState {
   mode: "create" | "edit";
   postId?: string;
   initialTitle?: string;
@@ -42,11 +50,7 @@ export interface BlogFormProps {
   onSuccess: (post: BlogPost, exit: boolean) => void;
   onCancel?: () => void;
   // Reports unsaved-changes state for host leave-guards (edit modal confirm).
-  onDirtyChange?: (dirty: boolean) => void;
-  postingChannel?: {
-    id: string;
-    name: string;
-  };
+  postingChannel?: PostingChannel;
 }
 
 export default function BlogForm({
@@ -63,9 +67,13 @@ export default function BlogForm({
   onSuccess,
   onCancel,
   onDirtyChange,
+  onSubmittingChange,
   postingChannel,
 }: BlogFormProps) {
   const { data: session } = useSession();
+  const pendingUploads = usePendingMediaUploads();
+  const showSaved = useContentSavedToast("article");
+  const [createId, setCreateId] = useState(() => crypto.randomUUID());
   const { activeChannelId } = useIdentity();
   const locale = useLocale();
   const t = useTranslations("BlogPage");
@@ -86,6 +94,7 @@ export default function BlogForm({
   const [coverUrl, setCoverUrl] = useState(initialCoverUrl ?? "");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  useObjectUrlCleanup([coverPreview]);
   const [categories, setCategories] = useState<string[]>(initialCategories);
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [publishedAt, setPublishedAt] = useState(
@@ -117,6 +126,7 @@ export default function BlogForm({
     categories,
     isPublic,
     publishedAt,
+    publishInTimeline,
   }));
   const currentSnapshot: BlogDraftSnapshot = {
     title,
@@ -128,6 +138,7 @@ export default function BlogForm({
     categories,
     isPublic,
     publishedAt,
+    publishInTimeline,
   };
   const isDirty = isBlogDraftDirty(currentSnapshot, savedSnapshot);
 
@@ -143,6 +154,7 @@ export default function BlogForm({
         const ids = d ? (d.posts ?? []).map((p: { id: string }) => p.id) : [];
         setTimelineIds(ids);
         setPublishInTimeline(ids.length > 0);
+        setSavedSnapshot(previous => ({ ...previous, publishInTimeline: ids.length > 0 }));
         setTimelineLoaded(true);
       })
       .catch(() => {
@@ -152,6 +164,8 @@ export default function BlogForm({
       cancelled = true;
     };
   }, [mode, postId, session]);
+
+  useEffect(() => { onSubmittingChange?.(submitting || uploading); }, [submitting, uploading, onSubmittingChange]);
 
   // Report dirtiness for host leave-guards (the edit modal confirm); fires
   // on mount too so reopened forms reset the host flag.
@@ -208,23 +222,20 @@ export default function BlogForm({
     }
   }
 
-  function handleCoverSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  function handleCoverFiles(files: File[]) {
+    const file = files[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       toast.error(t("invalidCoverType"));
-      if (e.target) e.target.value = "";
       return;
     }
     if (file.size > maxUploadSizeForContentType(file.type)) {
       toast.error(t("coverTooLarge", { max: MAX_IMAGE_SIZE_BYTES / BYTES_PER_MB }));
-      if (e.target) e.target.value = "";
       return;
     }
     if (coverPreview) URL.revokeObjectURL(coverPreview);
     setCoverFile(file);
     setCoverPreview(URL.createObjectURL(file));
-    if (e.target) e.target.value = "";
   }
 
   function removeCover() {
@@ -272,6 +283,7 @@ export default function BlogForm({
   }
 
   function resetCreateForm() {
+    setCreateId(crypto.randomUUID());
     setTitle("");
     setSlug("");
     setSlugCustomized(false);
@@ -302,6 +314,7 @@ export default function BlogForm({
       categories: [],
       isPublic: true,
       publishedAt: nextPublishedAt,
+      publishInTimeline: false,
     });
   }
 
@@ -322,8 +335,8 @@ export default function BlogForm({
         setUploading(true);
         try {
           const dims = await getImageDimensions(coverFile);
-          const uploadScopeId = mode === "create" ? (draftId ?? crypto.randomUUID()) : postId!;
-          const { media: uploaded, error: uploadError } = await uploadMediaFiles(
+          const uploadScopeId = mode === "create" ? (draftId ?? createId) : postId!;
+          const { media: uploaded, error: uploadError } = await pendingUploads.upload(
             uploadScopeId,
             [{ file: coverFile, width: dims?.width, height: dims?.height }],
             mode === "create" && !isContinuation ? (postingChannel?.id ?? activeChannelId ?? undefined) : undefined,
@@ -331,8 +344,7 @@ export default function BlogForm({
             "blog",
           );
           if (uploadError || uploaded.length === 0) {
-            await cleanupUploadedMedia(uploaded.map((m) => m.url));
-            throw new Error(uploadError ?? "upload_failed");
+                throw new Error(uploadError ?? "upload_failed");
           }
           resolvedCoverUrl = uploaded[0].url;
         } finally {
@@ -358,6 +370,7 @@ export default function BlogForm({
         // it when untouched so the schema default applies.
         categories: isEditLike ? categories : (categories.length > 0 ? categories : undefined),
         isPublic,
+        channelId: isEditLike ? undefined : (postingChannel?.id ?? activeChannelId ?? undefined),
         language: locale,
         ...(parsedPublishedAt ? { publishedAt: parsedPublishedAt.toISOString() } : {}),
       };
@@ -379,11 +392,8 @@ export default function BlogForm({
         return;
       }
       const post = (await res.json()) as BlogPost;
-      if (mode === "edit") {
-        toast.success(t("updated"));
-      } else {
-        toast.success(isPublic ? t("published") : t("saved"));
-      }
+      if (resolvedCoverUrl) pendingUploads.commit([resolvedCoverUrl]);
+      showSaved(post, mode);
       if (mode === "create" && !isPublic) {
         if (exit) {
           // Save & leave: draft appears in private posts, composer clears.
@@ -410,6 +420,7 @@ export default function BlogForm({
             categories,
             isPublic,
             publishedAt,
+            publishInTimeline,
           });
         }
       } else if (mode === "create" && isPublic) {
@@ -434,6 +445,7 @@ export default function BlogForm({
         }
       } catch {
         setError(t("timelineSyncFailed"));
+        toast.error(t("timelineSyncFailed"));
       }
       onSuccess(post, exit);
     } catch (err) {
@@ -472,13 +484,10 @@ export default function BlogForm({
   const isPrivate = !isPublic;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      {postingChannel ? (
-        <p className="text-sm text-muted-foreground">
-          {t("postingAs")} <span className="font-semibold text-deep">{postingChannel.name}</span>
-        </p>
-      ) : null}
-      {!isVerified ? (
+    <form onSubmit={handleSubmit}>
+      <fieldset disabled={submitting || uploading || !isVerified} className="min-w-0 space-y-3">
+      {mode === "create" && <ContentPublishingContext channel={postingChannel} />}
+      {mode === "edit" && !isVerified ? (
         <p className="text-sm text-muted-foreground">{t("verifyToPost")}</p>
       ) : null}
       <Input
@@ -488,6 +497,16 @@ export default function BlogForm({
         placeholder={t("titlePlaceholder")}
         maxLength={BLOG_TITLE_MAX_LENGTH}
         autoComplete="off"
+      />
+      <BlogEditor
+        editable={!submitting && !uploading && isVerified}
+        key={editorKey}
+        initialContent={content}
+        placeholder={t("contentPlaceholder")}
+        onChange={({ contentJson, contentHtml }) => {
+          setContent(contentJson);
+          setContentHtml(contentHtml);
+        }}
       />
       <div className="flex items-start">
         <div className="min-w-0 flex-1 [&_input]:rounded-r-none [&_input]:border-r-0">
@@ -524,15 +543,7 @@ export default function BlogForm({
         maxLength={BLOG_EXCERPT_MAX_LENGTH}
         rows={2}
       />
-      <BlogEditor
-        key={editorKey}
-        initialContent={content}
-        placeholder={t("contentPlaceholder")}
-        onChange={({ contentJson, contentHtml }) => {
-          setContent(contentJson);
-          setContentHtml(contentHtml);
-        }}
-      />
+
       <div>
         <label htmlFor="blog-categories" className="mb-1 block text-sm font-medium text-muted-foreground">
           {t("categoriesLabel")}
@@ -540,14 +551,6 @@ export default function BlogForm({
         <CategoryPicker id="blog-categories" value={categories} onChange={setCategories} />
       </div>
       <div>
-        <input
-          ref={coverInputRef}
-          type="file"
-          accept={getImageAcceptString()}
-          className="hidden"
-          aria-label={t("uploadCover")}
-          onChange={handleCoverSelect}
-        />
         {effectiveCover ? (
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -557,25 +560,18 @@ export default function BlogForm({
               className="h-40 w-full rounded-md object-cover"
             />
             <div className="mt-2 flex items-center gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => coverInputRef.current?.click()}>
-                {t("changeCover")}
-              </Button>
+              <AttachmentPicker label={t("changeCover")} inputRef={coverInputRef} accept={getImageAcceptString()} disabled={submitting || uploading} onFiles={handleCoverFiles} />
               <Button type="button" variant="outline" size="sm" onClick={removeCover}>
                 {t("removeCover")}
               </Button>
             </div>
           </div>
         ) : (
-          <Button type="button" variant="outline" onClick={() => coverInputRef.current?.click()}>
-            {t("uploadCover")}
-          </Button>
+          <AttachmentPicker label={t("uploadCover")} inputRef={coverInputRef} accept={getImageAcceptString()} disabled={submitting || uploading} onFiles={handleCoverFiles} />
         )}
       </div>
       <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-sm text-deep/80">
-          <Switch checked={isPublic} onCheckedChange={setIsPublic} aria-label={t("public")} />
-          {isPublic ? t("public") : t("private")}
-        </label>
+        <ContentVisibilityControl isPublic={isPublic} onChange={setIsPublic} />
         <label className="flex items-center gap-2 text-sm text-deep/80">
           <span>{t("publishDate")}</span>
           <Input
@@ -602,27 +598,11 @@ export default function BlogForm({
         )}
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <div className="flex items-center gap-2">
-        {isPrivate ? (
-          <>
-            <Button type="submit" disabled={submitDisabled}>
-              {submitting || uploading ? t("saving") : t("saveAndStay")}
-            </Button>
-            <Button type="button" variant="outline" disabled={submitDisabled} onClick={handleSaveAndLeave}>
-              {t("saveAndLeave")}
-            </Button>
-          </>
-        ) : (
-          <Button type="submit" disabled={submitDisabled}>
-            {submitting || uploading ? t("saving") : mode === "edit" ? t("save") : t("publish")}
-          </Button>
-        )}
-        {onCancel ? (
-          <Button type="button" variant="outline" onClick={onCancel}>
-            {t("cancel")}
-          </Button>
-        ) : null}
-      </div>
+      <ContentFormActions mode={mode} isPublic={isPublic} scheduled={isScheduled} busy={submitting || uploading}
+        disabled={submitDisabled} onCancel={onCancel} primaryLabel={isPrivate ? t("saveAndStay") : undefined}
+        secondary={isPrivate ? <Button type="button" variant="outline" disabled={submitDisabled} onClick={handleSaveAndLeave}>{t("saveAndLeave")}</Button> : undefined} />
+
+      </fieldset>
     </form>
   );
 }

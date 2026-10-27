@@ -3,10 +3,9 @@
 import { useMemo, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
-import SignInPrompt from "@/components/SignInPrompt";
-import { Card } from "@/components/ui/card";
 import PostCard from "@/components/PostCard";
-import CollapsibleComposer from "@/components/CollapsibleComposer";
+import ContentCreateAction from "@/components/ContentCreateAction";
+import ContentCreationDialog from "@/components/ContentCreationDialog";
 import EditPostModal from "@/components/EditPostModal";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
@@ -14,11 +13,13 @@ import { useInfinitePosts } from "@/lib/hooks/useInfinitePosts";
 import { useIdentity } from "@/components/IdentityProvider";
 import CategoryFilterBanner from "@/components/CategoryFilterBanner";
 import FeedFilterBar from "@/components/FeedFilterBar";
+import FeedPaginationError from "@/components/FeedPaginationError";
 import FeedEmptyState from "@/components/FeedEmptyState";
 import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
 import { matchesSearch } from "@/lib/feed-search";
+import { isAuthenticated } from "@/lib/session";
 import type { Post } from "@/types/post";
-import PageHeader from "@/components/PageHeader";
+import PostsJournalLayout from "@/components/PostsJournalLayout";
 
 export default function PostsPageClient({
 	initialPublic,
@@ -27,13 +28,15 @@ export default function PostsPageClient({
 	initialPublic?: { posts: Post[]; hasMore: boolean };
 	category?: string;
 }) {
-	const { data: session } = useSession();
+	const { data: session, status } = useSession();
+  const authenticated = isAuthenticated(status);
 	const { activeChannelId, identities } = useIdentity();
 	const locale = useLocale();
 	const t = useTranslations("PostsPage");
+	const [composerOpen, setComposerOpen] = useState(false);
 	const [editingPost, setEditingPost] = useState<Post | null>(null);
 	const { searchInput, setSearchInput, search } = useFeedSearch();
-	const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef } = useInfinitePosts({
+	const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef, error, retry, loadMoreError, retryLoadMore } = useInfinitePosts({
 		scope: "public",
 		language: locale,
 		category,
@@ -47,9 +50,13 @@ export default function PostsPageClient({
 		loadingMore: myLoadingMore,
 		hasMore: myHasMore,
 		sentinelRef: mySentinelRef,
+    error: myError,
+    retry: myRetry,
+    loadMoreError: myLoadMoreError,
+    retryLoadMore: myRetryLoadMore,
 	} = useInfinitePosts({
 		channelId: activeChannelId ?? undefined,
-		disabled: !session || !activeChannelId,
+		disabled: !authenticated || !activeChannelId,
 		language: locale,
 		search,
 	});
@@ -89,30 +96,28 @@ export default function PostsPageClient({
 		setEditingPost(null);
 	}, [setMyPosts, setPosts]);
 
+  const channels = useMemo(() => [...new Map(posts.map((post) => [post.channel.id, post.channel])).values()].slice(0, 4), [posts]);
+
 	return (
-		<div className="reading-container page-space">
-		<PageHeader title={t("title")} description={t("subtitle")} />
-
-		{category ? <CategoryFilterBanner name={category} href="/posts" /> : null}
-
+    <PostsJournalLayout channels={channels} authenticated={authenticated}
+      action={<ContentCreateAction kind="post" authenticated={authenticated} onClick={() => setComposerOpen(true)} />}
+      filters={<>
+        {category ? <CategoryFilterBanner name={category} href="/posts" /> : null}
 			<FeedFilterBar
 				search={searchInput}
 				onSearchChange={setSearchInput}
 				searchPlaceholder={t("searchPlaceholder")}
+				variant="editorial"
 				basePath="/posts"
 				activeCategory={category}
 				loading={Boolean(search) && loading}
 			/>
 
-			<Card variant="default" padding="lg" className="mb-6">
-				{session ? (
-					<CollapsibleComposer onSuccess={handleCreateSuccess} />
-				) : (
-					<SignInPrompt label={t("signIn")}>{t("signInToPost")}</SignInPrompt>
-				)}
-			</Card>
+      </>}
+    >
+      <ContentCreationDialog kind="post" open={composerOpen} onOpenChange={setComposerOpen} onSuccess={handleCreateSuccess} />
 
-			{session ? (
+			{authenticated ? (
 				<TabsRoot defaultValue="public">
 					<TabsList>
 						<TabsTab value="public">{t("publicTab")}</TabsTab>
@@ -125,18 +130,20 @@ export default function PostsPageClient({
 					</TabsList>
 
 					<TabsPanel value="public">
+            <FeedPaginationError error={loadMoreError} retry={retryLoadMore} />
 						{loading ? (
 							<div className="flex flex-col">
-								<PostCardSkeleton />
-								<PostCardSkeleton />
-								<PostCardSkeleton />
+								<PostCardSkeleton variant="journal" />
+								<PostCardSkeleton variant="journal" />
+								<PostCardSkeleton variant="journal" />
 							</div>
 						) : posts.length === 0 ? (
-							<FeedEmptyState search={search} message={t("emptyPublic")} />
+							<FeedEmptyState search={search} message={t("emptyPublic")} error={error} onRetry={retry} />
 						) : (
 							<div className="flex flex-col">
 								{posts.map((post) => (
 									<PostCard
+                    variant="journal"
 										key={post.id}
 										post={post}
 										currentUserId={session?.user?.id}
@@ -160,20 +167,22 @@ export default function PostsPageClient({
 					</TabsPanel>
 
 					<TabsPanel value="my-public">
-						{!session ? null : myLoading ? (
+            <FeedPaginationError error={myLoadMoreError} retry={myRetryLoadMore} />
+						{!authenticated ? null : myLoading ? (
 							<div className="flex flex-col">
-								<PostCardSkeleton />
-								<PostCardSkeleton />
-								<PostCardSkeleton />
+								<PostCardSkeleton variant="journal" />
+								<PostCardSkeleton variant="journal" />
+								<PostCardSkeleton variant="journal" />
 							</div>
 						) : (
 							<div>
 								{myPublicPosts.length === 0 ? (
-									<FeedEmptyState compact search={search} message={t("emptyMyPublic")} />
+									<FeedEmptyState compact search={search} message={t("emptyMyPublic")} error={myError} onRetry={myRetry} />
 								) : (
 									<div className="flex flex-col">
 									{myPublicPosts.map((post) => (
 										<PostCard
+                    variant="journal"
 											key={post.id}
 											post={post}
 											currentUserId={session?.user?.id}
@@ -198,20 +207,22 @@ export default function PostsPageClient({
 					</TabsPanel>
 
 					<TabsPanel value="my-private">
-						{!session ? null : myLoading ? (
+            <FeedPaginationError error={myLoadMoreError} retry={myRetryLoadMore} />
+						{!authenticated ? null : myLoading ? (
 							<div className="flex flex-col">
-								<PostCardSkeleton />
-								<PostCardSkeleton />
-								<PostCardSkeleton />
+								<PostCardSkeleton variant="journal" />
+								<PostCardSkeleton variant="journal" />
+								<PostCardSkeleton variant="journal" />
 							</div>
 						) : (
 							<div>
 								{myPrivatePosts.length === 0 ? (
-									<FeedEmptyState compact search={search} message={t("emptyMyPrivate")} />
+									<FeedEmptyState compact search={search} message={t("emptyMyPrivate")} error={myError} onRetry={myRetry} />
 								) : (
 									<div className="flex flex-col">
 									{myPrivatePosts.map((post) => (
 										<PostCard
+                    variant="journal"
 											key={post.id}
 											post={post}
 											currentUserId={session?.user?.id}
@@ -237,18 +248,19 @@ export default function PostsPageClient({
 				</TabsRoot>
 			) : (
 				<>
+            <FeedPaginationError error={loadMoreError} retry={retryLoadMore} />
 					{loading ? (
 						<div className="flex flex-col">
-							<PostCardSkeleton />
-							<PostCardSkeleton />
-							<PostCardSkeleton />
+							<PostCardSkeleton variant="journal" />
+							<PostCardSkeleton variant="journal" />
+							<PostCardSkeleton variant="journal" />
 						</div>
 					) : posts.length === 0 ? (
-						<FeedEmptyState search={search} message={t("emptyPublic")} />
+						<FeedEmptyState search={search} message={t("emptyPublic")} error={error} onRetry={retry} />
 					) : (
 						<div className="flex flex-col">
 							{posts.map((post) => (
-								<PostCard key={post.id} post={post} />
+								<PostCard variant="journal" key={post.id} post={post} />
 							))}
 						</div>
 					)}
@@ -271,6 +283,6 @@ export default function PostsPageClient({
 				onOpenChange={(open) => { if (!open) setEditingPost(null); }}
 				onSuccess={handleEditSuccess}
 			/>
-		</div>
+    </PostsJournalLayout>
 	);
 }

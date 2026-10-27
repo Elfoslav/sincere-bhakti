@@ -49,9 +49,6 @@ export async function generateMetadata({ params }: Omit<Props, "children">) {
         sk: `${siteUrl}/sk`,
       },
     },
-    icons: {
-      icon: "/favicon.ico",
-    },
   };
 }
 

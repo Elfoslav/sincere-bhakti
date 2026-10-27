@@ -1,5 +1,8 @@
 "use client";
 
+import { getSafeReturnPath } from "@/lib/safe-return-path";
+import LotusIcon from "@/components/ui/lotus-icon";
+
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -46,7 +49,7 @@ export default function LoginPage() {
         setLoading(false);
       } else {
         clear();
-        router.push("/posts");
+        router.push(getSafeReturnPath(searchParams.get("callbackUrl")));
         router.refresh();
       }
     } catch {
@@ -67,7 +70,7 @@ export default function LoginPage() {
       <Card variant="elevated">
         <title>{t("title")}</title>
         <div className="text-center mb-6">
-          <div aria-hidden="true" className="text-4xl mb-2">🪷</div>
+          <LotusIcon className="mx-auto mb-2 block size-10" />
           <h1 className="type-section text-foreground">{t("title")}</h1>
           <p className="text-muted-foreground text-sm mt-1">{t("subtitle")}</p>
         </div>
@@ -104,6 +107,7 @@ export default function LoginPage() {
               id="login-password"
               name="password"
               type="password"
+              revealPassword
               autoComplete="current-password"
               required
               placeholder={t("passwordPlaceholder")}

@@ -235,7 +235,7 @@ describe("EditBlogModal unsaved-changes guard", () => {
     // Confirming discards the edits and closes.
     fireEvent.click(screen.getByRole("button", { name: "cancel" }));
     await screen.findByText("unsavedTitle");
-    fireEvent.click(screen.getByRole("button", { name: "leaveWithoutSaving" }));
+    fireEvent.click(screen.getByRole("button", { name: "discard" }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });
@@ -253,8 +253,9 @@ describe("EditBlogModal sticky toolbar spacing", () => {
     // Sticky respects container padding: any top padding would leave a
     // content strip above the stuck bar. The header carries its own instead.
     const dialog = screen.getByRole("dialog");
-    expect(dialog.className.split(/\s+/)).toContain("pt-0");
+    expect(dialog).toHaveClass("content-composer");
     const header = document.querySelector('[data-slot="dialog-header"]');
-    expect(header?.className.split(/\s+/)).toContain("pt-4");
+    expect(header?.closest(".content-composer-header")).toBeInTheDocument();
+    expect(header?.closest(".content-composer-body")).toBeNull();
   });
 });

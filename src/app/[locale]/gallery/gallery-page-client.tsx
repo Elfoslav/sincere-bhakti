@@ -1,14 +1,16 @@
 "use client";
 
+import FeedPaginationError from "@/components/FeedPaginationError";
 import FeedEmptyState from "@/components/FeedEmptyState";
 import { useMemo, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
-import SignInPrompt from "@/components/SignInPrompt";
-import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import AlbumCard from "@/components/AlbumCard";
-import AlbumForm from "@/components/AlbumForm";
+import EditAlbumModal from "@/components/EditAlbumModal";
+import ContentCreateAction from "@/components/ContentCreateAction";
+import ContentCreationDialog from "@/components/ContentCreationDialog";
+import { isAuthenticated } from "@/lib/session";
 import { PostCardSkeleton } from "@/components/ui/skeleton";
 import { TabsRoot, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { useInfiniteAlbums } from "@/lib/hooks/useInfiniteAlbums";
@@ -25,13 +27,16 @@ export default function GalleryPageClient({
   channelId?: string;
   channelName?: string;
 }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const authenticated = isAuthenticated(status);
   const { activeChannelId, identities } = useIdentity();
   const locale = useLocale();
   const t = useTranslations("Gallery");
+  const common = useTranslations("Common");
+  const [composerOpen, setComposerOpen] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
   const effectiveChannelId = channelId ?? undefined;
-  const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef } = useInfiniteAlbums({
+  const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef, error, retry, loadMoreError, retryLoadMore } = useInfiniteAlbums({
     scope: "public",
     channelId: effectiveChannelId,
     language: locale,
@@ -44,9 +49,13 @@ export default function GalleryPageClient({
     loadingMore: myLoadingMore,
     hasMore: myHasMore,
     sentinelRef: mySentinelRef,
+    error: myError,
+    retry: myRetry,
+    loadMoreError: myLoadMoreError,
+    retryLoadMore: myRetryLoadMore,
   } = useInfiniteAlbums({
     channelId: effectiveChannelId ?? activeChannelId ?? undefined,
-    disabled: !session || !(effectiveChannelId ?? activeChannelId),
+    disabled: !authenticated || !(effectiveChannelId ?? activeChannelId),
     language: locale,
   });
 
@@ -103,6 +112,10 @@ export default function GalleryPageClient({
     more: boolean,
     ref: (node: HTMLDivElement | null) => void,
     emptyKey: string,
+    failed = false,
+    recover?: () => void,
+    moreFailed = false,
+    recoverMore?: () => void,
   ) {
     if (isLoading) {
       return (
@@ -113,7 +126,12 @@ export default function GalleryPageClient({
     }
     return (
       <div className="flex flex-col">
-        {items.length === 0 && <FeedEmptyState message={t(emptyKey)} />}
+        {items.length === 0 && <FeedEmptyState message={t(emptyKey)} error={failed} onRetry={recover} action={
+          <div className="flex flex-wrap justify-center gap-3">
+            <ContentCreateAction kind="album" authenticated={authenticated} onClick={() => setComposerOpen(true)} />
+            <Button href="/posts" variant="outline">{common("browsePosts")}</Button>
+          </div>
+        } />}
         {items.map((album) => (
           <AlbumCard
             key={album.id}
@@ -124,6 +142,7 @@ export default function GalleryPageClient({
             onEdit={handleEdit}
           />
         ))}
+        <FeedPaginationError error={moreFailed} retry={recoverMore} />
         {more && <div ref={ref} className="h-4" aria-hidden />}
         {isLoadingMore && <PostCardSkeleton />}
       </div>
@@ -132,56 +151,32 @@ export default function GalleryPageClient({
 
   return (
     <div className="reading-container page-space">
-      <PageHeader title={channelName ?? t("title")} description={t("subtitle")} />
-
-      {session ? (
-        <Card padding="lg" className="mb-6">
-          <AlbumForm mode="create" onSuccess={handleCreateSuccess} postingChannel={postingChannel} />
-        </Card>
-      ) : (
-        <Card padding="lg" className="mb-6">
-          <SignInPrompt label={t("signIn")}>{t("signInToPost")}</SignInPrompt>
-        </Card>
-      )}
+      <PageHeader title={channelName ?? t("title")} description={t("subtitle")}
+        action={<ContentCreateAction kind="album" authenticated={authenticated} onClick={() => setComposerOpen(true)} />} />
+      <ContentCreationDialog kind="album" open={composerOpen} onOpenChange={setComposerOpen} onSuccess={handleCreateSuccess} postingChannel={postingChannel} />
 
       <TabsRoot defaultValue="public">
         <TabsList>
           <TabsTab value="public">{t("publicTab")}</TabsTab>
-          {session && <TabsTab value="mine-public">{t("myPublicTab")}</TabsTab>}
-          {session && <TabsTab value="mine-private">{t("myPrivateTab")}</TabsTab>}
+          {authenticated && <TabsTab value="mine-public">{t("myPublicTab")}</TabsTab>}
+          {authenticated && <TabsTab value="mine-private">{t("myPrivateTab")}</TabsTab>}
         </TabsList>
         <TabsPanel value="public">
-          {renderList(posts, loading, loadingMore, hasMore, sentinelRef, "emptyPublic")}
+          {renderList(posts, loading, loadingMore, hasMore, sentinelRef, "emptyPublic", error, retry, loadMoreError, retryLoadMore)}
         </TabsPanel>
-        {session && (
+        {authenticated && (
           <TabsPanel value="mine-public">
-            {renderList(myPublicPosts, myLoading, myLoadingMore, myHasMore, mySentinelRef, "emptyMyPublic")}
+            {renderList(myPublicPosts, myLoading, myLoadingMore, myHasMore, mySentinelRef, "emptyMyPublic", myError, myRetry, myLoadMoreError, myRetryLoadMore)}
           </TabsPanel>
         )}
-        {session && (
+        {authenticated && (
           <TabsPanel value="mine-private">
-            {renderList(myPrivatePosts, myLoading, myLoadingMore, myHasMore, mySentinelRef, "emptyMyPrivate")}
+            {renderList(myPrivatePosts, myLoading, myLoadingMore, myHasMore, mySentinelRef, "emptyMyPrivate", myError, myRetry, myLoadMoreError, myRetryLoadMore)}
           </TabsPanel>
         )}
       </TabsRoot>
 
-      <Dialog open={editingAlbum !== null} onOpenChange={(open) => { if (!open) setEditingAlbum(null); }}>
-        <DialogContent className="max-h-[90svh] overflow-y-auto">
-          <DialogHeader text={t("editTitle")} />
-          {editingAlbum && (
-            <AlbumForm
-              mode="edit"
-              albumId={editingAlbum.id}
-              initialTitle={editingAlbum.title}
-              initialDescription={editingAlbum.description ?? ""}
-              initialIsPublic={editingAlbum.isPublic}
-              initialMedia={editingAlbum.items}
-              onSuccess={handleEditSuccess}
-              onCancel={() => setEditingAlbum(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      <EditAlbumModal album={editingAlbum} open={editingAlbum !== null} onOpenChange={(next) => { if (!next) setEditingAlbum(null); }} onSuccess={handleEditSuccess} />
     </div>
   );
 }

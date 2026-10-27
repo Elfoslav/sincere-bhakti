@@ -1,13 +1,25 @@
-import { useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { SEARCH_DEBOUNCE_MS } from "@/lib/validation";
 
-/**
- * Search box state for a feed page: `searchInput` is the live text for the
- * input, `search` the trimmed, debounced value to put in the feed query.
- */
+const subscribe = (onChange: () => void) => {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+};
+const getSnapshot = () => new URLSearchParams(window.location.search).get("q") ?? "";
+const getServerSnapshot = () => "";
+
+/** URL-backed typing survives reload, sharing and back/forward; only API searches are debounced. */
 export function useFeedSearch() {
-  const [searchInput, setSearchInput] = useState("");
+  const searchInput = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const setSearchInput = useCallback((value: string) => {
+    const url = new URL(window.location.href);
+    if (value) url.searchParams.set("q", value);
+    else url.searchParams.delete("q");
+    window.history.replaceState(window.history.state, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, []);
   const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
-  return { searchInput, setSearchInput, search };
+  const clearSearch = useCallback(() => setSearchInput(""), [setSearchInput]);
+  return { searchInput, setSearchInput, search, clearSearch };
 }

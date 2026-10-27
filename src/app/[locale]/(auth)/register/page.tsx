@@ -1,5 +1,7 @@
 "use client";
 
+import LotusIcon from "@/components/ui/lotus-icon";
+
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
@@ -11,30 +13,10 @@ import { Input } from "@/components/ui/input";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { AUTH_EMAIL_PERSIST_KEY } from "@/lib/form-persist-keys";
+import { validateName, validateEmail, validatePassword } from "@/lib/registration-validation";
 import { NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/validation";
 import { useFormPersist } from "@/lib/hooks/useFormPersist";
 
-function validateName(val: string, t: (key: string, vars?: Record<string, number>) => string): string | null {
-  const trimmed = val.trim();
-  if (!trimmed) return t("nameRequired");
-  if (trimmed.length > NAME_MAX_LENGTH) return t("nameTooLong", { max: NAME_MAX_LENGTH });
-  return null;
-}
-
-function validateEmail(val: string, t: (key: string, vars?: Record<string, number>) => string): string | null {
-  const trimmed = val.trim().toLowerCase();
-  if (!trimmed) return t("emailRequired");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return t("emailInvalid");
-  if (trimmed.length > 255) return t("emailTooLong");
-  return null;
-}
-
-function validatePassword(val: string, t: (key: string, vars?: Record<string, number>) => string): string | null {
-  if (!val) return t("passwordRequired");
-  if (val !== val.trim()) return t("passwordWhitespace");
-  if (val.length < PASSWORD_MIN_LENGTH) return t("passwordTooShort", { min: PASSWORD_MIN_LENGTH });
-  return null;
-}
 
 type FieldErrors = {
   name: string | null;
@@ -108,7 +90,11 @@ export default function RegisterPage() {
     const termsErr = termsAgreed ? null : t("termsRequired");
     setErrors({ name: nameErr, email: emailErr, password: passwordErr, terms: termsErr });
 
-    if (nameErr || emailErr || passwordErr || termsErr) return;
+    if (nameErr || emailErr || passwordErr || termsErr) {
+      const firstInvalid = nameErr ? "name" : emailErr ? "email" : passwordErr ? "password" : "terms";
+      (e.currentTarget.elements.namedItem(firstInvalid) as HTMLInputElement | null)?.focus();
+      return;
+    }
 
     saveName({ name });
     saveEmail({ email });
@@ -175,17 +161,19 @@ export default function RegisterPage() {
       <Card variant="elevated">
         <title>{t("title")}</title>
         <div className="text-center mb-6">
-          <div aria-hidden="true" className="text-4xl mb-2">🪷</div>
+          <LotusIcon className="mx-auto mb-2 block size-10" />
           <h1 className="type-section text-foreground">{t("title")}</h1>
           <p className="text-muted-foreground text-sm mt-1">{t("subtitle")}</p>
         </div>
 
-        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
           <div>
             <label htmlFor="register-name" className="block text-sm font-medium text-deep mb-1">{t("nameLabel")}</label>
-            <p className="text-xs text-muted-foreground mb-1.5">{t("nameHint")}</p>
+            <p id="register-name-hint" className="text-xs text-muted-foreground mb-1.5">{t("nameHint")}</p>
             <Input
               id="register-name"
+              aria-describedby="register-name-hint"
+              errorMessage={errors.name ?? undefined}
               name="name"
               type="text"
               autoComplete="name"
@@ -195,12 +183,13 @@ export default function RegisterPage() {
               onChange={handleChange("name")}
               maxLength={NAME_MAX_LENGTH}
             />
-            {errors.name && <p className="text-destructive text-xs mt-1">{errors.name}</p>}
+
           </div>
           <div>
             <label htmlFor="register-email" className="block text-sm font-medium text-deep mb-1">{t("emailLabel")}</label>
             <Input
               id="register-email"
+              errorMessage={errors.email ?? undefined}
               name="email"
               type="email"
               autoComplete="username"
@@ -209,12 +198,15 @@ export default function RegisterPage() {
               onBlur={handleBlur("email")}
               onChange={handleChange("email")}
             />
-            {errors.email && <p className="text-destructive text-xs mt-1">{errors.email}</p>}
+
           </div>
           <div>
             <label htmlFor="register-password" className="block text-sm font-medium text-deep mb-1">{t("passwordLabel")}</label>
             <Input
               id="register-password"
+              aria-describedby="register-password-hint"
+              errorMessage={errors.password ?? undefined}
+              revealPassword
               name="password"
               type="password"
               autoComplete="new-password"
@@ -224,12 +216,15 @@ export default function RegisterPage() {
               onBlur={handleBlur("password")}
               onChange={() => errors.password && setErrors((prev) => ({ ...prev, password: null }))}
             />
-            {errors.password && <p className="text-destructive text-xs mt-1">{errors.password}</p>}
+            <p id="register-password-hint" className="mt-1.5 text-xs text-muted-foreground">{t("passwordPlaceholder", { min: PASSWORD_MIN_LENGTH })}</p>
           </div>
 
           <label className="flex items-start gap-2 cursor-pointer">
             <input
               type="checkbox"
+              name="terms"
+              aria-invalid={errors.terms ? true : undefined}
+              aria-describedby={errors.terms ? "register-terms-error" : undefined}
               checked={termsAgreed}
               onChange={(e) => { setTermsAgreed(e.target.checked); if (errors.terms) setErrors((prev) => ({ ...prev, terms: null })); }}
               className="mt-0.5 h-4 w-4 rounded border-deep/30 text-gold focus:ring-gold"
@@ -244,7 +239,7 @@ export default function RegisterPage() {
               })}
             </span>
           </label>
-          {errors.terms && <p className="text-destructive text-xs -mt-2">{errors.terms}</p>}
+          {errors.terms && <p id="register-terms-error" role="alert" className="text-destructive text-xs -mt-2">{errors.terms}</p>}
 
           {serverError && <Alert variant="destructive">{serverError}</Alert>}
 

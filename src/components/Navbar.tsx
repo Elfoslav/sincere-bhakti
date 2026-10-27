@@ -47,14 +47,14 @@ export default function Navbar() {
 
 	return (
 		<nav className="relative z-20 border-b border-border bg-background text-foreground">
-			<div className="site-container">
+			<div className="site-header-container">
 				<div className="relative flex h-[var(--navbar-height)] items-center justify-between">
 					<div className="flex items-center gap-8 lg:gap-12">
-						<Link href="/" className="flex items-center gap-2" onClick={close}>
+						<Link href="/" aria-label={t("logoAlt")} className="flex items-center gap-2" onClick={close}>
 							<BrandLogo />
 						</Link>
 
-						<div className="hidden lg:flex items-center gap-6">
+						<div className="hidden lg:flex items-center gap-8">
 							<Link href="/posts" aria-current={pathname.startsWith("/posts") ? "page" : undefined} className="site-nav-link">
 								{t("posts")}
 							</Link>
@@ -109,7 +109,7 @@ export default function Navbar() {
 									</Button>
 								</>
 							) : (
-								<Button href="/login" variant="ghost" size="default">
+								<Button href="/login" variant="ghost" size="default" className="site-login-link">
 									{t("getIn")}
 								</Button>
 							)}

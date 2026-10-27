@@ -10,18 +10,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import SearchInput from "@/components/SearchInput";
 import ChannelAvatar from "@/components/ChannelAvatar";
 import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
-import type { ChannelInfo } from "@/types/user";
+import type { ChannelDirectoryItem, ChannelDirectorySort } from "@/types/channel-directory";
+import { localeNames, type Locale } from "@/i18n/routing";
+import { formatBlogDate } from "@/lib/blog";
 import PageHeader from "@/components/PageHeader";
 
 interface ChannelsResponse {
-  items: ChannelInfo[];
+  items: ChannelDirectoryItem[];
   nextCursor: string | null;
 }
 
 export default function ChannelsPageClient() {
   const t = useTranslations("ChannelsPage");
   const locale = useLocale();
-  const [channels, setChannels] = useState<ChannelInfo[]>([]);
+  const [sort, setSort] = useState<ChannelDirectorySort>("newest");
+  const [moreError, setMoreError] = useState(false);
+  const [channels, setChannels] = useState<ChannelDirectoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
@@ -38,16 +42,20 @@ export default function ChannelsPageClient() {
     if (q) params.set("q", q);
     if (c) params.set("cursor", c);
     params.set("language", locale);
-    const res = await fetch(`/api/channels?${params}`);
-    if (!res.ok) return null;
-    return res.json() as Promise<ChannelsResponse>;
-  }, [locale]);
+    params.set("sort", sort);
+    try {
+      const res = await fetch(`/api/channels?${params}`);
+      if (!res.ok) return null;
+      return await res.json() as ChannelsResponse;
+    } catch { return null; }
+  }, [locale, sort]);
 
   const loadChannels = useCallback(() => {
     const requestId = ++requestIdRef.current;
     Promise.resolve().then(() => {
       setLoading(true);
       setError(false);
+      setMoreError(false);
     });
     fetchChannels(search).then((data) => {
       if (requestId !== requestIdRef.current) return;
@@ -70,25 +78,36 @@ export default function ChannelsPageClient() {
     if (!cursor || loadingMore) return;
     const requestId = ++requestIdRef.current;
     setLoadingMore(true);
+    setMoreError(false);
     const data = await fetchChannels(search, cursor);
     if (requestId === requestIdRef.current && data) {
       setChannels((prev) => [...prev, ...data.items]);
       setCursor(data.nextCursor);
     }
+    if (requestId === requestIdRef.current) setMoreError(!data);
     setLoadingMore(false);
   }
 
 return (
     <div className="site-container page-space flex flex-col flex-1">
-      <PageHeader title={t("title")} />
+      <PageHeader title={t("title")} description={t("subtitle")} />
 
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end">
       <SearchInput
         value={query}
         onChange={setQuery}
         placeholder={t("searchPlaceholder")}
         loading={loading}
-        className="mb-6"
+        className="flex-1"
       />
+      <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+        {t("sortLabel")}
+        <select value={sort} onChange={(event) => setSort(event.target.value as ChannelDirectorySort)} className="h-11 rounded-lg border border-input bg-card px-3 text-sm text-foreground">
+          <option value="newest">{t("newest")}</option>
+          <option value="active">{t("recentlyActive")}</option>
+        </select>
+      </label>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 flex-1 auto-rows-min">
         {loading ? (
@@ -122,22 +141,28 @@ return (
               // responsiveness. Clamping the item lets the inner truncate work.
               className="block min-w-0"
             >
-              <Card variant="hover">
+              <Card variant="hover" className="h-full">
                 <div className="flex items-center gap-3">
                 <ChannelAvatar name={ch.name} avatarUrl={ch.avatarUrl} size="md" fallback="hash" />
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-deep truncate">{ch.name}</p>
+                  <p className="font-medium text-deep truncate" title={ch.name}>{ch.name}</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <FileText className="w-3 h-3" />
                     {t("postCount", { count: ch.postCount })}
                   </p>
                 </div>
               </div>
+                <p className="mt-4 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{ch.latestPostPreview || t(ch.postCount > 0 ? "viewChannel" : "noRecentPosts")}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>{(ch.languages ?? [locale]).map((language) => localeNames[language as Locale] ?? language).join(" · ")}</span>
+                  {ch.latestPostAt && <time dateTime={ch.latestPostAt}>{formatBlogDate(ch.latestPostAt, locale, true)}</time>}
+                </div>
               </Card>
             </Link>
           ))}
           {cursor && (
             <div className="col-span-full text-center mt-6">
+              {moreError && <p role="alert" className="mb-3 text-destructive">{t("loadMoreError")}</p>}
               <Button
                 variant="outline"
                 onClick={handleLoadMore}

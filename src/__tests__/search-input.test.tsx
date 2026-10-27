@@ -7,6 +7,13 @@ vi.mock("@/i18n/navigation", () => ({ Link: () => null }));
 import SearchInput from "@/components/SearchInput";
 
 describe("SearchInput", () => {
+  it("keeps clearing available while a search is loading", () => {
+    const onChange = vi.fn();
+    render(<SearchInput value="bhakti" loading onChange={onChange} placeholder="Search" />);
+    expect(screen.getByRole("searchbox")).toHaveAttribute("aria-busy", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Vymazať vyhľadávanie" }));
+    expect(onChange).toHaveBeenCalledWith("");
+  });
   it("names the search field and emits the entered query", () => {
     const onChange = vi.fn();
     render(<SearchInput value="" onChange={onChange} placeholder="Hľadať kanály" />);

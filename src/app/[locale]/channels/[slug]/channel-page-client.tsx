@@ -23,7 +23,8 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import PostCard from "@/components/PostCard";
-import CollapsibleComposer from "@/components/CollapsibleComposer";
+import ChannelPostCreate from "@/components/ChannelPostCreate";
+import FeedPaginationError from "@/components/FeedPaginationError";
 import FeedEmptyState from "@/components/FeedEmptyState";
 import EditPostModal from "@/components/EditPostModal";
 import EditBlogModal from "@/components/EditBlogModal";
@@ -77,6 +78,10 @@ export default function ChannelPageClient({
     loadingMore: publicLoadingMore,
     hasMore: publicHasMore,
     sentinelRef: publicSentinelRef,
+    error: publicError,
+    retry: publicRetry,
+    loadMoreError: publicLoadMoreError,
+    retryLoadMore: publicRetryLoadMore,
   } = useInfinitePosts({ channelId: channel.id, scope: "public", language: locale });
 
   const {
@@ -86,6 +91,10 @@ export default function ChannelPageClient({
     loadingMore: myPostsLoadingMore,
     hasMore: myPostsHasMore,
     sentinelRef: myPostsSentinelRef,
+    error: myPostsError,
+    retry: myPostsRetry,
+    loadMoreError: myPostsLoadMoreError,
+    retryLoadMore: myPostsRetryLoadMore,
   } = useInfinitePosts({ channelId: channel.id, scope: "private", disabled: !canAuthorChannel, language: locale });
 
   const myPrivatePosts = useMemo(() => myPosts.filter((p) => !p.isPublic), [myPosts]);
@@ -97,12 +106,16 @@ export default function ChannelPageClient({
     loadingMore: blogLoadingMore,
     hasMore: blogHasMore,
     sentinelRef: blogSentinelRef,
+    error: blogError,
+    retry: blogRetry,
+    loadMoreError: blogLoadMoreError,
+    retryLoadMore: blogRetryLoadMore,
   } = useInfiniteBlogPosts({ channelId: channel.id, scope: "public", language: locale });
 
   // An empty blog section is only useful to the channel owner (an invitation
   // to write). Visitors see neither the heading nor the empty card — nothing.
   // While loading we still render skeletons to avoid layout shift.
-  const showBlogSection = blogLoading || blogPosts.length > 0 || isOwner;
+  const showBlogSection = blogError || blogLoading || blogPosts.length > 0 || isOwner;
 
   const handleDelete = useCallback((id: string) => {
     const deletedPost = [...publicPosts, ...myPosts].find((post) => post.id === id);
@@ -204,6 +217,10 @@ export default function ChannelPageClient({
     hasMore: boolean,
     sentinelRef: (node: HTMLDivElement | null) => void,
     emptyKey: string,
+    failed = false,
+    recover?: () => void,
+    moreFailed = false,
+    recoverMore?: () => void,
   ) {
     if (loading) {
       return (
@@ -216,7 +233,7 @@ export default function ChannelPageClient({
     }
     if (posts.length === 0) {
       return (
-        <FeedEmptyState message={t(emptyKey)} />
+        <FeedEmptyState message={t(emptyKey)} error={failed} onRetry={recover} />
       );
     }
     return (
@@ -233,6 +250,7 @@ export default function ChannelPageClient({
             />
           ))}
         </div>
+        <FeedPaginationError error={moreFailed} retry={recoverMore} />
         {hasMore && (
           <div ref={sentinelRef} className="flex justify-center py-8">
             {loadingMore ? (
@@ -356,12 +374,12 @@ export default function ChannelPageClient({
       </Card>
 
       {canAuthorChannel && (
-        <Card variant="default" padding="lg" className="mb-8">
-          <CollapsibleComposer
+        <div className="mb-8 flex justify-end">
+          <ChannelPostCreate
             onSuccess={handleCreateSuccess}
             postingChannel={{ id: channel.id, name: channel.name, avatarUrl: channel.avatarUrl }}
           />
-        </Card>
+        </div>
       )}
 
       {canAuthorChannel ? (
@@ -372,17 +390,17 @@ export default function ChannelPageClient({
           </TabsList>
 
           <TabsPanel value="public">
-            {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPublicPosts")}
+            {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPublicPosts", publicError, publicRetry, publicLoadMoreError, publicRetryLoadMore)}
           </TabsPanel>
 
           <TabsPanel value="private">
-            {renderPostList(myPrivatePosts, myPostsLoading, myPostsLoadingMore, myPostsHasMore, myPostsSentinelRef, "noPrivatePosts")}
+            {renderPostList(myPrivatePosts, myPostsLoading, myPostsLoadingMore, myPostsHasMore, myPostsSentinelRef, "noPrivatePosts", myPostsError, myPostsRetry, myPostsLoadMoreError, myPostsRetryLoadMore)}
           </TabsPanel>
         </TabsRoot>
       ) : (
         <>
           <Heading as="h2" className="mb-4">{t("publicPosts", { count: publicPosts.length })}</Heading>
-          {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPublicPostsVisitor")}
+          {renderPostList(publicPosts, publicLoading, publicLoadingMore, publicHasMore, publicSentinelRef, "noPublicPostsVisitor", publicError, publicRetry, publicLoadMoreError, publicRetryLoadMore)}
         </>
       )}
       <EditPostModal
@@ -407,7 +425,7 @@ export default function ChannelPageClient({
             <PostCardSkeleton />
           </div>
         ) : blogPosts.length === 0 ? (
-          <FeedEmptyState message={tBlog("emptyPublic")} />
+          <FeedEmptyState message={tBlog("emptyPublic")} error={blogError} onRetry={blogRetry} />
         ) : (
           <div className="flex flex-col">
             {blogPosts.map((post) => (
@@ -423,6 +441,7 @@ export default function ChannelPageClient({
             ))}
           </div>
         )}
+        <FeedPaginationError error={blogLoadMoreError} retry={blogRetryLoadMore} />
         {blogHasMore && blogPosts.length > 0 && (
           <div ref={blogSentinelRef} className="flex justify-center py-8">
             {blogLoadingMore ? (

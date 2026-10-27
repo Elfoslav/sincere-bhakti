@@ -1,21 +1,28 @@
 "use client";
 
+import { useContentSavedToast } from "@/lib/hooks/useContentSavedToast";
+import ContentPublishingContext from "@/components/ContentPublishingContext";
+import ContentFormActions from "@/components/ContentFormActions";
+import AttachmentPicker from "@/components/AttachmentPicker";
+import { useObjectUrlCleanup } from "@/lib/hooks/useObjectUrlCleanup";
+import { useComposerFormState } from "@/lib/hooks/useComposerFormState";
+import type { ComposerFormState, PostingChannel, ComposerMediaItem as MediaItem } from "@/types/content-composer";
+
 import { useState, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { DialogActions, dialogActionButtonClassName } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { GripVertical, X } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import ContentVisibilityControl from "@/components/ContentVisibilityControl";
 import UploadSizeMeter from "@/components/UploadSizeMeter";
 import { BYTES_PER_MB, formatBytes } from "@/lib/format";
 import { genId } from "@/lib/id";
 import { getImageDimensions } from "@/lib/client-media";
-import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
+import { usePendingMediaUploads } from "@/lib/hooks/usePendingMediaUploads";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { useIdentity } from "@/components/IdentityProvider";
@@ -32,15 +39,6 @@ import {
   ALBUM_TITLE_MAX_LENGTH,
 } from "@/lib/validation";
 
-interface MediaItem {
-  id: string;
-  url?: string;
-  file?: File;
-  previewUrl?: string;
-  type: string;
-  width?: number;
-  height?: number;
-}
 
 export interface AlbumFormHandle {
   getValues: () => {
@@ -51,7 +49,7 @@ export interface AlbumFormHandle {
   };
 }
 
-export interface AlbumFormProps {
+export interface AlbumFormProps extends ComposerFormState {
   mode: "create" | "edit";
   formId?: string;
   initialTitle?: string;
@@ -61,12 +59,7 @@ export interface AlbumFormProps {
   albumId?: string;
   onSuccess: (album: Album) => void;
   onCancel?: () => void;
-  onSubmittingChange?: (submitting: boolean) => void;
-  postingChannel?: {
-    id: string;
-    name: string;
-    avatarUrl: string | null;
-  };
+  postingChannel?: PostingChannel;
 }
 
 const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm({
@@ -80,10 +73,15 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
   onSuccess,
   onCancel,
   onSubmittingChange,
+  onDirtyChange,
   postingChannel,
 }, ref) {
   const { data: session } = useSession();
-  const { activeIdentity, activeChannelId } = useIdentity();
+  const pendingUploads = usePendingMediaUploads();
+  const showSaved = useContentSavedToast("album");
+  const [createId, setCreateId] = useState(() => crypto.randomUUID());
+  const isVerified = !!session?.user?.emailVerifiedAt;
+  const { activeChannelId } = useIdentity();
   const locale = useLocale();
   const t = useTranslations("Gallery");
   const common = useTranslations("Common");
@@ -101,12 +99,15 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
         height: m.height ?? undefined,
       })) ?? [],
   );
+  const [preparing, setPreparing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+  useObjectUrlCleanup(mediaItems.map(item => item.previewUrl));
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragItemId = useRef<string | null>(null);
-  const postingIdentity = postingChannel ?? activeIdentity;
   const postingChannelId = postingChannel?.id ?? activeChannelId;
+  useComposerFormState({ snapshot: JSON.stringify({ title, description, isPublic, media: mediaItems.map((item) => item.id) }), busy: submitting || preparing, onDirtyChange, onSubmittingChange });
+
 
   const totalUploadSize = useMemo(
     () => mediaItems.reduce((sum, item) => sum + (item.file?.size ?? 0), 0),
@@ -127,8 +128,7 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
     }),
   }), [title, description, isPublic, mediaItems]);
 
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(e.target.files ?? []);
+  async function handleFiles(selected: File[]) {
     if (selected.length === 0) return;
 
     // Step 1: reject files that exceed the per-type size limit
@@ -189,7 +189,6 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
     );
 
     setMediaItems((prev) => [...prev, ...newItems]);
-    if (e.target) e.target.value = "";
   }
 
   function requestRemoveMedia(id: string) {
@@ -238,7 +237,7 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
     const uploaded: AlbumMediaInput[] = [];
     for (let i = 0; i < newItems.length; i += MAX_GALLERY_ITEMS_PER_BATCH) {
       const chunk = newItems.slice(i, i + MAX_GALLERY_ITEMS_PER_BATCH);
-      const { media, error } = await uploadMediaFiles(
+      const { media, error } = await pendingUploads.upload(
         targetAlbumId,
         chunk,
         mode === "create" ? postingChannelId ?? undefined : undefined,
@@ -252,7 +251,7 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!session) return;
+    if (!session || submitting || preparing) return;
     const trimmedTitle = title.trim();
     const trimmedDescription = description.trim();
     if (!trimmedTitle) {
@@ -265,15 +264,13 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
     }
 
     setSubmitting(true);
-    onSubmittingChange?.(true);
 
-    const targetAlbumId = mode === "create" ? crypto.randomUUID() : albumId!;
+    const targetAlbumId = mode === "create" ? createId : albumId!;
 
     try {
       const newFileItems = mediaItems.filter((m) => m.file).map((m) => ({ file: m.file!, width: m.width, height: m.height }));
       const { uploaded, error: uploadError } = await uploadNewFiles(targetAlbumId, newFileItems);
       if (uploadError) {
-        await cleanupUploadedMedia(uploaded.map((m) => m.url));
         throw new Error(uploadError);
       }
 
@@ -320,6 +317,8 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
 
       if (res.ok) {
         const album: Album = await res.json();
+        pendingUploads.commit(uploaded.map(item => item.url));
+        setCreateId(crypto.randomUUID());
         setTitle("");
         setDescription("");
         setMediaItems((prev) => {
@@ -327,10 +326,9 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
           return [];
         });
         if (fileInputRef.current) fileInputRef.current.value = "";
-        toast.success(mode === "edit" ? t("albumUpdated") : t("albumPublished"));
+        showSaved(album, mode);
         onSuccess(album);
       } else {
-        await cleanupUploadedMedia(uploaded.map((m) => m.url));
         if (res.status === 429 || isApiErrorCode(await res.json().catch(() => ({})), ERROR_TOO_MANY_REQUESTS)) {
           toast.error(common("tooManyRequests"));
         } else {
@@ -352,7 +350,6 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
     }
 
     setSubmitting(false);
-    onSubmittingChange?.(false);
   }
 
   const pendingRemoveName = pendingRemoveId
@@ -364,21 +361,8 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
   return (
     <>
       <form onSubmit={handleSubmit} id={formId}>
-        {mode === "create" && postingIdentity && (
-          <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{t("postingAs")}</span>
-            <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-deep/5 py-1 pl-1 pr-3 font-medium text-deep">
-              {postingIdentity.avatarUrl ? (
-                <img src={postingIdentity.avatarUrl} alt="" className="size-5 rounded-full object-cover" />
-              ) : (
-                <span className="flex size-5 items-center justify-center rounded-full bg-gold/20 text-xs text-gold">
-                  {postingIdentity.name?.[0]?.toUpperCase() || "?"}
-                </span>
-              )}
-              <span className="truncate">{postingIdentity.name}</span>
-            </span>
-          </div>
-        )}
+      <fieldset disabled={submitting || preparing || (mode === "create" && !isVerified)} className="min-w-0">
+      {mode === "create" && <ContentPublishingContext channel={postingChannel} />}
 
         <Input
           value={title}
@@ -390,6 +374,7 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
 
         <div className="mt-3">
           <Textarea
+            aria-label={t("descriptionPlaceholder")}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t("descriptionPlaceholder")}
@@ -441,59 +426,12 @@ const AlbumForm = forwardRef<AlbumFormHandle, AlbumFormProps>(function AlbumForm
           </div>
         )}
 
-        <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col gap-0.5">
-              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-deep">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept={getAcceptString()}
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <span className="text-xl">📎</span>
-                {mediaItems.length > 0 ? `${t("attachMedia")} (${mediaItems.length})` : t("attachMedia")}
-              </label>
-              <UploadSizeMeter used={totalUploadSize} max={MAX_GALLERY_BATCH_SIZE_BYTES} className="ml-8" />
-            </div>
-
-            <label className="flex items-center gap-3 cursor-pointer">
-              <Switch
-                checked={isPublic}
-                onCheckedChange={(checked) => setIsPublic(checked)}
-              />
-              <span className="text-sm font-medium">
-                {isPublic ? (
-                  <span className="text-tulsi">{t("public")}</span>
-                ) : (
-                  <span className="text-saffron">{t("private")}</span>
-                )}
-              </span>
-            </label>
-          </div>
-
-          <DialogActions className={onCancel ? undefined : "flex grid-cols-none items-center justify-end"}>
-            {onCancel && (
-              <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={onCancel}>
-                {t("cancel")}
-              </Button>
-            )}
-            <Button
-              type="submit"
-              variant="default"
-              className={onCancel ? dialogActionButtonClassName : "px-6 py-2"}
-              disabled={submitting || (mode === "create" && !activeChannelId) || (!title.trim() || (!description.trim() && mediaItems.length === 0))}
-            >
-              {submitting
-                ? t("saving")
-                : mode === "edit"
-                  ? t("saveButton")
-                  : t("createButton")}
-            </Button>
-          </DialogActions>
-        </div>
+          <AttachmentPicker label={t("attachMedia")} inputRef={fileInputRef} accept={getAcceptString()} multiple disabled={submitting} onFiles={handleFiles} onPreparingChange={setPreparing} />
+          <UploadSizeMeter used={totalUploadSize} max={MAX_GALLERY_BATCH_SIZE_BYTES} />
+          <ContentVisibilityControl isPublic={isPublic} onChange={setIsPublic} />
+          <ContentFormActions mode={mode} isPublic={isPublic} busy={submitting || preparing} onCancel={onCancel}
+            disabled={submitting || preparing || (mode === "create" && !postingChannelId) || (!title.trim() || (!description.trim() && mediaItems.length === 0))} />
+      </fieldset>
       </form>
       <ConfirmDialog
         open={pendingRemoveId !== null}

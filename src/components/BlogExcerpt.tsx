@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { BLOG_EXCERPT_MAX_LENGTH } from "@/lib/validation";
 import { previewRichText } from "@/lib/rich-text";
 import { stripExcerptLinks } from "@/lib/excerpt";
 import { cn } from "@/lib/utils";
@@ -17,20 +18,23 @@ export default function BlogExcerpt({
   post,
   className,
   clampClassName,
+  plain = false,
 }: {
   post: Pick<BlogPost, "excerpt" | "content" | "contentHtml">;
   className?: string;
   clampClassName?: string;
+  plain?: boolean;
 }) {
   const html = useMemo(
     () => (post.contentHtml?.trim() ? stripExcerptLinks(post.contentHtml) : null),
     [post.contentHtml],
   );
-  const fallback = useMemo(() => previewRichText(post.content), [post.content]);
+  const fallback = useMemo(() => previewRichText(post.content, plain ? BLOG_EXCERPT_MAX_LENGTH : undefined), [post.content, plain]);
 
   if (post.excerpt) {
     return <p className={cn(className, clampClassName)}>{post.excerpt}</p>;
   }
+  if (plain && fallback) return <p className={cn(className, clampClassName)}>{fallback}</p>;
   if (html) {
     return (
       <div

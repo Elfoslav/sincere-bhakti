@@ -37,7 +37,9 @@ export default function BlogEditor({
   initialContent,
   placeholder,
   onChange,
+  editable = true,
 }: {
+  editable?: boolean;
   initialContent?: string | null;
   placeholder?: string;
   onChange: (change: BlogEditorChange) => void;
@@ -56,7 +58,7 @@ export default function BlogEditor({
     content: initialDoc,
     immediatelyRender: false,
     editorProps: {
-      attributes: { class: "rich-text min-h-48 px-3 py-2 focus:outline-none" },
+      attributes: { class: "rich-text min-h-48 px-3 py-2 focus:outline-none", "aria-label": t("contentPlaceholder"), role: "textbox", "aria-multiline": "true" },
     },
     onUpdate: ({ editor: e }) => {
       const contentJson = JSON.stringify(e.getJSON());
@@ -67,6 +69,8 @@ export default function BlogEditor({
       });
     },
   });
+
+  useEffect(() => { editor?.setEditable(editable); }, [editor, editable]);
 
   const [videoMode, setVideoMode] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);

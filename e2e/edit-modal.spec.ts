@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import en from "../messages/en.json";
 import {
   delayPatchRequest,
   editPostPreviewPanel,
@@ -111,7 +112,7 @@ test("write tab save button shows loading state during submission", async ({ pag
   await page.waitForTimeout(200);
 
   const saveButton = dialog.locator('form button[type="submit"]');
-  await expect(saveButton).toHaveText("Posting...");
+  await expect(saveButton).toHaveText(en.ContentComposer.workingShort);
   await expect(saveButton).toBeDisabled();
 
   patch.resolve();
@@ -130,7 +131,7 @@ test("preview tab save button shows loading state during submission", async ({ p
   await page.waitForTimeout(200);
 
   const saveButton = editPostPreviewPanel(dialog).locator('button[type="submit"]');
-  await expect(saveButton).toHaveText("Posting...");
+  await expect(saveButton).toHaveText(en.ContentComposer.workingShort);
   await expect(saveButton).toBeDisabled();
 
   patch.resolve();

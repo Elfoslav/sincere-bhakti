@@ -2,10 +2,11 @@ import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 
 /** Compact guest prompt shared by each publishing surface. */
-export default function SignInPrompt({ label, children }: { label: string; children: ReactNode }) {
+export default function SignInPrompt({ label, children, lead }: { label: string; children: ReactNode; lead?: string }) {
   return (
-    <p className="text-sm leading-relaxed text-muted-foreground">
-      <Link href="/login" className="font-medium text-primary underline-offset-2 hover:underline">{label}</Link>{" "}
+    <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+      {lead ? `${lead} ` : null}
+      <Link href="/login" className="font-medium text-primary underline underline-offset-4">{label}</Link>{" "}
       {children}
     </p>
   );

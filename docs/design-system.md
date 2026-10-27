@@ -1,123 +1,95 @@
 # Sincere Bhakti design system
 
-## Direction and identity
+## Direction
 
-A quiet devotional journal: warm ivory, deep ink, restrained brass, generous spacing, and devotional photography. Keep the original lotus-and-text logo intact; do not recreate its lettering or crop it into a new symbol. The generated concept's separate lotus/wordmark is intentionally replaced by the existing logo.
+A bright devotional journal with a porcelain canvas, saffron orange actions, charcoal reading text, warm peach surfaces, and spacious editorial rows. The user's October 26 revision explicitly asks for the article concept's centered heading, search, category navigation, landscape covers, while retaining the original logo and fonts.
 
-## Theme: light only, by design
+## Palette
 
-Sincere Bhakti ships a single light theme. The warm ivory canvas is part of the devotional-journal identity, and the app deliberately ignores the operating system's dark-mode preference: there is no theme toggle and nothing sets the `.dark` class. Do not add a dark theme, a theme switcher, or `prefers-color-scheme` handling without an explicit product decision.
-
-The `.dark` token overrides in `src/app/globals.css` and the `dark:` utility variants in the UI kit are dormant: they are inherited from the shadcn/ui kit and stay so the kit can be updated without edits. They are not a supported mode and need no testing, so verify new work in the light theme only. Never hardcode a color to compensate for dark rendering.
-
-## Source of truth
-
-- `src/app/globals.css`: semantic color values (light palette; the `.dark` overrides are dormant, see Theme), typography scales, layout measurements, motion, and compatibility aliases for existing features.
-- `src/components/ui/`: the existing shared UI kit. Extend a variant before creating another implementation.
-- `src/lib/design-system.ts`: token-name and spacing inventory for the gallery; deliberately contains no duplicate color values.
-- `/design-system`: development-only live gallery, localized in English, Czech, and Slovak. Shows foundations, controls, disabled/invalid states, feedback, loading, dialogs, and surfaces.
-
-## Color roles
-
-Use `background` for ivory canvas, `card` for interactive surfaces, `foreground` for reading text, and `muted-foreground` for supporting text. `primary` is brass for actions and links; pair solid buttons with `primary-foreground`. Reserve `destructive` for destructive actions and `success` for successful feedback. `border` separates content; `input` is stronger for control boundaries. `ring` supplies visible keyboard focus.
-
-Existing `deep`, `gold`, `saffron`, `warm`, `sand`, and `tulsi` names are compatibility aliases of the semantic palette, not a second set of hex colors. New components should use semantic roles. Semantic roles are the only way to color a component; never hardcode a hex value.
-
-## Contrast
-
-Contrast is measured, not eyeballed. `src/__tests__/design-token-contrast.test.ts` reads the light palette from `globals.css` and enforces: body and muted text at least 4.5:1 on every surface (background, card, popover, muted, secondary), brass links/text (`primary`) at least 5:1 on all of them, button labels on their fills, field borders and the focus ring at 3:1, and card/divider borders at 1.6:1+ so surfaces read as distinct. Current values: `primary` `#7d5a1f` (5.7:1 on ivory), `primary-hover` `#5f4317`, `muted-foreground` `#565951` (6.5:1), `border` `#c7bea9` (1.7:1).
-
-The logo artwork's gold strokes are only ~2.4:1 on ivory, so `BrandLogo` applies a CSS `filter` (`LOGO_CONTRAST_FILTER`) that deepens them to the brand brass (~5.7:1). The mark is neither redrawn nor cropped. When changing a token, run the test; when adding a color, use a semantic role so it inherits the measured pairs.
-
-## Typography
-
-Preserve the local Sincere Bhakti display font, including its Sanskrit/IAST glyphs. Use it for identity and headings; use Geist for body text, navigation, metadata, and controls. Do not synthesize bold display weights.
-
-- `type-display`: responsive 48–92px, line-height 1.08, brand hero only.
-- `type-title`: responsive 36–56px, line-height 1.14, page titles.
-- `type-section`: responsive 29–44px, line-height 1.2, editorial sections.
-- Body: 16px, relaxed line-height. Supporting text: 14px. Compact metadata: 12px.
-
-Use one H1 per page. Keep body text readable rather than turning posts into ornamental typography.
-
-## Layout and spacing
-
-Tailwind's 4px spacing scale is the base: 4, 8, 12, 16, 24, 32, 48, 64px. Use `site-container` for a 76rem outer composition and responsive gutters; `reading-container` for a 46rem reading column. `section-space` supplies responsive 48–80px section padding. Heroes are full bleed; only their content is constrained.
-
-Editorial entries use open space and thin dividers. `Card` provides default, flat, elevated, hover, ghost, muted, and editorial variants; default surfaces have 8px corners and no decorative shadow. Use elevation sparingly. Avatars use quiet solid surfaces.
-
-## Content lists and cards
-
-Every feed-like list (timeline posts, blog articles, gallery albums, channel and profile content) uses the same silhouette: editorial rows separated by thin dividers (`Card variant="editorial"`, `py-7`), in a `flex flex-col` container with no `space-y-*` gaps. `PostCard`, `BlogCard variant="list"` and `AlbumCard` are the row components; `BlogCard variant="editorial"` is the cover-on-top tile for the homepage grid only. Boxed `Card`s are for singular surfaces (forms, profile/channel headers, auth, settings). `PostCardSkeleton` is an editorial row too, so loading and loaded states share one shape. Empty lists use `FeedEmptyState` (lotus/beads icon plus a short message, and a "nothing found" variant while searching).
-
-Supporting text is `text-muted-foreground`, never `text-deep/NN` (those opacities fall below 4.5:1 contrast). Metadata and counters are at least 12px (`text-xs`); do not use `text-[10px]`/`text-[11px]`. Surfaces and meters take colors from semantic roles only (`bg-primary`, `bg-destructive`, `bg-muted`), never hex. Corners are 8px (`rounded-lg`), and headings in the display font do not use `font-bold`.
-
-## Controls and states
-
-`Button` owns action geometry, sizes, icons, hover, active, keyboard-focus, disabled, and aria-disabled states. Primary actions are solid brass, secondary actions outlined, tertiary actions ghost/link, and destructive actions red. No page-level button color overrides. Forms reuse `Input`, `Textarea`, `Switch`, and the established validation components. Tabs wrap at narrow widths; focus remains visible.
-
-Navigation highlights the current section and keeps collapsed mobile content inert. Preserve authentication, locale-aware links, identity switching, and permission behavior.
-
-## Imagery and motion
-
-The homepage uses a standalone generated dawn photograph (`public/images/vrindavan-dawn.jpg`, approximately 232KB JPEG). It is atmospheric artwork, not documentary photography. Real community content and article covers come from the app; never insert the mockup's fictional articles or channel names. Empty article sections stay hidden.
-
-The homepage preserves the concept's composition and natural image treatment. On small screens an ivory fade protects text contrast; this is an intentional responsive adaptation. Entrance and image-hover movement use shared timing tokens, and `prefers-reduced-motion` disables them.
-
-## Scope and fidelity
-
-The homepage follows the proposed image-led composition and editorial articles. The feed adopts the palette, typography, quiet composer, and divider-based posts while retaining the existing single reading column and real filtering workflow. The mockup's fictional category/channel rails are not shipped as fake product data. Existing translated descriptions and legal footer content are preserved.
-
-## Visual review and implementation notes
-
-Reference: the generated homepage concept at `/Users/elfoslav/.codex/generated_images/01a17170-b78a-74b2-9178-12503f3cf56e/exec-34a11a9d-8018-40b7-ab5c-5a9d2f8ebdc9.png` and feed concept at `exec-96112443-2ce2-4e7d-9387-6a3dada00c0e.png` in the same directory.
-
-Final visual review inspects Playwright screenshots against the saved concepts. Reproducible browser checks use Playwright with the installed Chrome channel because the Browser plugin/skill is unavailable. The UI config accepts an optional `PLAYWRIGHT_CHANNEL`; its default browser selection is unchanged. The preview runs on port 3099 because another project occupies 3000. A fresh webpack dev build was used after Turbopack served stale CSS and translation modules; no framework configuration was changed for this workaround.
-
-Run the preview with `pnpm exec next dev --webpack --hostname localhost --port 3099`, then run `PLAYWRIGHT_USE_EXISTING_SERVER=1 PLAYWRIGHT_BASE_URL=http://localhost:3099 PLAYWRIGHT_CHANNEL=chrome pnpm exec playwright test --config playwright.ui.config.ts e2e/design-system.spec.ts --workers=1`. Keep the same bundler and a single server for this checkout throughout verification.
-
-Final screenshots live in `output/design/`: homepage desktop/mobile and concept-sized composition, gallery components desktop/mobile, coverless articles desktop/mobile, and the feed. Coverless regression coverage removes covers from real API responses only inside the test browser; it does not modify stored content. Local database articles include existing test content, so screenshots demonstrate layout rather than publication-ready editorial content.
-
-Known development integration messages: Vercel Analytics' debug script is blocked by the existing CSP, Sentry reports duplicate client initialization and a deprecated client config, and webpack reports an inability to persist its dependency snapshot cache. The browser tests annotate the exact analytics CSP error while rejecting other console errors and uncaught runtime errors. Security headers are unchanged.
-
-Continuation verification (25 October 2026): all 1,250 unit tests passed with `pnpm test --maxWorkers=1`; TypeScript passed; lint reported only the seven permitted image-element warnings. All eight design browser checks passed across the final suite (seven checks) and the targeted coverless rerun. The latter needed a longer wait for real articles to load. Browser checks run sequentially without retries. Navbar hydration, Base UI's roving tab registration, and article loading use their own readiness assertions; a CSS-hidden mobile trigger is not used as a desktop readiness signal. Development compilation/hydration remains slow and variable, so this is development-preview evidence rather than a production performance measurement.
-
-Feed desktop/mobile captures also show no horizontal overflow or observed runtime exceptions. The first real post embeds YouTube; the external player did not paint in those captures, so third-party playback is not verified by this visual pass.
-
-Comparison checkpoints:
-
-| Area | Reference and implementation review |
+| Role | Color |
 | --- | --- |
-| Identity | The original complete lotus-and-text logo replaces the mockup wordmark, per the user's direction. It is never cropped. |
-| Hero composition | A full-width riverside photograph with architecture on the right and a left-aligned brand/title/actions group. Text was moved higher to avoid the dark horizon. |
-| Typography | The existing Sanskrit-capable serif and Geist replace the approximate fonts in the generated mockup. Display and body scales are shared tokens. |
-| Palette | Warm ivory, ink, and brass are retained; the action brass is deliberately darker for accessible text contrast. Essential foreground/background and button pairs are checked in the light theme. |
-| Containers and rhythm | Open editorial entries and thin dividers replace heavy cards; shared 8px control corners and 4px spacing increments keep components consistent. |
-| Copy | Brand, subtitle, navigation, and both hero actions are retained. Existing localized article headings, descriptions, and legal footer replace illustrative mockup copy. |
-| Responsive behavior | The desktop composition collapses to one column. An ivory fade protects mobile hero text. Navigation collapses below 1024px; its trigger waits for hydration before accepting clicks. |
-| Content | The app's real articles and channel names replace fictional examples. Empty article sections remain hidden. The feed keeps its existing reading column rather than adding static mockup rails. |
+| Background | #FFFEFC |
+| Primary / saffron orange | #B65316 |
+| Primary hover | #94400D |
+| Reading text | #292622 |
+| Supporting text | #6A625B |
+| Peach surface | #FFF3E8 |
+| Decorative divider | #E5E1DA |
+| Input boundary | #948B81 |
 
-The result is an implementation of the approved visual direction with the intentional identity, content, typography, and responsive adaptations listed above; it is not a pixel-for-pixel reproduction of generated sample content.
+`src/app/globals.css` owns the production semantic tokens. Existing legacy color names alias these roles. Components use semantic classes rather than separate color values. The application supports the light theme; dormant shadcn dark tokens are not an active product mode. Browser theme color matches the bright canvas.
 
-## Cross-page consistency audit
+Primary text and solid button labels meet WCAG AA 4.5:1, including primary on peach. Body and supporting text are checked on all surfaces. Input boundaries and focus rings meet 3:1. Thin decorative dividers are intentionally quieter and are not used as the sole boundary of an input. Contrast checks live in `src/__tests__/design-token-contrast.test.ts`.
 
-All standard pages use the same ivory background, semantic card/popover surfaces, typography, controls, and navigation. `SiteLayout` owns the shared header, main landmark, and footer, including the root 404 fallback. Page content uses `reading-container page-space` for reading/forms, `site-container page-space` for directories, and `auth-layout` for centered authentication and recovery states. The homepage retains its wider image-led composition. `PageHeader`, `SignInPrompt`, `Heading`, `Alert`, and the existing UI primitives keep repeated page elements aligned.
+## Typography and identity
 
-The audit also connected authentication labels to fields, translated search accessibility labels, added current-page mobile navigation, made feedback colors readable in both themes, and fixed inconsistent server/client excerpt markup. Single-post pages expose a meaningful H1 without adding a duplicate visible heading. Gallery metadata wraps long names and descriptions.
+The original Sanskrit-capable Sincere Bhakti font remains the heading voice throughout, including article titles. Geist remains the body, navigation, search, category, byline, and metadata font. Preserve both font families. All logo placements use the original complete lotus-and-text artwork with its existing contrast filter. Do not replace it with a recreated symbol or wordmark. The header accommodates the original artwork at its intrinsic aspect ratio.
 
-Browser coverage lives in `e2e/page-design-consistency.spec.ts`: desktop (1440px) and mobile (390px) public routes, real article/post details, account and channel management pages when local review credentials exist, navigation/form interactions, shared backgrounds, overflow, and feedback contrast. Use the same preview/channel environment variables as above. Account checks sign in through the normal CSRF-protected credentials endpoint and inspect pages without saving changes. Album detail coverage requires an existing public album; when none exists locally, the browser check records that limitation and component tests cover layout and media interaction.
+## Articles
 
-Recommended next UX work, in priority order:
+`ArticleFeedLayout` owns the centered page heading, search, category links, guest context, and publishing tools. The production blog and development presentation share this implementation. `FeedFilterBar` retains the common search and category URL logic used by posts and articles; its editorial variant uses underlined text navigation. Posts and Blog MUST use this same editorial search layout: a centered search field capped at 38rem, identical input sizing and typography, and category navigation underneath. Apply it to both main feeds and category views on desktop and mobile; do not add page-specific search layout overrides. The Community journal feed and sidebar remain independent of this shared search pattern.
 
-1. ~~Add consistent search/category filtering across posts and articles so readers can find older material.~~ Done (25 October 2026): `FeedFilterBar` (search + category chips) is shared by the timeline and blog; the server `q` filter matches post text and article title/excerpt. Known limit: matching is a case-insensitive substring and does not fold diacritics (searching `krsna` will not find `Kṛṣṇa`); fixing that needs Postgres `unaccent`.
-2. ~~Collapse the signed-in composer until requested, keeping the feed easier to reach on mobile.~~ Done (25 October 2026): `CollapsibleComposer` shows a quiet prompt (`aria-expanded`), expands and focuses the textarea, keeps the draft on Cancel, and collapses after a successful post. Used on the posts feed and channel pages.
-3. ~~Give external media explicit loading, unavailable, and retry states.~~ Done (25 October 2026): `LoadableMedia` (`src/components/ui/loadable-media.tsx`) adds a loading skeleton, a translated unavailable message and a Retry button around gallery/album images, post and album videos, and the lightbox image. Videos with `preload="none"` show only the error state; YouTube iframes are unchanged because embed failures cannot be detected.
-4. ~~Improve the custom media viewer's focus containment and translated controls; connect inline form errors to their fields with `aria-describedby`.~~ Done (25 October 2026): `MediaLightbox` moves focus into the dialog, traps Tab, restores focus to the opener, and uses translated labels (`MediaLightbox` namespace); `Input` links `errorMessage` to the field via `aria-describedby`/`aria-invalid`.
+Posts and Blog MUST use `PageHeader variant="editorial"` for their title and subtitle. Use the original heading font at the same responsive scale, a centered muted Geist subtitle, identical top spacing, and the same gap before search. Omit an extra eyebrow above the title. On wide screens, keep the create action on the right without shifting the centered title; below 1024px, center the action on a separate row to avoid crowding or overlap.
 
-The visual direction is intentionally calm and editorial. These improvements should preserve its open spacing and avoid adding more decorative cards or competing actions.
+The article feed is 64rem wide including gutters. `BlogCard variant="list"` uses a 38% landscape cover column, a text column, and thin horizontal dividers. Titles precede a compact plain summary, author, date, and calculated reading time. Mobile stacks the cover above the copy. Category browsing stays in the page-level navigation; detail views retain category chips. Posts uses the Community journal composition: a 72rem container, compact photo-and-text rows, full-width text-only entries, and a channel sidebar that hides on mobile. Other reading surfaces retain the shared 46rem column.
 
-### Generated hero asset details
+Show article imagery only when the author has selected a working cover. Coverless articles and failed cover images use a text-only row spanning the available width, with a readable excerpt measure and the same title, author, date, and divider styling. Do not substitute decorative photos or reserve an empty image column: an absent optional cover is not an error or unfinished content. The tulsi/lamp image is sample artwork in the development preview only. The generated community photograph appears only in the development preview. Stored articles, categories, and author identities are not replaced by sample content.
 
-Built-in Image Gen was used, with the homepage concept as a supporting image. Final production asset: `public/images/vrindavan-dawn.jpg` (1942 × 809, approximately 232 KB). The original PNG stays in the image-generation cache.
+Signed-in readers use the shared New article header action and responsive composer. Existing draft, permission, scheduling, error, pagination, search URL, and locale behaviors remain in the production feed.
 
-Prompt: “Extract/recreate the photographic hero scene from this website concept as a standalone production image. Panoramic wide landscape approximately 2.4:1. Beautiful realistic Vrindavan-style sandstone riverside ghats and temple architecture on the right third, tranquil Yamuna-like river foreground, pale soft ivory sky across left two thirds with calm low contrast usable for dark text. Warm natural sunrise, subtle peach light and a small sun near the left horizon, river and architecture details authentic and peaceful. Keep most architectural detail to right third; left two thirds bright and quiet for real HTML typography. Photography only, no UI, no text, no logo, no frames, no collage, no people close up, no added ornaments, no deities. Match the reference hero's scene and natural color balance closely. Output only the photograph.”
+## Unified content creation — required across pages
+
+Posts, Blog, and Gallery MUST share one creation interaction and editor shell. This applies to their main feeds, category views, channel views, and empty states. Page-specific creation patterns must not develop independently. Unify the entry point, container, field styling, publishing context, uploads, feedback, action order, and dismissal behavior; retain the fields and capabilities appropriate to each content type.
+
+Implemented on 27 October 2026. Posts, Blog, Gallery, and channel post creation use ContentCreateAction and ContentCreationDialog. Post, article, and album editing use the same ContentComposer shell. The former inline expandable composer has been removed.
+
+### Recommended interaction
+
+- Put one primary Create action in a shared page-header action slot, aligned to the right of the heading on desktop. Use the same filled saffron button, plus icon, dimensions, and responsive placement across pages. Use specific translated labels: New post, New article, and New album. On narrow screens, let the action wrap below the heading when needed; do not squeeze the title or introduce a separate floating action button.
+- Open the same responsive composer shell: a spacious dialog on desktop and a full-screen editor on mobile. The background feed keeps its scroll position, search, category, and selected tab. Do not expand a large form into the feed or scroll the reader to a different creation area.
+- Give all content types the same expand-to-full-page option for focused work. Articles open at a wider editor size because they support long-form writing; this is a size configuration of the shared shell, not a different interaction. Expanding or collapsing must preserve the draft and editor selection.
+- Keep the shell header, publishing context, and footer consistent. Use the shared DialogHeader for the title and helper text. Show Posting as with the active channel/avatar and the content language before the fields. Channel pages may preselect a channel only when the author can publish there; a category filter must not silently change publishing identity. Keep identity and language visible in every size mode.
+- Keep the primary content first and secondary metadata later. Use the same labels, spacing, input boundaries, placeholder treatment, focus indicator, validation messages, and disabled states. Do not add empty fields or unsupported settings merely to make forms look identical.
+
+| Surface | Main content | Type-specific controls |
+| --- | --- | --- |
+| Posts | Post text and optional media | Existing category and attachment controls |
+| Blog | Article title and rich-text body | Cover, excerpt, categories, preview, and existing draft/scheduling controls |
+| Gallery | Album title, description, and media | Media ordering and existing album settings |
+
+### Shared behavior
+
+- Use one attachment experience wherever media is supported: the same add-files/drop-zone treatment, thumbnail and video presentation, remove/retry controls, progress, and translated size/type errors. Retain the existing per-type limits. Preserve text and successfully uploaded files after a failed submission; do not force duplicate uploads or silently leave partial content published.
+- Saving feedback must not move the footer, resize the editor, or change the action row height. Use the existing Saving… button state and a screen-reader live announcement; do not insert a visible status row below the buttons when a request starts.
+- Keep publish actions in a persistent footer with enough bottom padding that it never covers fields, validation messages, or the mobile keyboard focus target. Use Cancel as the secondary action on the left and the submit action on the right. Its label reflects the outcome: Publish for immediate public content, Save privately for private content, or Schedule when supported and selected; editing uses Save changes. Public/private visibility is an explicit, consistently placed setting. Preserve existing visibility defaults and permission checks during migration. Show Save draft and scheduling only for types that actually support them; do not imply that all types have durable drafts or autosave.
+- Use the same verification and permission states before submission. Guests get a consistent sign-in action in the creation slot; preserve the intended return location through authentication. Do not render an editable composer behind a sign-in prompt. During session refresh, use the shared authenticated-status helper to avoid a flashing or disappearing create action.
+- Closing, Cancel, Escape, backdrop clicks, and full-page navigation must share an unsaved-change policy. A pristine editor closes immediately. Dirty editors require explicit confirmation with Keep editing and Discard; only an explicit discard may clear the work. During file preparation or a publish/upload request, dismissal is blocked and the shared status explains why: Discard cannot cancel work already received by the server. When draft saving exists, also offer Save draft. Never suggest a draft is saved without a successful persistence response. Preserve the editor after validation, upload, or network failures.
+- Focus the first meaningful field on open; trap focus in dialog mode and restore it to the initiating button on close. Announce errors and upload/submission status. Block duplicate submissions, focus the first invalid field, honor reduced motion, and keep all actions usable with a keyboard and screen reader. A mobile upload picker or keyboard must not dismiss the editor or hide its actions.
+- After a successful publish, close the composer, announce success, and update the relevant lists through their existing callbacks without resetting filters, tabs, or scroll. Insert content only where it matches the active visibility, channel, category, language, and search scope. If the new item is hidden by the current filters or is private/scheduled, provide a clear translated confirmation and an appropriate view/edit action instead of implying publication failed. Saving an article draft keeps the editor open.
+- Empty-state creation actions invoke the same composer as the header. Editing reuses the same shell and field components, with appropriate edit labels and the existing permission checks. No sibling implementation should copy the shared shell, upload UI, or close/submit state machine.
+
+### Implementation and acceptance
+
+ContentComposer owns focus, dismissal, unsaved-change confirmation, busy state, and full-screen sizing. ContentCreateAction supplies the shared header action; ContentCreationDialog and the edit adapters wrap PostForm, BlogForm, and AlbumForm. ContentPublishingContext, AttachmentPicker, ContentVisibilityControl, and ContentFormActions provide the common form chrome. usePendingMediaUploads reuses completed uploads after a failed submission and cleans up uncommitted uploads on discard; successful saves mark referenced files committed before the editor closes. Reuse the existing Dialog, DialogHeader, DialogActions, ConfirmDialog, ChannelAvatar, ContentLanguageNotice, validation, media-upload, and form components. Keep type-specific payloads and service rules in their existing layers. Allow only documented size and capability props to vary across pages.
+
+A creation-flow change is complete only when all three pages use the shared pattern. Verify desktop and mobile entry points, guest/signed-in/unverified states, channel permissions, text/media/long-article editing, upload failure and retry, duplicate-submit prevention, unsaved-change confirmation, focus restoration, and successful list updates under active filters. Cover the shared shell with component tests and each content type with browser tests; retain the relevant API/service tests. Keep this pattern unified whenever adding a new creation or editing entry point. Expanding uses the same mounted editor in a full-viewport dialog, preserving draft and rich-text selection without a route transition. This is not autosave: article draft actions persist explicitly, while other unsaved content remains local to the open editor.
+
+## Shared controls and accessibility
+
+Use the existing UI kit, translated labels, locale-aware links, shared loading/error/empty states, and visible focus. Mobile navigation remains inert while collapsed. Controls retain distinct field boundaries and 44px primary touch targets. Motion respects reduced-motion preferences.
+
+## Previews and verification
+
+`/design-preview` is development-only and rate-limited. It compares three warm palettes plus tulsi and indigo alternatives using the same article and homepage components. `?palette=saffron&presentation=1` shows the clean article composition with clearly illustrative sample content. Production `/blog` uses real API data. Palette overrides are removed when leaving the preview.
+
+Reference: `/Users/elfoslav/.codex/generated_images/01a17680-e7ed-7bf1-9e7a-82cd542dac0f/exec-acb77077-cc6c-4c1c-8ed4-5df253afce52.png`.
+
+Browser checks use Playwright with the installed Chrome channel because the Browser plugin is unavailable. Run one existing local dev server, then use `PLAYWRIGHT_CHANNEL=chrome PLAYWRIGHT_USE_EXISTING_SERVER=1 PLAYWRIGHT_BASE_URL=http://localhost:3001 pnpm exec playwright test --config playwright.ui.config.ts --workers=1` for the relevant scenarios. Local stored articles include test content, so the clean sample presentation is useful for comparing composition; real feed functionality must be checked separately.
+
+Verification on 26 October 2026: the full suite passed 1,431 tests across 194 files. After restoring the original font families and complete logo at the user's request, all 57 affected component/contrast tests passed. Fifteen article/filter/palette browser checks passed, including original-branding assertions and 320–1470px layouts; sixteen cross-page checks passed, including authenticated management views. TypeScript passed, and lint reported no errors with only nine permitted image-element warnings. Final screenshots are stored in the task's visualization directory and use sample content only in the development presentation.
+
+## Lotus and browser icons
+
+`public/images/lotus.svg` is the single vector master for the small devotional ornament. `LotusIcon` uses it as a CSS mask, inheriting semantic color instead of relying on a device-specific emoji. Authentication, empty/error states, article dividers, and the footer share this component. The original complete brand logo and font families remain unchanged.
+
+Run `node scripts/generate-brand-icons.mjs` after editing the master drawing or primary color. It derives the saffron color from the production CSS token and generates `src/app/icon.svg`, a five-resolution ICO (16, 32, 48, 64, 256px), and an opaque 180px Apple touch icon. Next.js file metadata supplies versioned icon links; do not override these with a locale-level favicon-only metadata object. The white-on-saffron favicon has heavier strokes for small sizes, while the in-app outline stays lighter.

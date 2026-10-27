@@ -2,6 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { useFeedSearch } from "@/lib/hooks/useFeedSearch";
+import { withSearchQuery } from "@/lib/search-url";
 import { X } from "lucide-react";
 
 /**
@@ -9,12 +11,13 @@ import { X } from "lucide-react";
  * the blog listing so both stay visually consistent.
  */
 function FilterBanner({ message, href, clearLabel }: { message: string; href: string; clearLabel: string }) {
+  const { searchInput } = useFeedSearch();
   return (
     <div className="mb-6 flex items-center justify-center gap-2 text-sm">
       <span className="inline-flex items-center gap-2 rounded-full bg-gold-light/25 px-3 py-1 font-semibold text-deep">
         {message}
         <Link
-          href={href}
+          href={withSearchQuery(href, searchInput)}
           aria-label={clearLabel}
           className="rounded-full p-0.5 text-muted-foreground hover:text-deep"
         >

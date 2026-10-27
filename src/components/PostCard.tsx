@@ -24,6 +24,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import ImageGallery from "@/components/ImageGallery";
 import { LoadableMedia } from "@/components/ui/loadable-media";
 import type { Post } from "@/types/post";
+import { cn } from "@/lib/utils";
 
 export default function PostCard({
   post,
@@ -33,8 +34,10 @@ export default function PostCard({
   manageableChannelIds,
   onDelete,
   onEdit,
+  variant = "default",
 }: {
   post: Post;
+  variant?: "default" | "journal";
   currentUserId?: string;
   hideEdit?: boolean;
   hideExternalLink?: boolean;
@@ -58,6 +61,8 @@ export default function PostCard({
   const images = useMemo(() => post.media.filter((m) => m.type === "image"), [post.media]);
   const otherMedia = useMemo(() => post.media.filter((m) => m.type !== "image"), [post.media]);
   const canManage = !!(currentUserId === post.channel.ownerId || manageableChannelIds?.includes(post.channel.id));
+
+  const showBlogPreview = post.blogPost && (isBlogPubliclyVisible(post.blogPost) || canManage);
 
   const handleCopyLink = useCallback(async () => {
     const localePrefix = locale === routing.defaultLocale ? "" : `/${locale}`;
@@ -101,9 +106,11 @@ export default function PostCard({
   }, [post.id, t, onDelete]);
 
   return (
-    <Card variant="editorial" className="py-7">
-      <div className="flex items-start gap-3 mb-3">
-        <ChannelAvatar name={post.channel.name} size="sm" />
+    <Card variant="editorial" className={cn("py-7", variant === "journal" && "journal-post")}
+      data-has-media={post.media.length > 0}
+      data-has-copy={Boolean(post.content || showBlogPreview || post.categories.length)}>
+      <div className="post-card-header flex items-start gap-3 mb-3">
+        <ChannelAvatar name={post.channel.name} avatarUrl={post.channel.avatarUrl} size="sm" />
         <div className="flex-1 min-w-0">
           <Link
             href={`/channels/${post.channel.slug}`}
@@ -141,91 +148,98 @@ export default function PostCard({
         />
       </div>
 
-      {post.content && (
-        <>
-          {!isStandaloneVideo && (
-            <PostContent text={displayContent} className="text-deep mb-3 whitespace-pre-wrap" />
-          )}
-          <LinkPreview text={post.content} />
-        </>
-      )}
+      <div className="post-card-copy">
+        {post.content && (
+          <>
+            {!isStandaloneVideo && (
+              <PostContent text={displayContent} className="text-deep mb-3 whitespace-pre-wrap" />
+            )}
+            <LinkPreview text={post.content} />
+          </>
+        )}
 
-      <CategoryChips
-        categories={post.categories}
-        onSelect={(category) => router.push(`/posts/category/${category.slug}`)}
-        className="mb-3"
-      />
-
-      {post.blogPost && (isBlogPubliclyVisible(post.blogPost) || canManage) && (
-        <Link
-          href={getBlogUrl(post.blogPost.shortId, post.blogPost.slug)}
-          className="mb-3 flex overflow-hidden rounded-lg border border-sand bg-warm/30 transition-colors hover:bg-warm/60"
-        >
-          {post.blogPost.coverUrl && (
-            // eslint-disable-next-line @next/next/no-img-element -- R2-hosted blog cover, small fixed-size thumbnail
-            <img
-              src={post.blogPost.coverUrl}
-              alt=""
-              className="h-24 w-24 shrink-0 object-cover"
-              loading="lazy"
-            />
-          )}
-          <div className="min-w-0 flex-1 px-3 py-2">
-            <p className="truncate font-semibold text-deep">{post.blogPost.title}</p>
-            <BlogExcerpt post={post.blogPost} className="mt-0.5 text-sm text-muted-foreground" clampClassName="line-clamp-2" />
-            <span className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-saffron hover:text-saffron-dark">
-              {t("readArticle")}
-              <ArrowRight className="size-4" aria-hidden />
-            </span>
-          </div>
-        </Link>
-      )}
-
-      <ImageGallery images={images} t={t} />
-
-      {otherMedia.map((m) => (
-        <div key={m.url} className="rounded-lg overflow-hidden mb-2">
-          {m.type === "youtube" ? (
-            <div className="aspect-video">
-              <iframe
-                src={m.url}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-                title={t("youtubeVideo")}
+        {post.blogPost && showBlogPreview && (
+          <Link
+            href={getBlogUrl(post.blogPost.shortId, post.blogPost.slug)}
+            className="mb-3 flex overflow-hidden rounded-lg border border-sand bg-warm/30 transition-colors hover:bg-warm/60"
+          >
+            {post.blogPost.coverUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- R2-hosted blog cover, small fixed-size thumbnail
+              <img
+                src={post.blogPost.coverUrl}
+                alt=""
+                className="h-24 w-24 shrink-0 object-cover"
+                loading="lazy"
               />
+            )}
+            <div className="min-w-0 flex-1 px-3 py-2">
+              <p className="truncate font-semibold text-deep">{post.blogPost.title}</p>
+              <BlogExcerpt post={post.blogPost} className="mt-0.5 text-sm text-muted-foreground" clampClassName="line-clamp-2" />
+              <span className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-saffron hover:text-saffron-dark">
+                {t("readArticle")}
+                <ArrowRight className="size-4" aria-hidden />
+              </span>
             </div>
-          ) : m.type === "video" ? (
-            /* preload="none": without it every video in the feed fetches
-               metadata/initial segments on page load. */
-            <LoadableMedia showLoading={false}>
-              {({ onError }) => (
-                <video
-                  src={m.url}
-                  controls
-                  preload="none"
-                  className="w-full max-h-96 object-contain"
-                  onError={onError}
-                />
-              )}
-            </LoadableMedia>
-          ) : (
-            <a
-              href={m.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-3 bg-warm/50 rounded-md border border-sand text-deep hover:bg-warm transition-colors"
-            >
-              <span className="text-sm">📎</span>
-              <span className="text-sm font-medium truncate">{m.url.split("/").pop()}</span>
-            </a>
-          )}
+          </Link>
+        )}
+
+        <div className="post-card-categories">
+          <CategoryChips
+            categories={post.categories}
+            onSelect={(category) => router.push(`/posts/category/${category.slug}`)}
+            className="mb-3"
+          />
         </div>
-      ))}
+      </div>
+
+      <div className="post-card-media">
+        <ImageGallery images={images} t={t} variant={variant === "journal" ? "compact" : "default"} />
+
+        {otherMedia.map((m) => (
+          <div key={m.url} className="rounded-lg overflow-hidden mb-2">
+            {m.type === "youtube" ? (
+              <div className="aspect-video">
+                <iframe
+                  src={m.url}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  title={t("youtubeVideo")}
+                />
+              </div>
+            ) : m.type === "video" ? (
+              /* preload="none": without it every video in the feed fetches
+                 metadata/initial segments on page load. */
+              <LoadableMedia showLoading={false}>
+                {({ onError }) => (
+                  <video
+                    src={m.url}
+                    controls
+                    preload="none"
+                    className="w-full max-h-96 object-contain"
+                    onError={onError}
+                  />
+                )}
+              </LoadableMedia>
+            ) : (
+              <a
+                href={m.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-3 bg-warm/50 rounded-md border border-sand text-deep hover:bg-warm transition-colors"
+              >
+                <span className="text-sm">📎</span>
+                <span className="text-sm font-medium truncate">{m.url.split("/").pop()}</span>
+              </a>
+            )}
+          </div>
+        ))}
+
+      </div>
 
       {canManage && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="post-card-status flex items-center gap-2 text-xs text-muted-foreground">
           {post.isPublic ? (
             <span className="bg-tulsi/20 text-tulsi px-2 py-0.5 rounded-full">
               {t("public")}
@@ -346,6 +360,8 @@ function ActionsRow({
           <div className="relative" ref={mobileMenuRef}>
             <Button
               onClick={() => setShowMobileActions(!showMobileActions)}
+              aria-label={t("postActions")}
+              aria-expanded={showMobileActions}
               icon={<MoreHorizontal />}
             />
             {showMobileActions && (

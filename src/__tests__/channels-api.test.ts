@@ -313,7 +313,7 @@ describe("GET /api/channels", () => {
       {
         id: "ch-en", avatarUrl: null, createdAt: new Date(), ownerId: "user-1",
         _count: { posts: 3 },
-        translations: [{ name: "English Channel", slug: "english-channel" }],
+        translations: [{ language: "en", name: "English Channel", slug: "english-channel" }],
       },
     ] as any);
 
@@ -329,9 +329,9 @@ describe("GET /api/channels", () => {
       expect.objectContaining({
         where: expect.objectContaining({ translations: { some: { language: "en" } } }),
         select: expect.objectContaining({
-          translations: expect.objectContaining({ where: { language: "en" } }),
+          translations: expect.objectContaining({ select: { language: true, name: true, slug: true } }),
           // Count is scoped to the requested language, not all languages.
-          _count: { select: { posts: { where: { isPublic: true, language: "en" } } } },
+          _count: { select: { posts: { where: expect.objectContaining({ isPublic: true, language: "en", OR: expect.any(Array) }) } } },
         }),
       }),
     );
@@ -357,7 +357,7 @@ describe("GET /api/channels", () => {
       {
         id: "ch-1", avatarUrl: null, createdAt: new Date(), ownerId: "user-1",
         _count: { posts: 1 },
-        translations: [{ name: "Default", slug: "default" }],
+        translations: [{ language: "en", name: "Default", slug: "default" }],
       },
     ] as any);
 
@@ -371,7 +371,7 @@ describe("GET /api/channels", () => {
       expect.objectContaining({
         where: expect.objectContaining({ translations: { some: { language: "en" } } }),
         select: expect.objectContaining({
-          translations: expect.objectContaining({ where: { language: "en" } }),
+          translations: expect.objectContaining({ select: { language: true, name: true, slug: true } }),
         }),
       }),
     );
@@ -422,10 +422,10 @@ describe("GET /api/channels", () => {
   });
 
   it("supports cursor-based pagination", async () => {
-    const channels = Array.from({ length: 20 }, (_, i) => ({
+    const channels = Array.from({ length: 21 }, (_, i) => ({
       id: `ch-${i + 1}`, avatarUrl: null, createdAt: new Date(), ownerId: "user-1",
       _count: { posts: 0 },
-      translations: [{ name: `Channel ${i + 1}`, slug: `channel-${i + 1}` }],
+      translations: [{ language: "en", name: `Channel ${i + 1}`, slug: `channel-${i + 1}` }],
     }));
     vi.mocked(prisma.channel.findMany).mockResolvedValue(channels as any);
 
@@ -449,7 +449,7 @@ describe("GET /api/channels", () => {
       {
         id: "ch-1", avatarUrl: null, createdAt: new Date(), ownerId: "user-1",
         _count: { posts: 0 },
-        translations: [{ name: "Védská škola", slug: "vedska-skola" }],
+        translations: [{ language: "cs", name: "Védská škola", slug: "vedska-skola" }],
       },
     ] as any);
 
@@ -460,10 +460,8 @@ describe("GET /api/channels", () => {
     expect(res.status).toBe(200);
     expect(json.items).toHaveLength(1);
     expect(json.items[0].name).toBe("Védská škola");
-    expect(prisma.channelTranslation.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ language: "cs", normalizedName: { contains: "vedska", mode: "insensitive" } }),
-      }),
+    expect(prisma.channel.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { translations: { some: { language: "cs", normalizedName: { contains: "vedska", mode: "insensitive" } } } } }),
     );
   });
 

@@ -3,6 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import FeedEmptyState from "@/components/FeedEmptyState";
 import BlogCard from "@/components/BlogCard";
 import { useInfiniteBlogPosts } from "@/lib/hooks/useInfiniteBlogPosts";
 import { LATEST_BLOG_POSTS_LIMIT } from "@/lib/blog";
@@ -10,7 +11,7 @@ import { LATEST_BLOG_POSTS_LIMIT } from "@/lib/blog";
 export default function HomepageBlogSection() {
   const locale = useLocale();
   const t = useTranslations("HomePage");
-  const { posts, loading } = useInfiniteBlogPosts({
+  const { posts, loading, error, retry } = useInfiniteBlogPosts({
     scope: "public",
     language: locale,
     pageSize: LATEST_BLOG_POSTS_LIMIT,
@@ -18,6 +19,7 @@ export default function HomepageBlogSection() {
 
   // Don't flash empty state while loading; keep homepage clean
   if (loading) return null;
+  if (error) return <section className="section-space"><FeedEmptyState error onRetry={retry} /></section>;
   if (posts.length === 0) return null;
 
   const visible = posts.slice(0, LATEST_BLOG_POSTS_LIMIT);
@@ -36,9 +38,9 @@ export default function HomepageBlogSection() {
         </Link>
       </div>
       <p className="text-sm text-muted-foreground mb-6">{t("blogLatestSubtitle")}</p>
-      <div className="editorial-grid" data-featured-media={Boolean(visible[0]?.coverUrl)}>
+      <div className="article-feed-list">
         {visible.map((post, index) => (
-          <BlogCard key={post.id} post={post} variant="editorial" featured={index === 0} />
+          <BlogCard key={post.id} post={post} variant="list" featured={index === 0} />
         ))}
       </div>
     </section>

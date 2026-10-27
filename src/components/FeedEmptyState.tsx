@@ -1,33 +1,30 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Card } from "@/components/ui/card";
+import LotusIcon from "@/components/ui/lotus-icon";
+import { Search, CircleAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-/**
- * Empty body for a feed list. While a search is active it explains that
- * nothing matched (instead of the generic "nothing here yet" copy, which would
- * be misleading) and points back to browsing.
- */
-export default function FeedEmptyState({
-  search,
-  message,
-  compact = false,
-}: {
+export default function FeedEmptyState({ search, message, compact = false, error = false, onRetry, action }: {
   search?: string;
-  message: string;
+  message?: string;
   compact?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
+  action?: ReactNode;
 }) {
   const t = useTranslations("Categories");
+  const common = useTranslations("Common");
+  const Icon = error ? CircleAlert : search ? Search : LotusIcon;
   return (
-    <Card variant="ghost" className={compact && !search ? "text-center py-8" : "text-center py-12 px-6"}>
-      {(!compact || search) && (
-        <div className="mb-3 text-4xl" aria-hidden>
-          {search ? "🪷" : "📿"}
-        </div>
-      )}
-      <p role="status" className="text-muted-foreground">
-        {search ? t("noResults", { query: search }) : message}
+    <div className={cn("flex flex-col items-center gap-4 text-center", compact ? "py-6" : "py-10 px-4")}>
+      {!compact && <Icon className="size-8 text-primary" aria-hidden="true" />}
+      <p role={error ? "alert" : "status"} className="max-w-md text-muted-foreground leading-relaxed">
+        {error ? common("feedLoadError") : search ? t("noResults", { query: search }) : message}
       </p>
-    </Card>
+      {error && onRetry ? <Button variant="outline" onClick={onRetry}>{common("retry")}</Button> : !error ? action : null}
+    </div>
   );
 }

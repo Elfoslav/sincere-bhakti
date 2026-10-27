@@ -12,7 +12,7 @@ const screenshotDirectory = process.env.DESIGN_SCREENSHOT_DIR ?? "/tmp/sincere-b
 const browserErrors = new WeakMap<Page, string[]>();
 const pages = [
   { name: "posts", path: "/en/posts", container: "reading-container" },
-  { name: "blog", path: "/en/blog", container: "reading-container" },
+  { name: "blog", path: "/en/blog", container: "article-feed-container" },
   { name: "gallery", path: "/en/gallery", container: "reading-container" },
   { name: "channels", path: "/en/channels", container: "site-container" },
   { name: "login", path: "/en/login", container: "auth-layout" },
@@ -169,7 +169,7 @@ test("authenticated profile and management pages share the design system", async
   for (const entry of routes) {
     await page.goto(`/en${entry.path}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("main h1")).toHaveCount(1, { timeout: 60000 });
-    await expect(page.locator("main .reading-container").first()).toBeVisible();
+    await expect(page.locator("main .reading-container, main .article-feed-container").first()).toBeVisible();
     await expect(page.locator("main .animate-pulse")).toHaveCount(0, { timeout: 60000 });
     for (const viewport of [{ name: "desktop", width: 1440, height: 1000 }, { name: "mobile", width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);

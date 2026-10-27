@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+vi.mock("@/i18n/navigation", () => ({ Link: () => null }));
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next-intl", () => ({
@@ -8,6 +9,14 @@ vi.mock("next-intl", () => ({
 import FeedEmptyState from "@/components/FeedEmptyState";
 
 describe("FeedEmptyState", () => {
+  it("announces failures and retries rather than claiming no results", () => {
+    const retry = vi.fn();
+    render(<FeedEmptyState error onRetry={retry} search="krishna" />);
+    expect(screen.getByRole("alert")).toHaveTextContent("feedLoadError");
+    expect(screen.queryByText("noResults:krishna")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "retry" }));
+    expect(retry).toHaveBeenCalledOnce();
+  });
   it("shows the supplied message when there is no search", () => {
     render(<FeedEmptyState message="Nothing yet" />);
     expect(screen.getByRole("status")).toHaveTextContent("Nothing yet");

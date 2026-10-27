@@ -5,10 +5,11 @@ import { auth } from "@/lib/auth";
 import { requireAuth } from "@/lib/require-auth";
 import { handlePrismaCollision, serverError } from "@/lib/error-handlers";
 import { parseBody } from "@/lib/parse-body";
-import { normalizeName, createChannelSchema, isBrandNameBlocked } from "@/lib/validation";
+import { createChannelSchema, isBrandNameBlocked, channelDirectorySortSchema } from "@/lib/validation";
 import { createChannel, NameTakenError, ChannelLimitError } from "@/lib/services/channel";
-import { ERROR_NOT_FOUND, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN, ERROR_TOO_MANY_REQUESTS, ERROR_EMAIL_NOT_VERIFIED } from "@/lib/error-messages";
-import { HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS } from "@/lib/error-codes";
+import { ERROR_NOT_FOUND, ERROR_CHANNEL_LIMIT_REACHED, ERROR_NAME_TAKEN, ERROR_TOO_MANY_REQUESTS, ERROR_EMAIL_NOT_VERIFIED, ERROR_VALIDATION_SORT } from "@/lib/error-messages";
+import { HTTP_CONFLICT, HTTP_CREATED, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HTTP_BAD_REQUEST } from "@/lib/error-codes";
+import { getChannelDirectory } from "@/lib/services/channel-directory";
 import { parseLanguageParam } from "@/lib/api-helpers";
 
 export async function GET(request: NextRequest) {
@@ -49,47 +50,9 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get("cursor");
     const query = searchParams.get("q")?.trim();
 
-    const normalizedQuery = query ? normalizeName(query) : "";
-
-    const channelIds = query
-      ? await prisma.channelTranslation.findMany({
-          where: { language, normalizedName: { contains: normalizedQuery, mode: "insensitive" as const } },
-          select: { channelId: true },
-          distinct: ["channelId"],
-          take: 20,
-        }).then((rows) => rows.map((r) => r.channelId))
-      : undefined;
-
-    const channelFilter = channelIds ? { id: { in: channelIds } } : {};
-    const where = { ...channelFilter, translations: { some: { language } } };
-
-    const channels = await prisma.channel.findMany({
-      where,
-      select: {
-        id: true,
-        avatarUrl: true,
-        createdAt: true,
-        ownerId: true,
-        // Language-specific: the count matches the locale feed, not all languages.
-        _count: { select: { posts: { where: { isPublic: true, language } } } },
-        translations: { where: { language }, select: { name: true, slug: true }, take: 1 },
-      },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 20,
-      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-    });
-
-    const items = channels.map(({ _count, translations, ...data }) => {
-      const t = translations[0] ?? { name: "", slug: "" };
-      return { ...data, name: t.name, slug: t.slug, postCount: _count.posts };
-    });
-
-    return NextResponse.json({
-      items,
-      // Search results are capped at the first 20 matched channelIds with no
-      // cursor, so they can't be paginated — only emit a cursor when browsing.
-      nextCursor: !query && channels.length === 20 ? channels[channels.length - 1].id : null,
-    });
+    const parsedSort = channelDirectorySortSchema.safeParse(searchParams.get("sort") ?? "newest");
+    if (!parsedSort.success) return NextResponse.json({ error: ERROR_VALIDATION_SORT }, { status: HTTP_BAD_REQUEST });
+    return NextResponse.json(await getChannelDirectory({ language, query, cursor, sort: parsedSort.data }));
   } catch (error) {
     return serverError("GET /api/channels", error);
   }

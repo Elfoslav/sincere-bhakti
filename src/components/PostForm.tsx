@@ -1,20 +1,26 @@
 "use client";
 
+import { useContentSavedToast } from "@/lib/hooks/useContentSavedToast";
+import ContentPublishingContext from "@/components/ContentPublishingContext";
+import ContentFormActions from "@/components/ContentFormActions";
+import AttachmentPicker from "@/components/AttachmentPicker";
+import { useObjectUrlCleanup } from "@/lib/hooks/useObjectUrlCleanup";
+import { useComposerFormState } from "@/lib/hooks/useComposerFormState";
+import type { ComposerFormState, PostingChannel, ComposerMediaItem as MediaItem } from "@/types/content-composer";
+
 import { useState, useRef, useCallback, useMemo, useEffect, forwardRef, useImperativeHandle } from "react";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { DialogActions, dialogActionButtonClassName } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { InfoBox } from "@/components/ui/info-box";
 import { GripVertical, X } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import ContentVisibilityControl from "@/components/ContentVisibilityControl";
 import UploadSizeMeter from "@/components/UploadSizeMeter";
 import { BYTES_PER_MB, formatBytes } from "@/lib/format";
 import { genId } from "@/lib/id";
 import { getImageDimensions } from "@/lib/client-media";
-import { uploadMediaFiles, cleanupUploadedMedia } from "@/lib/client-upload";
+import { usePendingMediaUploads } from "@/lib/hooks/usePendingMediaUploads";
 import { isApiErrorCode } from "@/lib/api-error";
 import { ERROR_TOO_MANY_REQUESTS } from "@/lib/error-messages";
 import { useIdentity } from "@/components/IdentityProvider";
@@ -32,15 +38,6 @@ import {
 } from "@/lib/validation";
 import { getFirstUrl } from "@/lib/autolink";
 
-interface MediaItem {
-  id: string;
-  url?: string;
-  file?: File;
-  previewUrl?: string;
-  type: string;
-  width?: number;
-  height?: number;
-}
 
 export interface PostFormHandle {
   getValues: () => {
@@ -51,7 +48,7 @@ export interface PostFormHandle {
   };
 }
 
-export interface PostFormProps {
+export interface PostFormProps extends ComposerFormState {
   mode: "create" | "edit";
   formId?: string;
   initialContent?: string;
@@ -61,12 +58,7 @@ export interface PostFormProps {
   postId?: string;
   onSuccess: (post: Post) => void;
   onCancel?: () => void;
-  onSubmittingChange?: (submitting: boolean) => void;
-  postingChannel?: {
-    id: string;
-    name: string;
-    avatarUrl: string | null;
-  };
+  postingChannel?: PostingChannel;
 }
 
 const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
@@ -80,35 +72,18 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   onSuccess,
   onCancel,
   onSubmittingChange,
+  onDirtyChange,
   postingChannel,
 }, ref) {
   const { data: session } = useSession();
-  const { activeIdentity, activeChannelId } = useIdentity();
+  const pendingUploads = usePendingMediaUploads();
+  const showSaved = useContentSavedToast("post");
+  const [createId, setCreateId] = useState(() => crypto.randomUUID());
+  const { activeChannelId } = useIdentity();
   const locale = useLocale();
   const t = useTranslations("PostsPage");
   const common = useTranslations("Common");
-  const verifyT = useTranslations("Auth.verifyEmail");
   const isVerified = !!session?.user?.emailVerifiedAt;
-  const [verifyingSending, setVerifyingSending] = useState(false);
-  const [verifyingSent, setVerifyingSent] = useState(false);
-
-  async function handleResendVerification() {
-    setVerifyingSending(true);
-    try {
-      const res = await fetch("/api/auth/resend-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locale }),
-      });
-      if (res.ok) {
-        setVerifyingSent(true);
-      }
-    } catch {
-      // ignore
-    }
-    setVerifyingSending(false);
-  }
-
   const [content, setContent] = useState(initialContent);
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [categories, setCategories] = useState<string[]>(initialCategories);
@@ -122,11 +97,14 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
         height: m.height ?? undefined,
       })) ?? [],
   );
+  const [preparing, setPreparing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  useObjectUrlCleanup(mediaItems.map(item => item.previewUrl));
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragItemId = useRef<string | null>(null);
-  const postingIdentity = postingChannel ?? activeIdentity;
   const postingChannelId = postingChannel?.id ?? activeChannelId;
+  useComposerFormState({ snapshot: JSON.stringify({ content, isPublic, categories, media: mediaItems.map((item) => item.id) }), busy: submitting || preparing, onDirtyChange, onSubmittingChange });
+
 
   const totalUploadSize = useMemo(
     () => mediaItems.reduce((sum, item) => sum + (item.file?.size ?? 0), 0),
@@ -175,8 +153,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
     }),
   }), [content, isPublic, categories, mediaItems]);
 
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(e.target.files ?? []);
+  async function handleFiles(selected: File[]) {
     if (selected.length === 0) return;
 
     // Step 1: reject files that exceed the per-type size limit
@@ -231,7 +208,6 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
     );
 
     setMediaItems((prev) => [...prev, ...newItems]);
-    if (e.target) e.target.value = "";
   }
 
   function removeMedia(id: string) {
@@ -265,7 +241,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!session) return;
+    if (!session || submitting || preparing) return;
     const trimmed = content.trim();
     if (!trimmed && mediaItems.length === 0) {
       toast.error(t("nothingToPost"));
@@ -273,18 +249,16 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
     }
 
     setSubmitting(true);
-    onSubmittingChange?.(true);
 
-    const targetPostId = mode === "create" ? crypto.randomUUID() : postId!;
+    const targetPostId = mode === "create" ? createId : postId!;
 
     try {
-      const { media: uploaded, error: uploadError } = await uploadMediaFiles(
+      const { media: uploaded, error: uploadError } = await pendingUploads.upload(
         targetPostId,
         mediaItems.filter((m) => m.file).map((m) => ({ file: m.file!, width: m.width, height: m.height })),
         mode === "create" ? postingChannelId ?? undefined : undefined,
       );
       if (uploadError) {
-        await cleanupUploadedMedia(uploaded.map((m) => m.url));
         throw new Error(uploadError);
       }
 
@@ -329,6 +303,8 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
 
       if (res.ok) {
         const post: Post = await res.json();
+        pendingUploads.commit(uploaded.map(item => item.url));
+        setCreateId(crypto.randomUUID());
         setContent("");
         setCategories([]);
         setMediaItems((prev) => {
@@ -336,10 +312,9 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
           return [];
         });
         if (fileInputRef.current) fileInputRef.current.value = "";
-        toast.success(mode === "edit" ? t("postUpdated") : t("postPublished"));
+        showSaved(post, mode);
         onSuccess(post);
       } else {
-        await cleanupUploadedMedia(uploaded.map((m) => m.url));
         const body = await res.json().catch(() => ({}));
         const err = body?.error ?? "";
         if (err === "validation_error:input:custom") {
@@ -365,49 +340,16 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
     }
 
     setSubmitting(false);
-    onSubmittingChange?.(false);
   }
 
   return (
     <form onSubmit={handleSubmit} id={formId}>
-      {mode === "create" && postingIdentity && (
-        <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
-          <span>{t("postingAs")}</span>
-          <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-deep/5 py-1 pl-1 pr-3 font-medium text-deep">
-            {postingIdentity.avatarUrl ? (
-              // Using <img> for inline identity badge avatar (20px): tiny fixed size.
-              <img src={postingIdentity.avatarUrl} alt="" className="size-5 rounded-full object-cover" />
-            ) : (
-              <span className="flex size-5 items-center justify-center rounded-full bg-gold/20 text-xs text-gold">
-                {postingIdentity.name?.[0]?.toUpperCase() || "?"}
-              </span>
-            )}
-            <span className="truncate">{postingIdentity.name}</span>
-          </span>
-        </div>
-      )}
+      <fieldset disabled={submitting || preparing || (mode === "create" && !isVerified)} className="min-w-0">
+      {mode === "create" && <ContentPublishingContext channel={postingChannel} />}
 
-      {mode === "create" && !isVerified ? (
-        <InfoBox variant="warning" title={verifyT("unverifiedTitle")} className="mt-4">
-          <p>{verifyT("unverifiedDesc")}</p>
-          {verifyingSent ? (
-            <p className="text-success font-medium mt-2">{verifyT("resendSent")}</p>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-2"
-              disabled={verifyingSending}
-              onClick={handleResendVerification}
-            >
-              {verifyingSending ? verifyT("resending") : verifyT("resendButton")}
-            </Button>
-          )}
-        </InfoBox>
-      ) : (
-        <>
+      <>
           <Textarea
+            aria-label={t("composePlaceholder")}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={mode === "edit" ? undefined : t("composePlaceholder")}
@@ -475,60 +417,13 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
             </div>
           )}
 
-          <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
-            <div className="flex items-center gap-4">
-              <div className="flex flex-col gap-0.5">
-                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-deep">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept={getAcceptString()}
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <span className="text-xl">📎</span>
-                  {mediaItems.length > 0 ? `${t("attachMedia")} (${mediaItems.length})` : t("attachMedia")}
-                </label>
-                <UploadSizeMeter used={totalUploadSize} max={MAX_TOTAL_UPLOAD_SIZE_BYTES} className="ml-8" />
-              </div>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <Switch
-                  checked={isPublic}
-                  onCheckedChange={(checked) => setIsPublic(checked)}
-                />
-                <span className="text-sm font-medium">
-                  {isPublic ? (
-                    <span className="text-tulsi">{t("public")}</span>
-                  ) : (
-                    <span className="text-saffron">{t("private")}</span>
-                  )}
-                </span>
-              </label>
-            </div>
-
-            <DialogActions className={onCancel ? undefined : "flex grid-cols-none items-center justify-end"}>              {onCancel && (
-                <Button type="button" variant="outline" className={dialogActionButtonClassName} onClick={onCancel}>
-                  {t("cancel")}
-                </Button>
-              )}
-              <Button
-                type="submit"
-                variant="default"
-                className={onCancel ? dialogActionButtonClassName : "px-6 py-2"}
-                disabled={submitting || (mode === "create" && !activeChannelId) || (!content.trim() && mediaItems.length === 0)}
-              >
-                {submitting
-                  ? t("posting")
-                  : mode === "edit"
-                    ? t("saveButton")
-                    : t("postButton")}
-              </Button>
-            </DialogActions>
-          </div>
-        </>
-      )}
+          <AttachmentPicker label={t("attachMedia")} inputRef={fileInputRef} accept={getAcceptString()} multiple disabled={submitting} onFiles={handleFiles} onPreparingChange={setPreparing} />
+          <UploadSizeMeter used={totalUploadSize} max={MAX_TOTAL_UPLOAD_SIZE_BYTES} />
+          <ContentVisibilityControl isPublic={isPublic} onChange={setIsPublic} />
+          <ContentFormActions mode={mode} isPublic={isPublic} busy={submitting || preparing} onCancel={onCancel}
+            disabled={submitting || preparing || (mode === "create" && !postingChannelId) || (!content.trim() && mediaItems.length === 0)} />
+      </>
+      </fieldset>
     </form>
   );
 });

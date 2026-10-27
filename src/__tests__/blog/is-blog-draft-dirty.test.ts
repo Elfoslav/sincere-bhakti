@@ -17,6 +17,11 @@ function snapshot(overrides: Partial<BlogDraftSnapshot> = {}): BlogDraftSnapshot
 }
 
 describe("isBlogDraftDirty", () => {
+  it("tracks timeline-publishing changes without dirtying an unchanged legacy snapshot", () => {
+    expect(isBlogDraftDirty(snapshot({ publishInTimeline: true }), snapshot())).toBe(true);
+    expect(isBlogDraftDirty(snapshot({ publishInTimeline: false }), snapshot())).toBe(false);
+  });
+
   it("is clean when nothing changed", () => {
     expect(isBlogDraftDirty(snapshot(), snapshot())).toBe(false);
   });

@@ -1,9 +1,12 @@
 "use client";
 
+import type { CategoryRef } from "@/types/category";
+import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import SearchInput from "@/components/SearchInput";
 import { useFeedCategories } from "@/lib/hooks/useFeedCategories";
+import { withSearchQuery } from "@/lib/search-url";
 import { cn } from "@/lib/utils";
 
 const chipClassName =
@@ -24,6 +27,10 @@ export default function FeedFilterBar({
   basePath,
   activeCategory,
   loading = false,
+  variant = "default",
+  aside,
+  categories: suppliedCategories,
+  onCategorySelect,
 }: {
   search: string;
   onSearchChange: (value: string) => void;
@@ -31,22 +38,31 @@ export default function FeedFilterBar({
   basePath: "/posts" | "/blog";
   activeCategory?: string;
   loading?: boolean;
+  variant?: "default" | "editorial";
+  aside?: ReactNode;
+  categories?: CategoryRef[];
+  onCategorySelect?: (name?: string) => void;
 }) {
   const t = useTranslations("Categories");
   const locale = useLocale();
-  const categories = useFeedCategories(locale, basePath === "/blog" ? "blog" : "posts");
+  const fetchedCategories = useFeedCategories(locale, basePath === "/blog" ? "blog" : "posts");
+  const categories = suppliedCategories ?? fetchedCategories;
+
+  const editorial = variant !== "default";
 
   return (
-    <div role="search" className="mb-6 space-y-3">
-      <SearchInput value={search} onChange={onSearchChange} placeholder={searchPlaceholder} loading={loading} />
+    <div role="search" className={editorial ? "article-filter-bar" : "mb-6 space-y-3"}>
+      <SearchInput value={search} onChange={onSearchChange} placeholder={searchPlaceholder} loading={loading} className={editorial ? "article-search" : undefined} />
+      <div className={editorial ? "article-filter-bottom" : undefined}>
       {categories.length > 0 && (
-        <nav aria-label={t("browse")}>
-          <ul className="flex flex-wrap gap-2">
+        <nav aria-label={t("browse")} className={editorial ? "article-categories" : undefined}>
+          <ul className={editorial ? "article-category-list" : "flex flex-wrap gap-2"}>
             <li>
               <Link
-                href={basePath}
+                href={withSearchQuery(basePath, search)}
+                onClick={onCategorySelect ? (event) => { event.preventDefault(); onCategorySelect(); } : undefined}
                 aria-current={activeCategory ? undefined : "page"}
-                className={cn(chipClassName, activeCategory ? chipIdle : chipActive)}
+                className={editorial ? "article-category-link" : cn(chipClassName, activeCategory ? chipIdle : chipActive)}
               >
                 {t("all")}
               </Link>
@@ -56,9 +72,10 @@ export default function FeedFilterBar({
               return (
                 <li key={category.id}>
                   <Link
-                    href={`${basePath}/category/${category.slug}`}
+                    href={withSearchQuery(`${basePath}/category/${category.slug}`, search)}
+                    onClick={onCategorySelect ? (event) => { event.preventDefault(); onCategorySelect(category.name); } : undefined}
                     aria-current={active ? "page" : undefined}
-                    className={cn(chipClassName, active ? chipActive : chipIdle)}
+                    className={editorial ? "article-category-link" : cn(chipClassName, active ? chipActive : chipIdle)}
                   >
                     {category.name}
                   </Link>
@@ -68,6 +85,8 @@ export default function FeedFilterBar({
           </ul>
         </nav>
       )}
+      {aside}
+      </div>
     </div>
   );
 }

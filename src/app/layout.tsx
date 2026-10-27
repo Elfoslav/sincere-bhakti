@@ -35,12 +35,11 @@ const headingFont = localFont({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#f7f4ec",
+  themeColor: "#FFFEFC",
 };
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || "http://localhost:3000"),
-  icons: { icon: "/favicon.ico" },
 };
 
 async function getInitialIdentityState(userId: string, locale: string, fallbackChannelId?: string): Promise<InitialIdentityState | null> {
@@ -80,7 +79,7 @@ export default async function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${headingFont.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <Providers session={session} initialIdentityState={initialIdentityState}>{children}</Providers>
-        <Analytics />
+        {process.env.VERCEL === "1" && <Analytics />}
         {process.env.NODE_ENV === "production" && (
           <Script
             defer

@@ -1,6 +1,7 @@
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { Toaster } from "sonner";
+import LotusIcon from "@/components/ui/lotus-icon";
 import Navbar from "@/components/Navbar";
 import LangSetter from "@/components/LangSetter";
 import { Link } from "@/i18n/navigation";
@@ -37,7 +38,7 @@ export default async function SiteLayout({ children, locale }: { children: React
               <Link href="/privacy/krishna-chaitanya-mandir" className={footerLinkClassName}>{commonT("privacy")}</Link>
             </div>
             <div className="text-center sm:text-right">
-              <p>{commonT("footerLine1", { year: String(new Date().getFullYear()) })}</p>
+              <p>{commonT.rich("footerLine1", { year: String(new Date().getFullYear()), lotus: () => <LotusIcon className="mx-0.5 size-4" /> })}</p>
               <p>{commonT("footerLine2")}</p>
             </div>
           </div>

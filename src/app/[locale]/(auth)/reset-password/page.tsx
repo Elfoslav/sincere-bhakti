@@ -1,5 +1,7 @@
 "use client";
 
+import LotusIcon from "@/components/ui/lotus-icon";
+
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
@@ -98,7 +100,7 @@ export default function ResetPasswordPage() {
       <Card variant="elevated">
         <title>{t("title")}</title>
         <div className="text-center mb-6">
-          <div aria-hidden="true" className="text-4xl mb-2">🪷</div>
+          <LotusIcon className="mx-auto mb-2 block size-10" />
           <h1 className="type-section text-foreground">{t("title")}</h1>
           <p className="text-muted-foreground text-sm mt-1">{t("subtitle")}</p>
         </div>

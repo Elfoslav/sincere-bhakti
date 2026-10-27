@@ -1,5 +1,5 @@
 import { FeedLoadingSkeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
-	return <FeedLoadingSkeleton count={3} />;
+	return <FeedLoadingSkeleton count={3} variant="article" />;
 }

@@ -50,4 +50,10 @@ describe("BlogExcerpt", () => {
     const { container } = render(<BlogExcerpt post={base} />);
     expect(container.innerHTML).toBe("");
   });
+  it("uses a compact plain summary in the editorial feed", () => {
+    const { container } = render(<BlogExcerpt plain post={{ ...base, content: "A quiet reflection", contentHtml: "<h2>A quiet reflection</h2>" }} />);
+    expect(container.querySelector("p")).toHaveTextContent("A quiet reflection");
+    expect(container.querySelector("h2")).toBeNull();
+  });
+
 });

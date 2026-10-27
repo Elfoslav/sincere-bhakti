@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { BlogPost } from "@/types/blog";
 
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key, useLocale: () => "en" }));
 vi.mock("@/i18n/navigation", () => ({
-  Link: ({ children, href }: { children: ReactNode; href: string }) => <a href={href}>{children}</a>,
+  Link: ({ children, href, ...rest }: { children: ReactNode; href: string }) => <a href={href} {...rest}>{children}</a>,
   useRouter: () => ({ push: vi.fn() }),
 }));
 vi.mock("@/components/BlogPostActions", () => ({ default: () => null }));
-vi.mock("@/components/BlogExcerpt", () => ({ default: () => null }));
+vi.mock("@/components/BlogExcerpt", () => ({ default: () => <p>Article summary</p> }));
 
 import BlogCard from "@/components/BlogCard";
 
@@ -28,10 +28,11 @@ describe("BlogCard variants", () => {
   it("renders the list variant as a divider row like the timeline posts", () => {
     const { container } = render(<BlogCard post={post} variant="list" />);
     const root = container.firstElementChild!;
-    expect(root).toHaveClass("border-b", "rounded-none", "py-7");
-    // The small thumbnail stays beside the text instead of a full-width cover.
+    expect(root).toHaveClass("border-b", "rounded-none", "article-row");
+    // The shared responsive grid places the landscape cover before the copy.
     expect(screen.getByRole("heading", { name: "A title" })).toBeInTheDocument();
-    expect(container.querySelector("img")).toHaveClass("h-24");
+    expect(container.querySelector("img")?.parentElement).toHaveClass("article-row-media");
+    expect(root.firstElementChild).toContainElement(container.querySelector("img"));
   });
 
   it("keeps the cover-on-top layout for the editorial variant", () => {
@@ -39,9 +40,29 @@ describe("BlogCard variants", () => {
     expect(container.querySelector("img")).toHaveClass("w-full");
   });
 
-  it("puts the cover on top for the featured list row", () => {
+  it("uses the same editorial anatomy for featured list rows", () => {
     const { container } = render(<BlogCard post={post} variant="list" featured />);
-    expect(container.querySelector("img")).toHaveClass("aspect-[2/1]", "w-full");
+    expect(container.firstElementChild).toHaveClass("article-row");
+    expect(container.querySelector("img")?.parentElement).toHaveClass("article-row-media");
+  });
+
+  it.each(["default", "editorial", "list"] as const)("omits missing covers in the %s variant", (variant) => {
+    const { container } = render(<BlogCard post={{ ...post, coverUrl: null }} variant={variant} />);
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector(".article-row-media")).toBeNull();
+    expect(container.firstElementChild).toHaveAttribute("data-has-cover", "false");
+    expect(screen.getByRole("heading", { name: "A title" })).toBeVisible();
+    expect(screen.getByText("Article summary")).toBeVisible();
+  });
+
+  it("removes broken covers and shows a new author cover after editing", () => {
+    const { container, rerender } = render(<BlogCard post={post} variant="list" />);
+    fireEvent.error(container.querySelector("img")!);
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.firstElementChild).toHaveAttribute("data-has-cover", "false");
+    rerender(<BlogCard post={{ ...post, coverUrl: "/new-cover.jpg" }} variant="list" />);
+    expect(container.querySelector("img")).toHaveAttribute("src", "/new-cover.jpg");
+    expect(container.firstElementChild).toHaveAttribute("data-has-cover", "true");
   });
 
   it("shows the reading time in the byline when the article has a body", () => {

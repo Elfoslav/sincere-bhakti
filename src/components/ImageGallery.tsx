@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import MediaLightbox from "@/components/ui/MediaLightbox";
 import { LoadableMedia } from "@/components/ui/loadable-media";
+import { cn } from "@/lib/utils";
 
 const MAX_VISIBLE = 4;
 
@@ -12,8 +13,10 @@ type GalleryImage = { url: string; width?: number | null; height?: number | null
 export default function ImageGallery({
   images,
   t,
+  variant = "default",
 }: {
   images: GalleryImage[];
+  variant?: "default" | "compact";
   t: (key: string, params?: Record<string, string | number | Date>) => string;
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -36,7 +39,7 @@ export default function ImageGallery({
 
   return (
     <>
-      <div className={`grid ${gridClass()} gap-0.5 rounded-lg overflow-hidden mb-2`}>
+      <div className={cn(`grid ${gridClass()} gap-0.5 rounded-lg overflow-hidden mb-2`, variant === "compact" && !single && "aspect-square auto-rows-fr")}>
         {visible.map((img, i) => {
           const isLastOverflow = i === MAX_VISIBLE - 1 && overflowCount > 0;
           const dims = img.width && img.height ? { width: img.width, height: img.height } : null;
@@ -44,7 +47,7 @@ export default function ImageGallery({
             <LoadableMedia
               key={img.url}
               className={`overflow-hidden bg-deep/5 ${cellClass(i)}`}
-              style={single ? undefined : { height: 200 }}
+              style={variant === "compact" ? single ? { aspectRatio: "1.12", minHeight: 80 } : { minHeight: 0 } : single ? undefined : { height: 200 }}
             >
               {({ ref, onLoad, onError }) => (
                 <button
@@ -52,7 +55,7 @@ export default function ImageGallery({
                   className="relative block h-full w-full cursor-pointer overflow-hidden border-0 p-0"
                   aria-label={t("openImage")}
                 >
-                  {single && dims ? (
+                  {single && dims && variant !== "compact" ? (
                     // Single image with known dimensions: responsive, intrinsic
                     // aspect capped at 440px tall. next/image serves a right-sized
                     // AVIF/WebP and lazy-loads by default.
@@ -69,7 +72,7 @@ export default function ImageGallery({
                       style={{ width: "100%", height: "auto", maxHeight: 440 }}
                       unoptimized
                     />
-                  ) : dims || !single ? (
+                  ) : dims || !single || variant === "compact" ? (
                     // Grid cell (fixed-height container) — fill + cover.
                     <Image
                       ref={ref}
@@ -78,7 +81,7 @@ export default function ImageGallery({
                       src={img.url}
                       alt=""
                       fill
-                      sizes="(max-width: 768px) 50vw, 320px"
+                      sizes={variant === "compact" ? "(max-width: 639px) 35vw, 240px" : "(max-width: 768px) 50vw, 320px"}
                       className="object-cover"
                       unoptimized
                     />

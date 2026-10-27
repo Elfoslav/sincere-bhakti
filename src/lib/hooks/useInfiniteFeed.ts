@@ -23,10 +23,15 @@ export type FeedParams<T> = {
  */
 export function useInfiniteFeed<T extends { id: string }>(endpoint: string, params?: FeedParams<T>) {
   const { scope, channelId, disabled, pageSize = FEED_DEFAULT_LIMIT, language, category, search, initialData } = params ?? {};
-  const [posts, setPosts] = useState<T[]>(initialData?.posts ?? []);
-  const [loading, setLoading] = useState(!disabled && !initialData);
+  const seed = search ? undefined : initialData;
+  const [posts, setPosts] = useState<T[]>(seed?.posts ?? []);
+  const [loading, setLoading] = useState(!disabled && !seed);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(initialData?.hasMore ?? true);
+  const [hasMore, setHasMore] = useState(seed?.hasMore ?? true);
+  const [error, setError] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+  const retry = useCallback(() => setRetryKey((key) => key + 1), []);
   const observerRef = useRef<IntersectionObserver | null>(null);
   // Guards loadMore against concurrent invocations. State-based guards are
   // unreliable here: the IntersectionObserver can fire twice before React
@@ -35,7 +40,7 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
   const loadingMoreRef = useRef(false);
   // True until the first fetch effect runs once; lets us skip the initial fetch
   // when server-provided initialData already populated state.
-  const skipInitialFetch = useRef(Boolean(initialData));
+  const skipInitialFetch = useRef(Boolean(seed));
   // Bumped whenever the query changes. A loadMore that started under an older
   // query must not append its page to the new query's list.
   const queryGenerationRef = useRef(0);
@@ -74,12 +79,14 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
     queryGenerationRef.current += 1;
 
     setLoading(true);
+    setError(false);
+    setLoadMoreError(false);
     setPosts([]);
     setHasMore(true);
 
     fetchPosts().then((data) => {
       if (!mounted || !data) {
-        if (mounted) startTransition(() => setLoading(false));
+        if (mounted) startTransition(() => { setError(true); setLoading(false); });
         return;
       }
       startTransition(() => {
@@ -92,12 +99,13 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
     return () => {
       mounted = false;
     };
-  }, [disabled, fetchPosts]);
+  }, [disabled, fetchPosts, retryKey]);
 
   const loadMore = useCallback(async () => {
     if (loadingMoreRef.current || !hasMore) return;
     loadingMoreRef.current = true;
     setLoadingMore(true);
+    setLoadMoreError(false);
     const last = posts[posts.length - 1];
     if (!last) {
       loadingMoreRef.current = false;
@@ -107,6 +115,7 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
 
     const generation = queryGenerationRef.current;
     const data = await fetchPosts(last.id);
+    if (generation === queryGenerationRef.current) setLoadMoreError(!data);
     if (data && generation === queryGenerationRef.current) {
       startTransition(() => {
         // Dedupe by id: an earlier double-fire of the observer could have
@@ -129,7 +138,7 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
         observerRef.current.disconnect();
         observerRef.current = null;
       }
-      if (node && !disabled) {
+      if (node && !disabled && !loadMoreError) {
         observerRef.current = new IntersectionObserver(
           (entries) => {
             if (entries[0].isIntersecting) loadMore().catch(() => {});
@@ -139,7 +148,7 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
         observerRef.current.observe(node);
       }
     },
-    [loadMore, disabled],
+    [loadMore, disabled, loadMoreError],
   );
 
   return {
@@ -149,5 +158,9 @@ export function useInfiniteFeed<T extends { id: string }>(endpoint: string, para
     loadingMore,
     hasMore,
     sentinelRef,
+    error,
+    retry,
+    loadMoreError,
+    retryLoadMore: loadMore,
   };
 }

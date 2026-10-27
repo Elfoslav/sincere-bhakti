@@ -123,7 +123,7 @@ describe("BlogForm private save buttons", () => {
     // Same pair of buttons — the text is reused, not repeated per mode.
     expect(screen.getByRole("button", { name: "saveAndStay" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "saveAndLeave" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "save" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "saveChanges" })).not.toBeInTheDocument();
   });
 
   it("reports stay (exit=false) on Save & stay in edit", async () => {
@@ -157,7 +157,7 @@ describe("BlogForm private save buttons", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "saveChanges" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "cancel" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "saveAndStay" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "saveAndLeave" })).not.toBeInTheDocument();

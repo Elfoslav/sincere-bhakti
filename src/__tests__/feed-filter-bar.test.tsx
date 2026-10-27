@@ -76,4 +76,20 @@ describe("FeedFilterBar", () => {
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
     expect(screen.getByRole("searchbox")).toBeInTheDocument();
   });
+  it("renders editorial categories as text links alongside guest context", () => {
+    renderBar({ variant: "editorial", aside: <p>Join our community</p> });
+    expect(screen.getByRole("link", { name: "Bhakti" })).toHaveClass("article-category-link");
+    expect(screen.getByRole("link", { name: "Bhakti" })).not.toHaveClass("rounded-full");
+    expect(screen.getByText("Join our community")).toBeInTheDocument();
+  });
+
+  it("can filter the development presentation locally without navigating", () => {
+    const select = vi.fn();
+    renderBar({ variant: "editorial", onCategorySelect: select });
+    fireEvent.click(screen.getByRole("link", { name: "Bhakti" }));
+    expect(select).toHaveBeenCalledWith("Bhakti");
+    fireEvent.click(screen.getByRole("link", { name: "all" }));
+    expect(select).toHaveBeenLastCalledWith();
+  });
+
 });
