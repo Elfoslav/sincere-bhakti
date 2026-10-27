@@ -55,7 +55,7 @@ export default function MemberAccessForm({
       <select
         value={role}
         onChange={(event) => onRoleChange(event.target.value as ChannelMemberRole)}
-        className="h-10 rounded-lg border border-input bg-transparent px-3 py-2 text-sm text-deep outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="h-10 rounded-lg border border-input bg-transparent px-3 py-2 text-sm text-deep outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
         autoFocus={mode === "edit"}
       >
         {CHANNEL_MEMBER_ROLES.map((memberRole) => (

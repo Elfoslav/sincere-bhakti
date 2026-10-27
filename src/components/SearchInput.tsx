@@ -35,9 +35,9 @@ export default function SearchInput({
         placeholder={placeholder}
         className={cn(
           "h-11 w-full rounded-lg border border-input bg-card pl-10 pr-10",
-          "text-sm text-foreground placeholder:text-muted-foreground",
+          "text-sm text-foreground",
           "transition-all duration-200 outline-none",
-          "focus-visible:border-gold focus-visible:ring-3 focus-visible:ring-gold/15",
+          "focus-visible:border-gold focus-visible:ring-1 focus-visible:ring-gold",
           "disabled:pointer-events-none disabled:opacity-50",
         )}
       />

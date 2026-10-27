@@ -45,7 +45,7 @@ export default function CollapsibleComposer({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen(true)}
-        className="w-full rounded-lg border border-input bg-background px-4 py-3.5 text-left text-base text-muted-foreground transition-colors hover:bg-card focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/25 focus-visible:outline-none"
+        className="w-full rounded-lg border border-input bg-background px-4 py-3.5 text-left text-base text-muted-foreground transition-colors hover:bg-card focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
       >
         {t("composePlaceholder")}
       </button>
