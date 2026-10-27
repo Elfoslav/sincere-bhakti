@@ -14,6 +14,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Lock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import ContentVisibilityControl from "@/components/ContentVisibilityControl";
@@ -103,6 +104,12 @@ export default function BlogForm({
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const errorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (error && !submitting && !uploading) {
+      errorRef.current?.scrollIntoView({ behavior: "auto", block: "nearest" });
+    }
+  }, [error, submitting, uploading]);
   const coverInputRef = useRef<HTMLInputElement>(null);
   // Posts-timeline promo: in edit mode the switch reflects whether timeline
   // posts already promote this article (fetched below).
@@ -321,7 +328,7 @@ export default function BlogForm({
   async function persistArticle(exit: boolean) {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
-    setError("");
+    // Keep the previous error visible during retries so the form does not jump.
     // A saved private draft is continued in place: further saves PATCH the
     // same article so the form can stay filled while writing.
     const isContinuation = mode === "create" && draftId !== null;
@@ -392,6 +399,7 @@ export default function BlogForm({
         return;
       }
       const post = (await res.json()) as BlogPost;
+      setError("");
       if (resolvedCoverUrl) pendingUploads.commit([resolvedCoverUrl]);
       showSaved(post, mode);
       if (mode === "create" && !isPublic) {
@@ -597,7 +605,7 @@ export default function BlogForm({
           <p className="mt-1 text-xs text-muted-foreground">{t("timelineScheduledHint")}</p>
         )}
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <Alert ref={errorRef} variant="destructive">{error}</Alert> : null}
       <ContentFormActions mode={mode} isPublic={isPublic} scheduled={isScheduled} busy={submitting || uploading}
         disabled={submitDisabled} onCancel={onCancel} primaryLabel={isPrivate ? t("saveAndStay") : undefined}
         secondary={isPrivate ? <Button type="button" variant="outline" disabled={submitDisabled} onClick={handleSaveAndLeave}>{t("saveAndLeave")}</Button> : undefined} />

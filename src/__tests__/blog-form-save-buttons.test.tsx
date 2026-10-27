@@ -104,6 +104,7 @@ function renderEditPrivate(onSuccess: (...args: any[]) => void) {
 describe("BlogForm private save buttons", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    HTMLElement.prototype.scrollIntoView = vi.fn();
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(blog),
@@ -142,6 +143,34 @@ describe("BlogForm private save buttons", () => {
     fireEvent.click(screen.getByRole("button", { name: "saveAndLeave" }));
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(blog, true));
+  });
+
+  it("keeps an error visible during a retry and clears it after a successful save", async () => {
+    let attempts = 0;
+    let finishRetry!: (response: Response) => void;
+    const retryResponse = new Promise<Response>(resolve => { finishRetry = resolve; });
+    vi.mocked(global.fetch).mockImplementation(async (_url, init) => {
+      if (init?.method === "PATCH") {
+        attempts++;
+        if (attempts === 1) return { ok: false, json: async () => ({ error: "too_many_requests" }) } as Response;
+        return retryResponse;
+      }
+      return { ok: true, json: async () => blog } as Response;
+    });
+    const onSuccess = vi.fn();
+    renderEditPrivate(onSuccess);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "saveAndStay" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("tooManyRequests"));
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: "auto", block: "nearest" });
+    fireEvent.click(screen.getByRole("button", { name: "saveAndStay" }));
+    await waitFor(() => expect(attempts).toBe(2));
+    expect(screen.getByRole("alert")).toHaveTextContent("tooManyRequests");
+    expect(screen.getByRole("button", { name: "workingShort" })).toBeDisabled();
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+    finishRetry({ ok: true, json: async () => blog } as Response);
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(blog, false));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("keeps Save + Cancel for public posts in edit", () => {
