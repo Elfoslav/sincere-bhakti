@@ -46,6 +46,11 @@ describe("BlogCard variants", () => {
     expect(container.querySelector("img")?.parentElement).toHaveClass("article-row-media");
   });
 
+  it("offers a clearly named reading link from list rows", () => {
+    render(<BlogCard post={post} variant="list" />);
+    expect(screen.getByRole("link", { name: /readArticle: A title/ })).toHaveAttribute("href", "/blog/abc12345/a-title");
+  });
+
   it.each(["default", "editorial", "list"] as const)("omits missing covers in the %s variant", (variant) => {
     const { container } = render(<BlogCard post={{ ...post, coverUrl: null }} variant={variant} />);
     expect(container.querySelector("img")).toBeNull();

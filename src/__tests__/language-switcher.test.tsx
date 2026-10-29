@@ -44,6 +44,14 @@ function getDropdown(container: HTMLElement): HTMLElement | null {
 }
 
 describe("LanguageSwitcher", () => {
+  it("labels the mobile language control and marks the selected option", () => {
+    render(<LanguageSwitcher fullWidth />);
+    expect(screen.getByRole("button", { name: "language" })).toHaveTextContent("language");
+    expect(screen.getByRole("button", { name: "language" })).toHaveTextContent("English");
+    fireEvent.click(screen.getByRole("button", { name: "language" }));
+    expect(screen.getByRole("menuitemradio", { name: /English/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("menuitemradio", { name: /Čeština/ })).toHaveAttribute("aria-checked", "false");
+  });
   it("dismisses with Escape and restores trigger focus", () => {
     render(<LanguageSwitcher />);
     const trigger = screen.getByRole("button");

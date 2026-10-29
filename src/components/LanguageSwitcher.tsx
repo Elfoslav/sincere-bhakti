@@ -101,10 +101,11 @@ export default function LanguageSwitcher({ fullWidth = false }: { fullWidth?: bo
         onKeyDown={(event) => { if (["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); measure(); setOpen(true); requestAnimationFrame(() => menuRef.current?.querySelector<HTMLButtonElement>("button")?.focus()); } }}
         className={cn(
           "flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-md border border-transparent hover:border-border min-h-10",
-          fullWidth && "w-full justify-between",
+          fullWidth && "w-full min-h-11 justify-between border-border bg-muted text-foreground",
         )}
       >
-        <span className="flex items-center gap-2">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          {fullWidth && <span className="text-muted-foreground">{t("language")}</span>}
           <span className="text-base leading-none">{localeFlags[current]}</span>
           <span className="text-sm font-medium">{localeNames[current]}</span>
         </span>

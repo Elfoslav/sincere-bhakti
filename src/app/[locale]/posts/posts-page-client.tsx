@@ -35,7 +35,7 @@ export default function PostsPageClient({
 	const t = useTranslations("PostsPage");
 	const [composerOpen, setComposerOpen] = useState(false);
 	const [editingPost, setEditingPost] = useState<Post | null>(null);
-	const { searchInput, setSearchInput, search } = useFeedSearch();
+	const { searchInput, setSearchInput, search, clearSearch } = useFeedSearch();
 	const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef, error, retry, loadMoreError, retryLoadMore } = useInfinitePosts({
 		scope: "public",
 		language: locale,
@@ -138,7 +138,7 @@ export default function PostsPageClient({
 								<PostCardSkeleton variant="journal" />
 							</div>
 						) : posts.length === 0 ? (
-							<FeedEmptyState search={search} message={t("emptyPublic")} error={error} onRetry={retry} />
+							<FeedEmptyState search={search} category={category} clearCategoryHref="/posts" onClearSearch={clearSearch} message={t("emptyPublic")} error={error} onRetry={retry} />
 						) : (
 							<div className="flex flex-col">
 								{posts.map((post) => (
@@ -177,7 +177,7 @@ export default function PostsPageClient({
 						) : (
 							<div>
 								{myPublicPosts.length === 0 ? (
-									<FeedEmptyState compact search={search} message={t("emptyMyPublic")} error={myError} onRetry={myRetry} />
+									<FeedEmptyState compact search={search} onClearSearch={clearSearch} message={t("emptyMyPublic")} error={myError} onRetry={myRetry} />
 								) : (
 									<div className="flex flex-col">
 									{myPublicPosts.map((post) => (
@@ -217,7 +217,7 @@ export default function PostsPageClient({
 						) : (
 							<div>
 								{myPrivatePosts.length === 0 ? (
-									<FeedEmptyState compact search={search} message={t("emptyMyPrivate")} error={myError} onRetry={myRetry} />
+									<FeedEmptyState compact search={search} onClearSearch={clearSearch} message={t("emptyMyPrivate")} error={myError} onRetry={myRetry} />
 								) : (
 									<div className="flex flex-col">
 									{myPrivatePosts.map((post) => (
@@ -256,7 +256,7 @@ export default function PostsPageClient({
 							<PostCardSkeleton variant="journal" />
 						</div>
 					) : posts.length === 0 ? (
-						<FeedEmptyState search={search} message={t("emptyPublic")} error={error} onRetry={retry} />
+						<FeedEmptyState search={search} category={category} clearCategoryHref="/posts" onClearSearch={clearSearch} message={t("emptyPublic")} error={error} onRetry={retry} />
 					) : (
 						<div className="flex flex-col">
 							{posts.map((post) => (

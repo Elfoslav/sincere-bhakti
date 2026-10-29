@@ -44,6 +44,7 @@
 		"cardMediaDesc": "Sdílej obrázky a videa ze své duchovní cesty.",
 		"cardSangaTitle": "Společenství oddaných",
 		"cardSangaDesc": "Spoj se s dalšími oddanými v respektující komunitě.",
+		"loadingArticles": "Načítání článků…",
 		"blogLatestTitle": "Nejnovější články z blogu",
 		"blogLatestSubtitle": "Delší články z kanálů",
 		"viewAllBlog": "Zobrazit všechny články"
@@ -402,6 +403,8 @@
 		"clearFilter": "Zrušit filtr",
 		"all": "Vše",
 		"browse": "Procházet podle kategorie",
+		"noResultsInCategory": "V kategorii „{name}“ nebyly nalezeny žádné příspěvky ani články pro „{query}“. Zkuste jiné hledání nebo zrušte filtr.",
+		"emptyCategory": "V kategorii „{name}“ nebyly nalezeny žádné příspěvky ani články. Vyberte jinou kategorii nebo zrušte filtr.",
 		"noResults": "Nic nenalezeno pro „{query}“. Zkuste jiné slovo nebo procházejte kategorie."
 	},
 	"ChannelsPage": {

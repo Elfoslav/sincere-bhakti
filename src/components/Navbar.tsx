@@ -194,7 +194,7 @@ function MobileLink({
 			href={href}
 			aria-current={pathname.startsWith(href) ? "page" : undefined}
 			onClick={onClick}
-			className="flex min-h-11 items-center gap-2 rounded-md px-4 py-2 text-foreground transition-colors hover:bg-secondary hover:text-primary aria-[current=page]:bg-secondary aria-[current=page]:text-primary"
+			className="flex min-h-11 items-center gap-2 rounded-md border-l-4 border-transparent px-3 py-2 text-foreground transition-colors hover:bg-secondary hover:text-primary aria-[current=page]:border-primary aria-[current=page]:bg-secondary aria-[current=page]:font-semibold aria-[current=page]:text-primary"
 		>
 			<span aria-hidden="true" className="text-primary">
 				{icon}

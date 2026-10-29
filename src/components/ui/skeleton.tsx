@@ -20,6 +20,7 @@ function PostCardSkeleton({ variant = "post" }: { variant?: "post" | "article" |
         <Skeleton className="h-5 w-3/4" />
         <Skeleton className="h-4 w-1/3" />
         <Skeleton className="h-3 w-1/4" />
+        <Skeleton className="h-11 w-24" />
       </div>
     </Card>
   );

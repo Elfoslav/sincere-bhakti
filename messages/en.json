@@ -44,6 +44,7 @@
 		"cardMediaDesc": "Share images and videos from your spiritual journey.",
 		"cardSangaTitle": "Devotee saṅga",
 		"cardSangaDesc": "Connect with fellow devotees in a respectful community.",
+		"loadingArticles": "Loading articles…",
 		"blogLatestTitle": "Latest blog articles",
 		"blogLatestSubtitle": "Long-form articles from the channels",
 		"viewAllBlog": "View all articles"
@@ -402,6 +403,8 @@
 		"clearFilter": "Clear filter",
 		"all": "All",
 		"browse": "Browse by category",
+		"noResultsInCategory": "No posts or articles in “{name}” match “{query}”. Try another search or clear the filter.",
+		"emptyCategory": "No posts or articles found in “{name}”. Browse another category or clear the filter.",
 		"noResults": "Nothing found for “{query}”. Try another word or browse a category."
 	},
 	"ChannelsPage": {

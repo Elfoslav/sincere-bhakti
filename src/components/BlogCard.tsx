@@ -25,6 +25,7 @@ export default function BlogCard({ post, currentUserId, manageableChannelIds, on
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("BlogPage");
+  const postT = useTranslations("PostCard");
   const list = variant === "list";
   const date = formatBlogDate(post.publishedAt ?? post.createdAt, locale, true);
   const isScheduled = post.publishedAt ? new Date(post.publishedAt) > new Date() : false;
@@ -61,6 +62,7 @@ export default function BlogCard({ post, currentUserId, manageableChannelIds, on
             {(!post.isPublic || isScheduled) && <span className="article-status rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary">{t(!post.isPublic ? "private" : "scheduled")}</span>}
           </div>
         </div>
+        {list && <Link href={getBlogUrl(post.shortId, post.slug)} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline">{postT("readArticle")}<span className="sr-only">: {post.title}</span><span aria-hidden="true" className="ml-2">→</span></Link>}
         {!list && <CategoryChips categories={post.categories} onSelect={(category) => router.push(`/blog/category/${category.slug}`)} className="mt-2" />}
       </div>
     </Card>

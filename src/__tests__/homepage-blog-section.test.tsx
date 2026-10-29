@@ -11,6 +11,18 @@ import HomepageBlogSection from "@/components/HomepageBlogSection";
 import { useInfiniteBlogPosts } from "@/lib/hooks/useInfiniteBlogPosts";
 
 describe("HomepageBlogSection", () => {
+  it("reserves article rows while loading and keeps the heading when content arrives", () => {
+    vi.mocked(useInfiniteBlogPosts).mockReturnValue({ posts: [], loading: true } as unknown as ReturnType<typeof useInfiniteBlogPosts>);
+    const { container, rerender } = render(<HomepageBlogSection />);
+    expect(screen.getByRole("status")).toHaveTextContent("loadingArticles");
+    expect(container.querySelectorAll(".article-row")).toHaveLength(3);
+    const heading = screen.getByRole("heading", { name: "blogLatestTitle" });
+    vi.mocked(useInfiniteBlogPosts).mockReturnValue({ posts: [{ id: "1", title: "Loaded article" }], loading: false } as ReturnType<typeof useInfiniteBlogPosts>);
+    rerender(<HomepageBlogSection />);
+    expect(screen.getByRole("heading", { name: "blogLatestTitle" })).toBe(heading);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByText("Loaded article")).toBeInTheDocument();
+  });
   it("does not render fictional articles when the locale has no content", () => {
     vi.mocked(useInfiniteBlogPosts).mockReturnValue({ posts: [], loading: false } as ReturnType<typeof useInfiniteBlogPosts>);
     const { container } = render(<HomepageBlogSection />);

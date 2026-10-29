@@ -39,7 +39,7 @@ export default function BlogPageClient({
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const effectiveChannelId = channelId ?? undefined;
-  const { searchInput, setSearchInput, search } = useFeedSearch();
+  const { searchInput, setSearchInput, search, clearSearch } = useFeedSearch();
   const { posts, setPosts, loading, loadingMore, hasMore, sentinelRef, error, retry, loadMoreError, retryLoadMore } = useInfiniteBlogPosts({
     scope: "public",
     channelId: effectiveChannelId,
@@ -148,7 +148,7 @@ export default function BlogPageClient({
       );
     }
     if (list.length === 0) {
-      return <FeedEmptyState search={search} message={t(emptyKey)} error={failed} onRetry={recover} />;
+      return <FeedEmptyState search={search} category={emptyKey === "emptyPublic" ? category : undefined} clearCategoryHref="/blog" onClearSearch={clearSearch} message={t(emptyKey)} error={failed} onRetry={recover} />;
     }
     return (
       <div className="flex flex-col">
