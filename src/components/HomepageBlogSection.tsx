@@ -40,7 +40,7 @@ export default function HomepageBlogSection() {
         {loading ? <>
           <p role="status" className="sr-only">{t("loadingArticles")}</p>
           <div aria-hidden="true">
-            {Array.from({ length: LATEST_BLOG_POSTS_LIMIT }, (_, index) => <PostCardSkeleton key={index} variant="article" />)}
+            {Array.from({ length: LATEST_BLOG_POSTS_LIMIT }, (_, index) => <PostCardSkeleton key={index} variant="article" featured={index === 0} />)}
           </div>
         </> : error ? <FeedEmptyState error onRetry={retry} /> : visible.map((post, index) => (
           <BlogCard key={post.id} post={post} variant="list" featured={index === 0} />

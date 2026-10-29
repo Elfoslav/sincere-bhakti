@@ -49,12 +49,12 @@ export default function Navbar() {
 		<nav className="relative z-20 border-b border-border bg-background text-foreground">
 			<div className="site-header-container">
 				<div className="relative flex h-[var(--navbar-height)] items-center justify-between">
-					<div className="flex items-center gap-8 lg:gap-12">
+					<div className="flex items-center gap-8 lg:gap-6 xl:gap-12">
 						<Link href="/" aria-label={t("logoAlt")} className="flex items-center gap-2" onClick={close}>
 							<BrandLogo />
 						</Link>
 
-						<div className="hidden lg:flex items-center gap-8">
+						<div className="hidden lg:flex items-center gap-4 xl:gap-8">
 							<Link href="/posts" aria-current={pathname.startsWith("/posts") ? "page" : undefined} className="site-nav-link">
 								{t("posts")}
 							</Link>
@@ -80,7 +80,7 @@ export default function Navbar() {
 					</div>
 
 					{isAuthenticated(status) && (
-						<div className="pointer-events-none absolute left-32 right-16 bottom-0 top-0 z-10 flex items-center justify-center lg:hidden">
+						<div className="pointer-events-none absolute left-28 right-12 bottom-0 top-0 z-10 flex items-center justify-center lg:hidden">
 							<IdentitySwitcher mobileNav />
 						</div>
 					)}
@@ -99,7 +99,7 @@ export default function Navbar() {
 							icon={<Hamburger open={open} />}
 						/>
 
-						<div className="hidden lg:flex items-center gap-6">
+						<div className="hidden lg:flex items-center gap-3 xl:gap-6">
 							<LanguageSwitcher />
 							{isAuthenticated(status) ? (
 								<>

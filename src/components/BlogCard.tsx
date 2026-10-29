@@ -11,11 +11,12 @@ import { cn } from "@/lib/utils";
 import BlogExcerpt from "@/components/BlogExcerpt";
 import CategoryChips from "@/components/CategoryChips";
 import BlogPostActions from "@/components/BlogPostActions";
+import ChannelAvatar from "@/components/ChannelAvatar";
 import type { BlogPost } from "@/types/blog";
 
 export default function BlogCard({ post, currentUserId, manageableChannelIds, onDelete, onEdit, variant = "default", featured = false }: {
   post: BlogPost;
-  variant?: "default" | "editorial" | "list";
+  variant?: "default" | "editorial" | "list" | "compact";
   featured?: boolean;
   currentUserId?: string;
   manageableChannelIds?: string[];
@@ -34,8 +35,22 @@ export default function BlogCard({ post, currentUserId, manageableChannelIds, on
   const cover = post.coverUrl && post.coverUrl !== failedCover ? post.coverUrl : null;
   const Title = list ? "h2" : "h3";
 
+  if (variant === "compact") return (
+    <article className="article-recommendation">
+      <Link href={getBlogUrl(post.shortId, post.slug)} className="article-recommendation-link">
+        {/* eslint-disable-next-line @next/next/no-img-element -- compact author-supplied covers can use external storage domains */}
+        {cover && <img src={cover} alt="" loading="lazy" onError={() => setFailedCover(cover)} className="article-recommendation-cover" />}
+        <div className="min-w-0 flex-1">
+          <h3 className="font-heading article-recommendation-title line-clamp-2">{post.title}</h3>
+          <p className="article-recommendation-meta">{post.channel.name}</p>
+          <time className="article-recommendation-meta" dateTime={post.publishedAt ?? post.createdAt}>{date}</time>
+        </div>
+      </Link>
+    </article>
+  );
+
   return (
-    <Card data-has-cover={Boolean(cover)} variant={variant === "default" ? "default" : "editorial"} className={cn(list ? "article-row" : variant === "editorial" ? "flex h-full flex-col pb-6" : undefined)}>
+    <Card data-has-cover={Boolean(cover)} data-featured={featured} variant={variant === "default" ? "default" : "editorial"} className={cn(list ? "article-row" : variant === "editorial" ? "flex h-full flex-col pb-6" : undefined)}>
       {cover && (
         <Link href={getBlogUrl(post.shortId, post.slug)} aria-label={post.title} className={list ? "article-row-media media-zoom" : "media-zoom mb-5 block overflow-hidden rounded-lg"}>
           {/* eslint-disable-next-line @next/next/no-img-element -- user-provided covers may be hosted outside the image optimizer allowlist */}
@@ -45,16 +60,18 @@ export default function BlogCard({ post, currentUserId, manageableChannelIds, on
         </Link>
       )}
       <div className={list ? "article-row-copy" : undefined}>
+        {list && <CategoryChips categories={post.categories} onSelect={(category) => router.push(`/blog/category/${category.slug}`)} className="article-row-categories" />}
         <div className="flex items-start justify-between gap-3">
           <Link href={getBlogUrl(post.shortId, post.slug)} className="min-w-0 flex-1 text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline">
-            <Title className={list ? "article-row-title line-clamp-2" : featured ? "font-heading text-3xl leading-tight line-clamp-3 sm:text-4xl" : "font-heading text-xl leading-tight line-clamp-2 sm:text-2xl"}>{post.title}</Title>
+            <Title className={list ? cn("font-heading article-row-title", featured ? "line-clamp-3" : "line-clamp-2") : featured ? "font-heading text-3xl leading-tight line-clamp-3 sm:text-4xl" : "font-heading text-xl leading-tight line-clamp-2 sm:text-2xl"}>{post.title}</Title>
           </Link>
           <BlogPostActions post={post} currentUserId={currentUserId} manageableChannelIds={manageableChannelIds} onDelete={onDelete} onEdit={onEdit} />
         </div>
         <BlogExcerpt post={post} plain={list} className={list ? "article-row-excerpt" : "mt-3 text-sm leading-relaxed text-muted-foreground"} clampClassName={list ? "line-clamp-3" : "line-clamp-2"} />
         <div className={list ? "article-row-byline" : "mt-3 flex flex-col gap-1"}>
           <Link href={`/blog/channel/${post.channel.slug}`} className={cn("truncate hover:text-primary", list ? "article-row-author" : "text-sm text-muted-foreground")}>
-            {t("byAuthor", { author: post.channel.name })}
+            {list && <ChannelAvatar name={post.channel.name} avatarUrl={post.channel.avatarUrl} size="xs" ariaHidden />}
+            <span className="truncate">{t("byAuthor", { author: post.channel.name })}</span>
           </Link>
           <div className={list ? "article-row-meta" : "flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"}>
             <time dateTime={post.publishedAt ?? post.createdAt}>{date}</time>

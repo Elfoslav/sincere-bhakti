@@ -93,9 +93,8 @@ export function buildTimelinePostBody(blog: {
 }
 
 /**
- * How many newest articles the blog detail page surfaces below the article.
- * Kept in one place so the server fetch limit and the client section stay
- * in sync.
+ * Number of articles shown on the homepage and in each recommendation group.
+ * Shared by server query limits and client presentation.
  */
 export const LATEST_BLOG_POSTS_LIMIT = 3;
 

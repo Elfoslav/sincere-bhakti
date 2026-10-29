@@ -97,6 +97,28 @@ describe("getBlogPosts", () => {
     vi.clearAllMocks();
   });
 
+  it("keeps recommendation exclusions inside the public, published, language-scoped query", async () => {
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([]);
+    await getBlogPosts({ scope: "public", language: "sk", excludePostId: "current", excludeChannelId: "channel-1", limit: 3, includeContentHtml: false });
+    expect(prisma.blogPost.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      take: 4,
+      where: expect.objectContaining({
+        language: "sk", isPublic: true, id: { not: "current" },
+        OR: [{ publishedAt: null }, { publishedAt: { lte: expect.any(Date) } }],
+        AND: [{ channelId: { not: "channel-1" } }],
+      }),
+      select: expect.objectContaining({ contentHtml: false }),
+    }));
+  });
+
+  it("limits same-channel recommendations without exposing drafts or scheduled articles", async () => {
+    vi.mocked(prisma.blogPost.findMany).mockResolvedValue([]);
+    await getBlogPosts({ scope: "public", channelId: "channel-1", language: "en", excludePostId: "current" });
+    expect(prisma.blogPost.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ isPublic: true, language: "en", channelId: "channel-1", id: { not: "current" }, OR: [{ publishedAt: null }, { publishedAt: { lte: expect.any(Date) } }] }),
+    }));
+  });
+
   it("filters public posts by publish date", async () => {
     vi.mocked(prisma.blogPost.findMany).mockResolvedValue([mockBlog] as never);
 

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getCachedBlogPostByShortId, getBlogPosts, isBlogPubliclyVisible } from "@/lib/services/blog";
-import { LATEST_BLOG_POSTS_LIMIT, selectLatestBlogPosts } from "@/lib/blog";
+import { getCachedBlogPostByShortId, isBlogPubliclyVisible } from "@/lib/services/blog";
+import { getBlogRecommendations } from "@/lib/services/blog-recommendations";
 import { canAuthorChannel } from "@/lib/services/channel";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, getClientIp, RATE_LIMITS, RATE_LIMIT_PREFIX } from "@/lib/rate-limit";
@@ -20,7 +20,7 @@ import {
 } from "@/lib/seo";
 import { extractPlainText, previewRichText } from "@/lib/rich-text";
 import { resolveArticleHtml } from "@/lib/rich-text-html";
-import type { BlogPost } from "@/types/blog";
+import type { BlogPost, BlogRecommendations } from "@/types/blog";
 
 type Params = { locale: string; shortId: string; slug?: string[] };
 
@@ -111,24 +111,12 @@ export default async function BlogDetailPage({
   ];
 
   const serializable = JSON.parse(JSON.stringify(post)) as BlogPost;
-  let latestPosts: BlogPost[] = [];
-  try {
-    const latest = await getBlogPosts({
-      scope: "public",
-      language: locale,
-      requestLanguage: locale,
-      limit: LATEST_BLOG_POSTS_LIMIT + 1,
-    });
-    latestPosts = JSON.parse(JSON.stringify(
-      selectLatestBlogPosts(latest.posts, post.id, LATEST_BLOG_POSTS_LIMIT),
-    )) as BlogPost[];
-  } catch {
-    latestPosts = [];
-  }
+  const recommendations = await getBlogRecommendations(post, locale);
+  const serializedRecommendations = JSON.parse(JSON.stringify(recommendations)) as BlogRecommendations;
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={createJsonLdScript(jsonLd)} />
-      <BlogDetailClient post={serializable} contentHtml={contentHtml} latestPosts={latestPosts} />
+      <BlogDetailClient post={serializable} contentHtml={contentHtml} recommendations={serializedRecommendations} />
     </>
   );
 }

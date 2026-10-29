@@ -46,6 +46,16 @@ describe("BlogCard variants", () => {
     expect(container.querySelector("img")?.parentElement).toHaveClass("article-row-media");
   });
 
+  it("uses the shared article renderer for compact sidebar links without management controls", () => {
+    const { container } = render(<BlogCard post={post} variant="compact" />);
+    expect(container.querySelector("article")).toHaveClass("article-recommendation");
+    expect(screen.getByRole("heading", { level: 3, name: "A title" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /A title/ })).toHaveAttribute("href", "/blog/abc12345/a-title");
+    fireEvent.error(container.querySelector("img")!);
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByRole("link", { name: /A title/ })).toBeVisible();
+  });
+
   it("offers a clearly named reading link from list rows", () => {
     render(<BlogCard post={post} variant="list" />);
     expect(screen.getByRole("link", { name: /readArticle: A title/ })).toHaveAttribute("href", "/blog/abc12345/a-title");

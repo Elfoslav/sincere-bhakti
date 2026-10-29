@@ -10,9 +10,9 @@ function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function PostCardSkeleton({ variant = "post" }: { variant?: "post" | "article" | "journal" }) {
+function PostCardSkeleton({ variant = "post", featured = false }: { variant?: "post" | "article" | "journal"; featured?: boolean }) {
   if (variant === "article") return (
-    <Card variant="editorial" className="article-row">
+    <Card variant="editorial" className="article-row" data-has-cover="true" data-featured={featured}>
       <Skeleton className="article-row-media w-full rounded-none" />
       <div className="article-row-copy space-y-4">
         <Skeleton className="h-8 w-5/6" />

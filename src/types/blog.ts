@@ -18,3 +18,8 @@ export interface BlogPost {
   channel: PostChannel;
   categories: CategoryRef[];
 }
+
+export interface BlogRecommendations<T = BlogPost> {
+  channelPosts: T[];
+  otherPosts: T[];
+}

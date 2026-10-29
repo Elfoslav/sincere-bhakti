@@ -1,163 +1,86 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown, CircleUserRound, Hash } from "lucide-react";
+import { Menu } from "@base-ui/react/menu";
+import { ArrowUpRight, Check, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useIdentity } from "@/components/IdentityProvider";
+import ChannelAvatar from "@/components/ChannelAvatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getIdentitySubtitleKey } from "@/lib/identity-label";
-import { cn } from "@/lib/utils";
 
 interface IdentitySwitcherProps {
-  compact?: boolean;
   mobileNav?: boolean;
-  onSelect?: () => void;
 }
 
-export default function IdentitySwitcher({ compact = false, mobileNav = false, onSelect }: IdentitySwitcherProps) {
+export default function IdentitySwitcher({ mobileNav = false }: IdentitySwitcherProps) {
   const t = useTranslations("Identity");
   const { identities, activeIdentity, switchIdentity, loading } = useIdentity();
   const [open, setOpen] = useState(false);
 
-  if (!activeIdentity || identities.length === 0) {
-    return <IdentitySwitcherPlaceholder compact={compact} mobileNav={mobileNav} />;
-  }
-
   async function handleSelect(channelId: string) {
-    await switchIdentity(channelId);
-    setOpen(false);
-    onSelect?.();
+    if (loading) return;
+    if (channelId === activeIdentity?.id) {
+      setOpen(false);
+      return;
+    }
+    try {
+      await switchIdentity(channelId);
+      setOpen(false);
+    } catch {
+      // The provider restores the previous identity. Keep the menu available
+      // so a failed request never implies that another identity was selected.
+    }
   }
 
   return (
-    <div className={cn("relative animate-in fade-in duration-300", mobileNav && "pointer-events-auto w-full max-w-44")}>
-      <button
-        type="button"
-        className={cn(
-          "flex items-center gap-2 rounded-full border border-border bg-card text-left text-foreground transition-colors hover:bg-secondary",
-          mobileNav && "h-9 w-full min-w-0 gap-2 border-border pl-1 pr-3 text-foreground",
-          compact && !mobileNav ? "w-full px-3 py-2" : "",
-          !compact && !mobileNav ? "h-10 max-w-56 pl-1 pr-3" : "",
-        )}
-        onClick={() => setOpen((value) => !value)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`${t("switchLabel")}: ${activeIdentity.name}`}
-      >
-        {mobileNav ? (
-          <CircleUserRound className="size-5 shrink-0 text-primary" aria-hidden="true" />
-        ) : (
-          <IdentityAvatar name={activeIdentity.name} avatarUrl={activeIdentity.avatarUrl} />
-        )}
-        <span className={cn("min-w-0", !mobileNav && "flex-1")}>
-          {!compact && !mobileNav && (
-            <span className="block text-xs uppercase text-muted-foreground">
-              {t("activeLabel")}
-            </span>
-          )}
-          <span className="block truncate text-sm font-medium">{activeIdentity.name}</span>
-        </span>
-        <ChevronDown className={cn(mobileNav ? "size-3.5" : "size-4", "shrink-0 transition-transform", open && "rotate-180")} />
-      </button>
-
-      {open && (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-20 cursor-default"
-            aria-label={t("closeSwitcher")}
-            onClick={() => setOpen(false)}
-            tabIndex={-1}
-          />
-          <div
-            role="menu"
-            className={cn(
-              "z-30 mt-2 overflow-hidden rounded-lg border border-deep/10 bg-popover text-deep shadow-xl",
-              mobileNav && "fixed left-3 right-3 top-[calc(var(--navbar-height)+0.5rem)] mt-0",
-              compact && !mobileNav ? "relative w-full" : "",
-              !compact && !mobileNav ? "absolute right-0 w-72" : "",
-            )}
-          >
-            <div className="border-b border-deep/10 px-3 py-2">
-              <p className="text-xs font-semibold uppercase text-muted-foreground">{t("switchLabel")}</p>
-            </div>
-            <div className="max-h-72 overflow-y-auto py-1">
-              {identities.map((identity) => (
-                <button
-                  key={identity.id}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={identity.id === activeIdentity.id}
-                  disabled={loading}
-                  onClick={() => handleSelect(identity.id).catch(() => {})}
-                  className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-sand/50 disabled:opacity-60"
-                >
-                  <IdentityAvatar name={identity.name} avatarUrl={identity.avatarUrl} dark />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{identity.name}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {t(getIdentitySubtitleKey(identity))}
-                    </span>
-                  </span>
-                  {identity.id === activeIdentity.id && <Check className="size-4 text-tulsi" />}
-                </button>
-              ))}
-            </div>
-            <div className="border-t border-deep/10 p-2">
-              <Link
-                href="/profile"
-                onClick={() => {
-                  setOpen(false);
-                  onSelect?.();
-                }}
-                className="block rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-sand/50 hover:text-deep"
-              >
-                {t("manage")}
-              </Link>
-            </div>
+    <div className="identity-switcher" data-mobile={mobileNav}>
+      {!activeIdentity || identities.length === 0 ? (
+        <div className="identity-trigger" aria-hidden="true">
+          <Skeleton className={mobileNav ? "size-[22px] shrink-0 rounded-full" : "size-8 shrink-0 rounded-full"} />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            {!mobileNav && <Skeleton className="h-2.5 w-20" />}
+            <Skeleton className="h-3 w-full" />
           </div>
-        </>
+          <ChevronDown className="identity-chevron" />
+        </div>
+      ) : (
+        <Menu.Root open={open} onOpenChange={setOpen} modal={false}>
+          <Menu.Trigger className="identity-trigger" aria-label={`${t("switchLabel")}: ${activeIdentity.name}`} aria-busy={loading}>
+            <ChannelAvatar name={activeIdentity.name} avatarUrl={activeIdentity.avatarUrl} size={mobileNav ? "xs" : "sm"} className={mobileNav ? undefined : "size-8 text-sm"} ariaHidden />
+            <span className="identity-copy">
+              {!mobileNav && <span className="identity-label">{t("activeLabel")}</span>}
+              <span className={`identity-name ${mobileNav ? "font-sans" : "font-heading"}`}>{activeIdentity.name}</span>
+            </span>
+            <ChevronDown className="identity-chevron" aria-hidden="true" />
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner sideOffset={mobileNav ? 30 : 24} align="end" collisionPadding={12} className="z-50">
+              <Menu.Popup className="identity-menu outline-none" aria-label={t("switchLabel")}>
+                <div className="identity-menu-heading font-heading">{t("switchLabel")}</div>
+                <Menu.RadioGroup value={activeIdentity.id} onValueChange={handleSelect} disabled={loading} className="identity-options" aria-busy={loading}>
+                  {identities.map(identity => (
+                    <Menu.RadioItem key={identity.id} value={identity.id} label={identity.name} className="identity-option">
+                      <ChannelAvatar name={identity.name} avatarUrl={identity.avatarUrl} size="sm" className="size-8 text-sm" ariaHidden />
+                      <span className="min-w-0 flex-1">
+                        <span className="identity-option-name">{identity.name}</span>
+                        <span className="block text-xs text-muted-foreground">{t(getIdentitySubtitleKey(identity))}</span>
+                      </span>
+                      <Menu.RadioItemIndicator className="shrink-0 text-primary"><Check className="size-4" aria-hidden="true" /></Menu.RadioItemIndicator>
+                    </Menu.RadioItem>
+                  ))}
+                </Menu.RadioGroup>
+                <div className="identity-menu-footer">
+                  <Menu.LinkItem render={<Link href="/profile" />} closeOnClick className="identity-manage">
+                    {t("manage")}<ArrowUpRight className="size-4" aria-hidden="true" />
+                  </Menu.LinkItem>
+                </div>
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
       )}
     </div>
-  );
-}
-
-function IdentitySwitcherPlaceholder({ compact = false, mobileNav = false }: { compact?: boolean; mobileNav?: boolean }) {
-  return (
-    <div
-      aria-hidden="true"
-      className={cn(
-        "flex items-center gap-2 rounded-full border border-border bg-muted opacity-70",
-        mobileNav && "h-9 w-full max-w-44 pl-1 pr-3",
-        compact && !mobileNav ? "w-full px-3 py-2" : "",
-        !compact && !mobileNav ? "h-10 w-56 pl-1 pr-3" : "",
-      )}
-    >
-      <span className={cn("shrink-0 rounded-full bg-secondary", mobileNav ? "size-5" : "size-8")} />
-      <span className={cn("min-w-0 flex-1", mobileNav ? "" : "space-y-1.5")}>
-        {!compact && !mobileNav && <span className="block h-2 w-20 rounded-full bg-secondary" />}
-        <span className={cn("block rounded-full bg-secondary", mobileNav ? "h-3 w-16" : "h-3 w-28")} />
-      </span>
-      <span className={cn("shrink-0 rounded-full bg-secondary", mobileNav ? "size-3.5" : "size-4")} />
-    </div>
-  );
-}
-
-function IdentityAvatar({ name, avatarUrl, dark = false }: { name: string; avatarUrl: string | null; dark?: boolean }) {
-  if (avatarUrl) {
-    // Using <img> for small identity switcher avatar (32px): no layout shift
-    // risk with fixed size, and simpler than next/image for tiny thumbnails.
-    return <img src={avatarUrl} alt="" className="size-8 shrink-0 rounded-full object-cover" />;
-  }
-
-  return (
-    <span
-      className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-full",
-        dark ? "bg-gold/20 text-gold" : "bg-secondary text-primary",
-      )}
-    >
-      {name ? name[0].toUpperCase() : <Hash className="size-4" />}
-    </span>
   );
 }

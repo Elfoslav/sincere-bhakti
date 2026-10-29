@@ -13,28 +13,30 @@ import EditBlogModal from "@/components/EditBlogModal";
 import ChannelAvatar from "@/components/ChannelAvatar";
 import OrnamentDivider from "@/components/OrnamentDivider";
 import ReadingProgress from "@/components/ReadingProgress";
+import ArticleRecommendations from "@/components/ArticleRecommendations";
+import { LoadableMedia } from "@/components/ui/loadable-media";
 import { useIdentity } from "@/components/IdentityProvider";
 import { getBlogUrl } from "@/lib/blog-url";
 import { estimateReadingMinutes, formatBlogDate } from "@/lib/blog";
-import type { BlogPost } from "@/types/blog";
+import type { BlogPost, BlogRecommendations } from "@/types/blog";
 
 export default function BlogDetailClient({
   post: initialPost,
   contentHtml,
-  latestPosts: initialLatestPosts = [],
+  recommendations = { channelPosts: [], otherPosts: [] },
 }: {
   post: BlogPost | null;
   contentHtml: string;
-  latestPosts?: BlogPost[];
+  recommendations?: BlogRecommendations;
 }) {
   const { data: session } = useSession();
   const { identities } = useIdentity();
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("BlogPage");
+  const homeT = useTranslations("HomePage");
   const [editedPost, setEditedPost] = useState<BlogPost | null>(null);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
-  const [latestPosts, setLatestPosts] = useState<BlogPost[]>(initialLatestPosts);
 
   const displayedPost =
     editedPost && initialPost && editedPost.id === initialPost.id
@@ -55,28 +57,11 @@ export default function BlogDetailClient({
         router.replace(getBlogUrl(updatedPost.shortId, updatedPost.slug));
       }
       setEditedPost(updatedPost);
-    } else {
-      setLatestPosts((prev) =>
-        prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)),
-      );
     }
     // Save & stay refreshes the page behind the still-open modal.
     if (exit) setEditingPost(null);
   }, [editedPost, initialPost, router]);
   const manageableChannelIds = useMemo(() => identities.map((identity) => identity.id), [identities]);
-
-  function handleLatestDelete(id: string) {
-    setLatestPosts((prev) => prev.filter((p) => p.id !== id));
-  }
-
-  const handleEdit = useCallback((postId: string) => {
-    if (displayedPost && postId === displayedPost.id) {
-      setEditingPost(displayedPost);
-      return;
-    }
-    const found = latestPosts.find((p) => p.id === postId);
-    if (found) setEditingPost(found);
-  }, [displayedPost, latestPosts]);
 
   if (!displayedPost) {
     return (
@@ -96,27 +81,23 @@ export default function BlogDetailClient({
   const readingMinutes = estimateReadingMinutes(html);
 
   return (
-    <BlogLayout title={displayedPost.title} containerClassName="reading-container page-space">
+    <BlogLayout title={displayedPost.title} containerClassName="blog-detail-container page-space">
       <ReadingProgress />
-      <article>
-        <header className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">
-            <Link href={`/blog/channel/${displayedPost.channel.slug}`} className="hover:underline underline-offset-4">
-              {displayedPost.channel.name}
+      <div className="blog-reading-grid" data-has-recommendations={Boolean(recommendations.channelPosts.length || recommendations.otherPosts.length)}>
+      <article className="blog-reading-article">
+        <header className="blog-article-header">
+          <CategoryChips categories={displayedPost.categories} onSelect={(category) => router.push(`/blog/category/${category.slug}`)} className="article-row-categories" />
+          <h1 className="font-heading blog-article-title">{displayedPost.title}</h1>
+          {displayedPost.excerpt && <p className="blog-article-dek font-heading">{displayedPost.excerpt}</p>}
+          <div className="blog-article-byline">
+            <Link href={`/blog/channel/${displayedPost.channel.slug}`} className="blog-article-author">
+              <ChannelAvatar name={displayedPost.channel.name} avatarUrl={displayedPost.channel.avatarUrl} size="sm" ariaHidden />
+              <span>{displayedPost.channel.name}</span>
             </Link>
-          </p>
-          <h1 className="type-title mt-4 text-balance">{displayedPost.title}</h1>
-          {/* div, not p: BlogPostActions renders a div (invalid inside a
-          paragraph and a hydration error). */}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
-            <ChannelAvatar name={displayedPost.channel.name} size="xs" ariaHidden />
-            <span>{date}</span>
-            {readingMinutes > 0 ? (
-              <>
-                <span aria-hidden>·</span>
-                <span>{t("readingTime", { minutes: readingMinutes })}</span>
-              </>
-            ) : null}
+            <div className="blog-article-dateline">
+              <time dateTime={displayedPost.publishedAt ?? displayedPost.createdAt}>{date}</time>
+              {readingMinutes > 0 && <><span aria-hidden="true">·</span><span>{t("readingTime", { minutes: readingMinutes })}</span></>}
+            </div>
             {!displayedPost.isPublic ? (
               <span className="rounded bg-deep/10 px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
                 {t("private")}
@@ -131,29 +112,23 @@ export default function BlogDetailClient({
               currentUserId={session?.user?.id}
               manageableChannelIds={manageableChannelIds}
               onDelete={handleDelete}
-              onEdit={() => displayedPost && handleEdit(displayedPost.id)}
+              onEdit={() => setEditingPost(displayedPost)}
             />
           </div>
-          <OrnamentDivider className="mt-8" />
-          {displayedPost.excerpt ? (
-            <p className="mx-auto mt-8 max-w-[38rem] text-pretty font-heading text-xl italic leading-relaxed text-foreground sm:text-2xl">
-              {displayedPost.excerpt}
-            </p>
-          ) : null}
         </header>
         {displayedPost.coverUrl ? (
-          <figure className="mt-10">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={displayedPost.coverUrl}
-              alt={displayedPost.title}
-              className="aspect-video w-full rounded-lg object-cover"
-            />
+          <figure className="blog-article-cover">
+            <LoadableMedia key={displayedPost.coverUrl} className="aspect-[16/10]">
+              {({ onLoad, onError, ref }) => (
+                // eslint-disable-next-line @next/next/no-img-element -- author-supplied covers may use external storage domains
+                <img src={displayedPost.coverUrl!} alt={displayedPost.title} className="aspect-[16/10] w-full object-cover" onLoad={onLoad} onError={onError} ref={ref} />
+              )}
+            </LoadableMedia>
           </figure>
         ) : null}
         {html ? (
           <div
-            className="rich-text rich-text-article mx-auto mt-10 max-w-[42rem] text-lg"
+            className="rich-text rich-text-article blog-article-body text-lg"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : null}
@@ -167,38 +142,15 @@ export default function BlogDetailClient({
           />
         </footer>
       </article>
-      {latestPosts.length > 0 ? (
-        <section aria-label={t("latestPosts")} className="mt-16 border-t border-border pt-10">
-          <h2 className="text-center font-heading text-2xl text-foreground">{t("moreArticles")}</h2>
-          <ol className="mt-6 divide-y divide-border">
-            {latestPosts.map((post, index) => (
-              <li key={post.id} className="flex items-center gap-4 py-5">
-                <span aria-hidden className="shrink-0 font-heading text-2xl text-primary">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <Link
-                    href={getBlogUrl(post.shortId, post.slug)}
-                    className="font-heading text-xl text-foreground hover:text-primary"
-                  >
-                    {post.title}
-                  </Link>
-                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                    {formatBlogDate(post.publishedAt ?? post.createdAt, locale)}
-                  </p>
-                </div>
-                <BlogPostActions
-                  post={post}
-                  currentUserId={session?.user?.id}
-                  manageableChannelIds={manageableChannelIds}
-                  onDelete={session ? handleLatestDelete : undefined}
-                  onEdit={session ? handleEdit : undefined}
-                />
-              </li>
-            ))}
-          </ol>
-        </section>
-      ) : null}
+      {(recommendations.channelPosts.length > 0 || recommendations.otherPosts.length > 0) && (
+        <aside className="blog-reading-sidebar" aria-label={t("moreArticles")}>
+          <div className="blog-reading-sidebar-inner">
+            <ArticleRecommendations title={t("moreFromChannel", { name: displayedPost.channel.name })} posts={recommendations.channelPosts} currentPostId={displayedPost.id} href={`/blog/channel/${displayedPost.channel.slug}`} linkLabel={t("channelArticles")} />
+            <ArticleRecommendations title={t("otherChannels")} posts={recommendations.otherPosts} currentPostId={displayedPost.id} href="/blog" linkLabel={homeT("viewAllBlog")} />
+          </div>
+        </aside>
+      )}
+      </div>
       <EditBlogModal
         post={editingPost}
         open={editingPost !== null}

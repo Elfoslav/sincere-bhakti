@@ -141,7 +141,7 @@ export default function BlogPageClient({
     if (isLoading) {
       return (
         <div className="flex flex-col">
-          <PostCardSkeleton variant="article" />
+          <PostCardSkeleton variant="article" featured={emptyKey === "emptyPublic" && !search && !category} />
           <PostCardSkeleton variant="article" />
           <PostCardSkeleton variant="article" />
         </div>
@@ -152,11 +152,12 @@ export default function BlogPageClient({
     }
     return (
       <div className="flex flex-col">
-        {list.map((post) => (
+        {list.map((post, index) => (
           <BlogCard
             key={post.id}
             post={post}
             variant="list"
+            featured={emptyKey === "emptyPublic" && index === 0 && !search && !category}
             currentUserId={session?.user?.id}
             manageableChannelIds={manageableChannelIds}
             onDelete={authenticated ? handleDelete : undefined}

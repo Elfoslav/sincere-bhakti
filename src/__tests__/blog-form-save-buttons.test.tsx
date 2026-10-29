@@ -162,7 +162,7 @@ describe("BlogForm private save buttons", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "saveAndStay" }));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("tooManyRequests"));
-    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: "auto", block: "nearest" });
+    await waitFor(() => expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: "auto", block: "nearest" }));
     fireEvent.click(screen.getByRole("button", { name: "saveAndStay" }));
     await waitFor(() => expect(attempts).toBe(2));
     expect(screen.getByRole("alert")).toHaveTextContent("tooManyRequests");

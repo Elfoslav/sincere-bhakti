@@ -95,8 +95,9 @@ test("article redesign preserves the original logo and font families", async ({ 
   await expect(logo).toBeVisible();
   const fonts = await page.evaluate(() => {
     const probe = document.createElement("span"); document.body.append(probe);
-    probe.style.fontFamily = "var(--font-heading)";
+    probe.className = "font-heading";
     const heading = getComputedStyle(probe).fontFamily;
+    probe.className = "";
     probe.style.fontFamily = "var(--font-sans)";
     const body = getComputedStyle(probe).fontFamily;
     probe.remove();

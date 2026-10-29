@@ -59,6 +59,10 @@ export interface GetBlogPostsParams {
   category?: string;
   // Free-text search over article title and excerpt.
   q?: string;
+  excludePostId?: string;
+  excludeChannelId?: string;
+  /** Compact recommendations do not need article bodies. */
+  includeContentHtml?: boolean;
 }
 
 export interface GetBlogPostsResult {
@@ -143,11 +147,12 @@ export async function getBlogPosts(
   params: GetBlogPostsParams,
   currentUserId?: string,
 ): Promise<GetBlogPostsResult> {
-  const { scope, cursor, limit = 10, channelId, language, requestLanguage, category, q } = params;
+  const { scope, cursor, limit = 10, channelId, language, requestLanguage, category, q, excludePostId, excludeChannelId, includeContentHtml = true } = params;
   const now = new Date();
 
   const where: Prisma.BlogPostWhereInput = {};
   if (language) where.language = language;
+  if (excludePostId) where.id = { not: excludePostId };
   if (category?.trim()) {
     // A category only ever matches its own language: scope to the feed
     // language when the caller filters by one.
@@ -166,6 +171,7 @@ export async function getBlogPosts(
   Object.assign(where, await resolveFeedScopeWhere({ scope, channelId, currentUserId }, now));
   andWhere(
     where,
+    excludeChannelId ? { channelId: { not: excludeChannelId } } : undefined,
     buildFeedSearchWhere(q, (term) => [
       { title: { contains: term, mode: "insensitive" } },
       { excerpt: { contains: term, mode: "insensitive" } },
@@ -187,7 +193,7 @@ export async function getBlogPosts(
       slug: true,
       title: true,
       excerpt: true,
-      contentHtml: true,
+      contentHtml: includeContentHtml,
       coverUrl: true,
       isPublic: true,
       language: true,
@@ -205,7 +211,7 @@ export async function getBlogPosts(
 
   const resolvedLanguage = requestLanguage ?? "en";
   return {
-    posts: posts.map((p) => toBlogPostResponse({ ...p, content: null }, resolvedLanguage)),
+    posts: posts.map((p) => toBlogPostResponse({ ...p, content: null, contentHtml: includeContentHtml ? p.contentHtml ?? null : null }, resolvedLanguage)),
     hasMore,
   };
 }

@@ -34,7 +34,7 @@ export default function PalettePreview({ initialPalette, presentation = false }:
   }));
   const filtered = articles.filter((article) => matchesSearch(search, article.title, article.excerpt) && (!category || article.categories.some((item) => item.name === category)));
   const content = <ArticleFeedLayout search={search} onSearchChange={setSearch} headingLevel={presentation ? "h1" : "h2"} categories={categories} category={category} onCategorySelect={setCategory}>
-    {filtered.length ? <div className="pointer-events-none" inert>{filtered.map((article) => <BlogCard key={article.id} post={article} variant="list" />)}</div> : <FeedEmptyState search={search || category} />}
+    {filtered.length ? <div className="pointer-events-none" inert>{filtered.map((article, index) => <BlogCard key={article.id} post={article} variant="list" featured={index === 0 && !search && !category} />)}</div> : <FeedEmptyState search={search || category} />}
   </ArticleFeedLayout>;
   if (presentation) return content;
   return (
