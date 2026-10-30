@@ -22,15 +22,20 @@ async function openJournal(page: Page, width = 1440, fixturePosts = posts) {
   await expect(page.locator(".journal-post[data-has-media]")).toHaveCount(3);
 }
 
-for (const width of [1440, 768, 390, 320]) {
-  test(`community journal keeps mixed content readable at ${width}px`, async ({ page }) => {
+for (const width of [1440, 768, 767, 390, 320]) {
+  test(`community journal keeps mixed content readable at ${width}px`, async ({ page }, testInfo) => {
     await openJournal(page, width);
     await expect(page.locator(".journal-container")).toBeVisible();
     const row = page.locator(".journal-post").first();
     const text = await row.locator(".post-card-copy").boundingBox();
     const media = await row.locator(".post-card-media").boundingBox();
-    if (width >= 360) expect(media!.x).toBeGreaterThanOrEqual(text!.x + text!.width);
-    else expect(media!.y).toBeGreaterThanOrEqual(text!.y + text!.height);
+    if (width >= 768) expect(media!.x).toBeGreaterThanOrEqual(text!.x + text!.width);
+    else {
+      expect(media!.y).toBeGreaterThanOrEqual(text!.y + text!.height);
+      expect(media!.width).toBeCloseTo((await row.boundingBox())!.width, 0);
+      expect(text!.width).toBeCloseTo(media!.width, 0);
+      await page.screenshot({ path: testInfo.outputPath("stacked-mobile-post.png") });
+    }
     const sidebar = page.getByRole("complementary", { name: en.PostsPage.journalLabel });
     if (width >= 768) {
       await expect(sidebar).toBeVisible();

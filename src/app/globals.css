@@ -577,12 +577,10 @@
   .journal-container { padding-inline: 1.25rem; }
   .journal-workspace { grid-template-columns: minmax(0, 1fr); }
   .journal-sidebar { display: none; }
-  .journal-post { grid-template-columns: minmax(0, 1fr) minmax(7.25rem, 35%); padding-block: 1.5rem; }
+  .journal-post { grid-template-columns: minmax(0, 1fr); padding-block: 1.5rem; }
   .journal-post .post-card-copy > p { font-size: .9375rem; line-height: 1.7; }
-}
-@media (max-width: 359px) {
-  .journal-post { grid-template-columns: minmax(0, 1fr); }
   .journal-post .post-card-media { grid-column: 1; grid-row: 3; margin-top: 1rem; }
+  .journal-post[data-has-copy="false"] .post-card-media { grid-row: 2; margin-top: 0; }
 }
 
 /* One creation surface across posts, articles and albums. */
