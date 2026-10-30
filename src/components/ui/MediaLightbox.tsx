@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useRef, type TouchEvent } from "react";
+import { useEffect, useCallback, useRef, useState, type TouchEvent } from "react";
 import { createPortal } from "react-dom";
 import { useLightboxHistory } from "@/lib/hooks/useLightboxHistory";
 import { useTranslations } from "next-intl";
@@ -27,6 +27,12 @@ export default function MediaLightbox({
 	const close = useLightboxHistory(onClose);
 	const touchStart = useRef<{ id: number; x: number; y: number; index: number } | null>(null);
 	const ignoreClickUntil = useRef(0);
+	const [slide, setSlide] = useState<{ index: number; direction: "next" | "previous" | null }>({ index: currentIndex, direction: null });
+	// Update before committing the keyed media so it enters in the correct
+	// direction without flashing first. Opening the viewer stays motionless.
+	if (slide.index !== currentIndex) {
+		setSlide({ index: currentIndex, direction: currentIndex > slide.index ? "next" : "previous" });
+	}
 
 	function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
 		// A fresh tap must always be able to use Close or the arrow controls.
@@ -118,7 +124,7 @@ export default function MediaLightbox({
 		<div
 			ref={dialogRef}
 			tabIndex={-1}
-			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 outline-none overscroll-contain"
+			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 outline-none overscroll-contain overflow-hidden"
 			onTouchStart={handleTouchStart}
 			onTouchMove={(event) => { if (event.touches.length !== 1) touchStart.current = null; }}
 			onTouchEnd={handleTouchEnd}
@@ -163,7 +169,7 @@ export default function MediaLightbox({
 			<div className="max-w-full px-2 pt-[calc(5rem+env(safe-area-inset-top))] pb-[calc(3rem+env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
 				<LoadableMedia
 					key={currentIndex}
-					className="bg-[conic-gradient(var(--muted)_25%,var(--card)_0_50%,var(--muted)_0_75%,var(--card)_0)] bg-[length:24px_24px] rounded overflow-hidden data-[status=loading]:min-h-[40vh] data-[status=loading]:min-w-[min(90vw,24rem)] data-[status=error]:min-w-[min(90vw,24rem)]"
+					className={`bg-[conic-gradient(var(--muted)_25%,var(--card)_0_50%,var(--muted)_0_75%,var(--card)_0)] bg-[length:24px_24px] rounded overflow-hidden data-[status=loading]:min-h-[40vh] data-[status=loading]:min-w-[min(90vw,24rem)] data-[status=error]:min-w-[min(90vw,24rem)] ${slide.direction ? `media-lightbox-slide-${slide.direction}` : ""}`}
 				>
 					{({ ref, onLoad, onError }) => img.type === "video" ? (
 						<video ref={ref} src={img.url} controls playsInline preload="metadata" aria-label={t("video")}

@@ -390,6 +390,13 @@
 .media-zoom img { transition: transform var(--motion-reveal); }
 .media-zoom:hover img { transform: scale(1.025); }
 @keyframes rise-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+.media-lightbox-slide-next { --media-slide-offset: min(6vw, 64px); }
+.media-lightbox-slide-previous { --media-slide-offset: max(-6vw, -64px); }
+.media-lightbox-slide-next, .media-lightbox-slide-previous { animation: media-lightbox-slide var(--motion-fast) ease-out both; }
+@keyframes media-lightbox-slide {
+  from { opacity: .65; transform: translateX(var(--media-slide-offset)); }
+  to { opacity: 1; transform: translateX(0); }
+}
 @media (min-width: 768px) {
   .home-values { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .home-values > * + * { border-top: 0; border-left: 1px solid var(--border); padding-top: 0; padding-left: 2rem; }
@@ -401,6 +408,7 @@
   .home-hero-content { padding-block: 2rem 8rem; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .media-lightbox-slide-next, .media-lightbox-slide-previous { animation: none; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 

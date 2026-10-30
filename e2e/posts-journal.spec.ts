@@ -22,6 +22,18 @@ async function openJournal(page: Page, width = 1440, fixturePosts = posts) {
   await expect(page.locator(".journal-post[data-has-media]")).toHaveCount(3);
 }
 
+const galleryUrls = ["/images/article-tulsi.jpg", "/images/article-community.jpg", "/images/vrindavan-dawn.jpg"];
+
+async function openPhotoViewer(page: Page, width: number) {
+  await openJournal(page, width, posts.map((post, i) => i === 0 ? {
+    ...post, media: galleryUrls.map((url, position) => ({ url, type: "image", position, width: 1200, height: 800 })),
+  } : post));
+  const opener = page.locator(".journal-post").first().getByRole("button", { name: en.PostCard.openImage }).first();
+  await opener.click();
+  const dialog = page.getByRole("dialog", { name: en.MediaLightbox.title });
+  return { opener, dialog, photo: dialog.locator("img") };
+}
+
 for (const width of [1440, 768, 767, 390, 320]) {
   test(`community journal keeps mixed content readable at ${width}px`, async ({ page }, testInfo) => {
     await openJournal(page, width);
@@ -119,15 +131,9 @@ test.describe("mobile gallery swipes", () => {
   test.use({ hasTouch: true, isMobile: true });
 
   test("native touch swipes navigate photos without closing or changing page history", async ({ page }) => {
-    const urls = ["/images/article-tulsi.jpg", "/images/article-community.jpg", "/images/vrindavan-dawn.jpg"];
-    await openJournal(page, 390, posts.map((post, i) => i === 0 ? {
-      ...post, media: urls.map((url, position) => ({ url, type: "image", position, width: 1200, height: 800 })),
-    } : post));
-    const opener = page.locator(".journal-post").first().getByRole("button", { name: en.PostCard.openImage }).first();
-    await opener.tap();
-    const dialog = page.getByRole("dialog", { name: en.MediaLightbox.title });
-    const photo = dialog.locator("img");
-    await expect(photo).toHaveAttribute("src", urls[0]);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    const { opener, dialog, photo } = await openPhotoViewer(page, 390);
+    await expect(photo).toHaveAttribute("src", galleryUrls[0]);
     const historyLength = await page.evaluate(() => history.length);
     const url = page.url();
     const client = await page.context().newCDPSession(page);
@@ -143,19 +149,19 @@ test.describe("mobile gallery swipes", () => {
       await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     }
     await swipe("left");
-    await expect(photo).toHaveAttribute("src", urls[1]);
+    await expect(photo).toHaveAttribute("src", galleryUrls[1]);
     await swipe("down");
-    await expect(photo).toHaveAttribute("src", urls[1]);
+    await expect(photo).toHaveAttribute("src", galleryUrls[1]);
     await swipe("left");
-    await expect(photo).toHaveAttribute("src", urls[2]);
+    await expect(photo).toHaveAttribute("src", galleryUrls[2]);
     await swipe("left");
-    await expect(photo).toHaveAttribute("src", urls[2]);
+    await expect(photo).toHaveAttribute("src", galleryUrls[2]);
     await swipe("right");
-    await expect(photo).toHaveAttribute("src", urls[1]);
+    await expect(photo).toHaveAttribute("src", galleryUrls[1]);
     await swipe("right");
-    await expect(photo).toHaveAttribute("src", urls[0]);
+    await expect(photo).toHaveAttribute("src", galleryUrls[0]);
     await swipe("right");
-    await expect(photo).toHaveAttribute("src", urls[0]);
+    await expect(photo).toHaveAttribute("src", galleryUrls[0]);
     expect(await page.evaluate(() => history.length)).toBe(historyLength);
     await dialog.getByRole("button", { name: en.MediaLightbox.close, exact: true }).tap();
     await expect(dialog).toHaveCount(0);
@@ -167,3 +173,46 @@ test.describe("mobile gallery swipes", () => {
     await expect(page).toHaveURL(url);
   });
 });
+
+for (const width of [390, 1440]) {
+  test(`gallery transitions follow navigation and respect reduced motion at ${width}px`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    const { dialog, photo } = await openPhotoViewer(page, width);
+    const frame = dialog.locator("[data-status]");
+    await expect(frame).toHaveCSS("animation-name", "none");
+    await dialog.getByRole("button", { name: en.MediaLightbox.next, exact: true }).click();
+    await expect(photo).toHaveAttribute("src", galleryUrls[1]);
+    const forward = await frame.evaluate(element => {
+      const animation = element.getAnimations()[0];
+      if (!animation?.effect) return null;
+      animation.pause();
+      const duration = Number(animation.effect.getTiming().duration);
+      animation.currentTime = duration / 2;
+      const style = getComputedStyle(element);
+      return { x: new DOMMatrixReadOnly(style.transform).m41, opacity: Number(style.opacity), duration };
+    });
+    expect(forward).not.toBeNull();
+    expect(forward!.x).toBeGreaterThan(0);
+    expect(forward!.opacity).toBeGreaterThan(0.65);
+    expect(forward!.opacity).toBeLessThan(1);
+    expect(forward!.duration).toBeLessThanOrEqual(200);
+    await page.keyboard.press("ArrowLeft");
+    await expect(photo).toHaveAttribute("src", galleryUrls[0]);
+    const backward = await frame.evaluate(element => {
+      const animation = element.getAnimations()[0];
+      if (!animation?.effect) return null;
+      animation.pause();
+      animation.currentTime = Number(animation.effect.getTiming().duration) / 2;
+      return new DOMMatrixReadOnly(getComputedStyle(element).transform).m41;
+    });
+    expect(backward).not.toBeNull();
+    expect(backward!).toBeLessThan(0);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await dialog.getByRole("button", { name: en.MediaLightbox.next, exact: true }).click();
+    await expect(photo).toHaveAttribute("src", galleryUrls[1]);
+    await expect(frame).toHaveCSS("animation-name", "none");
+    await expect(frame).toHaveCSS("transform", "none");
+    await dialog.getByRole("button", { name: en.MediaLightbox.close, exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+  });
+}
