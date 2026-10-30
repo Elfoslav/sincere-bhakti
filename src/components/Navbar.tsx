@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BrandLogo from "@/components/BrandLogo";
 import { useSession, signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
@@ -40,13 +40,33 @@ export default function Navbar() {
 	const hydrated = useHydrated();
 	const [open, setOpen] = useState(false);
 	const t = useTranslations("Navbar");
+	const navRef = useRef<HTMLElement>(null);
+	const toggleRef = useRef<HTMLButtonElement>(null);
+
+	useEffect(() => {
+		if (!open) return;
+		function dismissOutside(event: MouseEvent) {
+			if (event.target instanceof Node && !navRef.current?.contains(event.target)) setOpen(false);
+		}
+		// Wait for the click before collapsing this in-flow menu, so the page
+		// does not move away from the user's finger between down and up.
+		document.addEventListener("click", dismissOutside);
+		return () => document.removeEventListener("click", dismissOutside);
+	}, [open]);
 
 	function close() {
 		setOpen(false);
 	}
 
 	return (
-		<nav className="relative z-20 border-b border-border bg-background text-foreground">
+		<nav ref={navRef} onKeyDown={(event) => {
+				if (!open || event.key !== "Escape" || event.defaultPrevented) return;
+				// Let a nested language/identity menu consume the first Escape.
+				if (event.target instanceof Element && event.target.closest('[role="menu"], [aria-haspopup="menu"][aria-expanded="true"]')) return;
+				event.preventDefault();
+				close();
+				toggleRef.current?.focus();
+			}} className="relative z-20 border-b border-border bg-background text-foreground">
 			<div className="site-header-container">
 				<div className="relative flex h-[var(--navbar-height)] items-center justify-between">
 					<div className="flex items-center gap-8 lg:gap-6 xl:gap-12">
@@ -90,7 +110,8 @@ export default function Navbar() {
 							type="button"
 							variant="icon"
 							size="icon-lg"
-							className="lg:hidden"
+							className="size-11 lg:hidden"
+							ref={toggleRef}
 							onClick={() => setOpen(!open)}
 							disabled={!hydrated}
 							aria-label={t("toggleMenu")}
@@ -162,6 +183,7 @@ export default function Navbar() {
 						) : (
 							<Button
 								href="/login"
+								onClick={close}
 								variant="default"
 								size="sm"
 								className="flex-1 text-center px-4"

@@ -50,4 +50,47 @@ describe("Navbar", () => {
       expect(link).toHaveAttribute("aria-current", "page");
     }
   });
+  it("dismisses with Escape and returns focus to the menu toggle", () => {
+    render(<Navbar />);
+    const toggle = screen.getByRole("button", { name: "toggleMenu" });
+    fireEvent.click(toggle);
+    const link = screen.getAllByRole("link", { name: "posts" })[1];
+    link.focus();
+    fireEvent.keyDown(link, { key: "Escape" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveFocus();
+  });
+
+  it("dismisses on outside clicks but keeps interactions inside open", () => {
+    render(<Navbar />);
+    const toggle = screen.getByRole("button", { name: "toggleMenu" });
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getAllByRole("button", { name: "Language" })[1]);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(document.body);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("lets a nested menu handle Escape before dismissing navigation", () => {
+    render(<Navbar />);
+    const toggle = screen.getByRole("button", { name: "toggleMenu" });
+    fireEvent.click(toggle);
+    const language = screen.getAllByRole("button", { name: "Language" })[1];
+    language.setAttribute("aria-haspopup", "menu");
+    language.setAttribute("aria-expanded", "true");
+    fireEvent.keyDown(language, { key: "Escape" });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    language.setAttribute("aria-expanded", "false");
+    fireEvent.keyDown(language, { key: "Escape" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes navigation when the mobile sign-in link is selected", () => {
+    render(<Navbar />);
+    const toggle = screen.getByRole("button", { name: "toggleMenu" });
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getAllByRole("link", { name: "getIn" })[1]);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
 });

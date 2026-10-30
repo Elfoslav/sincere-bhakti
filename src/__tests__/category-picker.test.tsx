@@ -112,4 +112,27 @@ describe("CategoryPicker", () => {
 
     expect(onChange).toHaveBeenCalledWith(["Kirtan"]);
   });
+  it("dismisses suggestions before passing a second Escape to the editor", () => {
+    const onKeyDown = vi.fn();
+    render(<div onKeyDown={onKeyDown}><CategoryPicker value={[]} onChange={vi.fn()} /></div>);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "bhakti" } });
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(onKeyDown).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(onKeyDown).toHaveBeenCalledOnce();
+  });
+
+  it("reopens dismissed suggestions using the arrow keys", () => {
+    render(<CategoryPicker value={[]} onChange={vi.fn()} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "bhakti" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(input).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+  });
+
 });

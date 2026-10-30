@@ -72,7 +72,7 @@ export default function ContentComposer({ open, onOpenChange, title, children, w
             <Button type="button" variant="icon" className="hidden sm:inline-flex" icon={expanded ? <Minimize2 /> : <Maximize2 />}
               aria-label={t(expanded ? "collapse" : "expand")} aria-pressed={expanded}
               onClick={() => setExpanded(!expanded)} />
-            <Button type="button" variant="icon" icon={<X />} aria-label={t("close")} disabled={busy} onClick={requestClose} />
+            <Button type="button" variant="icon" className="size-11" icon={<X />} aria-label={t("close")} disabled={busy} onClick={requestClose} />
           </div>
         </div>
         <div className="content-composer-body" aria-busy={busy}>

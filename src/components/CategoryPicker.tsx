@@ -88,6 +88,7 @@ export default function CategoryPicker({ value, onChange, max = CATEGORIES_MAX_P
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
+      setOpen(true);
       const total = options.length + (canCreate ? 1 : 0);
       if (total === 0) return;
       setActiveIndex((i) => (e.key === "ArrowDown" ? (i + 1) % total : (i - 1 + total) % total));
@@ -96,7 +97,9 @@ export default function CategoryPicker({ value, onChange, max = CATEGORIES_MAX_P
       if (activeIndex >= 0 && activeIndex < options.length) select(options[activeIndex].name);
       else if (canCreate && activeIndex === options.length) select(normalized);
       else if (canCreate && options.length === 0) select(normalized);
-    } else if (e.key === "Escape") {
+    } else if (e.key === "Escape" && open) {
+      e.preventDefault();
+      e.stopPropagation();
       setOpen(false);
       setActiveIndex(-1);
     }
@@ -123,7 +126,7 @@ export default function CategoryPicker({ value, onChange, max = CATEGORIES_MAX_P
                 type="button"
                 onClick={() => remove(name)}
                 aria-label={t("removeCategory", { name })}
-                className="rounded-full p-0.5 text-muted-foreground hover:text-deep"
+                className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground hover:text-deep"
               >
                 <X className="size-3" aria-hidden />
               </button>

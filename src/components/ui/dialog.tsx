@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
@@ -47,32 +48,36 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & {
 	showCloseButton?: boolean;
 }) {
+	const t = useTranslations("MediaLightbox");
 	return (
 		<DialogPortal>
 			<DialogOverlay />
 			<DialogPrimitive.Popup
 				data-slot="dialog-content"
 				className={cn(
-					"fixed top-1/2 left-1/2 z-50 flex flex-col w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+					"fixed top-1/2 left-1/2 z-50 flex flex-col w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+					showCloseButton && "[&>[data-slot=dialog-header]]:pr-12",
 					className,
 				)}
 				{...props}
 			>
 				{children}
 				{showCloseButton && (
-					<DialogPrimitive.Close
-						data-slot="dialog-close"
-						render={
-							<Button
-								variant="ghost"
-								className="absolute top-2 right-2"
-								size="icon-sm"
-								icon={<XIcon />}
-							/>
-						}
-					>
-						<span className="sr-only">Close</span>
-					</DialogPrimitive.Close>
+					<div className="sticky top-4 order-first z-10 -mb-4 h-0 shrink-0">
+						<DialogPrimitive.Close
+							data-slot="dialog-close"
+							render={
+								<Button
+									variant="ghost"
+									className="absolute -top-2 -right-2 size-11 bg-popover"
+									size="icon-sm"
+									icon={<XIcon />}
+								/>
+							}
+						>
+							<span className="sr-only">{t("close")}</span>
+						</DialogPrimitive.Close>
+					</div>
 				)}
 			</DialogPrimitive.Popup>
 		</DialogPortal>
@@ -135,6 +140,7 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
 	showCloseButton?: boolean;
 }) {
+	const t = useTranslations("MediaLightbox");
 	return (
 		<div
 			data-slot="dialog-footer"
@@ -151,7 +157,7 @@ function DialogFooter({
 		>
 			{children}
 			{showCloseButton && (
-				<DialogPrimitive.Close render={<Button variant="outline" />}>Close</DialogPrimitive.Close>
+				<DialogPrimitive.Close render={<Button variant="outline" />}>{t("close")}</DialogPrimitive.Close>
 			)}
 		</div>
 	);

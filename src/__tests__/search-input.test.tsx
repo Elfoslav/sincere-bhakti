@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
@@ -32,4 +33,30 @@ describe("SearchInput", () => {
     render(<SearchInput value="" onChange={vi.fn()} placeholder="Hľadať kanály" />);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
+  it("returns focus to search when clearing removes the clear control", () => {
+    function Harness() {
+      const [value, setValue] = useState("bhakti");
+      return <SearchInput value={value} onChange={setValue} placeholder="Search" />;
+    }
+    render(<Harness />);
+    const clear = screen.getByRole("button");
+    clear.focus();
+    fireEvent.click(clear);
+    expect(screen.getByRole("searchbox")).toHaveValue("");
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("clears with Escape before letting a containing overlay dismiss", () => {
+    const onKeyDown = vi.fn();
+    const onChange = vi.fn();
+    const { rerender } = render(<div onKeyDown={onKeyDown}><SearchInput value="bhakti" onChange={onChange} placeholder="Search" /></div>);
+    fireEvent.keyDown(screen.getByRole("searchbox"), { key: "Escape" });
+    expect(onChange).toHaveBeenCalledWith("");
+    expect(onKeyDown).not.toHaveBeenCalled();
+    rerender(<div onKeyDown={onKeyDown}><SearchInput value="" onChange={onChange} placeholder="Search" /></div>);
+    fireEvent.keyDown(screen.getByRole("searchbox"), { key: "Escape" });
+    expect(onKeyDown).toHaveBeenCalledOnce();
+  });
+
 });
