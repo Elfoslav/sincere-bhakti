@@ -79,7 +79,8 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   const pendingUploads = usePendingMediaUploads();
   const showSaved = useContentSavedToast("post");
   const [createId, setCreateId] = useState(() => crypto.randomUUID());
-  const { activeChannelId } = useIdentity();
+  const { activeChannelId, loading: identitySwitching } = useIdentity();
+  const [selectedPostingChannel, setSelectedPostingChannel] = useState(postingChannel);
   const locale = useLocale();
   const t = useTranslations("PostsPage");
   const common = useTranslations("Common");
@@ -102,7 +103,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   useObjectUrlCleanup(mediaItems.map(item => item.previewUrl));
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragItemId = useRef<string | null>(null);
-  const postingChannelId = postingChannel?.id ?? activeChannelId;
+  const postingChannelId = selectedPostingChannel?.id ?? activeChannelId;
   useComposerFormState({ snapshot: JSON.stringify({ content, isPublic, categories, media: mediaItems.map((item) => item.id) }), busy: submitting || preparing, onDirtyChange, onSubmittingChange });
 
 
@@ -241,7 +242,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!session || submitting || preparing) return;
+    if (!session || submitting || preparing || (mode === "create" && identitySwitching)) return;
     const trimmed = content.trim();
     if (!trimmed && mediaItems.length === 0) {
       toast.error(t("nothingToPost"));
@@ -345,7 +346,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
   return (
     <form onSubmit={handleSubmit} id={formId}>
       <fieldset disabled={submitting || preparing || (mode === "create" && !isVerified)} className="min-w-0">
-      {mode === "create" && <ContentPublishingContext channel={postingChannel} />}
+      {mode === "create" && <ContentPublishingContext channel={selectedPostingChannel} selectable onIdentityChange={() => setSelectedPostingChannel(undefined)} disabled={submitting || preparing || !isVerified} />}
 
       <>
           <Textarea
@@ -421,7 +422,7 @@ const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm({
           <UploadSizeMeter used={totalUploadSize} max={MAX_TOTAL_UPLOAD_SIZE_BYTES} />
           <ContentVisibilityControl isPublic={isPublic} onChange={setIsPublic} />
           <ContentFormActions mode={mode} isPublic={isPublic} busy={submitting || preparing} onCancel={onCancel}
-            disabled={submitting || preparing || (mode === "create" && !postingChannelId) || (!content.trim() && mediaItems.length === 0)} />
+            disabled={submitting || preparing || (mode === "create" && (!postingChannelId || identitySwitching)) || (!content.trim() && mediaItems.length === 0)} />
       </>
       </fieldset>
     </form>

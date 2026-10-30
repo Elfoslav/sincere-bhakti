@@ -11,6 +11,9 @@ export default function ChannelPostCreate({ postingChannel, onSuccess }: { posti
   const [open, setOpen] = useState(false);
   return <>
     <ContentCreateAction kind="post" authenticated onClick={() => setOpen(true)} />
-    <ContentCreationDialog kind="post" open={open} onOpenChange={setOpen} onSuccess={onSuccess} postingChannel={postingChannel} />
+    <ContentCreationDialog kind="post" open={open} onOpenChange={setOpen} onSuccess={(post) => {
+      // A different posting identity publishes to its own channel, not this feed.
+      if (post.channel.id === postingChannel.id) onSuccess(post);
+    }} postingChannel={postingChannel} />
   </>;
 }

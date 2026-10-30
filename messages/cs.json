@@ -26,7 +26,8 @@
 		"owner": "Vlastník",
 		"admin": "Admin",
 		"editor": "Editor",
-		"manage": "Spravovat kanály"
+		"manage": "Spravovat kanály",
+		"switchFailed": "Identitu se nepodařilo přepnout. Zkuste to prosím znovu."
 	},
 	"HomePage": {
 		"heroDescription": "Čtěte učení, sdílejte realizace a objevujte kanály oddaných v saṅze Gauḍīya Vaiṣṇavů.",

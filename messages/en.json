@@ -26,7 +26,8 @@
 		"owner": "Owner",
 		"admin": "Admin",
 		"editor": "Editor",
-		"manage": "Manage channels"
+		"manage": "Manage channels",
+		"switchFailed": "Could not switch identity. Please try again."
 	},
 	"HomePage": {
 		"heroDescription": "Read teachings, share realizations, and discover devotee channels in the Gauḍīya Vaiṣṇava saṅga.",

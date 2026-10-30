@@ -369,6 +369,10 @@
 .identity-switcher[data-mobile="true"] { pointer-events: auto; width: 100%; max-width: 11rem; }
 .identity-switcher[data-mobile="true"] .identity-trigger { height: 2.75rem; gap: .5rem; padding-inline: .25rem; }
 .identity-switcher[data-mobile="true"] .identity-name { font-size: .875rem; }
+.identity-switcher[data-composer="true"] { width: 100%; }
+.identity-switcher[data-composer="true"] .identity-trigger { height: auto; min-height: 3.5rem; padding: .5rem .75rem; border: 1px solid var(--border); background: var(--card); }
+.identity-switcher[data-composer="true"] .identity-name { font-size: .875rem; }
+.identity-trigger:disabled { cursor: wait; opacity: .6; }
 .identity-menu { width: min(20rem, calc(100vw - 1.5rem)); max-height: var(--available-height); overflow: auto; border: 1px solid var(--border); border-radius: .5rem; background: var(--popover); color: var(--popover-foreground); box-shadow: 0 8px 24px color-mix(in srgb, var(--foreground) 10%, transparent); transform-origin: var(--transform-origin); transition: opacity var(--motion-fast), transform var(--motion-fast); }
 .identity-menu[data-starting-style], .identity-menu[data-ending-style] { opacity: 0; transform: translateY(-4px); }
 .identity-menu-heading { padding: 1rem 1rem .75rem; font-size: 1.25rem; }

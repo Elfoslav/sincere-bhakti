@@ -66,6 +66,7 @@ describe("IdentitySwitcher", () => {
     await waitFor(() => expect(switchIdentity).toHaveBeenCalledOnce());
     expect(screen.getByRole("menuitemradio", { name: /Madhava Dasa/ })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("switchFailed");
   });
 
   it("closes the selected identity without sending a redundant request", async () => {
@@ -82,4 +83,36 @@ describe("IdentitySwitcher", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(container.querySelector('[aria-hidden="true"]')).toBeInTheDocument();
   });
+  it("reuses the menu with a composer label and a channel-page default", async () => {
+    const onSelected = vi.fn();
+    render(<IdentitySwitcher variant="composer" label="postingAs" selectedIdentity={channel} onSelected={onSelected} />);
+    const trigger = screen.getByRole("button", { name: `switchLabel: ${channel.name}` });
+    expect(trigger).toHaveTextContent("postingAs");
+    fireEvent.click(trigger);
+    expect(await screen.findByRole("menuitemradio", { name: /Vrindavan Community/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByRole("menuitem", { name: "manage" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Madhava Dasa/ }));
+    await waitFor(() => expect(onSelected).toHaveBeenCalledOnce());
+    expect(switchIdentity).toHaveBeenCalledWith(personal.id);
+  });
+
+  it("disables switching when the form is busy", () => {
+    render(<IdentitySwitcher variant="composer" disabled />);
+    const trigger = screen.getByRole("button");
+    expect(trigger).toBeDisabled();
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("does not change the composer selection after a failed switch", async () => {
+    switchIdentity.mockRejectedValueOnce(new Error("failed"));
+    const onSelected = vi.fn();
+    render(<IdentitySwitcher variant="composer" selectedIdentity={channel} onSelected={onSelected} />);
+    fireEvent.click(screen.getByRole("button"));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /Madhava Dasa/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("switchFailed");
+    expect(onSelected).not.toHaveBeenCalled();
+    expect(screen.getByRole("menuitemradio", { name: /Vrindavan Community/ })).toHaveAttribute("aria-checked", "true");
+  });
+
 });

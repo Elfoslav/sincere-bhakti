@@ -8,35 +8,47 @@ import { Link } from "@/i18n/navigation";
 import { useIdentity } from "@/components/IdentityProvider";
 import ChannelAvatar from "@/components/ChannelAvatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { PostingChannel } from "@/types/content-composer";
 import { getIdentitySubtitleKey } from "@/lib/identity-label";
 
 interface IdentitySwitcherProps {
   mobileNav?: boolean;
+  variant?: "header" | "composer";
+  label?: string;
+  selectedIdentity?: PostingChannel;
+  onSelected?: () => void;
+  disabled?: boolean;
 }
 
-export default function IdentitySwitcher({ mobileNav = false }: IdentitySwitcherProps) {
+export default function IdentitySwitcher({ mobileNav = false, variant = "header", label, selectedIdentity, onSelected, disabled = false }: IdentitySwitcherProps) {
   const t = useTranslations("Identity");
   const { identities, activeIdentity, switchIdentity, loading } = useIdentity();
   const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const identity = selectedIdentity ?? activeIdentity;
+  const composer = variant === "composer";
 
   async function handleSelect(channelId: string) {
-    if (loading) return;
-    if (channelId === activeIdentity?.id) {
+    if (loading || disabled) return;
+    if (channelId === identity?.id) {
       setOpen(false);
       return;
     }
     try {
+      setFailed(false);
       await switchIdentity(channelId);
+      onSelected?.();
       setOpen(false);
     } catch {
+      setFailed(true);
       // The provider restores the previous identity. Keep the menu available
       // so a failed request never implies that another identity was selected.
     }
   }
 
   return (
-    <div className="identity-switcher" data-mobile={mobileNav}>
-      {!activeIdentity || identities.length === 0 ? (
+    <div className="identity-switcher" data-mobile={mobileNav} data-composer={composer}>
+      {!identity || identities.length === 0 ? (
         <div className="identity-trigger" aria-hidden="true">
           <Skeleton className={mobileNav ? "size-[22px] shrink-0 rounded-full" : "size-8 shrink-0 rounded-full"} />
           <div className="min-w-0 flex-1 space-y-1.5">
@@ -46,20 +58,20 @@ export default function IdentitySwitcher({ mobileNav = false }: IdentitySwitcher
           <ChevronDown className="identity-chevron" />
         </div>
       ) : (
-        <Menu.Root open={open} onOpenChange={setOpen} modal={false}>
-          <Menu.Trigger className="identity-trigger" aria-label={`${t("switchLabel")}: ${activeIdentity.name}`} aria-busy={loading}>
-            <ChannelAvatar name={activeIdentity.name} avatarUrl={activeIdentity.avatarUrl} size={mobileNav ? "xs" : "sm"} className={mobileNav ? undefined : "size-8 text-sm"} ariaHidden />
+        <Menu.Root open={open} onOpenChange={(next) => { setOpen(next); if (next) setFailed(false); }} modal={false}>
+          <Menu.Trigger className="identity-trigger" aria-label={`${t("switchLabel")}: ${identity.name}`} aria-busy={loading} disabled={disabled || loading}>
+            <ChannelAvatar name={identity.name} avatarUrl={identity.avatarUrl} size={mobileNav ? "xs" : "sm"} className={mobileNav ? undefined : "size-8 text-sm"} ariaHidden />
             <span className="identity-copy">
-              {!mobileNav && <span className="identity-label">{t("activeLabel")}</span>}
-              <span className={`identity-name ${mobileNav ? "font-sans" : "font-heading"}`}>{activeIdentity.name}</span>
+              {!mobileNav && <span className="identity-label">{label ?? t("activeLabel")}</span>}
+              <span className={`identity-name ${mobileNav || composer ? "font-sans" : "font-heading"}`}>{identity.name}</span>
             </span>
             <ChevronDown className="identity-chevron" aria-hidden="true" />
           </Menu.Trigger>
           <Menu.Portal>
-            <Menu.Positioner sideOffset={mobileNav ? 30 : 24} align="end" collisionPadding={12} className="z-50">
+            <Menu.Positioner sideOffset={composer ? 6 : mobileNav ? 30 : 24} align={composer ? "start" : "end"} collisionPadding={12} className="z-50">
               <Menu.Popup className="identity-menu outline-none" aria-label={t("switchLabel")}>
                 <div className="identity-menu-heading font-heading">{t("switchLabel")}</div>
-                <Menu.RadioGroup value={activeIdentity.id} onValueChange={handleSelect} disabled={loading} className="identity-options" aria-busy={loading}>
+                <Menu.RadioGroup value={identity.id} onValueChange={handleSelect} disabled={disabled || loading} className="identity-options" aria-busy={loading}>
                   {identities.map(identity => (
                     <Menu.RadioItem key={identity.id} value={identity.id} label={identity.name} className="identity-option">
                       <ChannelAvatar name={identity.name} avatarUrl={identity.avatarUrl} size="sm" className="size-8 text-sm" ariaHidden />
@@ -71,11 +83,12 @@ export default function IdentitySwitcher({ mobileNav = false }: IdentitySwitcher
                     </Menu.RadioItem>
                   ))}
                 </Menu.RadioGroup>
-                <div className="identity-menu-footer">
+                {failed && <p role="alert" className="px-4 pb-3 text-sm text-destructive">{t("switchFailed")}</p>}
+                {!composer && <div className="identity-menu-footer">
                   <Menu.LinkItem render={<Link href="/profile" />} closeOnClick className="identity-manage">
                     {t("manage")}<ArrowUpRight className="size-4" aria-hidden="true" />
                   </Menu.LinkItem>
-                </div>
+                </div>}
               </Menu.Popup>
             </Menu.Positioner>
           </Menu.Portal>
