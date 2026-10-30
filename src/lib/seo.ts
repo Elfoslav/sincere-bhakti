@@ -21,13 +21,13 @@ export const TEXT_OG_IMAGE = {
   type: "image/png",
 };
 
-// Flattened default preview (logo on ivory) for static pages. Never use a
-// transparent PNG as og:image — WhatsApp/Telegram dark mode renders
+// Temple sunset preview with the logo, Bhakti education, and site address.
+// Never use a transparent PNG as og:image — WhatsApp/Telegram dark mode renders
 // transparency as near-black, making dark logo ink invisible.
 export const DEFAULT_OG_IMAGE = {
   ...OG_IMAGE_SIZE,
   type: "image/jpeg",
-  url: "/images/og-default.jpg",
+  url: "/images/og-bhakti-education.jpg",
 };
 
 // CDN caching for OG image routes. They render dynamically (rate limiting
