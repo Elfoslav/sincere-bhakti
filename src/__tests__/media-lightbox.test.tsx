@@ -91,4 +91,74 @@ describe("MediaLightbox", () => {
     fireEvent.click(screen.getByRole("dialog"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+  it("swipes left and right, stops at either end, and ignores a post-swipe click", () => {
+    render(<Harness />);
+    const dialog = screen.getByRole("dialog");
+    fireEvent.touchStart(dialog, { touches: [{ identifier: 0, clientX: 240, clientY: 200 }] });
+    fireEvent.touchEnd(dialog, { touches: [], changedTouches: [{ identifier: 0, clientX: 80, clientY: 210 }] });
+    expect(screen.getByAltText("imageAlt 3/3")).toBeInTheDocument();
+    fireEvent.click(dialog);
+    expect(dialog).toBeInTheDocument();
+    fireEvent.touchStart(dialog, { touches: [{ identifier: 0, clientX: 240, clientY: 200 }] });
+    fireEvent.touchEnd(dialog, { touches: [], changedTouches: [{ identifier: 0, clientX: 80, clientY: 200 }] });
+    expect(screen.getByAltText("imageAlt 3/3")).toBeInTheDocument();
+    for (let i = 0; i < 3; i++) {
+      fireEvent.touchStart(dialog, { touches: [{ identifier: 0, clientX: 80, clientY: 200 }] });
+      fireEvent.touchEnd(dialog, { touches: [], changedTouches: [{ identifier: 0, clientX: 240, clientY: 200 }] });
+    }
+    expect(screen.getByAltText("imageAlt 1/3")).toBeInTheDocument();
+  });
+
+  it("ignores taps, short movements and vertical gestures", () => {
+    render(<Harness />);
+    const image = screen.getByAltText("imageAlt 2/3");
+    for (const end of [{ x: 100, y: 200 }, { x: 80, y: 200 }, { x: 180, y: 400 }]) {
+      fireEvent.touchStart(image, { touches: [{ identifier: 0, clientX: 100, clientY: 200 }] });
+      fireEvent.touchEnd(image, { touches: [], changedTouches: [{ identifier: 0, clientX: end.x, clientY: end.y }] });
+      expect(image).toBeInTheDocument();
+    }
+  });
+
+  it("cancels multi-touch and interrupted gestures", () => {
+    render(<Harness />);
+    const image = screen.getByAltText("imageAlt 2/3");
+    fireEvent.touchStart(image, { touches: [{ identifier: 0, clientX: 240, clientY: 200 }] });
+    fireEvent.touchMove(image, { touches: [{ identifier: 0 }, { identifier: 1 }] });
+    fireEvent.touchEnd(image, { touches: [], changedTouches: [{ identifier: 0, clientX: 80, clientY: 200 }] });
+    expect(image).toBeInTheDocument();
+    fireEvent.touchStart(image, { touches: [{ identifier: 0, clientX: 240, clientY: 200 }] });
+    fireEvent.touchCancel(image);
+    fireEvent.touchEnd(image, { touches: [], changedTouches: [{ identifier: 0, clientX: 80, clientY: 200 }] });
+    expect(image).toBeInTheDocument();
+  });
+
+  it("leaves native video controls and zoomed-image panning alone", () => {
+    const onNavigate = vi.fn();
+    const { unmount } = render(<MediaLightbox images={[{ url: "/video.mp4", type: "video" }, ...images]} currentIndex={0} onClose={vi.fn()} onNavigate={onNavigate} />);
+    const video = screen.getByLabelText("video");
+    fireEvent.touchStart(video, { touches: [{ identifier: 0, clientX: 240, clientY: 200 }] });
+    fireEvent.touchEnd(video, { touches: [], changedTouches: [{ identifier: 0, clientX: 80, clientY: 200 }] });
+    expect(onNavigate).not.toHaveBeenCalled();
+    unmount();
+    const original = window.visualViewport;
+    Object.defineProperty(window, "visualViewport", { configurable: true, value: { scale: 2 } });
+    render(<Harness />);
+    const image = screen.getByAltText("imageAlt 2/3");
+    fireEvent.touchStart(image, { touches: [{ identifier: 0, clientX: 240, clientY: 200 }] });
+    fireEvent.touchEnd(image, { touches: [], changedTouches: [{ identifier: 0, clientX: 80, clientY: 200 }] });
+    expect(image).toBeInTheDocument();
+    Object.defineProperty(window, "visualViewport", { configurable: true, value: original });
+  });
+
+  it("allows the next deliberate touch to close after swiping", () => {
+    render(<Harness />);
+    const dialog = screen.getByRole("dialog");
+    fireEvent.touchStart(dialog, { touches: [{ identifier: 0, clientX: 240, clientY: 200 }] });
+    fireEvent.touchEnd(dialog, { touches: [], changedTouches: [{ identifier: 0, clientX: 80, clientY: 200 }] });
+    const close = screen.getByRole("button", { name: "close" });
+    fireEvent.touchStart(close, { touches: [{ identifier: 0, clientX: 280, clientY: 30 }] });
+    fireEvent.click(close);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
 });

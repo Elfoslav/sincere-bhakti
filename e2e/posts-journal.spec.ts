@@ -114,3 +114,56 @@ for (const width of [390, 1440]) {
     await expect(page).toHaveURL(/q=journal/);
   });
 }
+
+test.describe("mobile gallery swipes", () => {
+  test.use({ hasTouch: true, isMobile: true });
+
+  test("native touch swipes navigate photos without closing or changing page history", async ({ page }) => {
+    const urls = ["/images/article-tulsi.jpg", "/images/article-community.jpg", "/images/vrindavan-dawn.jpg"];
+    await openJournal(page, 390, posts.map((post, i) => i === 0 ? {
+      ...post, media: urls.map((url, position) => ({ url, type: "image", position, width: 1200, height: 800 })),
+    } : post));
+    const opener = page.locator(".journal-post").first().getByRole("button", { name: en.PostCard.openImage }).first();
+    await opener.tap();
+    const dialog = page.getByRole("dialog", { name: en.MediaLightbox.title });
+    const photo = dialog.locator("img");
+    await expect(photo).toHaveAttribute("src", urls[0]);
+    const historyLength = await page.evaluate(() => history.length);
+    const url = page.url();
+    const client = await page.context().newCDPSession(page);
+    async function swipe(direction: "left" | "right" | "down") {
+      const bounds = (await photo.boundingBox())!;
+      const y = bounds.y + bounds.height / 2;
+      const startX = bounds.x + bounds.width * (direction === "left" ? 0.75 : 0.25);
+      const endX = direction === "down" ? startX : bounds.x + bounds.width * (direction === "left" ? 0.25 : 0.75);
+      await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: startX, y }] });
+      for (let step = 1; step <= 6; step++) {
+        await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: startX + (endX - startX) * step / 6, y: y + (direction === "down" ? step * 15 : 0) }] });
+      }
+      await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    }
+    await swipe("left");
+    await expect(photo).toHaveAttribute("src", urls[1]);
+    await swipe("down");
+    await expect(photo).toHaveAttribute("src", urls[1]);
+    await swipe("left");
+    await expect(photo).toHaveAttribute("src", urls[2]);
+    await swipe("left");
+    await expect(photo).toHaveAttribute("src", urls[2]);
+    await swipe("right");
+    await expect(photo).toHaveAttribute("src", urls[1]);
+    await swipe("right");
+    await expect(photo).toHaveAttribute("src", urls[0]);
+    await swipe("right");
+    await expect(photo).toHaveAttribute("src", urls[0]);
+    expect(await page.evaluate(() => history.length)).toBe(historyLength);
+    await dialog.getByRole("button", { name: en.MediaLightbox.close, exact: true }).tap();
+    await expect(dialog).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => Boolean(history.state?.mediaLightbox))).toBe(false);
+    await opener.tap();
+    await swipe("left");
+    await page.goBack();
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(url);
+  });
+});

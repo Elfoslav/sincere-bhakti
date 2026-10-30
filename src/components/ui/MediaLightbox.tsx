@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, type TouchEvent } from "react";
 import { createPortal } from "react-dom";
 import { useLightboxHistory } from "@/lib/hooks/useLightboxHistory";
 import { useTranslations } from "next-intl";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadableMedia } from "@/components/ui/loadable-media";
+
+const MIN_SWIPE_DISTANCE = 50;
+const SWIPE_CLICK_SUPPRESSION_MS = 400;
 
 export default function MediaLightbox({
 	images,
@@ -22,6 +25,35 @@ export default function MediaLightbox({
 	const t = useTranslations("MediaLightbox");
 	const dialogRef = useRef<HTMLDivElement>(null);
 	const close = useLightboxHistory(onClose);
+	const touchStart = useRef<{ id: number; x: number; y: number; index: number } | null>(null);
+	const ignoreClickUntil = useRef(0);
+
+	function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
+		// A fresh tap must always be able to use Close or the arrow controls.
+		ignoreClickUntil.current = 0;
+		touchStart.current = null;
+		if (event.touches.length !== 1 || (window.visualViewport?.scale ?? 1) > 1) return;
+		if (event.target instanceof Element && event.target.closest("button, video, a, input, textarea")) return;
+		const touch = event.touches[0];
+		touchStart.current = { id: touch.identifier, x: touch.clientX, y: touch.clientY, index: currentIndex };
+	}
+
+	function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
+		const start = touchStart.current;
+		touchStart.current = null;
+		if (!start || event.touches.length || start.index !== currentIndex || (window.visualViewport?.scale ?? 1) > 1) return;
+		const touch = Array.from(event.changedTouches).find((item) => item.identifier === start.id);
+		if (!touch) return;
+		const dx = touch.clientX - start.x;
+		const dy = touch.clientY - start.y;
+		if (Math.abs(dx) < MIN_SWIPE_DISTANCE || Math.abs(dx) <= Math.abs(dy) * 1.25) return;
+		// Some browsers emit a click after a swipe. It must not close the
+		// backdrop or activate a control under the finger, even at either end.
+		ignoreClickUntil.current = Date.now() + SWIPE_CLICK_SUPPRESSION_MS;
+		const next = currentIndex + (dx < 0 ? 1 : -1);
+		if (next >= 0 && next < images.length) onNavigate(next);
+	}
+
 
 	// Move focus into the dialog on open and hand it back to the opener on close.
 	useEffect(() => {
@@ -87,6 +119,16 @@ export default function MediaLightbox({
 			ref={dialogRef}
 			tabIndex={-1}
 			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 outline-none overscroll-contain"
+			onTouchStart={handleTouchStart}
+			onTouchMove={(event) => { if (event.touches.length !== 1) touchStart.current = null; }}
+			onTouchEnd={handleTouchEnd}
+			onTouchCancel={() => { touchStart.current = null; }}
+			onClickCapture={(event) => {
+				if (Date.now() < ignoreClickUntil.current) {
+					event.preventDefault();
+					event.stopPropagation();
+				}
+			}}
 			onClick={close}
 			role="dialog"
 			aria-modal="true"

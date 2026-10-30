@@ -48,3 +48,12 @@ it("expands an album video into the shared closable viewer", () => {
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   pause.mockRestore();
 });
+
+it("swipes between album photos through the shared viewer", () => {
+  render(<AlbumDetailClient album={album} />);
+  fireEvent.click(screen.getAllByRole("button", { name: "openImage" })[0]);
+  const image = screen.getByRole("dialog").querySelector("img")!;
+  fireEvent.touchStart(image, { touches: [{ identifier: 0, clientX: 240, clientY: 200 }] });
+  fireEvent.touchEnd(image, { touches: [], changedTouches: [{ identifier: 0, clientX: 80, clientY: 200 }] });
+  expect(screen.getByRole("dialog").querySelector("img")).toHaveAttribute("src", "/second.jpg");
+});
