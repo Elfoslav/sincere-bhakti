@@ -11,7 +11,7 @@ import type { AuthorableIdentity } from "../src/types/identity";
 const screenshotDirectory = process.env.DESIGN_SCREENSHOT_DIR ?? "/tmp/sincere-bhakti-design-audit";
 const browserErrors = new WeakMap<Page, string[]>();
 const pages = [
-  { name: "posts", path: "/en/posts", container: "reading-container" },
+  { name: "posts", path: "/en/posts", container: "journal-container" },
   { name: "blog", path: "/en/blog", container: "article-feed-container" },
   { name: "gallery", path: "/en/gallery", container: "reading-container" },
   { name: "channels", path: "/en/channels", container: "site-container" },
@@ -174,7 +174,8 @@ test("authenticated profile and management pages share the design system", async
     for (const viewport of [{ name: "desktop", width: 1440, height: 1000 }, { name: "mobile", width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);
       await page.evaluate(() => window.scrollTo(0, 0));
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), entry.name).toBe(true);
+      await page.evaluate(() => document.fonts.ready);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), { message: entry.name }).toBe(true);
       await page.screenshot({ path: `${screenshotDirectory}/${entry.name}-${viewport.name}.png`, caret: "initial", style: "nextjs-portal { display: none !important; }" });
     }
   }

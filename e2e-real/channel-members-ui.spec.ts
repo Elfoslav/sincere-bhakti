@@ -1,9 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { CHANNEL_ROLE_ADMIN, CHANNEL_ROLE_EDITOR } from "@/lib/channel-roles";
 import {
   clearSession,
   cleanupUsersByEmail,
-  createUserWithPersonalChannel,
+  createUserWithChannel,
   loginViaUi,
   prisma,
   uniqueE2EEmail,
@@ -15,8 +15,8 @@ test("owner can add a member as editor and update them to admin from the setting
   const ownerName = `E2E Member Owner ${Date.now()}`;
   const memberName = `E2E Member User ${Date.now()}`;
   const [owner] = await Promise.all([
-    createUserWithPersonalChannel({ name: ownerName, email: ownerEmail }),
-    createUserWithPersonalChannel({ name: memberName, email: memberEmail }),
+    createUserWithChannel({ name: ownerName, email: ownerEmail, isPersonal: false }),
+    createUserWithChannel({ name: memberName, email: memberEmail }),
   ]);
 
   try {

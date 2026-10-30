@@ -4,8 +4,13 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { Pool } from "pg";
 import messages from "../messages/en.json";
+import { normalizeName, slugifyName } from "../src/lib/validation";
+import { generateShortId } from "../src/lib/id";
+import type { ContentKind } from "../src/types/content-composer";
 
-export const TEST_PASSWORD = "testpassword123";
+const testPassword = process.env.E2E_TEST_PASSWORD;
+if (!testPassword) throw new Error("E2E_TEST_PASSWORD is required for database-backed e2e tests");
+export const TEST_PASSWORD = testPassword;
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
 if (!TEST_DATABASE_URL) {
@@ -16,21 +21,6 @@ const pool = new Pool({ connectionString: TEST_DATABASE_URL });
 const adapter = new PrismaPg(pool);
 
 export const prisma = new PrismaClient({ adapter });
-
-function slugifyName(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80) || "channel";
-}
-
-function normalizeName(name: string) {
-  return name.trim().toLowerCase().replace(/\s+/g, " ");
-}
 
 export function uniqueE2EEmail(label: string) {
   return `e2e-${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test`;
@@ -70,26 +60,30 @@ export async function cleanupUsersByEmail(emails: string[]) {
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 }
 
-export async function createUserWithPersonalChannel({
+export async function createUserWithChannel({
   name,
   email,
   password = TEST_PASSWORD,
+  verified = false,
+  isPersonal = true,
 }: {
   name: string;
   email: string;
   password?: string;
+  verified?: boolean;
+  isPersonal?: boolean;
 }) {
   await cleanupUsersByEmail([email]);
 
   const hashedPassword = await bcrypt.hash(password, 4);
   const user = await prisma.user.create({
-    data: { name, email, password: hashedPassword },
+    data: { name, email, password: hashedPassword, emailVerifiedAt: verified ? new Date() : null },
   });
   const slug = slugifyName(name);
   const channel = await prisma.channel.create({
     data: {
       ownerId: user.id,
-      isPersonal: true,
+      isPersonal,
       translations: {
         create: {
           name,
@@ -110,7 +104,7 @@ export async function loginViaUi(page: Page, email: string, password = TEST_PASS
   await page.getByPlaceholder("••••••••").fill(password);
   await page.getByRole("button", { name: messages.Auth.login.button }).click();
   await page.waitForURL("**/posts");
-  await expect(page.getByRole("heading", { name: "Posts" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: messages.PostsPage.title })).toBeVisible();
   await page.waitForLoadState("networkidle");
 }
 
@@ -135,11 +129,9 @@ export async function createPostForChannel({
       content,
       isPublic,
       language,
-      // shortId is required (NOT NULL, unique); mirror the app's generator
-      // (crypto.randomUUID().slice(0, 8)) so seeded posts are valid.
-      shortId: crypto.randomUUID().slice(0, 8),
+      shortId: generateShortId(),
     },
-    select: { id: true },
+    select: { id: true, shortId: true, slug: true },
   });
 }
 
@@ -148,8 +140,17 @@ export async function disconnectPrisma() {
   await pool.end();
 }
 
-/** Expands the collapsed create-post composer and fills it. */
+/** Open the shared creation dialog through its public entry point. */
+export async function openComposer(page: Page, kind: ContentKind) {
+  const label = messages.ContentComposer[`new${kind}`];
+  await page.getByRole("main").locator(".page-header-action").getByRole("button", { name: label, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: label, exact: true });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
 export async function fillComposer(page: Page, content: string) {
-  await page.getByRole("button", { name: messages.PostsPage.composePlaceholder }).click();
-  await page.getByPlaceholder(messages.PostsPage.composePlaceholder).fill(content);
+  const dialog = await openComposer(page, "post");
+  await dialog.getByPlaceholder(messages.PostsPage.composePlaceholder).fill(content);
+  return dialog;
 }

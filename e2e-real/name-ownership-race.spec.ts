@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { cleanupUsersByEmail, prisma } from "./helpers";
 
 // Normalize like the app does. Test names are ASCII, so this is just

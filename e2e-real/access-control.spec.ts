@@ -1,10 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { CHANNEL_ROLE_ADMIN, CHANNEL_ROLE_EDITOR } from "@/lib/channel-roles";
 import {
   clearSession,
   cleanupUsersByEmail,
   createPostForChannel,
-  createUserWithPersonalChannel,
+  createUserWithChannel,
   loginViaUi,
   prisma,
   uniqueE2EEmail,
@@ -16,8 +16,8 @@ test("private posts are visible only to the channel author", async ({ page }) =>
   const ownerName = `E2E Private Owner ${Date.now()}`;
   const otherName = `E2E Private Other ${Date.now()}`;
   const [{ channel }] = await Promise.all([
-    createUserWithPersonalChannel({ name: ownerName, email: ownerEmail }),
-    createUserWithPersonalChannel({ name: otherName, email: otherEmail }),
+    createUserWithChannel({ name: ownerName, email: ownerEmail, isPersonal: false }),
+    createUserWithChannel({ name: otherName, email: otherEmail }),
   ]);
   const content = `Private real database post ${Date.now()}`;
   const post = await createPostForChannel({ channelId: channel.id, content, isPublic: false });
@@ -50,10 +50,10 @@ test("channel settings are available to owners and admins, not editors or outsid
   const editorName = `E2E Settings Editor ${Date.now()}`;
   const outsiderName = `E2E Settings Outsider ${Date.now()}`;
   const [owner, admin, editor] = await Promise.all([
-    createUserWithPersonalChannel({ name: ownerName, email: ownerEmail }),
-    createUserWithPersonalChannel({ name: adminName, email: adminEmail }),
-    createUserWithPersonalChannel({ name: editorName, email: editorEmail }),
-    createUserWithPersonalChannel({ name: outsiderName, email: outsiderEmail }),
+    createUserWithChannel({ name: ownerName, email: ownerEmail, isPersonal: false }),
+    createUserWithChannel({ name: adminName, email: adminEmail }),
+    createUserWithChannel({ name: editorName, email: editorEmail }),
+    createUserWithChannel({ name: outsiderName, email: outsiderEmail }),
   ]);
 
   await prisma.channelEditor.createMany({

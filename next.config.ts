@@ -47,6 +47,8 @@ const allowedDevOrigins = (process.env.ALLOWED_DEV_ORIGINS ?? "")
   .filter(Boolean);
 
 const nextConfig: NextConfig = {
+  // Keep browser-test compilation separate from the developer server.
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   allowedDevOrigins,
   images: {
     remotePatterns: [

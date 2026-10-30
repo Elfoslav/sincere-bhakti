@@ -1,5 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-import { cleanupUsersByEmail, createUserWithPersonalChannel, loginViaUi, uniqueE2EEmail, TEST_PASSWORD } from "./helpers";
+import { expect, test, type Page } from "./fixtures";
+import { cleanupUsersByEmail, createUserWithChannel, loginViaUi, uniqueE2EEmail, TEST_PASSWORD } from "./helpers";
 import messages from "../messages/en.json";
 import { PASSWORD_MIN_LENGTH } from "../src/lib/validation";
 
@@ -44,7 +44,7 @@ test("user can sign in", async ({ page }) => {
   const email = uniqueE2EEmail("login");
   const name = `E2E Login ${Date.now()}`;
 
-  await createUserWithPersonalChannel({ name, email });
+  await createUserWithChannel({ name, email });
 
   try {
     await loginViaUi(page, email, TEST_PASSWORD);

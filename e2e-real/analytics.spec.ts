@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
-import { cleanupUsersByEmail, createUserWithPersonalChannel, prisma, uniqueE2EEmail } from "./helpers";
+import { expect, test } from "./fixtures";
+import { cleanupUsersByEmail, createUserWithChannel, prisma, uniqueE2EEmail } from "./helpers";
 
 test("cookie-free analytics atomically deduplicate visits, gate reads, and hide nonpublic posts", async ({ request, baseURL }) => {
   const email = uniqueE2EEmail("analytics");
-  const { user } = await createUserWithPersonalChannel({ name: `Analytics ${Date.now()}`, email });
+  const { user } = await createUserWithChannel({ name: `Analytics ${Date.now()}`, email });
   const channel = await prisma.channel.findFirstOrThrow({ where: { ownerId: user.id } });
   const post = await prisma.blogPost.create({ data: { shortId: randomUUID().slice(0, 8), title: "Analytics fixture", content: "Text", isPublic: true, channelId: channel.id } });
   const url = `/api/analytics?resourceType=blogPost&resourceId=${post.id}`;

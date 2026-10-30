@@ -1,11 +1,11 @@
-import { expect, test } from "@playwright/test";
-import { cleanupUsersByEmail, createUserWithPersonalChannel, prisma, TEST_PASSWORD, uniqueE2EEmail } from "./helpers";
+import { expect, test } from "./fixtures";
+import { cleanupUsersByEmail, createUserWithChannel, prisma, TEST_PASSWORD, uniqueE2EEmail } from "./helpers";
 
 test("album feeds and legacy links preserve private visibility", async ({ page, request }) => {
   // Cold compilation of both album API and SSR routes is expensive in next dev.
   test.setTimeout(180_000);
   const email = uniqueE2EEmail("album-access");
-  const { user, channel } = await createUserWithPersonalChannel({ name: `Album Author ${Date.now()}`, email });
+  const { user, channel } = await createUserWithChannel({ name: `Album Author ${Date.now()}`, email });
   try {
     const albums = await Promise.all([true, false].map((isPublic) => prisma.album.create({ data: {
       shortId: isPublic ? "e2ealb01" : "e2ealb02", title: isPublic ? "Public Album" : "Private Album",

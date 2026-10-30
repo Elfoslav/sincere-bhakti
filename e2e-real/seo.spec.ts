@@ -1,15 +1,18 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import sharp from "sharp";
+import { POST_OG_IMAGE, TEXT_OG_IMAGE } from "../src/lib/seo";
+import { getPostUrl } from "../src/lib/post-url";
 import {
   cleanupUsersByEmail,
   createPostForChannel,
-  createUserWithPersonalChannel,
+  createUserWithChannel,
   uniqueE2EEmail,
 } from "./helpers";
 
-test("public post, channel, profile, and sitemap expose SEO metadata", async ({ page, request }) => {
+test("public post and author channel expose canonical SEO metadata", async ({ page, request }) => {
   const email = uniqueE2EEmail("seo-author");
   const name = `E2E SEO Channel ${Date.now()}`;
-  const { user, channel, slug } = await createUserWithPersonalChannel({ name, email });
+  const { channel, slug } = await createUserWithChannel({ name, email });
   const content = `SEO metadata post ${Date.now()} with channel name in the title`;
   const post = await createPostForChannel({ channelId: channel.id, content, language: "en" });
 
@@ -18,21 +21,27 @@ test("public post, channel, profile, and sitemap expose SEO metadata", async ({ 
     await expect(page).toHaveTitle(new RegExp(`${name}: ${content} \\| Sincere Bhakti`));
     await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", content);
     await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", `${name}: ${content}`);
-    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", new RegExp(`/posts/${post.id}/opengraph-image$`));
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", new RegExp(`/posts/${post.shortId}/opengraph-image$`));
     // Post OG images are served as JPEG (POST_OG_IMAGE) — photos re-encoded as PNG blow past WhatsApp's size limit.
     await expect(page.locator('meta[property="og:image:type"]')).toHaveAttribute("content", "image/jpeg");
     await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "1200");
     await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute("content", "630");
-    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`/posts/${post.id}$`));
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`${getPostUrl(post.shortId, post.slug)}$`));
     const postJsonLd = JSON.parse(await page.locator('script[type="application/ld+json"]').first().textContent() ?? "[]");
     expect(postJsonLd).toEqual(expect.arrayContaining([
       expect.objectContaining({
         "@type": "SocialMediaPosting",
         headline: `${name}: ${content}`,
-        image: [expect.stringMatching(new RegExp(`/posts/${post.id}/opengraph-image$`))],
+        image: [expect.stringMatching(new RegExp(`/posts/${post.shortId}/opengraph-image$`))],
       }),
       expect.objectContaining({ "@type": "BreadcrumbList" }),
     ]));
+
+    const postImage = await request.get(`/posts/${post.shortId}/opengraph-image`);
+    await expect(postImage).toBeOK();
+    const postBuffer = await postImage.body();
+    expect(await sharp(postBuffer).metadata()).toMatchObject({ format: "jpeg", width: POST_OG_IMAGE.width, height: POST_OG_IMAGE.height });
+    expect(postBuffer.length).toBeLessThan(600 * 1024);
 
     await page.goto(`/channels/${slug}`);
     await expect(page).toHaveTitle(new RegExp(`${name} \\| Sincere Bhakti`));
@@ -56,36 +65,21 @@ test("public post, channel, profile, and sitemap expose SEO metadata", async ({ 
     const channelOgImage = await request.get(`/channels/${slug}/opengraph-image`);
     await expect(channelOgImage).toBeOK();
     expect(channelOgImage.headers()["content-type"]).toContain("image/png");
-
-    await page.goto(`/profile/${user.id}`);
-    await expect(page).toHaveTitle(new RegExp(`${name} \\| Sincere Bhakti`));
-    await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", `${name} on Sincere Bhakti.`);
-    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", new RegExp(`/profile/${user.id}/opengraph-image$`));
-    await expect(page.locator('meta[property="og:image:type"]')).toHaveAttribute("content", "image/png");
-    await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "1200");
-    await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute("content", "630");
-    const profileJsonLd = JSON.parse(await page.locator('script[type="application/ld+json"]').first().textContent() ?? "[]");
-    expect(profileJsonLd).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        "@type": "ProfilePage",
-        image: expect.stringMatching(new RegExp(`/profile/${user.id}/opengraph-image$`)),
-        mainEntity: expect.objectContaining({
-          "@type": "Person",
-          name,
-          image: expect.stringMatching(new RegExp(`/profile/${user.id}/opengraph-image$`)),
-        }),
-      }),
-    ]));
-    const profileOgImage = await request.get(`/profile/${user.id}/opengraph-image`);
-    await expect(profileOgImage).toBeOK();
-    expect(profileOgImage.headers()["content-type"]).toContain("image/png");
+    const channelBuffer = await channelOgImage.body();
+    expect(await sharp(channelBuffer).metadata()).toMatchObject({ format: "png", width: TEXT_OG_IMAGE.width, height: TEXT_OG_IMAGE.height });
+    expect(channelBuffer.length).toBeLessThan(600 * 1024);
 
     const sitemap = await request.get("/sitemap.xml");
     await expect(sitemap).toBeOK();
     const sitemapXml = await sitemap.text();
-    expect(sitemapXml).toContain(`/posts/${post.id}`);
-    expect(sitemapXml).toContain(`/channels/${slug}`);
-    expect(sitemapXml).toContain(`/profile/${user.id}`);
+    // Production serves a revalidated sitemap, so newly seeded rows need not
+    // appear until its cache expires. Dynamic visibility/URL mapping is also
+    // covered by the sitemap unit tests.
+    expect(sitemapXml).toContain("<urlset");
+    expect(sitemapXml).toMatch(/<loc>https?:\/\/[^<]+\/posts<\/loc>/);
+    expect(sitemapXml).toMatch(/<loc>https?:\/\/[^<]+\/channels<\/loc>/);
+    expect(sitemapXml).not.toContain(`/posts/${post.id}`);
+    expect(sitemapXml).not.toContain("/profile/");
   } finally {
     await page.close();
     await cleanupUsersByEmail([email]);

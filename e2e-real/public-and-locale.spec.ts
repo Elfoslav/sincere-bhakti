@@ -1,15 +1,15 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import {
   cleanupUsersByEmail,
   createPostForChannel,
-  createUserWithPersonalChannel,
+  createUserWithChannel,
   uniqueE2EEmail,
 } from "./helpers";
 
-test("anonymous users can open public posts, channel pages, and public profiles", async ({ page }) => {
+test("anonymous users can open public posts, author channels, and public author metadata", async ({ page }) => {
   const email = uniqueE2EEmail("anonymous-public");
   const name = `E2E Public Author ${Date.now()}`;
-  const { user, channel, slug } = await createUserWithPersonalChannel({ name, email });
+  const { user, channel, slug } = await createUserWithChannel({ name, email });
   const content = `Anonymous visible public post ${Date.now()}`;
   const post = await createPostForChannel({ channelId: channel.id, content });
 
@@ -25,8 +25,11 @@ test("anonymous users can open public posts, channel pages, and public profiles"
     await expect(page.getByRole("heading", { name })).toBeVisible();
     await expect(page.getByText(content)).toBeVisible();
 
-    await page.goto(`/profile/${user.id}`);
-    await expect(page.getByRole("heading", { name })).toBeVisible();
+    const profile = await page.request.get(`/api/users/${user.id}`);
+    expect(profile.ok()).toBe(true);
+    const publicUser = await profile.json();
+    expect(publicUser).toMatchObject({ id: user.id, name });
+    expect(publicUser).not.toHaveProperty("email");
   } finally {
     await page.close();
     await cleanupUsersByEmail([email]);
@@ -36,7 +39,7 @@ test("anonymous users can open public posts, channel pages, and public profiles"
 test("post lists are filtered by the active locale", async ({ page }) => {
   const email = uniqueE2EEmail("locale-author");
   const name = `E2E Locale Author ${Date.now()}`;
-  const { channel } = await createUserWithPersonalChannel({ name, email });
+  const { channel } = await createUserWithChannel({ name, email });
   const enContent = `English locale post ${Date.now()}`;
   const csContent = `Czech locale post ${Date.now()}`;
   await Promise.all([

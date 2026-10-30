@@ -10,6 +10,8 @@ export default defineConfig({
     },
   },
   test: {
+    // Bound jsdom memory use when browser suites or a dev server run alongside.
+    maxWorkers: 2,
     environment: "jsdom",
     setupFiles: ["./src/__tests__/setup.ts"],
     globals: true,

@@ -1,7 +1,8 @@
-import { expect, test } from "@playwright/test";
+import messages from "../messages/en.json";
+import { expect, test } from "./fixtures";
 import {
   cleanupUsersByEmail,
-  createUserWithPersonalChannel,
+  createUserWithChannel,
   fillComposer,
   loginViaUi,
   prisma,
@@ -11,14 +12,15 @@ import {
 test("owner can use crucial authenticated pages with the real database", async ({ page }) => {
   const email = uniqueE2EEmail("owner-flow");
   const name = `E2E Owner ${Date.now()}`;
-  const { channel, slug } = await createUserWithPersonalChannel({ name, email });
+  const { channel, slug } = await createUserWithChannel({ name, email, verified: true });
 
   try {
     await loginViaUi(page, email);
 
     const content = `Real database post ${Date.now()}`;
-    await fillComposer(page, content);
-    await page.getByRole("button", { name: "Share" }).click();
+    const composer = await fillComposer(page, content);
+    await composer.getByRole("button", { name: messages.ContentComposer.publish, exact: true }).click();
+    await expect(composer).not.toBeVisible();
     await expect(page.getByText(content)).toBeVisible();
 
     let post: { id: string } | null = null;

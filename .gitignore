@@ -16,6 +16,8 @@
 
 # next.js
 /.next/
+/.next-playwright-ui/
+/.next-playwright-e2e/
 /out/
 
 # production

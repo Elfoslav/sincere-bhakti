@@ -1,8 +1,9 @@
-import { expect, test } from "@playwright/test";
+import messages from "../messages/en.json";
+import { expect, test } from "./fixtures";
 import { CHANNEL_ROLE_EDITOR } from "@/lib/channel-roles";
 import {
   cleanupUsersByEmail,
-  createUserWithPersonalChannel,
+  createUserWithChannel,
   fillComposer,
   loginViaUi,
   prisma,
@@ -15,8 +16,8 @@ test("editor can switch identity, create and edit posts, but cannot open setting
   const ownerName = `E2E Editorial Channel ${Date.now()}`;
   const editorName = `E2E Editor ${Date.now()}`;
   const [owner, editor] = await Promise.all([
-    createUserWithPersonalChannel({ name: ownerName, email: ownerEmail }),
-    createUserWithPersonalChannel({ name: editorName, email: editorEmail }),
+    createUserWithChannel({ name: ownerName, email: ownerEmail, isPersonal: false }),
+    createUserWithChannel({ name: editorName, email: editorEmail, verified: true }),
   ]);
 
   await prisma.channelEditor.create({
@@ -38,8 +39,9 @@ test("editor can switch identity, create and edit posts, but cannot open setting
     await expect(page.getByRole("button", { name: `Switch identity: ${ownerName}` })).toBeVisible();
 
     const content = `Editor-created post ${Date.now()}`;
-    await fillComposer(page, content);
-    await page.getByRole("button", { name: "Share" }).click();
+    const composer = await fillComposer(page, content);
+    await composer.getByRole("button", { name: messages.ContentComposer.publish, exact: true }).click();
+    await expect(composer).not.toBeVisible();
     await expect(page.getByText(content).first()).toBeVisible();
 
     let post: { id: string } | null = null;
@@ -55,7 +57,7 @@ test("editor can switch identity, create and edit posts, but cannot open setting
     const updated = `${content} edited`;
     const dialog = page.getByRole("dialog");
     await dialog.locator("textarea").fill(updated);
-    await dialog.getByRole("button", { name: "Save" }).first().click();
+    await dialog.getByRole("button", { name: messages.ContentComposer.saveChanges, exact: true }).first().click();
     await expect(dialog).not.toBeVisible();
     await expect(page.getByText(updated).first()).toBeVisible();
     await expect.poll(async () => {

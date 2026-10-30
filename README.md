@@ -57,3 +57,22 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Tests
+
+Run `pnpm test` and `pnpm lint` for unit/component coverage and static checks.
+Browser tests require Playwright Chromium or `PLAYWRIGHT_CHANNEL=chrome` for an
+installed Chrome browser.
+
+Set `NEXTAUTH_SECRET`, a separate `TEST_DATABASE_URL`, and `E2E_TEST_PASSWORD`
+in `.env` (see `.env.example`). Test accounts are disposable; use a generated
+test password. `pnpm test:web:ui` runs the mocked UI suite.
+`pnpm test:web:e2e` resets the test database before running real authentication,
+publishing, and permission flows. `pnpm test:web:e2e:dirty` keeps the existing
+test database and requires its migrations to be current.
+
+Each browser suite uses its own Next.js output directory and test-result folder,
+so it can start alongside a development server without sharing compilation state.
+To target a server you have already started, set `PLAYWRIGHT_USE_EXISTING_SERVER=1`
+and `PLAYWRIGHT_BASE_URL` to its URL. A real-database run must target a server
+configured with `DATABASE_URL` equal to `TEST_DATABASE_URL`.

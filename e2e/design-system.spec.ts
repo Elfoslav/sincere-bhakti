@@ -134,19 +134,22 @@ test("gallery components render without mobile overflow", async ({ page }) => {
 
 test("coverless articles use compact editorial rows", async ({ page }) => {
   await mkdir("output/design", { recursive: true });
-  await page.route("**/api/blog-posts?**", async route => {
-    const response = await route.fetch();
-    expect(response.ok()).toBe(true);
-    const body = await response.json();
-    expect(body.posts.length, "real local articles are required for visual verification").toBeGreaterThan(0);
-    await route.fulfill({ response, json: { ...body, posts: body.posts.map((post: BlogPost) => ({ ...post, coverUrl: null })) } });
-  });
+  const articles: BlogPost[] = Array.from({ length: 3 }, (_, index) => ({
+    id: `coverless-${index}`, shortId: `cover00${index}`, slug: `reflection-${index}`,
+    title: `A quiet reflection ${index + 1}`, excerpt: "A short reflection from the community.",
+    content: null, contentHtml: "<p>A quiet reflection.</p>", coverUrl: null,
+    isPublic: true, language: "en", publishedAt: null,
+    createdAt: "2026-10-20T09:00:00Z", updatedAt: "2026-10-20T09:00:00Z",
+    categories: [], channel: { id: "community", name: "Community", slug: "community", ownerId: "owner", avatarUrl: null },
+  }));
+  await page.route("**/api/blog-posts?**", route => route.fulfill({ json: { posts: articles, hasMore: false } }));
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoReady(page, "/en");
-  const grid = page.locator('.editorial-grid[data-featured-media="false"]');
-  await expect(grid).toBeVisible({ timeout: 60000 });
+  const grid = page.locator(".article-feed-list");
+  await expect(grid.locator(".article-row")).toHaveCount(articles.length);
+  await expect(grid.locator('.article-row[data-has-cover="false"]')).toHaveCount(articles.length);
   await expect(grid.locator(".media-zoom")).toHaveCount(0);
-  const rows = await grid.locator(":scope > *").evaluateAll(elements => elements.map(element => {
+  const rows = await grid.locator(".article-row").evaluateAll(elements => elements.map(element => {
     const rect = element.getBoundingClientRect();
     return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   }));

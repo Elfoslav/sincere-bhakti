@@ -1,8 +1,10 @@
-import { expect, test } from "@playwright/test";
+import messages from "../messages/en.json";
+import { expect, test } from "./fixtures";
 import {
   cleanupUsersByEmail,
-  createUserWithPersonalChannel,
+  createUserWithChannel,
   loginViaUi,
+  openComposer,
   prisma,
   uniqueE2EEmail,
 } from "./helpers";
@@ -10,9 +12,7 @@ import {
 test("author publishes a formatted article with a timeline promo", async ({ page }) => {
   const email = uniqueE2EEmail("blog-flow");
   const name = `E2E Blogger ${Date.now()}`;
-  const { user } = await createUserWithPersonalChannel({ name, email });
-  // Blog creation requires a verified email; posts do not.
-  await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+  await createUserWithChannel({ name, email, verified: true });
 
   const title = `E2E Article ${Date.now()}`;
   const excerpt = `E2E excerpt ${Date.now()}`;
@@ -22,11 +22,9 @@ test("author publishes a formatted article with a timeline promo", async ({ page
     await page.route("https://www.youtube-nocookie.com/**", (route) => route.abort());
     await loginViaUi(page, email);
     await page.goto("/blog");
-    await expect(page.getByRole("heading", { name: "Blog" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: messages.BlogPage.title, exact: true })).toBeVisible();
 
-    // Scope to <main>: the (closed) edit modal keeps a second hidden copy
-    // of the form mounted in a body portal.
-    const composer = page.getByRole("main");
+    const composer = await openComposer(page, "article");
     await composer.getByPlaceholder("Article title...").fill(title);
     await composer.getByPlaceholder("Short summary (optional)...").fill(excerpt);
     const editor = composer.locator(".tiptap");
@@ -45,7 +43,9 @@ test("author publishes a formatted article with a timeline promo", async ({ page
     await expect(editor.locator("iframe")).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
 
     await composer.getByRole("switch", { name: "Publish in posts timeline" }).click();
-    await composer.getByRole("button", { name: "Publish", exact: true }).click();
+    await composer.getByRole("button", { name: messages.ContentComposer.publish, exact: true }).click();
+
+    await expect(composer).not.toBeVisible();
 
     // Article appears in the blog feed...
     await expect(page.getByRole("heading", { name: title })).toBeVisible();

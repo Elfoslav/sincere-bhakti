@@ -8,15 +8,18 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${TEST_PORT
 const useExistingServer = process.env.PLAYWRIGHT_USE_EXISTING_SERVER === "1";
 
 export default defineConfig({
+  outputDir: "./test-results/ui",
   testDir: "./e2e",
   fullyParallel: true,
   retries: 1,
   workers: process.env.CI ? 2 : undefined,
   reporter: "list",
-  timeout: 30_000,
+  // First visits compile routes on the isolated development server.
+  timeout: 90_000,
 
   use: {
     baseURL,
+    contextOptions: { reducedMotion: "reduce" },
     trace: "on-first-retry",
   },
 
@@ -33,6 +36,7 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
     env: {
+      NEXT_DIST_DIR: ".next-playwright-ui",
       PORT: String(TEST_PORT),
       NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET!,
       NEXTAUTH_URL: `http://localhost:${TEST_PORT}`,

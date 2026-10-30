@@ -1,10 +1,10 @@
-import { expect, test } from "@playwright/test";
-import { cleanupUsersByEmail, createUserWithPersonalChannel, prisma, uniqueE2EEmail } from "./helpers";
+import { expect, test } from "./fixtures";
+import { cleanupUsersByEmail, createUserWithChannel, prisma, uniqueE2EEmail } from "./helpers";
 
 test("channel directory previews and activity never expose private or scheduled content", async ({ request }) => {
   const email = uniqueE2EEmail("directory");
   const name = `Directory Audit ${crypto.randomUUID().slice(0, 8)}`;
-  const { channel } = await createUserWithPersonalChannel({ name, email });
+  const { channel } = await createUserWithChannel({ name, email });
   try {
     const publicDate = new Date("2026-01-10T12:00:00Z");
     await prisma.post.createMany({ data: [

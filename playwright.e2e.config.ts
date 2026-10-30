@@ -13,9 +13,11 @@ if (!TEST_DATABASE_URL) {
 }
 
 export default defineConfig({
+  outputDir: "./test-results/e2e",
   testDir: "./e2e-real",
   fullyParallel: false,
   retries: 0,
+  expect: { timeout: 15_000 },
   workers: 1,
   reporter: "list",
   // Runs against `next dev`, so the first test pays the cold-compile cost of every
@@ -25,6 +27,7 @@ export default defineConfig({
 
   use: {
     baseURL,
+    contextOptions: { reducedMotion: "reduce" },
     trace: "on-first-retry",
   },
 
@@ -41,6 +44,7 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
     env: {
+      NEXT_DIST_DIR: ".next-playwright-e2e",
       PORT: String(TEST_PORT),
       DATABASE_URL: TEST_DATABASE_URL,
       NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET!,
