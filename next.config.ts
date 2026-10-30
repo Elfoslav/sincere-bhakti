@@ -47,6 +47,11 @@ const allowedDevOrigins = (process.env.ALLOWED_DEV_ORIGINS ?? "")
   .filter(Boolean);
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Restored build caches served pre-redesign CSS with current HTML on Vercel.
+    // Compile production assets fresh until Turbopack cache invalidation is reliable.
+    turbopackFileSystemCacheForBuild: false,
+  },
   // Keep browser-test compilation separate from the developer server.
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   allowedDevOrigins,
