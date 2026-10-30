@@ -10,10 +10,10 @@ const posts: Post[] = [
   { ...base, id: "journal-media", shortId: "jrnlmedia", content: null, media: [{ url: "/images/article-community.jpg", type: "image", width: null, height: null, position: 0 }] },
 ];
 
-async function openJournal(page: Page, width = 1440) {
+async function openJournal(page: Page, width = 1440, fixturePosts = posts) {
   await page.setViewportSize({ width, height: 1000 });
   await page.route("**/api/posts?**", route => route.fulfill({ json: {
-    posts: new URL(route.request().url()).searchParams.get("q") === "journal" ? posts : [],
+    posts: new URL(route.request().url()).searchParams.get("q") === "journal" ? fixturePosts : [],
     hasMore: false,
   } }));
   await page.goto("/en/posts?q=journal");
@@ -55,3 +55,57 @@ test("journal photos retain full lightboxes, real detail links, and search URLs"
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+for (const width of [390, 1440]) {
+  test(`viewer Close and Back preserve the page at ${width}px`, async ({ page }, testInfo) => {
+    await page.goto("/en/login");
+    const previousUrl = page.url();
+    await openJournal(page, width);
+    const url = page.url();
+    const opener = page.locator(".journal-post").first().getByRole("button", { name: en.PostCard.openImage });
+    // A transformed or clipped card must never constrain the viewer.
+    await page.locator(".journal-post").first().evaluate(element => {
+      element.style.transform = "translateZ(0)";
+      element.style.overflow = "hidden";
+    });
+    await opener.click();
+    const dialog = page.getByRole("dialog", { name: en.MediaLightbox.title });
+    const close = dialog.getByRole("button", { name: en.MediaLightbox.close, exact: true });
+    await expect(close).toBeVisible();
+    expect((await close.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect((await dialog.boundingBox())!.width).toBe(width);
+    await page.screenshot({ path: testInfo.outputPath("viewer.png") });
+    // Check actual hit testing: visible controls can still be covered by media.
+    await close.click();
+    await expect(dialog).toHaveCount(0);
+    await expect(opener).toBeFocused();
+    await expect.poll(() => page.evaluate(() => Boolean(history.state?.mediaLightbox))).toBe(false);
+    await opener.click();
+    await expect(dialog).toBeVisible();
+    await page.goBack();
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(url);
+    await expect(opener).toBeFocused();
+    await opener.click();
+    await close.click();
+    await expect.poll(() => page.evaluate(() => Boolean(history.state?.mediaLightbox))).toBe(false);
+    await page.goBack();
+    await expect(page).toHaveURL(previousUrl);
+  });
+}
+
+for (const width of [390, 1440]) {
+  test(`post videos expand into a closable viewer at ${width}px`, async ({ page }) => {
+    await page.route("**/test-video.mp4", route => route.fulfill({ status: 404, body: "" }));
+    await openJournal(page, width, posts.map((post, i) => i === 0 ? {
+      ...post, media: [...post.media, { url: "/test-video.mp4", type: "video", position: 1, width: 640, height: 360 }],
+    } : post));
+    await page.getByRole("button", { name: en.MediaLightbox.expandVideo }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.locator("video")).toHaveAttribute("playsinline", "");
+    await expect(dialog.locator("video")).toHaveAttribute("src", "/test-video.mp4");
+    await dialog.getByRole("button", { name: en.MediaLightbox.close, exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(/q=journal/);
+  });
+}

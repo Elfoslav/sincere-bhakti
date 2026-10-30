@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import ImageGallery from "@/components/ImageGallery";
-import { LoadableMedia } from "@/components/ui/loadable-media";
+import VideoGallery from "@/components/VideoGallery";
 import type { Post } from "@/types/post";
 import { cn } from "@/lib/utils";
 
@@ -195,7 +195,8 @@ export default function PostCard({
       <div className="post-card-media">
         <ImageGallery images={images} t={t} variant={variant === "journal" ? "compact" : "default"} />
 
-        {otherMedia.map((m) => (
+        <VideoGallery videos={otherMedia.filter((m) => m.type === "video")} />
+        {otherMedia.filter((m) => m.type !== "video").map((m) => (
           <div key={m.url} className="rounded-lg overflow-hidden mb-2">
             {m.type === "youtube" ? (
               <div className="aspect-video">
@@ -208,20 +209,6 @@ export default function PostCard({
                   title={t("youtubeVideo")}
                 />
               </div>
-            ) : m.type === "video" ? (
-              /* preload="none": without it every video in the feed fetches
-                 metadata/initial segments on page load. */
-              <LoadableMedia showLoading={false}>
-                {({ onError }) => (
-                  <video
-                    src={m.url}
-                    controls
-                    preload="none"
-                    className="w-full max-h-96 object-contain"
-                    onError={onError}
-                  />
-                )}
-              </LoadableMedia>
             ) : (
               <a
                 href={m.url}

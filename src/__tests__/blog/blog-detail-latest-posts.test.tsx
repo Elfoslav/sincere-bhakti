@@ -87,6 +87,14 @@ describe("BlogDetailClient editorial layout", () => {
     );
   });
 
+  it("opens the blog cover in the shared viewer and closes it", () => {
+    render(<BlogDetailClient post={{ ...mainPost, coverUrl: "/cover.jpg" }} contentHtml="<p>body</p>" />);
+    fireEvent.click(screen.getByRole("button", { name: "openImage" }));
+    expect(screen.getByRole("dialog").querySelector("img")).toHaveAttribute("src", "/cover.jpg");
+    fireEvent.click(screen.getByRole("button", { name: "close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("keeps the article centered when there are no recommendations", () => {
     render(<BlogDetailClient post={mainPost} contentHtml="<p>body</p>" />);
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument();

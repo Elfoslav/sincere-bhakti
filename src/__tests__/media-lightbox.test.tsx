@@ -28,7 +28,8 @@ describe("MediaLightbox", () => {
   it("uses translated labels and image alt text", () => {
     render(<Harness />);
     expect(screen.getByRole("dialog", { name: "title" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "close" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "close" })).toHaveTextContent("close");
+    expect(screen.getByRole("dialog").parentElement).toBe(document.body);
     expect(screen.getByRole("button", { name: "previous" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "next" })).toBeInTheDocument();
     expect(screen.getByAltText("imageAlt 2/3")).toHaveAttribute("src", "/b.jpg");

@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import { Link, useRouter } from "@/i18n/navigation";
+import MediaLightbox from "@/components/ui/MediaLightbox";
 import BlogAnalytics from "@/components/BlogAnalytics";
 import { isBlogPubliclyVisible } from "@/lib/blog";
 import BlogLayout from "@/components/BlogLayout";
@@ -34,6 +35,8 @@ export default function BlogDetailClient({
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("BlogPage");
+  const mediaT = useTranslations("PostCard");
+  const [coverOpen, setCoverOpen] = useState(false);
   const homeT = useTranslations("HomePage");
   const [editedPost, setEditedPost] = useState<BlogPost | null>(null);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
@@ -120,8 +123,10 @@ export default function BlogDetailClient({
           <figure className="blog-article-cover">
             <LoadableMedia key={displayedPost.coverUrl} className="aspect-[16/10]">
               {({ onLoad, onError, ref }) => (
-                // eslint-disable-next-line @next/next/no-img-element -- author-supplied covers may use external storage domains
-                <img src={displayedPost.coverUrl!} alt={displayedPost.title} className="aspect-[16/10] w-full object-cover" onLoad={onLoad} onError={onError} ref={ref} />
+                <button type="button" className="block w-full cursor-zoom-in" aria-label={mediaT("openImage")} onClick={() => setCoverOpen(true)}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- author-supplied covers may use external storage domains */}
+                  <img src={displayedPost.coverUrl!} alt={displayedPost.title} className="aspect-[16/10] w-full object-cover" onLoad={onLoad} onError={onError} ref={ref} />
+                </button>
               )}
             </LoadableMedia>
           </figure>
@@ -151,6 +156,14 @@ export default function BlogDetailClient({
         </aside>
       )}
       </div>
+      {coverOpen && displayedPost.coverUrl && (
+        <MediaLightbox
+          images={[{ url: displayedPost.coverUrl }]}
+          currentIndex={0}
+          onNavigate={() => {}}
+          onClose={() => setCoverOpen(false)}
+        />
+      )}
       <EditBlogModal
         post={editingPost}
         open={editingPost !== null}

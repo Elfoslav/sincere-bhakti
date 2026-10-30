@@ -38,3 +38,13 @@ it("opens the selected image from mixed media and closes the viewer with Escape"
   fireEvent.keyDown(document, { key: "Escape" });
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
+
+it("expands an album video into the shared closable viewer", () => {
+  const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  render(<AlbumDetailClient album={album} />);
+  fireEvent.click(screen.getByRole("button", { name: "expandVideo" }));
+  expect(screen.getByRole("dialog").querySelector("video")).toHaveAttribute("src", "/video.mp4");
+  fireEvent.click(screen.getByRole("button", { name: "close" }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  pause.mockRestore();
+});

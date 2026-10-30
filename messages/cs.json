@@ -555,11 +555,13 @@
 		"linkCopyFailed": "Odkaz se nepodařilo zkopírovat"
 	},
 	"MediaLightbox": {
-		"title": "Prohlížeč obrázků",
+		"title": "Prohlížeč médií",
 		"close": "Zavřít",
-		"previous": "Předchozí obrázek",
-		"next": "Další obrázek",
-		"imageAlt": "Obrázek {current} z {total}"
+		"previous": "Předchozí položka",
+		"next": "Další položka",
+		"imageAlt": "Obrázek {current} z {total}",
+		"video": "Video",
+		"expandVideo": "Zvětšit video"
 	},
 	"MediaStatus": {
 		"unavailable": "Toto médium se nepodařilo načíst.",

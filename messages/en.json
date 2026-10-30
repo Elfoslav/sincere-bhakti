@@ -555,11 +555,13 @@
 		"linkCopyFailed": "Could not copy the link"
 	},
 	"MediaLightbox": {
-		"title": "Image viewer",
+		"title": "Media viewer",
 		"close": "Close",
-		"previous": "Previous image",
-		"next": "Next image",
-		"imageAlt": "Image {current} of {total}"
+		"previous": "Previous item",
+		"next": "Next item",
+		"imageAlt": "Image {current} of {total}",
+		"video": "Video",
+		"expandVideo": "Expand video"
 	},
 	"MediaStatus": {
 		"unavailable": "This media couldn't be loaded.",

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Image from "next/image";
+import VideoGallery from "@/components/VideoGallery";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
@@ -72,25 +73,7 @@ export default function AlbumDetailClient({ album: initial }: { album: Album }) 
         )}
       </Card>
 
-      {videos.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {videos.map((v) => (
-            <LoadableMedia key={v.url} className="overflow-hidden rounded-lg bg-black">
-              {({ ref, onLoad, onError }) => (
-                <video
-                  ref={ref}
-                  src={v.url}
-                  controls
-                  preload="metadata"
-                  className="w-full"
-                  onLoadedMetadata={onLoad}
-                  onError={onError}
-                />
-              )}
-            </LoadableMedia>
-          ))}
-        </div>
-      )}
+      <VideoGallery videos={videos} className="grid grid-cols-1 sm:grid-cols-2 gap-3" />
 
       {images.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
